@@ -1,4 +1,5 @@
-import React, { useRef, useState } from "react";
+// src/pages/Auth/ForgotPasswordPage.jsx
+import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
@@ -16,18 +17,63 @@ export default function ForgotPasswordPage() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // Thông báo
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const hideTimerRef = useRef(null);
 
-  // 👁 hiện/ẩn mật khẩu
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  // OTP
+  const OTP_LEN = 6;
+  const [otp, setOtp] = useState(Array(OTP_LEN).fill(""));
+  const otpRefs = useRef([]);
 
+  // ===== Helpers: đảm bảo chỉ một loại thông báo + auto-hide =====
+  const clearTimer = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  };
+
+  const showError = (msg, autoHideMs = 3000) => {
+    clearTimer();
+    setSuccessMsg("");
+    setError(msg);
+    if (autoHideMs) {
+      hideTimerRef.current = setTimeout(() => setError(""), autoHideMs);
+    }
+  };
+
+  const showSuccess = (msg, autoHideMs = 3000) => {
+    clearTimer();
+    setError("");
+    setSuccessMsg(msg);
+    if (autoHideMs) {
+      hideTimerRef.current = setTimeout(() => setSuccessMsg(""), autoHideMs);
+    }
+  };
+
+  useEffect(() => {
+    return () => clearTimer(); // cleanup khi unmount
+  }, []);
+
+  // Focus ô OTP đầu khi sang step 2
+  useEffect(() => {
+    if (step === 2) {
+      // chờ render xong input
+      const t = setTimeout(() => otpRefs.current[0]?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [step]);
+
+  // Xoá thông báo khi người dùng gõ lại input form
   const onChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-    setError("");
-    setSuccessMsg("");
+    if (error) setError("");
+    if (successMsg) setSuccessMsg("");
+    clearTimer();
   };
 
   /* =========================
@@ -36,31 +82,31 @@ export default function ForgotPasswordPage() {
    * ========================= */
   const handleSendEmail = async (e) => {
     e.preventDefault();
-    if (!form.email) return setError("Vui lòng nhập email!");
+    if (!form.email) return showError("Vui lòng nhập email!");
 
     // Kiểm tra định dạng email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(form.email)) {
-      return setError("Email không hợp lệ! Vui lòng nhập đúng định dạng.");
+      return showError("Email không hợp lệ! Vui lòng nhập đúng định dạng.");
     }
 
     setLoading(true);
     setError("");
     setSuccessMsg("");
 
+    // Demo giả lập API
     setTimeout(() => {
-      // DEMO: email chứa "fail" => báo lỗi
-      const fail = form.email.toLowerCase().includes("fail");
       setLoading(false);
-
+      const fail = form.email.toLowerCase().includes("fail");
       if (fail) {
-        setError("Gửi mã thất bại, vui lòng thử lại!");
+        showError("Gửi mã thất bại, vui lòng thử lại!");
       } else {
-        setSuccessMsg(" Mã xác minh đã được gửi tới email của bạn!");
+        showSuccess("Mã xác minh đã được gửi tới email của bạn!", 1200);
+        // chuyển sang step 2 sau khi hiển thị success ngắn
         setTimeout(() => {
           setStep(2);
           setSuccessMsg("");
-          // focus ô OTP đầu tiên
+          setOtp(Array(OTP_LEN).fill(""));
           otpRefs.current[0]?.focus();
         }, 1200);
       }
@@ -71,21 +117,26 @@ export default function ForgotPasswordPage() {
    *           STEP 2
    *     OTP 6 Ô NHẬP MÃ
    * ========================= */
-  const OTP_LEN = 6;
-  const [otp, setOtp] = useState(Array(OTP_LEN).fill(""));
-  const otpRefs = useRef([]);
-
   const handleOtpChange = (idx, val) => {
     const v = val.replace(/\D/g, "").slice(0, 1); // chỉ số 0-9
     const next = [...otp];
     next[idx] = v;
     setOtp(next);
+
+    // xóa thông báo cũ khi gõ lại OTP
+    if (error) setError("");
+    if (successMsg) setSuccessMsg("");
+    clearTimer();
+
     if (v && idx < OTP_LEN - 1) otpRefs.current[idx + 1]?.focus();
   };
 
   const handleOtpKeyDown = (idx, e) => {
-    if (e.key === "Backspace" && !otp[idx] && idx > 0) {
-      otpRefs.current[idx - 1]?.focus();
+    if (e.key === "Backspace") {
+      if (!otp[idx] && idx > 0) {
+        otpRefs.current[idx - 1]?.focus();
+      }
+      return;
     }
     if (e.key === "ArrowLeft" && idx > 0) otpRefs.current[idx - 1]?.focus();
     if (e.key === "ArrowRight" && idx < OTP_LEN - 1) otpRefs.current[idx + 1]?.focus();
@@ -99,6 +150,11 @@ export default function ForgotPasswordPage() {
     const next = [...otp];
     for (let i = 0; i < OTP_LEN; i++) next[i] = arr[i] || "";
     setOtp(next);
+
+    if (error) setError("");
+    if (successMsg) setSuccessMsg("");
+    clearTimer();
+
     const last = Math.min(arr.length, OTP_LEN) - 1;
     if (last >= 0) otpRefs.current[last]?.focus();
   };
@@ -106,20 +162,20 @@ export default function ForgotPasswordPage() {
   const handleVerifyCode = async (e) => {
     e.preventDefault();
     const code = otp.join("");
-    if (code.length < OTP_LEN) return setError("Vui lòng nhập đủ 6 số mã xác minh!");
-    setLoading(true);
+    if (code.length < OTP_LEN) return showError("Vui lòng nhập đủ 6 số mã xác minh!");
 
+    setLoading(true);
     setTimeout(() => {
       setLoading(false);
       if (code !== "123456") {
-        setError("Mã xác minh không đúng! Vui lòng kiểm tra lại.");
+        showError("Mã xác minh không đúng! Vui lòng kiểm tra lại.");
         return;
       }
-      setSuccessMsg(" Xác minh thành công!");
+      showSuccess("Xác minh thành công!", 1000);
       setTimeout(() => {
         setStep(3);
         setSuccessMsg("");
-      }, 1200);
+      }, 1000);
     }, 900);
   };
 
@@ -127,6 +183,9 @@ export default function ForgotPasswordPage() {
    *           STEP 3
    *       ĐỔI MẬT KHẨU
    * ========================= */
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
   const handleChangePassword = async (e) => {
     e.preventDefault();
 
@@ -134,21 +193,21 @@ export default function ForgotPasswordPage() {
       /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+{}\[\]:;<>,.?~\\/\-]).{6,}$/;
 
     if (!form.newPassword || !form.confirmPassword)
-      return setError("Vui lòng nhập đầy đủ mật khẩu!");
+      return showError("Vui lòng nhập đầy đủ mật khẩu!");
 
     if (form.newPassword.length < 6)
-      return setError("Mật khẩu phải có ít nhất 6 ký tự!");
+      return showError("Mật khẩu phải có ít nhất 6 ký tự!");
 
     if (!passwordRegex.test(form.newPassword))
-      return setError("Mật khẩu phải có chữ cái, số và ký tự đặc biệt!");
+      return showError("Mật khẩu phải có chữ cái, số và ký tự đặc biệt!");
 
     if (form.newPassword !== form.confirmPassword)
-      return setError("Mật khẩu nhập lại không khớp!");
+      return showError("Mật khẩu nhập lại không khớp!");
 
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      setShowSuccess(true);
+      setShowSuccessModal(true); // hiện modal sau khi đổi thành công
     }, 900);
   };
 
@@ -239,7 +298,13 @@ export default function ForgotPasswordPage() {
               <button
                 type="button"
                 className="btn btn-link p-0"
-                onClick={() => setStep(1)}
+                onClick={() => {
+                  setStep(1);
+                  setOtp(Array(OTP_LEN).fill(""));
+                  setError("");
+                  setSuccessMsg("");
+                  clearTimer();
+                }}
               >
                 Nhập lại email
               </button>
@@ -249,9 +314,12 @@ export default function ForgotPasswordPage() {
                 className="btn btn-link p-0"
                 onClick={() => {
                   setLoading(true);
+                  setError("");
+                  setSuccessMsg("");
+                  clearTimer();
                   setTimeout(() => {
                     setLoading(false);
-                    setSuccessMsg(" Đã gửi lại mã xác minh vào email của bạn!");
+                    showSuccess("Đã gửi lại mã xác minh vào email của bạn!");
                   }, 800);
                 }}
               >
@@ -312,6 +380,7 @@ export default function ForgotPasswordPage() {
             </div>
 
             {error && <div className="auth-error">{error}</div>}
+            {successMsg && <div className="auth-success">{successMsg}</div>}
 
             <div className="d-grid mb-3">
               <button
@@ -329,8 +398,8 @@ export default function ForgotPasswordPage() {
 
       {/* Modal thành công */}
       <LoginSuccessModal
-        open={showSuccess}
-        onClose={() => setShowSuccess(false)}
+        open={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
         seconds={3}
         title="Đổi mật khẩu"
         message="Thay đổi mật khẩu thành công!"

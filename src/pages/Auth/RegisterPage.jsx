@@ -4,6 +4,7 @@ import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
 import AccountExistsModal from "../../components/common/Modal/AccountExistsModal";
 import "../../styles/AuthForms.css";
+import ReCAPTCHA from "react-google-recaptcha";
 
 export default function RegisterPage() {
   // step 1: nhập thông tin  — step 2: nhập mã OTP
@@ -16,6 +17,7 @@ export default function RegisterPage() {
     confirmPassword: "",
   });
 
+  const [captchaValue, setCaptchaValue] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showExists, setShowExists] = useState(false);
@@ -30,6 +32,8 @@ export default function RegisterPage() {
   const OTP_LENGTH = 6;
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""));
   const otpRefs = useRef([]);
+  // ✅ Thêm ref để reset reCAPTCHA
+  const captchaRef = useRef(null); 
 
   const onChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -67,6 +71,15 @@ export default function RegisterPage() {
     const err = validateStep1();
     if (err) return setError(err);
 
+    // Kiểm tra reCAPTCHA chỉ ở bước 1
+    if (!captchaValue) {
+      return setError("Vui lòng xác minh captcha để tiếp tục!");
+    }
+    
+    // Clear lỗi/thông báo thành công trước khi submit
+    setError("");
+    setSuccessMsg("");
+
     try {
       setLoading(true);
 
@@ -76,7 +89,7 @@ export default function RegisterPage() {
         form.email.toLowerCase().includes("1234");
 
       setTimeout(() => {
-        if (isExists) {
+if (isExists) {
           setShowExists(true); // mở modal "tài khoản đã tồn tại"
         } else {
           // Demo gửi OTP thành công
@@ -84,8 +97,10 @@ export default function RegisterPage() {
           // reset OTP trước khi vào bước 2
           setOtp(Array(OTP_LENGTH).fill(""));
           setTimeout(() => {
-            setStep(2);
+            // Reset lỗi/thông báo thành công khi chuyển bước
+            setError(""); 
             setSuccessMsg("");
+            setStep(2);
             // focus ô đầu tiên
             otpRefs.current[0]?.focus();
           }, 1200);
@@ -104,6 +119,8 @@ export default function RegisterPage() {
     const next = [...otp];
     next[idx] = v;
     setOtp(next);
+    // Clear lỗi khi bắt đầu nhập
+    setError(""); 
     if (v && idx < OTP_LENGTH - 1) otpRefs.current[idx + 1]?.focus();
   };
 
@@ -130,6 +147,7 @@ export default function RegisterPage() {
   // Submit STEP 2: xác minh mã
   const onSubmitStep2 = async (e) => {
     e.preventDefault();
+    setError(""); // Clear lỗi trước khi submit bước 2
     const code = otp.join("");
     if (code.length < OTP_LENGTH) return setError("Vui lòng nhập đủ 6 số OTP!");
 
@@ -163,7 +181,7 @@ export default function RegisterPage() {
               </span>
               <input
                 type="text"
-                className="form-control"
+className="form-control"
                 name="username"
                 placeholder="Tên người dùng"
                 onChange={onChange}
@@ -239,6 +257,20 @@ export default function RegisterPage() {
             {error && <div className="auth-error">{error}</div>}
             {successMsg && <div className="auth-success">{successMsg}</div>}
 
+            {/* reCAPTCHA */}
+            <div className="mb-3 mt-3 d-flex justify-content-center">
+              <ReCAPTCHA
+                // ✅ Gán ref
+                ref={captchaRef}
+sitekey="6LcxkgMsAAAAAHeuksM9h7ypHtcx2iAF3C29X0yB"
+                onChange={value => {
+                    setCaptchaValue(value);
+                    if (value) setError(""); 
+                }}
+                onExpired={() => setCaptchaValue(null)} 
+              />
+            </div>
+
             {/* Submit: Gửi mã */}
             <div className="d-grid mb-3 mt-2">
               <button type="submit" className="btn btn-primary" disabled={loading}>
@@ -292,7 +324,15 @@ export default function RegisterPage() {
               <button
                 type="button"
                 className="btn btn-link p-0"
-                onClick={() => setStep(1)}
+                onClick={() => {
+                    // Reset lỗi/thông báo khi quay lại bước 1
+                    setError(""); 
+                    setSuccessMsg("");
+                    // ✅ Reset reCAPTCHA
+                    setCaptchaValue(null);
+                    captchaRef.current?.reset();
+                    setStep(1);
+                }}
               >
                 Nhập lại thông tin
               </button>
@@ -300,7 +340,10 @@ export default function RegisterPage() {
               <button
                 type="button"
                 className="btn btn-link p-0"
+                disabled={loading}
                 onClick={() => {
+                  setError("");
+setSuccessMsg(""); 
                   setLoading(true);
                   setTimeout(() => {
                     setLoading(false);

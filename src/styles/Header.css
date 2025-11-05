@@ -2,13 +2,18 @@
   background-color: transparent !important;
   box-shadow: none !important; }
 .app-header__logo {   
-  height: 40px;
-  width: 40px;
+  height: 70px;
+  width: 70px;
   border-radius: 50%;        /* bo tròn hoàn hảo */
   object-fit: cover;         /* căn đều, không méo */
-  border: 3px solid #fff;    /* viền trắng nhẹ (tuỳ chọn) */
   box-shadow: 0 0 10px rgba(0,0,0,0.2); /* đổ bóng nhẹ */
   display: flex; 
   flex-direction: column; }
-.app-header__title { font-weight: 700; }
-.app-header__subtitle { color: #6b7280; font-size: 14px; }
+.app-header__title {
+  color: #1e3a8a; /* xanh navy đậm – dễ nhìn, hợp nền trắng */
+  font-weight: 700;
+}
+.app-header__subtitle {
+  color: #2563eb; /* xanh lam sáng – nổi bật nhẹ */
+  font-size: 14px;
+}

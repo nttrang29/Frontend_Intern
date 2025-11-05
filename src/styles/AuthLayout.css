@@ -1,17 +1,86 @@
+/* ================== Toàn trang auth ================== */
+:root{
+  /* khoảng chừa cho form (tùy layout thực tế của bạn) */
+  --form-gutter: 520px;
+  /* tỉ lệ bề rộng tối đa mỗi video so với viewport rộng */
+  --video-maxvw: 48vw;
+}
+
 .auth-page {
-  background: url("../assets/imgdangnhap.png") center/cover no-repeat;
+  position: relative;   /* tạo stacking context cho con */
+  min-height: 100vh;
+  overflow: hidden;
+  z-index: 0;
+  background: #fff;     /* ✅ nền trắng đồng bộ bên trái */
 }
 
-/* lớp phủ nhẹ để dễ đọc form trên nền */
-.auth-page::after {
-  content: "";
-  position: fixed; inset: 0;
-  background: rgba(255,255,255,.08);
-  pointer-events: none;
+/* ================== Vùng nền video ================== */
+/* Dùng 1 container duy nhất cho background (giữ nguyên markup của bạn) */
+/* Vùng chứa hai video: dùng flex để ghép sát nhau */
+.auth-page__bg {
+  position: fixed;
+  inset: 0;
+  display: flex;              /* 👈 sắp hai video theo hàng ngang */
+  justify-content: space-between;
+  align-items: center;
+  z-index: -1;
+  background: #fff;
 }
 
-.auth-page__main { padding: 32px 16px; }
+/* Video chung */
+.auth-page__video {
+  flex: 1;                    /* 👈 mỗi video chia đều không gian */
+  height: 100vh;
+  width: auto;
+  object-fit: cover;          /* 👈 hiển thị đầy khung, không vỡ hình */
+  filter: brightness(0.95);
+  background-color: #fff;
+}
 
+/* Video bên trái */
+.auth-page__video--left {
+  object-position: left center;
+  transform: none;
+}
+
+/* Video bên phải (rộng hơn) */
+.auth-page__video--right {
+  flex: 1.2; /* 👈 tăng độ rộng video phải (1.0 là mặc định, bạn có thể chỉnh 1.1–1.3) */
+  object-position: right center;
+  transform: scaleX(-1); /* nếu cần lật gương */
+}
+
+/* Responsive: ẩn video trái khi màn nhỏ */
+@media (max-width: 992px) {
+  .auth-page__video--left { display: none; }
+  .auth-page__video--right { flex: 1; }
+}
+/* Nếu bạn muốn overlay CHỈ phủ vùng video bên phải, bật class dưới trên body:
+   <div class="auth-page overlay-fit-right"> ... */
+.auth-page.overlay-fit-right .auth-page__overlay {
+  right: 0;
+  left: auto;
+  width: var(--video-maxvw);
+  background: rgba(255,255,255,0.20);
+}
+
+/* Nếu muốn overlay chỉ phủ cả hai video (trái+phải), dùng grid (tùy chọn nâng cao) */
+/* .auth-page.overlay-fit-both .auth-page__overlay { ... } */
+
+/* ================== Nội dung form & phần chung ================== */
+.auth-page__main {
+  position: relative;
+  z-index: 1; /* cao hơn overlay */
+  padding: 32px 16px;
+}
+
+.auth-page header,
+.auth-page footer {
+  position: relative;
+  z-index: 1;
+}
+
+/* Card form */
 .auth-page__stage {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 12px;
@@ -19,4 +88,22 @@
   width: 100%;
   max-width: 420px;
   padding: 24px;
+}
+
+/* ================== Responsive ================== */
+@media (max-width: 1400px) {
+  :root { --video-maxvw: 44vw; }
+}
+@media (max-width: 1200px) {
+  :root { --video-maxvw: 40vw; }
+}
+@media (max-width: 992px) {
+  /* Màn nhỏ: ưu tiên nội dung, ẩn video trái */
+  .auth-page__video--left { display: none; }
+  :root { --video-maxvw: 70vw; }
+}
+
+/* ================== Reduce motion ================== */
+@media (prefers-reduced-motion: reduce) {
+  .auth-page__video { display: none; }
 }
