@@ -1,17 +1,19 @@
-// src/pages/Auth/LoginPage.jsx
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
-import AccountExistsModal from "../../components/common/Modal/AccountExistsModal"; // tái dùng làm modal lỗi đăng nhập
+import AccountExistsModal from "../../components/common/Modal/AccountExistsModal";
 import "../../styles/AuthForms.css";
 
+const API_URL = "http://localhost:8080/auth";
+
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showInvalid, setShowInvalid] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // 👁 hiện/ẩn mật khẩu
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
   const onChange = (e) => {
@@ -22,7 +24,6 @@ export default function LoginPage() {
   const onSubmit = async (e) => {
     e.preventDefault();
 
-    // ✅ Validate email
     if (!form.email || !form.password) {
       return setError("Vui lòng nhập đầy đủ email và mật khẩu!");
     }
@@ -31,34 +32,46 @@ export default function LoginPage() {
       return setError("Email không hợp lệ! Vui lòng nhập đúng định dạng.");
     }
 
-    // ✅ Validate password (giống đăng ký): ≥6 ký tự + chữ cái + số + ký tự đặc biệt
     const passwordRegex =
-      /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+{}\[\]:;<>,.?~\\/\-]).{6,}$/;
-    if (form.password.length < 6) {
-      return setError("Mật khẩu phải có ít nhất 6 ký tự!");
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'\",.<>\/?~]).{8,}$/;
+
+    if (form.password.length < 8) {
+      return setError("Mật khẩu phải có ít nhất 8 ký tự!");
     }
     if (!passwordRegex.test(form.password)) {
-      return setError("Mật khẩu phải có chữ cái, số và ký tự đặc biệt!");
+      return setError(
+        "Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt!"
+      );
     }
 
     try {
       setLoading(true);
 
-      // TODO: gọi API đăng nhập thật bằng email + password
-      // const res = await authService.loginByEmail(form.email, form.password);
-      // if (res.status === 200) setShowSuccess(true);
-      // else if (res.status === 401) setShowInvalid(true);
+      const response = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password
+        })
+      });
 
-      // DEMO: email cố định & password cố định
-      setTimeout(() => {
-        const ok = form.email === "admin@example.com" && form.password === "Abc@123";
-        if (ok) {
-          localStorage.setItem("accessToken", "mock.token");
-          setShowSuccess(true);
-        } else {
-          setShowInvalid(true); // sai thông tin đăng nhập
-        }
-      }, 800);
+      const data = await response.json();
+
+      if (response.ok && data.accessToken) {
+        localStorage.setItem("accessToken", data.accessToken);
+        setShowSuccess(true);
+      } else if (response.status === 401 || response.status === 400) {
+        setShowInvalid(true);
+      } else if (data?.error) {
+        setError(data.error);
+      } else {
+        setError("Lỗi kết nối đến máy chủ. Vui lòng kiểm tra Backend (cổng 8080).");
+      }
+    } catch (err) {
+      setError("Không thể kết nối server. Kiểm tra backend giúp nhé.");
     } finally {
       setLoading(false);
     }
@@ -69,9 +82,10 @@ export default function LoginPage() {
       <form className="auth-form" onSubmit={onSubmit}>
         <h3 className="text-center mb-4">Đăng nhập</h3>
 
-        {/* Email */}
         <div className="mb-3 input-group">
-          <span className="input-group-text"><i className="bi bi-envelope-fill"></i></span>
+          <span className="input-group-text">
+            <i className="bi bi-envelope-fill"></i>
+          </span>
           <input
             type="email"
             className="form-control"
@@ -82,9 +96,10 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* Password có mắt 👁 bên trong */}
         <div className="mb-2 input-group">
-          <span className="input-group-text"><i className="bi bi-lock-fill"></i></span>
+          <span className="input-group-text">
+            <i className="bi bi-lock-fill"></i>
+          </span>
           <input
             type={showPassword ? "text" : "password"}
             className="form-control"
@@ -103,17 +118,14 @@ export default function LoginPage() {
           </span>
         </div>
 
-        {/* Lỗi validate chung */}
         {error && <div className="auth-error">{error}</div>}
 
-        {/* Nút login */}
         <div className="d-grid mb-3 mt-2">
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? "Đang xử lý..." : "Đăng nhập"}
           </button>
         </div>
 
-        {/* Liên kết */}
         <div className="text-center">
           <Link to="/forgot-password" className="text-decoration-none link-hover me-3">
             Quên mật khẩu?
@@ -129,7 +141,6 @@ export default function LoginPage() {
           <hr className="flex-grow-1" />
         </div>
 
-        {/* Nút đăng nhập mạng xã hội */}
         <div className="d-grid gap-2">
           <button type="button" className="btn btn-outline-danger">
             <i className="bi bi-google me-2"></i> Google
@@ -137,7 +148,6 @@ export default function LoginPage() {
         </div>
       </form>
 
-      {/* Modal: Đăng nhập thành công */}
       <LoginSuccessModal
         open={showSuccess}
         onClose={() => setShowSuccess(false)}
@@ -147,7 +157,6 @@ export default function LoginPage() {
         redirectUrl="/home"
       />
 
-      {/* Modal: Sai tài khoản hoặc mật khẩu */}
       <AccountExistsModal
         open={showInvalid}
         onClose={() => setShowInvalid(false)}
