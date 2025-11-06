@@ -1,0 +1,228 @@
+/* =========================================================
+   TOPBAR – Clean & Grouped
+   Sections:
+   1) Wrapper & Welcome
+   2) Search (pill)
+   3) Actions & Divider
+   4) Icon & Avatar (common)
+   5) Dropdowns (panel, badge)
+   6) Notification list
+   7) User menu
+   8) Responsive
+   ========================================================= */
+
+/* ============ 1) WRAPPER & WELCOME ============ */
+.tb__wrap {
+  background: var(--surface, #fff);
+  border-radius: var(--radius, 14px);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+}
+
+.tb__welcome {
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  white-space: nowrap;
+}
+
+/* ============ 2) SEARCH (PILL STYLE) ============ */
+.tb__search--pill {
+  flex: 1;
+  max-width: 520px;              /* độ dài tối đa */
+  height: 34px;
+  background: #f3f4f6;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  border: 1px solid #e5e7eb;
+  position: relative;
+}
+
+.tb__search--pill input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  height: 100%;
+}
+
+.tb__search-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 26px;
+  border: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  background: #5b3cc4;          /* tím như mockup */
+  color: #fff;
+  display: grid;
+  place-items: center;
+  transition: filter 0.2s, transform 0.06s;
+}
+
+.tb__search-btn:hover { filter: brightness(1.05); }
+.tb__search-btn:active { transform: translateY(-50%) scale(0.98); }
+
+/* ============ 3) ACTIONS & DIVIDER ============ */
+.tb__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.tb__divider {
+  width: 1px;
+  height: 26px;
+  background: #e5e7eb;
+}
+
+/* ============ 4) ICON & AVATAR (COMMON) ============ */
+.tb__icon {
+  width: 36px;
+  height: 36px;
+  border: none;
+  cursor: pointer;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  color: #475569;
+  transition: all 0.2s;
+}
+
+.tb__icon:hover {
+  background: #e9eef6;
+  color: #5b3cc4;
+}
+
+.tb__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #e2e8f0;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.tb__avatar:hover { border-color: #3b82f6; }
+
+.tb__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ============ 5) DROPDOWNS (PANEL, BADGE) ============ */
+.tb__dd { position: relative; }
+
+.tb__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.dd__panel {
+  position: absolute;
+  right: 0;
+  top: 46px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.15);
+  padding: 8px;
+  z-index: 100;
+  animation: tbFadeIn 0.15s ease-in-out;
+}
+
+@keyframes tbFadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ 6) NOTIFICATION LIST ============ */
+.dd__head { font-weight: 700; padding: 6px 8px 10px; }
+
+.dd__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.dd__item {
+  padding: 10px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dd__item:hover { background: #f7f7fb; }
+
+.dd__title { font-size: 14px; }
+.dd__time  { font-size: 12px; color: #6b7280; }
+
+.dd__foot {
+  padding-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ============ 7) USER MENU ============ */
+.dd__section { padding: 4px; }
+
+.dd__link {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: transparent;
+  border: 0;
+  font-size: 14px;
+  color: #0f172a;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.dd__link:hover { background: #f5f7fb; }
+.dd__link:active { transform: translateY(1px); }
+
+.dd__icon { font-size: 18px; width: 20px; text-align: center; }
+
+.dd__danger { color: #ef4444; }
+.dd__danger:hover { background: #fee2e2; }
+
+.dd__divider { height: 1px; background: #e5e7eb; margin: 6px 0; }
+
+/* Button reset (nếu cần cho các nút dạng <button>) */
+.btn-reset {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* ============ 8) RESPONSIVE ============ */
+@media (max-width: 768px) {
+  .tb__welcome { display: none; }
+  .tb__search--pill { max-width: 100%; }
+}

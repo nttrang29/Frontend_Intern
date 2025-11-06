@@ -1,0 +1,110 @@
+/* =========================================================
+   Sidebar – smooth collapse/expand
+   ========================================================= */
+
+/* Kích thước chuẩn/collapsed dùng biến để transition mượt */
+:root{
+  --sb-w: 260px;
+  --sb-wc: 78px;
+}
+
+/* Khung chứa (div.home__sidebar) nên đặt width theo biến */
+.home__sidebar{ width: var(--sb-w); transition: width .25s ease; }
+.sb-collapsed .home__sidebar{ width: var(--sb-wc); }
+
+/* ===== CONTAINER ===== */
+.sb__container{
+  height:100%;
+  background: linear-gradient(180deg, var(--sb-grad-1), var(--sb-grad-2));
+  border-radius: var(--radius);
+  color:#fff;
+  padding: 18px 12px;
+  position:relative;
+  box-shadow: 0 8px 18px rgba(90,61,214,.25);
+  display:flex; flex-direction:column;
+  transition: padding .25s ease;
+}
+
+/* ===== HAMBURGER (thay logo) ===== */
+.sb__hamburger{
+  width:48px;height:48px;border-radius:14px;border:0;
+  background: rgba(255,255,255,.25);
+  color:#fff;font-size:22px;cursor:pointer;margin: 2px auto 14px;
+  display:grid;place-items:center;backdrop-filter: blur(6px);
+  box-shadow:0 4px 12px rgba(0,0,0,.15);
+  transition: transform .25s ease, background .2s ease;
+}
+.sb__hamburger:hover{ background: rgba(255,255,255,.35); transform: scale(1.07); }
+
+/* ===== NAV ===== */
+.sb__nav{ display:flex; flex-direction:column; gap:10px; margin-top:8px; }
+
+.sb__link{
+  position:relative;                      /* cho tooltip */
+  display:flex; align-items:center; gap:12px;
+  padding:10px 12px; border-radius:999px;
+  color:#eef2ff; text-decoration:none; opacity:.95;
+  transition: background .18s ease, color .18s ease, padding .25s ease, justify-content .25s ease;
+}
+.sb__link:hover{ background: rgba(255,255,255,.16); opacity:1; }
+.sb__link.is-active{ background:#fff; color:#2b2e4a; box-shadow:0 8px 18px rgba(0,0,0,.12); }
+
+.sb__icon{ width:22px; text-align:center; }
+.sb__icon .bi{ font-size:18px; line-height:1; }
+
+/* Text: dùng max-width + opacity để ẩn/hiện mượt */
+.sb__text{
+  font-weight:600; white-space:nowrap;
+  max-width:160px; overflow:hidden; text-overflow:ellipsis;
+  transition: max-width .25s ease, opacity .18s ease;
+  opacity:1;
+}
+
+/* ===== COLLAPSE STATE (dựa trên class sb-collapsed ở <body>) ===== */
+.sb-collapsed .sb__container{ padding: 18px 8px; }
+.sb-collapsed .sb__link{ justify-content:center; padding:10px; }
+.sb-collapsed .sb__text{ max-width:0; opacity:0; margin:0; }
+.sb-collapsed .sb__icon{ margin:0; }
+
+/* ===== FOOTER DECOR ===== */
+.sb__footer{ margin-top:auto; position:relative; height:120px; border-bottom-left-radius:var(--radius); overflow:hidden; }
+.sb__leaf{
+  position:absolute; inset:auto -40px -40px -40px;
+  background:
+    radial-gradient(120px 120px at 20% 20%, rgba(255,255,255,.25), transparent 60%),
+    radial-gradient(180px 180px at 80% 80%, rgba(255,255,255,.18), transparent 60%);
+  opacity:.7;
+}
+
+/* ===== Tooltip khi collapsed ===== */
+.sb-collapsed .sb__link[title]:hover::after{
+  content: attr(title);
+  position:absolute; left: calc(100% + 8px); top:50%; transform:translateY(-50%);
+  background: rgba(0,0,0,.8); color:#fff; font-size:12px; padding:4px 8px;
+  border-radius:6px; white-space:nowrap; pointer-events:none;
+}
+
+/* ===== Responsive ===== */
+/* ===== Responsive ===== */
+@media (max-width: 1024px){
+  :root{ --sb-w: 220px; }              /* sidebar hẹp hơn 1 chút ở tablet */
+}
+
+/* Mobile: KHÔNG ẩn, chuyển sang rail (icon-only) */
+@media (max-width: 768px){
+  /* width luôn là rail */
+  .home__sidebar{ 
+    width: var(--sb-wc); 
+    transition: width .25s ease; 
+    z-index: 5;                         /* nổi trên content khi cuộn */
+  }
+
+  /* container & hamburger gọn hơn */
+  .sb__container{ padding: 16px 6px; }
+  .sb__hamburger{ width: 40px; height: 40px; }
+
+  /* menu: căn giữa, ẩn text mượt */
+  .sb__link{ justify-content: center; padding: 10px; }
+  .sb__text{ max-width: 0; opacity: 0; margin: 0; }
+  .sb__icon{ margin: 0; }
+}

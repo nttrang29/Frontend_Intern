@@ -1,0 +1,46 @@
+:root{
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --sb-grad-1:#5a3dd6;
+  --sb-grad-2:#8a5cff;
+  --text:#0f172a;
+  --muted:#6b7280;
+  --radius: 22px;
+  --gap: 18px;
+}
+
+.home__wrap {
+  display: flex;
+  min-height: 100vh;
+background: linear-gradient(135deg, #ebe4ff 0%, #f4f0ff 100%);
+  padding: 20px;
+  gap: var(--gap);
+}
+
+
+.home__sidebar{
+  width: 260px;
+}
+
+.home__main{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap: var(--gap);
+  min-width:0;
+}
+
+.home__content{
+  background: transparent;
+  padding-bottom: 24px;
+}
+@media (max-width: 1024px){
+  .home__sidebar{ width: 230px; }
+}
+@media (max-width: 768px){
+  .home__wrap{ padding: 12px; }
+.home__sidebar { 
+    display: block;                 /* <— KHÔNG ẩn nữa */
+    width: var(--sb-wc);            /* dùng rail width */
+  }
+}

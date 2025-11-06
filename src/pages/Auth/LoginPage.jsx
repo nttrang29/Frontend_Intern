@@ -60,8 +60,27 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      if (response.ok && data.accessToken) {
-        localStorage.setItem("accessToken", data.accessToken);
+     if (response.ok && data.accessToken) {
+  // ✅ Lưu token như cũ
+  localStorage.setItem("accessToken", data.accessToken);
+
+  // ✅ Lưu thông tin user nếu backend trả kèm
+  if (data.user) {
+    localStorage.setItem("user", JSON.stringify(data.user));
+  } else {
+    // 🔁 Fallback: gọi /auth/me để lấy thông tin user từ token
+    try {
+      const meRes = await fetch(`${API_URL}/me`, {
+        headers: { Authorization: `Bearer ${data.accessToken}` }
+      });
+      if (meRes.ok) {
+        const me = await meRes.json();
+        localStorage.setItem("user", JSON.stringify(me));
+      }
+    } catch (_) {
+      // im lặng nếu lỗi, vẫn cho đăng nhập (vì đã có token)
+    }
+  }
         setShowSuccess(true);
       } else if (response.status === 401 || response.status === 400) {
         setShowInvalid(true);
@@ -142,10 +161,18 @@ export default function LoginPage() {
         </div>
 
         <div className="d-grid gap-2">
-          <button type="button" className="btn btn-outline-danger">
-            <i className="bi bi-google me-2"></i> Google
-          </button>
-        </div>
+  <button
+  type="button"
+  className="btn btn-outline-danger"
+  onClick={() => {
+    const callback = `${window.location.origin}/oauth/callback`;
+    window.location.href = `${API_URL}/oauth2/authorization/google?redirect_uri=${encodeURIComponent(callback)}`;
+  }}
+>
+  <i className="bi bi-google me-2"></i> Google
+</button>
+</div>
+
       </form>
 
       <LoginSuccessModal

@@ -186,7 +186,7 @@ export default function ForgotPasswordPage() {
 
     if (form.newPassword.length < 8 || !passwordRegex.test(form.newPassword))
       return setError(
-        "Mật khẩu phải ≥8 ký tự, có chữ hoa, thường, số, ký tự đặc biệt!"
+        "Mật khẩu phải ≥6 ký tự, có chữ hoa, thường, số, ký tự đặc biệt!"
       );
 
     if (form.newPassword !== form.confirmPassword)
