@@ -64,13 +64,12 @@ export default function ForgotPasswordPage() {
 
       if (response.ok) {
         // Backend trả về: { message: "Mã xác thực đã gửi đến email" }
-        setSuccessMsg(data.message || "Mã xác minh đã được gửi tới email của bạn!");
-        setTimeout(() => {
-          setStep(2);
-          setSuccessMsg("");
-          // focus ô OTP đầu tiên
-          otpRefs.current[0]?.focus();
-        }, 1200);
+        setSuccessMsg(data.message || "Mã xác minh đã được gửi!");
+       setTimeout(() => {
+        setStep(2);
+        setSuccessMsg("");
+      otpRefs.current[0]?.focus();
+  }, 1200);
       } else {
         // Backend trả về: { error: "Email không tồn tại" }
         setError(data.error || "Gửi mã thất bại. Vui lòng thử lại.");
