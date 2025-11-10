@@ -53,15 +53,16 @@ export default function WalletCard({ wallet, onView, onEdit, onDelete }) {
               ref={btnRef}
               type="button"
               className="btn btn-sm btn-light"
-              data-bs-toggle="dropdown"
+              data-bs-toggle="dropdown" 
               data-bs-auto-close="outside"
+              data-bs-offset="0,10"
               aria-expanded="false"
               aria-haspopup="true"
             >
-              <i className="bi bi-three-dots"></i>
+              <i className="bi bi-three-dots-vertical"></i>
             </button>
 
-            <ul className="dropdown-menu dropdown-menu-end shadow-sm">
+            <ul className="dropdown-menu dropdown-menu-end shadow-lg wallet-dd">
               <li>
                 <button
                   type="button"

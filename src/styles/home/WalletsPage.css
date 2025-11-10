@@ -338,3 +338,74 @@
   border-radius: 12px !important;
   box-shadow: 0 12px 32px rgba(0,0,0,.18) !important;
 }
+/* Nút 3 chấm gọn, nổi nhẹ */
+.wc-menu-btn{
+  width: 34px; height: 34px; border-radius: 50%;
+  display:flex; align-items:center; justify-content:center;
+  border: 0; background: #ffffffcf;
+  box-shadow: 0 2px 8px rgba(16,24,40,.12);
+  transition: transform .2s ease, box-shadow .25s ease, background-color .2s ease;
+}
+.wc-menu-btn:hover{
+  transform: translateY(-1px);
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(16,24,40,.18);
+}
+ 
+/* Dropdown đẹp – bo góc, bóng đổ, không bị đè */
+.wallet-dd{
+  --dd-bg: #fff;
+  --dd-border: rgba(16,24,40,.08);
+ 
+  padding: .35rem;
+  border-radius: 14px;
+  border: 1px solid var(--dd-border);
+  background: var(--dd-bg);
+  box-shadow:
+    0 16px 40px rgba(16,24,40,.18),
+    0 2px 6px rgba(16,24,40,.08);
+  z-index: 3000 !important;                    /* ➜ nổi trên mọi thứ */
+  overflow: hidden;                             /* bo góc thật */
+  transform-origin: top right;                  /* hiệu ứng bung */
+  animation: ddPop .14s cubic-bezier(.2,.8,.3,1) both;
+}
+ 
+/* Mũi tên nhỏ (tuỳ thích) */
+.wallet-dd::before{
+  content:""; position:absolute; top:-8px; right:14px;
+  border-width: 8px; border-style: solid;
+  border-color: transparent transparent var(--dd-bg) transparent;
+  filter: drop-shadow(0 -1px 0 var(--dd-border));
+}
+ 
+/* Item đẹp + hover mượt */
+.wallet-dd .dropdown-item{
+  border-radius: 10px;
+  padding: .55rem .75rem;
+  display:flex; align-items:center;
+  gap:.4rem; font-weight: 500;
+  transition: background-color .18s ease, transform .12s ease, color .18s ease;
+}
+.wallet-dd .dropdown-item .bi{ font-size: 1rem; opacity:.9; }
+ 
+.wallet-dd .dropdown-item:hover{
+  background: linear-gradient(90deg,#eef2ff,#f5f7ff);
+  transform: translateX(2px);
+}
+ 
+/* Dòng phân cách mảnh & thoáng */
+.wallet-dd .dropdown-divider{
+  border-color: rgba(16,24,40,.08);
+}
+ 
+/* Keyframes bung mềm */
+@keyframes ddPop{
+  from{ opacity:0; transform: translateY(-6px) scale(.98); }
+  to  { opacity:1; transform: translateY(0) scale(1); }
+}
+ 
+/* Bảo đảm không bị cắt bởi thẻ cha */
+.wallet-section,
+.wallet-grid__item .wallet-card{
+  overflow: visible !important;
+}

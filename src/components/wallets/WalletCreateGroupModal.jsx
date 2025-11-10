@@ -67,16 +67,7 @@ export default function WalletCreateGroupModal({ open, onClose, currencies = ["V
             </div>
 
             <div className="row g-3">
-              <div className="col-md-4">
-                <label className="form-label">Loại ví *</label>
-                <select
-                  className="form-select"
-                  value={form.type}
-                  onChange={e => setForm({ ...form, type: e.target.value })}
-                >
-                  {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
+              
 
               <div className="col-md-4">
                 <label className="form-label">Tiền tệ *</label>
