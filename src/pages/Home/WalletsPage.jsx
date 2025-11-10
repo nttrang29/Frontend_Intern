@@ -1,6 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
-import { useWalletData } from "../../home/store/WalletDataContext";
-
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import WalletCard from "../../components/wallets/WalletCard";
 import WalletViewModal from "../../components/wallets/WalletViewModal";
 import WalletEditModal from "../../components/wallets/WalletEditModal";
@@ -13,11 +11,14 @@ import WalletCreateGroupModal from "../../components/wallets/WalletCreateGroupMo
 import "../../styles/home/WalletsPage.css";
 
 const CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"];
+const API_BASE = "http://localhost:8080/wallets"; // Thay bằng domain thật khi deploy
 
 export default function WalletsPage() {
-  const { wallets, createWallet, updateWallet, deleteWallet } = useWalletData();
+  // ===== State =====
+  const [wallets, setWallets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // ===== UI state =====
   const [showChooser, setShowChooser] = useState(false);
   const [showPersonal, setShowPersonal] = useState(false);
   const [showGroup, setShowGroup] = useState(false);
@@ -41,7 +42,8 @@ export default function WalletsPage() {
 
   const compareByKey = (a, b, key) => {
     if (key === "name") return (a.name || "").localeCompare(b.name || "");
-    if (key === "balance") return Number(a.balance || 0) - Number(b.balance || 0);
+    if (key === "balance")
+      return Number(a.balance || 0) - Number(b.balance || 0);
     return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
   };
   const sortWith = (arr, key, dir) => {
@@ -65,53 +67,158 @@ export default function WalletsPage() {
     return sortDefaultDesc(list);
   }, [wallets, sortKey, sortDir, sortScope]);
 
+  // ===== API Helpers =====
+  const getToken = () => localStorage.getItem("accessToken");
+
+  const api = {
+    get: async (url) => {
+      const res = await fetch(API_BASE + url, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Lỗi mạng");
+      return res.json();
+    },
+    post: async (url, body) => {
+      const res = await fetch(API_BASE + url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Lỗi tạo");
+      return res.json();
+    },
+    patch: async (url, body) => {
+      const res = await fetch(API_BASE + url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Lỗi cập nhật");
+      return res.json();
+    },
+    del: async (url) => {
+      const res = await fetch(API_BASE + url, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Lỗi xóa");
+      return res.json();
+    },
+  };
+
+  // ===== Load ví =====
+  useEffect(() => {
+    const loadWallets = async () => {
+      try {
+        setLoading(true);
+        const data = await api.get("");
+        const formatted = data.map((w) => ({
+          id: w.walletId,
+          name: w.walletName,
+          currency: w.currencyCode,
+          balance: Number(w.balance),
+          note: w.description || "",
+          isShared: false,
+          isDefault: false,
+          createdAt: w.createdAt,
+        }));
+        setWallets(formatted);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadWallets();
+  }, []);
+
   // ===== CRUD =====
   const handleAddWalletClick = () => setShowChooser((v) => !v);
 
   const doDelete = async () => {
-    await deleteWallet(confirmDel.id);
-    setConfirmDel(null);
-    setToast({ open: true, message: "Đã xóa ví thành công" });
+    try {
+      await api.del(`/${confirmDel.id}`);
+      setWallets((prev) => prev.filter((w) => w.id !== confirmDel.id));
+      setConfirmDel(null);
+      setToast({ open: true, message: "Đã xóa ví thành công" });
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const handleCreatePersonal = async (f) => {
-    const w = await createWallet({
-      name: f.name.trim(),
-      currency: f.currency,
-      type: f.type || "CASH",
-      balance: Number(f.openingBalance || 0),
-      note: f.note?.trim() || "",
-      isDefault: !!f.isDefault,
-      isShared: false,
-      groupId: null,
-    });
-    setShowPersonal(false);
-    setToast({ open: true, message: `Đã tạo ví cá nhân "${w.name}"` });
-  };
-
-  const afterCreateGroupWallet = (w) => {
-    setToast({ open: true, message: `Đã tạo ví nhóm "${w?.name || ""}"` });
+    try {
+      const payload = {
+        walletName: f.name.trim(),
+        currencyCode: f.currency,
+        initialBalance: Number(f.openingBalance || 0),
+        description: f.note?.trim() || "",
+      };
+      const res = await api.post("/create", payload);
+      const newWallet = {
+        id: res.wallet.walletId,
+        name: res.wallet.walletName,
+        currency: res.wallet.currencyCode,
+        balance: Number(res.wallet.balance),
+        note: res.wallet.description || "",
+        isShared: false,
+        isDefault: false,
+        createdAt: res.wallet.createdAt,
+      };
+      setWallets((prev) => [...prev, newWallet]);
+      setShowPersonal(false);
+      setToast({
+        open: true,
+        message: `Đã tạo ví cá nhân "${newWallet.name}"`,
+      });
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const handleSubmitEdit = async (data) => {
-    await updateWallet(data);
-    setEditing(null);
-    setToast({ open: true, message: "Cập nhật ví thành công" });
+    try {
+      const updates = {};
+      if (data.name) updates.walletName = data.name;
+      if (data.currency) updates.currencyCode = data.currency;
+      if (data.note !== undefined) updates.description = data.note;
+
+      const res = await api.patch(`/${data.id}`, updates);
+      const updated = {
+        ...data,
+        name: res.wallet.walletName,
+        currency: res.wallet.currencyCode,
+        balance: Number(res.wallet.balance),
+        note: res.wallet.description || "",
+      };
+      setWallets((prev) => prev.map((w) => (w.id === data.id ? updated : w)));
+      setEditing(null);
+      setToast({ open: true, message: "Cập nhật ví thành công" });
+    } catch (err) {
+      alert(err.message);
+    }
   };
+
+  // ===== UI =====
+  if (loading) return <div className="text-center py-5">Đang tải ví...</div>;
+  if (error) return <div className="alert alert-danger">Lỗi: {error}</div>;
 
   return (
     <div className="wallet-page container py-4">
       {/* ===== Header tổng ===== */}
       <div className="wallet-header card border-0 shadow-sm p-3 p-lg-4 mb-4">
         <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-          <h3 className="wallet-header__title mb-0">
-            <i className="bi bi-wallet2 me-2"></i> Danh sách ví
-          </h3>
+          <h3 className="wallet-header__title mb-0">Danh sách ví</h3>
 
           <div className="wallet-header__controls d-flex align-items-center gap-3 flex-wrap">
             {/* Phạm vi */}
             <div className="d-flex align-items-center gap-2">
-              <i className="bi bi-layers-half text-light opacity-75"></i>
               <label className="sort-label text-light">Phạm vi:</label>
               <select
                 className="form-select form-select-sm sort-select"
@@ -126,7 +233,6 @@ export default function WalletsPage() {
 
             {/* Sắp xếp */}
             <div className="sort-box d-flex align-items-center gap-2">
-              <i className="bi bi-sort-alpha-down text-light opacity-75"></i>
               <label className="sort-label text-light">Sắp xếp theo:</label>
               <select
                 className="form-select form-select-sm sort-select"
@@ -141,15 +247,7 @@ export default function WalletsPage() {
                 className="btn btn-sm btn-outline-light sort-dir-btn"
                 onClick={toggleSortDir}
               >
-                {sortDir === "asc" ? (
-                  <>
-                    <i className="bi bi-sort-down-alt me-1" /> Tăng
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-sort-up me-1" /> Giảm
-                  </>
-                )}
+                {sortDir === "asc" ? "Tăng" : "Giảm"}
               </button>
             </div>
 
@@ -160,7 +258,7 @@ export default function WalletsPage() {
                 className="btn btn-gradient d-flex align-items-center"
                 onClick={handleAddWalletClick}
               >
-                <i className="bi bi-plus-lg me-2"></i> Tạo ví mới
+                Tạo ví mới
               </button>
               <WalletCreateChooser
                 open={showChooser}
@@ -180,19 +278,22 @@ export default function WalletsPage() {
         </div>
       </div>
 
-      {/* ===== Hai cột: ví cá nhân & ví nhóm ===== */}
+      {/* ===== Hai cột ===== */}
       <div className="row g-4">
         {/* Ví cá nhân */}
         <div className="col-12 col-lg-6">
           <section className="wallet-section card border-0 shadow-sm h-100">
             <div className="card-header d-flex justify-content-between align-items-center">
-              <h5 className="mb-0"><i className="bi bi-person-fill me-2"></i>Ví cá nhân</h5>
-              <span className="badge bg-light text-dark">{personalWallets.length} ví</span>
+              <h5 className="mb-0">Ví cá nhân</h5>
+              <span className="badge bg-light text-dark">
+                {personalWallets.length} ví
+              </span>
             </div>
             <div className="card-body">
               {personalWallets.length === 0 ? (
                 <div className="alert alert-light border rounded-3 mb-0">
-                  Chưa có ví cá nhân nào. Nhấn <strong>Tạo ví mới</strong> để thêm.
+                  Chưa có ví cá nhân nào. Nhấn <strong>Tạo ví mới</strong> để
+                  thêm.
                 </div>
               ) : (
                 <div className="wallet-grid">
@@ -216,13 +317,15 @@ export default function WalletsPage() {
         <div className="col-12 col-lg-6">
           <section className="wallet-section card border-0 shadow-sm h-100">
             <div className="card-header d-flex justify-content-between align-items-center">
-              <h5 className="mb-0"><i className="bi bi-people-fill me-2"></i>Ví nhóm</h5>
-              <span className="badge bg-light text-dark">{groupWallets.length} ví</span>
+              <h5 className="mb-0">Ví nhóm</h5>
+              <span className="badge bg-light text-dark">
+                {groupWallets.length} ví
+              </span>
             </div>
             <div className="card-body">
               {groupWallets.length === 0 ? (
                 <div className="alert alert-light border rounded-3 mb-0">
-                  Chưa có ví nhóm nào. Chọn <strong>Tạo ví nhóm</strong> trong menu “Tạo ví mới”.
+                  Chưa có ví nhóm nào.
                 </div>
               ) : (
                 <div className="wallet-grid">
@@ -255,10 +358,14 @@ export default function WalletsPage() {
         open={showGroup}
         onClose={() => setShowGroup(false)}
         currencies={CURRENCIES}
-        onCreated={afterCreateGroupWallet}
+        onCreated={() =>
+          setToast({ open: true, message: "Tạo ví nhóm thành công" })
+        }
       />
 
-      {viewing && <WalletViewModal wallet={viewing} onClose={() => setViewing(null)} />}
+      {viewing && (
+        <WalletViewModal wallet={viewing} onClose={() => setViewing(null)} />
+      )}
 
       {editing && (
         <WalletEditModal
@@ -273,7 +380,7 @@ export default function WalletsPage() {
       <ConfirmModal
         open={!!confirmDel}
         title="Xóa ví"
-        message={confirmDel ? `Xóa ví "${confirmDel.name}"?` : ""}
+        message={`Xóa ví "${confirmDel?.name}"?`}
         okText="Xóa"
         cancelText="Hủy"
         onOk={doDelete}

@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
 import AccountExistsModal from "../../components/common/Modal/AccountExistsModal";
 import "../../styles/AuthForms.css";
 
-// NOTE: API_URL không còn dùng khi ở chế độ offline/fake
-// const API_URL = "http://localhost:8080/auth";
+const API_URL = "http://localhost:8080/auth";
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -19,19 +19,6 @@ export default function LoginPage() {
   const onChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
     setError("");
-  };
-
-  // helper: read/write fake users from localStorage
-  const readFakeUsers = () => {
-    try {
-      const raw = localStorage.getItem("fakeUsers");
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  };
-  const writeFakeUsers = (arr) => {
-    localStorage.setItem("fakeUsers", JSON.stringify(arr));
   };
 
   const onSubmit = async (e) => {
@@ -60,46 +47,52 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      // --- OFFLINE / FAKE LOGIN LOGIC ---
-      // Lấy danh sách fakeUsers từ localStorage
-      const users = readFakeUsers();
-      const existing = users.find((u) => u.email === form.email);
-
-      if (existing) {
-        // user đã tồn tại -> verify password
-        if (existing.password === form.password) {
-          // thành công
-          const fakeToken = `fake-token-${Date.now()}`;
-          localStorage.setItem("accessToken", fakeToken);
-          // lưu user (không lưu password)
-          const safeUser = { email: existing.email, fullName: existing.fullName || existing.email };
-          localStorage.setItem("user", JSON.stringify(safeUser));
-          setShowSuccess(true);
-        } else {
-          // mật khẩu sai
-          setShowInvalid(true);
-        }
-      } else {
-        // user chưa tồn tại -> tự động tạo tài khoản ảo rồi login
-        const newUser = {
+      const response = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           email: form.email,
-          password: form.password, // chỉ lưu nội bộ fakeUsers; không dùng ngoài
-          fullName: form.email.split("@")[0],
-          createdAt: new Date().toISOString(),
-        };
-        users.push(newUser);
-        writeFakeUsers(users);
+          password: form.password,
+        }),
+      });
 
-        const fakeToken = `fake-token-${Date.now()}`;
-        localStorage.setItem("accessToken", fakeToken);
-        const safeUser = { email: newUser.email, fullName: newUser.fullName };
-        localStorage.setItem("user", JSON.stringify(safeUser));
+      const data = await response.json();
+
+      if (response.ok && data.accessToken) {
+        // ✅ Lưu token như cũ
+        localStorage.setItem("accessToken", data.accessToken);
+
+        // ✅ Lưu thông tin user nếu backend trả kèm
+        if (data.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        } else {
+          // 🔁 Fallback: gọi /auth/me để lấy thông tin user từ token
+          try {
+            const meRes = await fetch(`${API_URL}/me`, {
+              headers: { Authorization: `Bearer ${data.accessToken}` },
+            });
+            if (meRes.ok) {
+              const me = await meRes.json();
+              localStorage.setItem("user", JSON.stringify(me));
+            }
+          } catch (_) {
+            // im lặng nếu lỗi, vẫn cho đăng nhập (vì đã có token)
+          }
+        }
         setShowSuccess(true);
+      } else if (response.status === 401 || response.status === 400) {
+        setShowInvalid(true);
+      } else if (data?.error) {
+        setError(data.error);
+      } else {
+        setError(
+          "Lỗi kết nối đến máy chủ. Vui lòng kiểm tra Backend (cổng 8080)."
+        );
       }
-      // --- END OFFLINE LOGIC ---
     } catch (err) {
-      console.error(err);
-      setError("Có lỗi nội bộ khi xử lý tài khoản ảo.");
+      setError("Không thể kết nối server. Kiểm tra backend giúp nhé.");
     } finally {
       setLoading(false);
     }
@@ -108,7 +101,7 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <form className="auth-form" onSubmit={onSubmit}>
-        <h3 className="text-center mb-4">Đăng nhập (Chế độ giả lập)</h3>
+        <h3 className="text-center mb-4">Đăng nhập</h3>
 
         <div className="mb-3 input-group">
           <span className="input-group-text">
@@ -120,7 +113,6 @@ export default function LoginPage() {
             name="email"
             placeholder="Nhập email"
             onChange={onChange}
-            value={form.email}
             required
           />
         </div>
@@ -135,7 +127,6 @@ export default function LoginPage() {
             name="password"
             placeholder="Nhập mật khẩu"
             onChange={onChange}
-            value={form.password}
             required
           />
           <span
@@ -152,16 +143,19 @@ export default function LoginPage() {
 
         <div className="d-grid mb-3 mt-2">
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "Đang xử lý..." : "Đăng nhập / Tạo tài khoản ảo"}
+            {loading ? "Đang xử lý..." : "Đăng nhập"}
           </button>
         </div>
 
         <div className="text-center">
-          <Link to="/forgot-password" className="text-decoration-none link-hover me-3">
+          <Link
+            to="/forgot-password"
+            className="text-decoration-none link-hover me-3"
+          >
             Quên mật khẩu?
           </Link>
           <Link to="/register" className="text-decoration-none link-hover">
-            (Hoặc trang đăng ký)
+            Chưa có tài khoản?
           </Link>
         </div>
 
@@ -175,9 +169,14 @@ export default function LoginPage() {
           <button
             type="button"
             className="btn btn-outline-danger"
-            onClick={() => alert("Oauth Google tắt trong chế độ giả lập (offline).")}
+            onClick={() => {
+              const callback = `${window.location.origin}/oauth/callback`;
+              window.location.href = `${API_URL}/oauth2/authorization/google?redirect_uri=${encodeURIComponent(
+                callback
+              )}`;
+            }}
           >
-            <i className="bi bi-google me-2"></i> Google (disabled)
+            <i className="bi bi-google me-2"></i> Google
           </button>
         </div>
       </form>
@@ -187,7 +186,7 @@ export default function LoginPage() {
         onClose={() => setShowSuccess(false)}
         seconds={3}
         title="Đăng nhập"
-        message="Đăng nhập thành công (chế độ giả lập)!"
+        message="Đăng nhập thành công!"
         redirectUrl="/home"
       />
 
