@@ -1,0 +1,28 @@
+.budget-page {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.budget-page h2 {
+  font-size: 1.75rem;
+}
+
+.card {
+  border-radius: 12px;
+  transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.progress {
+  background-color: #e9ecef;
+  border-radius: 6px;
+}
+
+.progress-bar {
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
