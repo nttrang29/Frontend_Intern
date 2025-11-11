@@ -107,53 +107,62 @@ export default function CategoriesPage() {
         }}
       >
         <div className="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h2 className="mb-1" style={{ color: "#ffffff" }}>
-              Danh Mục
-            </h2>
-            <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
-              Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ đây.
-            </p>
+          {/* BÊN TRÁI: ICON + TEXT */}
+          <div className="d-flex align-items-center gap-2">
+            <div className="cat-header-icon-wrap">
+              {/* icon giống ở sidebar: Danh mục = bi-tags */}
+              <i className="bi bi-tags cat-header-icon" />
+            </div>
+            <div>
+              <h2 className="mb-1" style={{ color: "#ffffff" }}>
+                Danh Mục
+              </h2>
+              <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
+                Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ
+                đây.
+              </p>
+            </div>
           </div>
 
+          {/* BÊN PHẢI: NÚT TAB */}
           <div className="d-flex align-items-center gap-3">
-           <div
-  className="btn-group rounded-pill bg-white p-1"
-  role="group"
-  style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.4)" }}
->
-  <button
-    type="button"
-    className={
-      "btn btn-sm rounded-pill fw-semibold px-3 " +
-      (activeTab === "expense"
-        ? "text-white bg-success"
-        : "text-dark bg-white")
-    }
-    onClick={() => {
-      setActiveTab("expense");
-      resetForm();
-    }}
-  >
-    Chi phí
-  </button>
+            <div
+              className="btn-group rounded-pill bg-white p-1"
+              role="group"
+              style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.4)" }}
+            >
+              <button
+                type="button"
+                className={
+                  "btn btn-sm rounded-pill fw-semibold px-3 " +
+                  (activeTab === "expense"
+                    ? "text-white bg-success"
+                    : "text-dark bg-white")
+                }
+                onClick={() => {
+                  setActiveTab("expense");
+                  resetForm();
+                }}
+              >
+                Chi phí
+              </button>
 
-  <button
-    type="button"
-    className={
-      "btn btn-sm rounded-pill fw-semibold px-3 " +
-      (activeTab === "income"
-        ? "text-white bg-success"
-        : "text-dark bg-white")
-    }
-    onClick={() => {
-      setActiveTab("income");
-      resetForm();
-    }}
-  >
-    Thu nhập
-  </button>
-</div>
+              <button
+                type="button"
+                className={
+                  "btn btn-sm rounded-pill fw-semibold px-3 " +
+                  (activeTab === "income"
+                    ? "text-white bg-success"
+                    : "text-dark bg-white")
+                }
+                onClick={() => {
+                  setActiveTab("income");
+                  resetForm();
+                }}
+              >
+                Thu nhập
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -290,3 +290,49 @@
     width: 100%;
   }
 }
+/* Icon tiêu đề giao dịch */
+.tx-header-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tx-header-icon {
+  font-size: 1.4rem;
+  color: #ffffff;
+}
+
+/* Bo tròn bảng quản lý giao dịch */
+.tx-table-card {
+  border-radius: 18px;
+  overflow: hidden;              /* để góc bảng cũng tròn theo card */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.tx-table-card table thead tr {
+  background-color: #f1f5f9;
+}
+
+.tx-table-card table thead th {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* màu số tiền */
+.tx-amount-expense {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.tx-amount-income {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.tx-amount-transfer {
+  color: #0ea5e9;
+  font-weight: 600;
+}

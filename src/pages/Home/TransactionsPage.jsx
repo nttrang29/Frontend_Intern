@@ -855,15 +855,23 @@ export default function TransactionsPage() {
         }}
       >
         <div className="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h2 className="tx-title mb-1" style={{ color: "#ffffff" }}>
-              Quản lý Giao dịch
-            </h2>
-            <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
-              Xem, tìm kiếm và quản lý các khoản thu chi gần đây.
-            </p>
+          {/* BÊN TRÁI: ICON + TEXT */}
+          <div className="d-flex align-items-center gap-2">
+            <div className="tx-header-icon-wrap">
+              {/* icon giống sidebar: Giao dịch = bi-cash-stack */}
+              <i className="bi bi-cash-stack tx-header-icon" />
+            </div>
+            <div>
+              <h2 className="tx-title mb-1" style={{ color: "#ffffff" }}>
+                Quản lý Giao dịch
+              </h2>
+              <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
+                Xem, tìm kiếm và quản lý các khoản thu chi gần đây.
+              </p>
+            </div>
           </div>
 
+          {/* BÊN PHẢI: CHỌN LOẠI TRANG + THÊM GIAO DỊCH */}
           <div className="d-flex align-items-center gap-2">
             <select
               className="form-select form-select-sm"
@@ -886,6 +894,7 @@ export default function TransactionsPage() {
           </div>
         </div>
       </div>
+
 
       {/* Filters */}
       <div className="tx-filters card border-0 mb-3">
