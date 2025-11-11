@@ -1,258 +1,282 @@
 import React, { useState } from "react";
 import "../../styles/home/CategoriesPage.css";
+import SuccessToast from "../../components/common/Toast/SuccessToast";
 
-let nextId = 1;
+// 5 danh mục mẫu – Chi phí
+const INITIAL_EXPENSE_CATEGORIES = [
+  { id: 1, name: "Ăn uống", description: "Cơm, nước, cafe, đồ ăn vặt" },
+  { id: 2, name: "Di chuyển", description: "Xăng xe, gửi xe, phương tiện công cộng" },
+  { id: 3, name: "Mua sắm", description: "Quần áo, giày dép, đồ dùng cá nhân" },
+  { id: 4, name: "Hóa đơn", description: "Điện, nước, internet, điện thoại" },
+  { id: 5, name: "Giải trí", description: "Xem phim, game, du lịch, hội họp bạn bè" },
+];
+
+// 5 danh mục mẫu – Thu nhập
+const INITIAL_INCOME_CATEGORIES = [
+  { id: 101, name: "Lương", description: "Lương chính hàng tháng" },
+  { id: 102, name: "Thưởng", description: "Thưởng dự án, thưởng KPI" },
+  { id: 103, name: "Bán hàng", description: "Bán đồ cũ, bán online" },
+  { id: 104, name: "Lãi tiết kiệm", description: "Lãi ngân hàng, lãi đầu tư an toàn" },
+  { id: 105, name: "Khác", description: "Các khoản thu nhập khác" },
+];
 
 export default function CategoriesPage() {
-  // type: "expense" = Chi phí, "income" = Thu nhập
-  const [type, setType] = useState("expense");
-  const [data, setData] = useState({
-    expense: [],
-    income: [],
-  });
-
-  // Modal thêm / sửa
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null); // null = thêm mới
+  const [activeTab, setActiveTab] = useState("expense"); // expense | income
+  const [expenseCategories, setExpenseCategories] = useState(
+    INITIAL_EXPENSE_CATEGORIES
+  );
+  const [incomeCategories, setIncomeCategories] = useState(
+    INITIAL_INCOME_CATEGORIES
+  );
   const [nameInput, setNameInput] = useState("");
+  const [descInput, setDescInput] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [toast, setToast] = useState({ open: false, message: "" });
 
-  // Modal xóa
-  const [deleteItem, setDeleteItem] = useState(null);
+  const currentList =
+    activeTab === "expense" ? expenseCategories : incomeCategories;
 
-  const currentList = data[type];
-
-  const createDefaultIcon = () => (type === "expense" ? "💸" : "💰");
-
-  // ====== MỞ MODAL THÊM / SỬA ======
-  const openAddModal = () => {
-    setEditingItem(null);
+  const resetForm = () => {
     setNameInput("");
-    setIsModalOpen(true);
+    setDescInput("");
+    setEditingId(null);
   };
 
-  const openEditModal = (item) => {
-    setEditingItem(item);
-    setNameInput(item.name);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setNameInput("");
-    setEditingItem(null);
-  };
-
-  // ====== LƯU (THÊM / SỬA) ======
-  const handleSaveCategory = (e) => {
+  const handleAddOrUpdate = (e) => {
     e.preventDefault();
-    const value = nameInput.trim();
-    if (!value) return;
+    if (!nameInput.trim()) return;
 
-    if (editingItem) {
-      // Sửa
-      setData((prev) => ({
-        ...prev,
-        [type]: prev[type].map((c) =>
-          c.id === editingItem.id ? { ...c, name: value } : c
-        ),
-      }));
+    const data = {
+      id: editingId || Date.now(),
+      name: nameInput.trim(),
+      description: descInput.trim(),
+    };
+
+    if (activeTab === "expense") {
+      setExpenseCategories((list) => {
+        if (editingId) {
+          return list.map((c) => (c.id === editingId ? data : c));
+        }
+        return [...list, data];
+      });
     } else {
-      // Thêm mới
-      const newCat = {
-        id: nextId++,
-        name: value,
-        icon: createDefaultIcon(),
-      };
-
-      setData((prev) => ({
-        ...prev,
-        [type]: [...prev[type], newCat],
-      }));
+      setIncomeCategories((list) => {
+        if (editingId) {
+          return list.map((c) => (c.id === editingId ? data : c));
+        }
+        return [...list, data];
+      });
     }
 
-    closeModal();
+    setToast({
+      open: true,
+      message: editingId ? "Đã cập nhật danh mục." : "Đã thêm danh mục mới.",
+    });
+    resetForm();
   };
 
-  // ====== XÓA ======
-  const openDeleteModal = (item) => {
-    setDeleteItem(item);
+  const handleEdit = (cat) => {
+    setEditingId(cat.id);
+    setNameInput(cat.name);
+    setDescInput(cat.description || "");
   };
 
-  const closeDeleteModal = () => {
-    setDeleteItem(null);
-  };
+  const handleDelete = (cat) => {
+    if (!window.confirm(`Xóa danh mục "${cat.name}"?`)) return;
 
-  const confirmDelete = () => {
-    if (!deleteItem) return;
-    setData((prev) => ({
-      ...prev,
-      [type]: prev[type].filter((c) => c.id !== deleteItem.id),
-    }));
-    closeDeleteModal();
+    if (activeTab === "expense") {
+      setExpenseCategories((list) => list.filter((c) => c.id !== cat.id));
+    } else {
+      setIncomeCategories((list) => list.filter((c) => c.id !== cat.id));
+    }
+
+    setToast({ open: true, message: "Đã xóa danh mục." });
+    if (editingId === cat.id) resetForm();
   };
 
   return (
-    <div className="category-page container py-4">
-      {/* Header giống layout trong ảnh */}
-      <div className="card border-0 category-header-card mb-4">
-        <div className="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div className="cat-page container py-4">
+      {/* HEADER – màu giống trang Danh sách ví */}
+      <div
+        className="cat-header card border-0 mb-3"
+        style={{
+          borderRadius: 18,
+          background:
+            "linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%)",
+          color: "#ffffff",
+        }}
+      >
+        <div className="card-body d-flex justify-content-between align-items-center">
           <div>
-            <h3 className="category-title mb-2">Danh Mục</h3>
-            <p className="category-desc mb-0">
-              Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận được tiền
-              từ đây
+            <h2 className="mb-1" style={{ color: "#ffffff" }}>
+              Danh Mục
+            </h2>
+            <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
+              Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ đây.
             </p>
           </div>
 
-          <div className="category-header-right">
-            <div className="category-type-toggle">
-              <button
-                type="button"
-                className={`cat-toggle-btn ${
-                  type === "expense" ? "active" : ""
-                }`}
-                onClick={() => setType("expense")}
-              >
-                Chi phí
-              </button>
-              <button
-                type="button"
-                className={`cat-toggle-btn ${
-                  type === "income" ? "active" : ""
-                }`}
-                onClick={() => setType("income")}
-              >
-                Thu nhập
-              </button>
-            </div>
+          <div className="d-flex align-items-center gap-3">
+           <div
+  className="btn-group rounded-pill bg-white p-1"
+  role="group"
+  style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.4)" }}
+>
+  <button
+    type="button"
+    className={
+      "btn btn-sm rounded-pill fw-semibold px-3 " +
+      (activeTab === "expense"
+        ? "text-white bg-success"
+        : "text-dark bg-white")
+    }
+    onClick={() => {
+      setActiveTab("expense");
+      resetForm();
+    }}
+  >
+    Chi phí
+  </button>
 
-            <button
-              type="button"
-              className="btn btn-outline-secondary btn-sm category-add-header-btn"
-              onClick={openAddModal}
-            >
-              <i className="bi bi-plus-circle me-1" />
-              Thêm danh mục
-            </button>
+  <button
+    type="button"
+    className={
+      "btn btn-sm rounded-pill fw-semibold px-3 " +
+      (activeTab === "income"
+        ? "text-white bg-success"
+        : "text-dark bg-white")
+    }
+    onClick={() => {
+      setActiveTab("income");
+      resetForm();
+    }}
+  >
+    Thu nhập
+  </button>
+</div>
           </div>
         </div>
       </div>
 
-      {/* Danh sách danh mục */}
-      <div className="card border-0 category-list-card">
-        <div className="card-body p-0">
-          {currentList.length === 0 ? (
-            <div className="category-empty text-center text-muted py-4">
-              Chưa có danh mục nào. Nhấn{" "}
-              <strong>&quot;Thêm danh mục&quot;</strong> để tạo danh mục đầu
-              tiên.
+      {/* FORM THÊM / SỬA */}
+      <div className="card border-0 shadow-sm mb-3">
+        <div className="card-body">
+          <form
+            className="row g-3 align-items-end"
+            onSubmit={handleAddOrUpdate}
+          >
+            <div className="col-md-4">
+              <label className="form-label fw-semibold">Tên danh mục</label>
+              <input
+                className="form-control"
+                placeholder="VD: Ăn uống, Lương..."
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                maxLength={40}
+                required
+              />
             </div>
-          ) : (
-            <ul className="list-unstyled mb-0">
-              {currentList.map((c) => (
-                <li
-                  key={c.id}
-                  className="category-row d-flex align-items-center justify-content-between"
-                >
-                  <div className="d-flex align-items-center gap-3">
-                    <div className="category-icon-wrapper">
-                      <span className="category-icon">{c.icon}</span>
-                    </div>
-                    <span className="category-name">{c.name}</span>
-                  </div>
-
-                  <div className="d-flex align-items-center gap-3">
-                    <button
-                      type="button"
-                      className="category-link-btn"
-                      onClick={() => openEditModal(c)}
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      type="button"
-                      className="category-link-btn category-link-btn--danger"
-                      onClick={() => openDeleteModal(c)}
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* ===== MODAL THÊM / SỬA DANH MỤC ===== */}
-      {isModalOpen && (
-        <div className="category-modal-backdrop">
-          <div className="category-modal">
-            <h5 className="category-modal-title mb-3">
-              {editingItem ? "Sửa danh mục" : "Thêm danh mục"}
-            </h5>
-
-            <form onSubmit={handleSaveCategory}>
-              <div className="mb-3">
-                <label className="form-label category-modal-label">
-                  Tên danh mục
-                </label>
-                <input
-                  type="text"
-                  className="form-control category-input"
-                  placeholder="Nhập tên danh mục..."
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  autoFocus
-                />
-              </div>
-
-              <div className="d-flex justify-content-end gap-2">
+            <div className="col-md-5">
+              <label className="form-label fw-semibold">Mô tả</label>
+              <input
+                className="form-control"
+                placeholder="Mô tả ngắn cho danh mục (tùy chọn)"
+                value={descInput}
+                onChange={(e) => setDescInput(e.target.value)}
+                maxLength={80}
+              />
+            </div>
+            <div className="col-md-3 d-flex gap-2">
+              <button type="submit" className="btn btn-primary flex-grow-1">
+                {editingId ? "Lưu thay đổi" : "Thêm danh mục"}
+              </button>
+              {editingId && (
                 <button
                   type="button"
-                  className="btn btn-light btn-sm"
-                  onClick={closeModal}
+                  className="btn btn-outline-secondary"
+                  onClick={resetForm}
                 >
                   Hủy
                 </button>
-                <button type="submit" className="btn btn-primary btn-sm">
-                  Lưu
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===== MODAL XÓA DANH MỤC ===== */}
-      {deleteItem && (
-        <div className="category-modal-backdrop">
-          <div className="category-modal">
-            <h5 className="category-modal-title mb-3">Xóa danh mục</h5>
-            <p className="category-modal-text">
-              Bạn có chắc muốn xóa danh mục{" "}
-              <strong>{deleteItem.name}</strong> không?
-            </p>
-
-            <div className="d-flex justify-content-end gap-2">
-              <button
-                type="button"
-                className="btn btn-light btn-sm"
-                onClick={closeDeleteModal}
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger btn-sm"
-                onClick={confirmDelete}
-              >
-                Xóa
-              </button>
+              )}
             </div>
+          </form>
+        </div>
+      </div>
+
+      {/* BẢNG DANH MỤC */}
+      <div className="card border-0 shadow-sm">
+        <div className="card-body">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="mb-0">
+              Danh sách danh mục{" "}
+              <span className="badge bg-light text-secondary ms-1">
+                {activeTab === "expense" ? "Chi phí" : "Thu nhập"}
+              </span>
+            </h5>
+            <span className="text-muted small">
+              Tổng: {currentList.length} danh mục
+            </span>
+          </div>
+
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style={{ width: "5%" }}>#</th>
+                  <th style={{ width: "25%" }}>Tên danh mục</th>
+                  <th>Mô tả</th>
+                  <th className="text-center" style={{ width: "15%" }}>
+                    Hành động
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentList.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="text-center text-muted py-4">
+                      Chưa có danh mục nào.
+                    </td>
+                  </tr>
+                ) : (
+                  currentList.map((c, idx) => (
+                    <tr key={c.id}>
+                      <td>{idx + 1}</td>
+                      <td className="fw-semibold">{c.name}</td>
+                      <td>{c.description || "-"}</td>
+                      <td className="text-center">
+                        <button
+                          className="btn btn-link btn-sm text-muted me-2"
+                          type="button"
+                          onClick={() => handleEdit(c)}
+                          title="Sửa"
+                        >
+                          <i className="bi bi-pencil-square" />
+                        </button>
+                        <button
+                          className="btn btn-link btn-sm text-danger"
+                          type="button"
+                          onClick={() => handleDelete(c)}
+                          title="Xóa"
+                        >
+                          <i className="bi bi-trash" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
+      </div>
+
+      <SuccessToast
+        open={toast.open}
+        message={toast.message}
+        duration={2200}
+        onClose={() => setToast({ open: false, message: "" })}
+      />
     </div>
   );
 }

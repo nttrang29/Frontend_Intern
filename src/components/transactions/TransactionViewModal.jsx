@@ -28,6 +28,8 @@ export default function TransactionViewModal({ open, tx, onClose }) {
       })
     : "";
 
+  const isTransfer = !!tx.sourceWallet && !!tx.targetWallet;
+
   return (
     <div style={overlayStyle}>
       <div className="modal-dialog modal-dialog-scrollable" style={{ maxWidth: 520 }}>
@@ -53,22 +55,61 @@ export default function TransactionViewModal({ open, tx, onClose }) {
             <div className="mb-3">
               <div className="text-muted small mb-1">Loại giao dịch</div>
               <div className="badge rounded-pill bg-soft-blue text-primary fw-semibold">
-                {tx.type === "income" ? "Thu nhập" : "Chi tiêu"}
+                {isTransfer
+                  ? "Chuyển tiền giữa các ví"
+                  : tx.type === "income"
+                  ? "Thu nhập"
+                  : "Chi tiêu"}
               </div>
             </div>
 
             <div className="row g-3">
-              <div className="col-6">
-                <label className="form-label small text-muted mb-1">Ví</label>
-                <div className="form-control-plaintext fw-semibold">{tx.walletName}</div>
-              </div>
-              <div className="col-6">
-                <label className="form-label small text-muted mb-1">Số tiền</label>
-                <div className="form-control-plaintext fw-semibold text-danger">
-                  {tx.type === "expense" ? "-" : "+"}
-                  {tx.amount.toLocaleString("vi-VN")} {tx.currency}
-                </div>
-              </div>
+              {isTransfer ? (
+                <>
+                  <div className="col-6">
+                    <label className="form-label small text-muted mb-1">
+                      Ví gửi
+                    </label>
+                    <div className="form-control-plaintext fw-semibold">
+                      {tx.sourceWallet}
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <label className="form-label small text-muted mb-1">
+                      Ví nhận
+                    </label>
+                    <div className="form-control-plaintext fw-semibold">
+                      {tx.targetWallet}
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <label className="form-label small text-muted mb-1">
+                      Số tiền
+                    </label>
+                    <div className="form-control-plaintext fw-semibold">
+                      {tx.amount.toLocaleString("vi-VN")} {tx.currency}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="col-6">
+                    <label className="form-label small text-muted mb-1">Ví</label>
+                    <div className="form-control-plaintext fw-semibold">
+                      {tx.walletName}
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <label className="form-label small text-muted mb-1">
+                      Số tiền
+                    </label>
+                    <div className="form-control-plaintext fw-semibold text-danger">
+                      {tx.type === "expense" ? "-" : "+"}
+                      {tx.amount.toLocaleString("vi-VN")} {tx.currency}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="col-6">
                 <label className="form-label small text-muted mb-1">Ngày</label>
@@ -80,30 +121,44 @@ export default function TransactionViewModal({ open, tx, onClose }) {
               </div>
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Danh mục</label>
-                <div className="form-control-plaintext">{tx.category}</div>
-              </div>
-
-              <div className="col-12">
-                <label className="form-label small text-muted mb-1">Ghi chú</label>
+                <label className="form-label small text-muted mb-1">
+                  Danh mục
+                </label>
                 <div className="form-control-plaintext">
-                  {tx.note || <span className="text-muted fst-italic">Không có</span>}
+                  {tx.category || (isTransfer ? "Chuyển tiền giữa các ví" : "")}
                 </div>
               </div>
 
               <div className="col-12">
-                <label className="form-label small text-muted mb-1">Mã giao dịch</label>
+                <label className="form-label small text-muted mb-1">
+                  Ghi chú
+                </label>
+                <div className="form-control-plaintext">
+                  {tx.note || (
+                    <span className="text-muted fst-italic">Không có</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="col-12">
+                <label className="form-label small text-muted mb-1">
+                  Mã giao dịch
+                </label>
                 <div className="form-control-plaintext">{tx.code}</div>
               </div>
 
               <div className="col-12">
-                <label className="form-label small text-muted mb-1">Mã người tạo</label>
+                <label className="form-label small text-muted mb-1">
+                  Mã người tạo
+                </label>
                 <div className="form-control-plaintext">{tx.creatorCode}</div>
               </div>
 
               {tx.attachment && (
                 <div className="col-12">
-                  <label className="form-label small text-muted mb-1">Ảnh đính kèm</label>
+                  <label className="form-label small text-muted mb-1">
+                    Ảnh đính kèm
+                  </label>
                   <div className="d-flex gap-2 align-items-center">
                     <div
                       style={{
@@ -117,7 +172,11 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                       <img
                         src={tx.attachment}
                         alt="Đính kèm"
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
                       />
                     </div>
                     <div className="small text-muted flex-grow-1">
