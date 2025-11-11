@@ -69,16 +69,16 @@
   white-space:nowrap; line-height:1.1;
 }
 
-/* Select — nền tối mờ, chữ trắng */
+/* Select — ĐỔI SANG NỀN TRẮNG, CHỮ XANH ĐẬM */
 .wallet-header__controls select.sort-select{
   min-width:160px;
-  background: rgba(255,255,255,.12);
-  color:#fff;
-  border:1px solid rgba(188,254,254,.6);
+  background:#ffffff; /* trước: rgba(255,255,255,.12) */
+  color:#001c44;      /* trước: #fff */
+  border:1px solid rgba(148,163,184,.7); /* trước: rgba(188,254,254,.6) */
   border-radius:10px;
   transition: all .2s ease;
-  -webkit-text-fill-color:#fff;
-  caret-color:#fff;
+  -webkit-text-fill-color:#001c44; /* đồng bộ màu chữ trong webkit */
+  caret-color:#001c44;
 }
 .wallet-header__controls select.sort-select option{
   color:#001c44; background:#fff;
@@ -90,28 +90,30 @@
 }
 .wallet-header__controls label{ font-weight:500; color:#e5f5ff; }
 
-/* Nút đổi chiều sort */
+/* Nút đổi chiều sort “Giảm/Tăng” — NỀN TRẮNG, CHỮ XANH */
 .sort-dir-btn{
-  border:1px solid rgba(188,254,254,.6);
-  color:#f9fafb; background:rgba(255,255,255,.15);
-  border-radius:8px; transition:all .25s ease;
+  border:1px solid rgba(148,163,184,.7);
+  color:#001c44;
+  background:#ffffff; /* trước: rgba(255,255,255,.15) */
+  border-radius:8px;
+  transition:all .25s ease;
 }
 .sort-dir-btn:hover{
-  background:rgba(188,254,254,.28);
+  background:#f1f5f9; /* sáng nhẹ khi hover */
   transform:translateY(-1px);
 }
 
-/* Nút TẠO VÍ */
+/* Nút TẠO VÍ MỚI — NỀN TRẮNG, CHỮ XANH ĐẬM */
 .btn-gradient{
-  border:1px solid rgba(188,254,254,.7);
-  color:#0b1120;
-  background: linear-gradient(135deg,#bcfefe,#f8dad0);
+  border:1px solid rgba(148,163,184,.7);
+  color:#001c44;                 /* chữ tương phản */
+  background:#ffffff;            /* trước: gradient mint */
   border-radius:999px; transition:all .25s ease;
   padding:0.45rem 1rem; font-weight:600;
-  box-shadow:0 8px 20px rgba(0,28,68,.35);
+  box-shadow:0 8px 20px rgba(0,28,68,.20);
 }
 .btn-gradient:hover{
-  background:linear-gradient(135deg,#f8dad0,#bcfefe);
+  background:#f1f5f9;
   transform:translateY(-1px) scale(1.02);
 }
 
@@ -364,12 +366,13 @@
 .wallet-grid__item .wallet-card::before{
   content:"";
   position:absolute;
-  inset:-40%;
+  inset:0; /* <-- FIX: phủ đúng trong card, không tràn lệch */
   background: radial-gradient(circle at 0 0, rgba(188,254,254,.6), transparent 60%);
   opacity:0;
   transition:opacity .25s ease, transform .4s ease;
   pointer-events:none;
 }
+
 
 .wallet-grid__item .wallet-card:hover {
   transform: translateY(-4px);
@@ -379,7 +382,7 @@
 }
 .wallet-grid__item .wallet-card:hover::before{
   opacity:1;
-  transform:translate(8px,-6px);
+ transform:none;
 }
 
 /* Tiêu đề */
@@ -597,11 +600,12 @@
 }
 
 /* ===================================================================
-   12) SECTION TOGGLE
+   12) SECTION TOGGLE – NÚT MŨI TÊN “VÍ CÁ NHÂN” NỀN TRẮNG
    =================================================================== */
 .section-toggle{
   --arrow-size:9px;
-  background: rgba(188,254,254,.25); color:#001c44;
+  background:#ffffff; /* trước: rgba(188,254,254,.25) */
+  color:#001c44;
   border:1px solid rgba(148,163,184,.9);
   border-radius:10px; width:30px; height:30px;
   display:inline-flex; align-items:center; justify-content:center;
@@ -612,7 +616,7 @@
   position:relative;
 }
 .section-toggle:hover{
-  background: rgba(188,254,254,.4);
+  background:#f1f5f9;
   transform: translateY(-2px) rotateX(8deg);
 }
 .section-toggle:active{ transform: translateY(0) scale(.95); }
@@ -691,11 +695,92 @@
   height: 1.1rem;
 }
 
-/* Card được chọn */
+/* Card được chọn – đổi nền giống “Tổng số dư”, toàn bộ chữ trắng */
 .wallet-grid__item.is-selected .wallet-card {
   outline: 1px solid rgba(45,153,174,0.9);
   box-shadow: 0 8px 20px rgba(0,28,68,0.25),
               0 0 0 1px rgba(188,254,254,0.9);
-  background: linear-gradient(135deg,#bcfefe,#f8dad0);
+  background:
+    radial-gradient(900px 360px at 18% -8%, var(--sum-radial), transparent 60%),
+    linear-gradient(120deg,#001c44 0%,#0c5776 52%,#2d99ae 100%);
+  color:#ffffff;
   transform: translateY(-2px) scale(1.015);
+}
+
+/* Làm trong suốt phần thân để gradient phủ toàn bộ ví */
+.wallet-grid__item.is-selected .wallet-card .card-body {
+  background: transparent !important;
+}
+
+/* Toàn bộ chữ trong card được chọn đều trắng */
+/* Toàn bộ chữ TRONG NỘI DUNG ví (card-body) chuyển sang trắng */
+.wallet-grid__item.is-selected .wallet-card .card-body,
+.wallet-grid__item.is-selected .wallet-card .card-body * {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+}
+
+/* Badge “Mặc định” giữ nền đen, chữ trắng */
+.wallet-grid__item.is-selected .wallet-card .badge {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+/* Nút 3 chấm giữ nguyên style gốc (trắng – viền xám – icon xanh) */
+.wallet-grid__item.is-selected .wallet-card .dropdown > .btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f1f5f9 !important;
+  border: 1px solid rgba(148,163,184,.7) !important;
+  color: #001c44 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none !important;
+}
+.wallet-grid__item.is-selected .wallet-card .dropdown > .btn:hover {
+  background: #bcfefe !important;
+  border-color: #2d99ae !important;
+  color: #001c44 !important;
+}
+
+
+/* GIỮ NGUYÊN style của nút 3 chấm và thẻ “Mặc định” */
+.wallet-grid__item.is-selected .wallet-card .dropdown > .btn,
+.wallet-grid__item.is-selected .wallet-card .badge {
+  all: unset;
+}
+
+/* Nút 3 chấm giữ nguyên trắng đen gốc */
+.wallet-grid__item.is-selected .wallet-card .dropdown > .btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f1f5f9 !important;
+  border: 1px solid rgba(148,163,184,.7) !important;
+  color: #001c44 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none !important;
+}
+.wallet-grid__item.is-selected .wallet-card .dropdown > .btn:hover {
+  background: #bcfefe !important;
+  border-color: #2d99ae !important;
+  color: #001c44 !important;
+}
+
+/* Thẻ “Mặc định” giữ nguyên trắng chữ đen */
+.wallet-grid__item.is-selected .wallet-card .badge {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-weight: 600;
+  font-size: 0.75rem;
 }
