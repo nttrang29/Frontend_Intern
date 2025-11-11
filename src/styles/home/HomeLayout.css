@@ -1,46 +1,285 @@
-:root{
-  --bg: #f4f6fb;
-  --surface: #ffffff;
-  --sb-grad-1:#5a3dd6;
-  --sb-grad-2:#8a5cff;
-  --text:#0f172a;
-  --muted:#6b7280;
+/* ======================== TOKENS (đồng bộ glass) ======================== */
+:root {
   --radius: 22px;
   --gap: 18px;
+  --text: #0f172a;
+  --content-pad: 24px;
+
+  /* 🎯 Glass tokens chung */
+  --glass-bg: rgba(255, 255, 255, 0.07);
+  --glass-blur: 22px;
+  --glass-sat: 180%;
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.10);
+
+  /* Overlay nền */
+  --overlay-tint: rgba(12, 18, 28, 0.15);
+  --overlay-blur: 4px;
 }
 
-.home__wrap {
-  display: flex;
+/* ======================== TOÀN TRANG ======================== */
+.home-page {
+  position: relative;
   min-height: 100vh;
-background: linear-gradient(135deg, #ebe4ff 0%, #f4f0ff 100%);
-  padding: 20px;
+  overflow: hidden;
+  color: var(--text);
+}
+
+/* ẢNH NỀN RÕ NÉT */
+.home-page__bg {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+}
+.home-page__bg-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: none;
+}
+
+/* LỚP PHỦ: rất nhẹ + blur để tôn kính */
+.home-page__overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-tint);
+  backdrop-filter: blur(var(--overlay-blur));
+  -webkit-backdrop-filter: blur(var(--overlay-blur));
+  z-index: -1;
+}
+
+/* ======================== BỐ CỤC CHÍNH ======================== */
+.home__wrap {
+ display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+  padding: var(--content-pad);
   gap: var(--gap);
 }
 
+/* ======================== MAIN (bọc cả sidebar + topbar + content) ======================== */
+.home__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-width: 0;
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+  backdrop-filter: blur(calc(var(--glass-blur) - 6px)) saturate(calc(var(--glass-sat) - 40%));
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) - 6px)) saturate(calc(var(--glass-sat) - 40%));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+}
 
-.home__sidebar{
+/* ======================== HÀNG HEADER TRONG MAIN ======================== */
+/* Chứa: Sidebar (trái) + Topbar (phải) */
+.home__main-header {
+  display: flex;
+  gap: var(--gap);
+  padding: var(--content-pad);
+  padding-bottom: 0; /* để content bên dưới không bị dày mép */
+  align-items: flex-start;
+  min-width: 0;
+}
+
+/* Sidebar khi nằm trong main-header */
+.home__main-header .home__sidebar {
   width: 260px;
+  flex: 0 0 260px;
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
 }
 
-.home__main{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  gap: var(--gap);
-  min-width:0;
+/* Topbar chiếm phần còn lại của hàng */
+.home__main-header .tb__wrap {
+  flex: 1;
+  min-width: 0;
 }
 
-.home__content{
+/* ======================== CONTENT ======================== */
+.home__content {
+  flex: 1;
+  padding: var(--content-pad);
+  padding-top: calc(var(--content-pad) - 6px); /* ăn khớp khoảng cách sau header */
+  overflow-y: auto;
   background: transparent;
-  padding-bottom: 24px;
 }
-@media (max-width: 1024px){
-  .home__sidebar{ width: 230px; }
+
+/* SCROLLBAR ĐẸP HƠN */
+.home__content::-webkit-scrollbar { width: 8px; }
+.home__content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
 }
-@media (max-width: 768px){
-  .home__wrap{ padding: 12px; }
-.home__sidebar { 
-    display: block;                 /* <— KHÔNG ẩn nữa */
-    width: var(--sb-wc);            /* dùng rail width */
+.home__content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* ======================== UTILITY: FULL WIDTH HEADER ======================== */
+/* Dùng khi muốn 1 khối trong .home__main “tràn viền” ngang theo padding */
+.edge-bleed {
+  margin-inline: calc(var(--content-pad) * -1);
+  border-radius: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* ======================== RESPONSIVE ======================== */
+@media (max-width: 1200px) {
+  .home__main-header .home__sidebar {
+    width: 240px;
+    flex-basis: 240px;
   }
+}
+
+@media (max-width: 1024px) {
+  :root { --content-pad: 20px; }
+  .home__main-header .home__sidebar {
+    width: 220px;
+    flex-basis: 220px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root { --content-pad: 12px; }
+
+  .home__wrap {
+    padding: var(--content-pad);
+  }
+
+  .home__main-header {
+    flex-direction: column;       /* stack: sidebar trên, topbar dưới */
+    padding: var(--content-pad);
+    gap: var(--gap);
+  }
+
+  .home__main-header .home__sidebar,
+  .home__main-header .tb__wrap {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .home__content {
+    padding: var(--content-pad);
+  }
+}
+
+/* ======================== FALLBACK (không hỗ trợ backdrop-filter) ======================== */
+@supports not ((backdrop-filter: blur(1px))) {
+  .home__main,
+  .home__main-header .home__sidebar,
+  .edge-bleed {
+    background: rgba(30, 41, 59, 0.22) !important;
+    border-color: rgba(255,255,255,0.16) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,.12) !important;
+  }
+  .home-page__overlay {
+    background: rgba(12, 18, 28, 0.12);
+  }
+}
+/* ================= PATCH: tooltip/menu của Sidebar không bị che ================= */
+
+/* 1) Cho phép phần header (Sidebar + Topbar) tràn ra ngoài khung main */
+.home__main {
+  overflow: visible;                 /* thay vì hidden */
+}
+
+/* 2) Đảm bảo khối header không bị cắt */
+.home__main-header {
+  overflow: visible;
+  position: relative;
+  z-index: 10;                       /* tạo stacking-context riêng */
+}
+
+/* 3) Sidebar và hộp kính của nó nổi trên content */
+.home__main-header .home__sidebar,
+.sb__container {
+  position: relative;
+  z-index: 20;
+}
+
+/* 4) Topbar & Content ở dưới Sidebar một bậc (để tooltip bay qua) */
+.home__content,
+.home__main-header .tb__wrap {
+  position: relative;
+  z-index: 5;
+}
+
+/* 5) Tooltip khi sidebar thu gọn: đặt z-index thật cao để vượt mọi lớp mờ */
+.sb-collapsed .sb__link[title]:hover::after {
+  z-index: 9999;
+  box-shadow: 0 10px 24px rgba(0,0,0,.18);
+}
+
+/* 6) Nếu có dropdown/popup bên trong sidebar (menu 3 chấm, v.v.) */
+.home__main-header .home__sidebar .dropdown-menu,
+.home__main-header .home__sidebar .popover,
+.home__main-header .home__sidebar .menu,
+.home__main-header .home__sidebar .panel {
+  position: absolute;                /* giữ theo sidebar */
+  z-index: 9999 !important;          /* nổi trên lớp kính main */
+}
+/* ===================== FINAL PATCH (không đổi cấu trúc) ===================== */
+/* 1) Cho phép mọi thứ trong main (Topbar/Sidebar dropdown) tràn ra tự do */
+.home__main { 
+  overflow: visible !important;
+}
+
+/* 2) Topbar luôn nổi cao hơn content, tránh bị các header/section che */
+.home__topbar,
+.tb__wrap {
+  position: relative;
+  z-index: 200 !important;
+}
+
+/* 3) Panel dropdown của Topbar/User/Notification luôn trên cùng */
+.tb__dd { position: relative; }
+.tb__dd .dd__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px) !important;   /* bung xuống dưới, không dính vào topbar */
+  z-index: 4000 !important;           /* cao hơn mọi glass bên dưới */
+}
+
+/* 4) Sidebar & tooltip trong trạng thái thu gọn không bị lớp khác đè */
+.home__main-header .home__sidebar,
+.sb__container {
+  position: relative;
+  z-index: 250 !important;
+}
+.sb-collapsed .sb__link[title]:hover::after {
+  z-index: 4500 !important;
+}
+
+/* 5) Các khối “header” trong content (ví dụ .edge-bleed, wallet-header)
+      hạ z-index để không che dropdown của Topbar */
+.edge-bleed,
+.wallet-header {
+  position: relative;
+  z-index: 20 !important;
+}
+
+/* 6) Content thấp hơn Topbar để panel/tooltip bay qua được */
+.home__content {
+  position: relative;
+  z-index: 10 !important;
+}
+
+/* 7) Trường hợp có dropdown/popover bên trong Sidebar */
+.home__main-header .home__sidebar .dropdown-menu,
+.home__main-header .home__sidebar .popover,
+.home__main-header .home__sidebar .menu,
+.home__main-header .home__sidebar .panel {
+  position: absolute;
+  z-index: 4500 !important;
 }
