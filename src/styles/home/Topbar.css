@@ -1,132 +1,163 @@
 /* =========================================================
-   TOPBAR – Clean & Grouped
-   Sections:
-   1) Wrapper & Welcome
-   2) Search (pill)
-   3) Actions & Divider
-   4) Icon & Avatar (common)
-   5) Dropdowns (panel, badge)
-   6) Notification list
-   7) User menu
-   8) Responsive
+   TOPBAR – Clean, sát mép & có control bên trong
    ========================================================= */
 
-/* ============ 1) WRAPPER & WELCOME ============ */
-.tb__wrap {
-  background: var(--surface, #fff);
-  border-radius: var(--radius, 14px);
-  padding: 10px 16px;
+/* .tb__wrap phủ kín khung topbar, có padding trong để không sát viền */
+.home__topbar .tb__wrap{
+  height: 100%;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+
+  margin: 0;
+  /* ✅ thêm padding đều 2 bên để không dính sát viền */
+  padding: 0 var(--content-pad);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+
+  background: #2D99AE;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+
+  min-width: 0;
+  box-sizing: border-box;
 }
 
-.tb__welcome {
+
+/* Nhóm trái/phải */
+.tb__left{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.tb__right{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+/* Chào mừng */
+.tb__welcome{
   font-weight: 700;
-  color: var(--text, #0f172a);
+  color: #fff;
   white-space: nowrap;
 }
 
-/* ============ 2) SEARCH (PILL STYLE) ============ */
-.tb__search--pill {
-  flex: 1;
-  max-width: 520px;              /* độ dài tối đa */
+/* Search pill */
+.tb__search--pill{
+  flex: 0 1 clamp(220px, 32vw, 520px);
   height: 34px;
-  background: #f3f4f6;
-  border-radius: 999px;
   display: flex;
   align-items: center;
   padding-left: 14px;
-  border: 1px solid #e5e7eb;
   position: relative;
-}
 
-.tb__search--pill input {
+  background: rgba(255,255,255,0.66);
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 999px;
+  transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+.tb__search--pill:hover{
+  background: rgba(255,255,255,0.78);
+  border-color: rgba(15,23,42,0.12);
+}
+.tb__search--pill:focus-within{
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+  border-color: rgba(59,130,246,0.45);
+  background: rgba(255,255,255,0.9);
+}
+.tb__search--pill input{
   flex: 1;
+  height: 100%;
   border: none;
   outline: none;
   background: transparent;
   font-size: 14px;
-  height: 100%;
+  color: #0f172a;
 }
-
-.tb__search-btn {
+.tb__search-btn{
   position: absolute;
   right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  width: 44px;
+  width: 42px;
   height: 26px;
-  border: 0;
-  cursor: pointer;
   border-radius: 999px;
-  background: #5b3cc4;          /* tím như mockup */
-  color: #fff;
+  border: 1px solid rgba(15,23,42,0.15);
+  background: #ffffff;
+  color: #475569;
   display: grid;
   place-items: center;
-  transition: filter 0.2s, transform 0.06s;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.tb__search-btn:hover{
+  background: #f8fafc;
+  border-color: rgba(15,23,42,0.3);
+  color: #1e293b;
+}
+.tb__search-btn:active{
+  transform: translateY(-50%) scale(0.97);
 }
 
-.tb__search-btn:hover { filter: brightness(1.05); }
-.tb__search-btn:active { transform: translateY(-50%) scale(0.98); }
-
-/* ============ 3) ACTIONS & DIVIDER ============ */
-.tb__actions {
+/* Actions & divider */
+.tb__actions{
   display: flex;
   align-items: center;
   gap: 10px;
   margin-left: auto;
 }
-
-.tb__divider {
+.tb__divider{
   width: 1px;
   height: 26px;
-  background: #e5e7eb;
+  background: rgba(15,23,42,0.12);
+  border-radius: 1px;
 }
 
-/* ============ 4) ICON & AVATAR (COMMON) ============ */
-.tb__icon {
+/* Icon & avatar */
+.tb__icon{
   width: 36px;
   height: 36px;
-  border: none;
-  cursor: pointer;
-  border-radius: 50%;
-  background: #f1f5f9;
   display: grid;
   place-items: center;
+  cursor: pointer;
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 50%;
   font-size: 18px;
   color: #475569;
-  transition: all 0.2s;
+  transition: all .2s ease;
 }
-
-.tb__icon:hover {
-  background: #e9eef6;
+.tb__icon:hover{
+  background: rgba(255,255,255,0.95);
   color: #5b3cc4;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.12);
 }
 
-.tb__avatar {
+.tb__avatar{
   width: 36px;
   height: 36px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid #e2e8f0;
+  border: 2px solid rgba(226,232,240,0.9);
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color .2s;
 }
-
-.tb__avatar:hover { border-color: #3b82f6; }
-
-.tb__avatar img {
+.tb__avatar:hover{ border-color: #3b82f6; }
+.tb__avatar img{
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-/* ============ 5) DROPDOWNS (PANEL, BADGE) ============ */
-.tb__dd { position: relative; }
-
-.tb__badge {
+/* Dropdowns */
+.tb__dd{ position: relative; }
+.tb__badge{
   position: absolute;
   top: -4px;
   right: -4px;
@@ -137,58 +168,26 @@
   padding: 2px 6px;
   line-height: 1;
 }
-
-.dd__panel {
+.dd__panel{
   position: absolute;
   right: 0;
   top: 46px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: rgba(255,255,255,0.98);
+  border: 1px solid rgba(226,232,240,0.9);
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.15);
+  box-shadow: 0 10px 30px rgba(2,6,23,0.18);
   padding: 8px;
   z-index: 100;
-  animation: tbFadeIn 0.15s ease-in-out;
+  animation: tbFadeIn .15s ease-in-out;
+}
+@keyframes tbFadeIn{
+  from{ opacity:0; transform: translateY(-5px); }
+  to  { opacity:1; transform: none; }
 }
 
-@keyframes tbFadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ============ 6) NOTIFICATION LIST ============ */
-.dd__head { font-weight: 700; padding: 6px 8px 10px; }
-
-.dd__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 280px;
-  overflow: auto;
-}
-
-.dd__item {
-  padding: 10px 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.dd__item:hover { background: #f7f7fb; }
-
-.dd__title { font-size: 14px; }
-.dd__time  { font-size: 12px; color: #6b7280; }
-
-.dd__foot {
-  padding-top: 8px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* ============ 7) USER MENU ============ */
-.dd__section { padding: 4px; }
-
-.dd__link {
+/* User menu */
+.dd__section{ padding: 4px; }
+.dd__link{
   width: 100%;
   display: flex;
   align-items: center;
@@ -199,21 +198,17 @@
   border: 0;
   font-size: 14px;
   color: #0f172a;
-  transition: background 0.15s ease, transform 0.05s ease;
+  transition: background .15s ease, transform .05s ease;
 }
+.dd__link:hover{ background: #f5f7fb; }
+.dd__link:active{ transform: translateY(1px); }
+.dd__icon{ font-size: 18px; width: 20px; text-align: center; }
+.dd__danger{ color: #ef4444; }
+.dd__danger:hover{ background: #fee2e2; }
+.dd__divider{ height: 1px; background: #e5e7eb; margin: 6px 0; }
 
-.dd__link:hover { background: #f5f7fb; }
-.dd__link:active { transform: translateY(1px); }
-
-.dd__icon { font-size: 18px; width: 20px; text-align: center; }
-
-.dd__danger { color: #ef4444; }
-.dd__danger:hover { background: #fee2e2; }
-
-.dd__divider { height: 1px; background: #e5e7eb; margin: 6px 0; }
-
-/* Button reset (nếu cần cho các nút dạng <button>) */
-.btn-reset {
+/* Button reset */
+.btn-reset{
   background: none;
   border: none;
   padding: 0;
@@ -221,8 +216,84 @@
   cursor: pointer;
 }
 
-/* ============ 8) RESPONSIVE ============ */
-@media (max-width: 768px) {
-  .tb__welcome { display: none; }
-  .tb__search--pill { max-width: 100%; }
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+/* <= 1200px: giảm gap, co search & icon nhẹ */
+@media (max-width: 1200px){
+  .home__topbar .tb__wrap{ gap: 12px; }
+  .tb__left, .tb__right{ gap: 10px; }
+  .tb__icon, .tb__avatar{ width: 34px; height: 34px; }
+  .tb__search--pill{
+    flex: 0 1 clamp(200px, 30vw, 440px);
+  }
 }
+
+/* <= 992px: cho phép wrap 2 hàng */
+@media (max-width: 992px){
+  .home__topbar .tb__wrap{
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  .tb__left{
+    flex: 1 1 auto;
+    min-width: 260px;
+  }
+
+  .tb__right{
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+ 
+
+  .tb__search--pill{
+    flex: 1 1 360px;
+    max-width: none;
+    width: auto;
+  }
+}
+
+/* <= 768px: ưu tiên icon + search, không cho topbar sát viền */
+@media (max-width: 768px){
+  .home__topbar .tb__wrap{
+    padding-inline: 12px;
+  }
+
+  .tb__left, .tb__right{
+    flex: 1 1 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tb__search--pill{
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .tb__icon, .tb__avatar{ width: 32px; height: 32px; }
+  .tb__search-btn{ width: 40px; height: 24px; }
+}
+
+/* <= 576px: xếp gọn, bỏ divider */
+@media (max-width: 576px){
+  .home__topbar .tb__wrap{
+    padding: 0 12px;    /* hoặc 0 8px, miễn là trái = phải */
+  }
+  .tb__left, .tb__right{
+    gap: 8px;
+  }
+  .tb__search--pill{
+    height: 32px;
+  }
+  .tb__icon, .tb__avatar{ width: 30px; height: 30px; }
+  .tb__divider{ display: none; }
+}
+
+
+/* Khi sidebar THU GỌN chỉ cần co search nhẹ lại */
+/* Sidebar thu gọn nhưng search vẫn FULL */
+

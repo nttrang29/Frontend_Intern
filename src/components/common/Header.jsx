@@ -1,5 +1,6 @@
 // src/components/common/Header.jsx
 import "../../styles/Header.css";
+import GlobalSearch from "./GlobalSearch";
 
 export default function Header() {
   return (
@@ -27,6 +28,9 @@ export default function Header() {
           </p>
         </div>
       </div>
+
+      {/* Global Search */}
+      <GlobalSearch />
     </header>
   );
 }

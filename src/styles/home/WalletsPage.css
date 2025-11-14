@@ -1,411 +1,706 @@
-/* ===================================================================
-   TOKENS & FALLBACKS
-   =================================================================== */
-:root{
-  --sb-grad-1: #6b4ef6;         /* fallback nếu chưa khai báo ở sidebar */
-  --sb-grad-2: #7b5bf9;
+/* ==============================================================
+   01) TOKENS / BIẾN TOÀN CỤC — KHÔNG đổi giá trị
+   ============================================================== */
+:root {
+  /* Sidebar gradient (xám-đen) */
+  --sb-grad-1: #1a1a1a;
+  --sb-grad-2: #2a2a2a;
+
+  /* Kích thước & layout */
   --wallet-row-h: 140px;
   --wallet-row-gap: 14px;
   --wallet-col-gap: 18px;
 
+  /* Card */
   --card-radius: 18px;
   --card-padding: 16px;
-  --card-border: rgba(17,24,39,.06);
-  --card-bg: rgba(255,255,255,.86);
-  --card-shadow-1: 0 1px 2px rgba(0,0,0,.05);
-  --card-shadow-2: 0 8px 24px rgba(15,23,42,.08);
-  --card-shadow-hover: 0 12px 32px rgba(15,23,42,.14);
+  --card-border: rgba(17,24,39,.08);
+  --card-bg: rgba(255,255,255,.92);
+  --card-shadow-1: 0 1px 2px rgba(0,0,0,.06);
+  --card-shadow-2: 0 8px 24px rgba(0,0,0,.10);
+  --card-shadow-hover: 0 12px 32px rgba(0,0,0,.16);
+
+  /* Text */
   --text-strong: #111827;
   --text-soft: #6b7280;
-  --brand: #2563eb;
+  --brand: #111111;
+
+  /* Summary (tổng số dư) */
+  --sum-g1: #1f1f1f;
+  --sum-g2: #0c0c0c;
+  --sum-radial: rgba(255,255,255,.10);
+  --sum-border: rgba(255,255,255,0.12);
+  --sum-shadow: 0 12px 28px rgba(0,0,0,0.22);
+
+  /* Motion */
+  --ease3d: cubic-bezier(.22,.61,.36,1);
+  --d-fast: .45s var(--ease3d);
+  --d-base: .8s  var(--ease3d);
+  --d-slow: 1.25s var(--ease3d);
 }
 
-/* ===================================================================
-   HEADER (full width như topbar) + CONTROLS (1 dòng, đồng bộ màu)
-   =================================================================== */
-.wallet-header{
-  width:100%;
-  max-width:none;
-  margin-left:auto;
-  margin-right:auto;
 
-  border-radius:16px;
-  background: linear-gradient(180deg, var(--sb-grad-1), var(--sb-grad-2));
-  color:#fff;
-  box-shadow:0 8px 20px rgba(0,0,0,.35);
-  border:none;
-}
-.wallet-header__title{
-  font-weight:700; color:#fff;
-  display:flex; align-items:center;
+/* ==============================================================  
+   02) HEADER & CONTROLS — phiên bản nền trắng + chữ #001c44  
+   ============================================================== */
+.wallet-header {
+  width: 100%;
+  max-width: none;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 16px;
+  background: #ffffff; /* nền trắng */
+  color: #001c44;      /* chữ xanh đậm */
+  border: 1px solid rgba(0, 28, 68, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 28, 68, 0.08);
 }
 
-/* Controls luôn 1 dòng, có scroll ngang khi hẹp */
-.wallet-header__controls{
-  display:flex; align-items:center; gap:1rem;
-  flex-wrap:nowrap !important;
-  overflow-x:auto; scrollbar-width:none;
+.wallet-header__title {
+  font-weight: 700;
+  color: #001c44;
+  display: flex;
+  align-items: center;
 }
-.wallet-header__controls::-webkit-scrollbar{ display:none; }
 
-/* Đẩy nút Tạo ví mới về mép phải */
-.wallet-header__controls .position-relative{ margin-left:auto; }
+/* Controls 1 dòng, có scroll ngang khi hẹp */
+.wallet-header__controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.wallet-header__controls::-webkit-scrollbar {
+  display: none;
+}
+.wallet-header__controls .position-relative {
+  margin-left: auto;
+}
 
-/* Nhãn + input không wrap */
 .wallet-header__controls label,
 .wallet-header__controls select,
-.wallet-header__controls button{
-  white-space:nowrap; line-height:1.1;
+.wallet-header__controls button {
+  white-space: nowrap;
+  line-height: 1.1;
+  color: #001c44;
 }
 
-/* Select đồng bộ nền gradient – đảm bảo chữ luôn đọc được */
-.wallet-header__controls select.sort-select{
-  min-width:160px;
-  background: rgba(255,255,255,.15);
-  color:#fff;
-  border:1px solid rgba(255,255,255,.35);
-  border-radius:10px;
-  transition: all .2s ease;
-  -webkit-text-fill-color:#fff;           /* fix chrome autofill/active */
-  caret-color:#fff;
-}
-.wallet-header__controls select.sort-select option{ color:#111; background:#fff; } /* mở dropdown option nền trắng */
-
-.wallet-header__controls select.sort-select:focus{
-  border-color:#fff;
-  box-shadow:0 0 0 3px rgba(255,255,255,.25);
-  outline:none;
-}
-.wallet-header__controls label{ font-weight:500; color:#f1f5f9; }
-
-/* Nút đổi chiều sort */
-.sort-dir-btn{
-  border:1px solid rgba(255,255,255,.4);
-  color:#fff;
-  background:rgba(255,255,255,.1);
-  border-radius:8px;
-  transition:all .25s ease;
-}
-.sort-dir-btn:hover{ background:rgba(255,255,255,.25); transform:translateY(-1px); }
-
-/* Nút Tạo ví mới (đổi màu dễ ở đây) */
-.btn-gradient {
-  background: linear-gradient(90deg, #f9a8d4, #c084fc);
-  color: #fff;
-  font-weight: 600;
+/* Select sáng viền xanh đậm */
+.wallet-header__controls select.sort-select {
+  min-width: 160px;
+  background: #ffffff;
+  color: #001c44;
+  border: 1px solid rgba(0, 28, 68, 0.35);
   border-radius: 10px;
-  border: none;
-  padding: 0.5rem 1rem;
-  box-shadow: 0 4px 12px rgba(192, 132, 252, 0.35);
-  transition:
-    background 0.6s ease,
-    box-shadow 0.5s cubic-bezier(0.19, 1, 0.22, 1),
-    transform 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-    filter 0.4s ease;
-  will-change: transform, box-shadow, filter;
+  transition: all 0.25s ease;
+  -webkit-text-fill-color: #001c44;
+  caret-color: #001c44;
 }
+.wallet-header__controls select.sort-select option {
+  color: #001c44;
+  background: #ffffff;
+}
+.wallet-header__controls select.sort-select:focus {
+  border-color: #001c44;
+  box-shadow: 0 0 0 3px rgba(0, 28, 68, 0.15);
+  outline: none;
+}
+
+/* Label chữ đậm màu xanh */
+.wallet-header__controls label {
+  font-weight: 600;
+  color: #001c44;
+}
+
+/* Nút sắp xếp & tạo ví */
+.sort-dir-btn,
+.btn-gradient {
+  border: 1px solid rgba(0, 28, 68, 0.4);
+  color: #001c44;
+  background: rgba(0, 28, 68, 0.05);
+  border-radius: 8px;
+  transition: all 0.25s ease;
+  padding: 0.45rem 1rem;
+  font-weight: 600;
+}
+.sort-dir-btn:hover,
 .btn-gradient:hover {
-  transform: translateY(-3px) scale(1.05);
-  background: linear-gradient(100deg, #fbcfe8, #c084fc, #a855f7);
-  box-shadow:
-    0 8px 24px rgba(192, 132, 252, 0.55),
-    0 0 16px rgba(192, 132, 252, 0.35);
-  filter: brightness(1.15) saturate(1.15);
-}
-.btn-gradient:active {
-  transform: scale(0.97);
-  box-shadow: 0 3px 8px rgba(192, 132, 252, 0.35);
-  transition: all 0.15s ease-out;
+  background: rgba(0, 28, 68, 0.12);
+  transform: translateY(-1px);
 }
 
-
-
-/* Icon kích thước nhẹ */
-.wallet-header__controls i{ font-size:1.05rem; }
-
-/* Bảo đảm overlay (chooser/modal) nổi trên header */
-.wallet-header,
-.wallet-header__controls,
-.wallet-header .position-relative{ position:relative; z-index:20; }
-
-/* Nếu dùng custom chooser đặt trong DOM */
-.wallet-create-chooser,
-.wallet-create-modal,
-.modal.d-block{
-  position:fixed; inset:0; z-index:2000;
-}
-.modal-dialog{ z-index:2100; }
-
-/* ===================================================================
-   SECTION (khung 2 cột)
-   =================================================================== */
-.wallet-section{
-  border-radius:16px; overflow:visible !important;
-  background:#fff;
-  box-shadow:0 6px 18px rgba(0,0,0,.06);
-  transition: all .3s;
-}
-.wallet-section:hover{ transform:translateY(-2px); box-shadow:0 10px 28px rgba(0,0,0,.07); }
-
-.wallet-page .card-header{
-  background: linear-gradient(90deg, #5b5de9, #6bb5ff);
-  color:#fff; border:none; border-radius:16px 16px 0 0; padding:.85rem 1.1rem;
-}
-.wallet-page .card-header h5{ font-weight:600; font-size:1.02rem; }
-.wallet-page .card-header .badge{ background:rgba(255,255,255,.25); font-size:.84rem; border-radius:10px; }
-.wallet-page .card-body{ background:#fff; padding:1.1rem 1.2rem; }
-
-/* ===================================================================
-   GRID 2 CỘT + CUỘN 5 HÀNG
-   =================================================================== */
-.wallet-grid{
-  display:grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-auto-rows: minmax(var(--wallet-row-h), auto);
-  gap: var(--wallet-row-gap) var(--wallet-col-gap);
-  max-height: calc(var(--wallet-row-h) * 5 + var(--wallet-row-gap) * 4);
-  overflow:auto;
-  padding-right:6px;
-}
-.wallet-grid__item{ display:block; width:100%; min-width:0; }
-
-.wallet-grid::-webkit-scrollbar{ width:8px; }
-.wallet-grid::-webkit-scrollbar-thumb{ background:rgba(0,0,0,.18); border-radius:8px; }
-.wallet-grid::-webkit-scrollbar-track{ background:transparent; }
-
-/* ===================================================================
-   WALLET CARD (bố cục + menu …)
-   =================================================================== */
-.wallet-grid__item .wallet-card{
-  width:100%; min-width:0; min-height:var(--wallet-row-h);
-  border-radius:14px; border:1px solid #e8ebf3; background:#ffffff;
-  box-shadow:0 3px 12px rgba(0,0,0,.04);
-  transition: all .25s ease;
-
-  display:flex; flex-direction:column; justify-content:space-between; align-items:flex-start;
-
-  word-break: keep-all; overflow-wrap: break-word; white-space: normal;
-  overflow:hidden; text-overflow:ellipsis; line-height:1.4;
-  padding:0.9rem 1rem;
-
-  position:relative;            /* cho menu */
-  padding-top:2rem;             /* chừa chỗ nút … */
-}
-.wallet-grid__item .wallet-card:hover{
-  transform: translateY(-3px);
-  box-shadow: 0 8px 18px rgba(91,93,233,.18);
+/* Icon */
+.wallet-header__controls i {
+  font-size: 1.05rem;
+  color: #001c44;
 }
 
-/* Text trong card */
-.wallet-card *{ line-height:1.4; color:#222; text-align:left; }
-.wallet-card .wallet-name{
-  font-weight:700; font-size:1rem; color:#1a1a1a; margin-bottom:.25rem;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:2.25rem;
-}
-.wallet-card .wallet-balance{ font-weight:600; color:#0b3d91; }
-.wallet-card .wallet-currency{ font-size:.85rem; color:#666; }
-.wallet-card small, .wallet-card .text-muted{ color:#666 !important; font-size:.8rem !important; line-height:1.3; }
-.wallet-card .badge, .wallet-card .dropdown{ flex-shrink:0; }
-.wallet-card > * + * { margin-top:.25rem; }
-
-/* Nút … cố định góc phải */
-.wallet-grid__item .wallet-card .dropdown{
-  position:absolute; top:.6rem; right:.6rem; z-index:12; margin:0;
-}
-.wallet-grid__item .wallet-card .dropdown > .btn{
-  width:32px; height:32px; padding:0; border:none; border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  background:#f8f9fa; box-shadow:0 2px 6px rgba(0,0,0,.06);
-  transition: background-color .2s, transform .2s;
-}
-.wallet-grid__item .wallet-card .dropdown > .btn:hover{ background:#e9ecef; transform:scale(1.05); }
-.wallet-grid__item .wallet-card .dropdown-menu{ z-index:2100 !important; }
-
-/* Bỏ nền trắng body trong card nếu có rule tổng */
-.wallet-card .card-body{ background:transparent !important; padding:16px 18px; }
-
-/* Nội dung căn giữa (tuỳ nơi dùng) */
-.wc-content{
-  width:100%; min-height:120px;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  text-align:center; gap:8px;
-}
-.wc-title{
-  font-weight:800; font-size:1rem; color:#17233a;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
-}
-.wc-default{ margin-top:2px; }
-.wc-balance{ display:flex; flex-direction:column; align-items:center; gap:2px; }
-.wc-label{ font-size:.9rem; color:var(--text-soft); }
-.wc-value{ font-size:1rem; }
-.wc-created{ font-size:.9rem; }
-
-/* Nền pastel theo vị trí */
-.wallet-grid__item:nth-child(6n+1) .wallet-card{ background:#dfeaff; }
-.wallet-grid__item:nth-child(6n+2) .wallet-card{ background:#ffebd6; }
-.wallet-grid__item:nth-child(6n+3) .wallet-card{ background:#e8ddff; }
-.wallet-grid__item:nth-child(6n+4) .wallet-card{ background:#e1ffeb; }
-.wallet-grid__item:nth-child(6n+5) .wallet-card{ background:#fff2d9; }
-.wallet-grid__item:nth-child(6n+6) .wallet-card{ background:#dff7ff; }
-.wallet-grid__item .wallet-card{
-  border:1px solid rgba(0,0,0,.08);
-  box-shadow:0 4px 12px rgba(0,0,0,.1);
-  transition: transform .25s, box-shadow .25s;
-}
-.wallet-grid__item .wallet-card:hover{
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0,0,0,.18);
-}
-
-/* Màu tên ví phân biệt */
-.wallet-grid__item:nth-child(6n+1) .wc-title{ color:#1e40af; }
-.wallet-grid__item:nth-child(6n+2) .wc-title{ color:#b45309; }
-.wallet-grid__item:nth-child(6n+3) .wc-title{ color:#6d28d9; }
-.wallet-grid__item:nth-child(6n+4) .wc-title{ color:#047857; }
-.wallet-grid__item:nth-child(6n+5) .wc-title{ color:#92400e; }
-.wallet-grid__item:nth-child(6n+6) .wc-title{ color:#075985; }
-.wallet-grid__item .wallet-card:hover .wc-title{ filter:brightness(1.25); }
-.wallet-grid__item .wallet-card.wallet-card--default .wc-title{
-  color:#2563eb !important; text-shadow:0 0 6px rgba(37,99,235,.25);
-}
-.wallet-card--default .wc-default{
-  background: linear-gradient(90deg,#3b82f6,#60a5fa);
-  color:#fff; box-shadow:0 2px 6px rgba(37,99,235,.35);
-}
-
-/* ===================================================================
-   ACCESSIBILITY & RESPONSIVE
-   =================================================================== */
-.wallet-grid__item .wallet-card:focus-within{
-  outline:2px solid rgba(37,99,235,.35); outline-offset:2px;
-}
-@media (prefers-reduced-motion: reduce){
-  .wallet-grid__item .wallet-card, .wc-menu > .btn{ transition:none; }
-}
-@media (max-width: 992px){
-  .wallet-page .card-body{ padding:1rem; }
-  .btn-gradient{ font-size:.92rem; }
-  :root{ --wallet-row-h:132px; }
-}
-@media (max-width: 576px){
-  .wallet-grid{ grid-template-columns:1fr; }
-  :root{ --wallet-row-h:120px; }
-}
-/* ===== Overlay/Chooser: luôn nổi lên trên ===== */
-.wallet-create-chooser,
-.wallet-create-modal,
-.modal.d-block {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 5000 !important;
-}
-
-/* Chỉ khi overlay mở mới vô hiệu hóa overflow + transform của header/controls */
-.wallet-page.is-overlay-open .wallet-header,
-.wallet-page.is-overlay-open .wallet-header__controls,
-.wallet-page.is-overlay-open .wallet-header__controls .position-relative {
-  overflow: visible !important;
-  transform: none !important;
-  filter: none !important;
-  will-change: auto !important;
-}
-
-/* Desktop: khi KHÔNG mở overlay thì giữ hiệu ứng & không đụng overflow */
+/* Responsive */
 @media (min-width: 576px) {
   .wallet-header__controls {
-    overflow: visible; /* cho phép hiệu ứng/transform bình thường */
+    overflow: visible;
   }
 }
-
-/* Mobile: vẫn cho trượt ngang controls khi KHÔNG mở overlay */
 @media (max-width: 575.98px) {
   .wallet-header__controls {
     overflow-x: auto;
     scrollbar-width: none;
   }
-  .wallet-header__controls::-webkit-scrollbar { display: none; }
+  .wallet-header__controls::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-/* Panel của chooser (nếu có) đảm bảo dễ đọc */
+/* ==============================================================
+   03) PAGE / SECTION WRAPPER
+   ============================================================== */
+.wallet-page { perspective:900px; perspective-origin:50% 20%; }
+.wallet-page.container {
+  max-width:100% !important; width:100% !important;
+  padding-left:0 !important; padding-right:0 !important;
+}
+.wallet-page > .wallet-header,
+.wallet-page > section,
+.wallet-page .row { padding-left:15px; padding-right:15px; }
+
+.wallet-section {
+  position:relative; border-radius:16px; overflow:hidden;
+  background:#fff; box-shadow:0 6px 18px rgba(0,0,0,.08);
+  transition: all .3s;
+}
+.wallet-section:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,.10); }
+
+.wallet-page .card-header {
+  background: #ffffff;
+  color: #001c44;
+  border: 1px solid rgba(0, 28, 68, 0.12);
+  border-radius: 16px 16px 0 0;
+  padding: 0.85rem 1.1rem;
+  position: relative;
+  z-index: 3;
+  box-shadow: 0 6px 14px rgba(0, 28, 68, 0.08);
+}
+.wallet-page .card-header h5 {
+  font-weight: 600;
+  font-size: 1.02rem;
+  color: #001c44;
+}
+.wallet-page .card-header .badge {
+  background: rgba(0, 28, 68, 0.08);
+  color: #001c44;
+  font-size: 0.84rem;
+  border-radius: 10px;
+}
+
+.wallet-page .card-body { background:#fff; padding:1.1rem 1.2rem; }
+.wallet-section .card-body { position:relative; overflow:visible; }
+
+/* Khi overlay mở: không làm mờ header */
+.wallet-page.is-overlay-open .wallet-header,
+.wallet-page.is-overlay-open .wallet-header__controls,
+.wallet-page.is-overlay-open .wallet-header__controls .position-relative{
+  overflow:visible !important; transform:none !important; filter:none !important; will-change:auto !important;
+}
+
+
+/* ==============================================================  
+   04) SUMMARY CARDS (TỔNG SỐ DƯ — nền trắng + chữ #001c44)
+   ============================================================== */
+.sum-card {
+  position: relative;
+  width: 100%;
+  padding: 20px 24px;
+  border-radius: 22px;
+  color: #001c44;
+  background: #ffffff;
+  border: 1px solid rgba(0, 28, 68, 0.12);
+  box-shadow: 0 8px 20px rgba(0, 28, 68, 0.08);
+  transition: all 0.35s ease;
+}
+
+.sum-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 28, 68, 0.15);
+}
+
+/* Tiêu đề và mô tả */
+.sum-card__title {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #001c44;
+  opacity: 0.9;
+  text-transform: uppercase;
+}
+
+.sum-card__value {
+  margin-top: 6px;
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 800;
+  line-height: 1.1;
+  color: #001c44;
+}
+
+.sum-card__desc {
+  margin-top: 6px;
+  font-size: 13px;
+  opacity: 0.9;
+  color: #001c44;
+}
+
+/* Mini & overall giữ đồng bộ */
+.sum-card--mini,
+.sum-card--overall {
+  background: #ffffff;
+  color: #001c44;
+  border: 1px solid rgba(0, 28, 68, 0.12);
+  box-shadow: 0 10px 20px rgba(0, 28, 68, 0.08);
+}
+
+
+
+/* ==============================================================
+   05) GRID & EXPAND (kèm FIX SCROLL khi THU GỌN)
+   ============================================================== */
+/* Grid cơ bản */
+.wallet-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-auto-rows: minmax(var(--wallet-row-h), auto);
+  gap:16px;
+  max-height: calc(var(--wallet-row-h) * 5 + var(--wallet-row-gap) * 4);
+  overflow:auto; padding-right:6px; min-width:0;
+  overflow-x:visible; position:relative; z-index:0;
+}
+.wallet-grid__item{ display:block; width:100%; min-width:0; min-height:0; position:relative; z-index:1; }
+
+/* Scrollbar (WebKit) */
+.wallet-grid::-webkit-scrollbar{ width:8px; }
+.wallet-grid::-webkit-scrollbar-thumb{ background:rgba(0,0,0,.18); border-radius:8px; }
+.wallet-grid::-webkit-scrollbar-track{ background:transparent; }
+
+/* Khi mở rộng 2 cột (không giới hạn chiều cao) */
+.wallet-grid--expanded-two{
+  grid-template-columns: repeat(2, 1fr) !important;
+  max-height:none !important; overflow:visible !important;
+  gap:16px 18px;
+}
+@media (max-width: 992px){ .wallet-grid--expanded-two { grid-template-columns:1fr !important; } }
+
+/* Container animation expand/collapse */
+.exp-anim{
+  display:block; contain: layout paint; overflow:hidden;
+  transition:
+    max-height .42s cubic-bezier(.22,.61,.36,1),
+    opacity .32s ease,
+    padding-top .42s cubic-bezier(.22,.61,.36,1),
+    padding-bottom .42s cubic-bezier(.22,.61,.36,1);
+}
+
+/* Giới hạn 6 hàng (giữ cuộn) */
+.wallet-grid--limit-6 {
+  position:relative; grid-auto-rows:minmax(var(--wallet-row-h), auto);
+  align-content:start; overflow:auto; padding-right:6px; z-index:1;
+}
+@media (min-width: 992px){
+  .wallet-grid--limit-6{
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    max-height: calc(var(--wallet-row-h) * 3 + var(--wallet-row-gap) * 2);
+  }
+}
+@media (max-width: 991.98px){
+  .wallet-grid--limit-6{
+    grid-template-columns: 1fr !important;
+    max-height: calc(var(--wallet-row-h) * 6 + var(--wallet-row-gap) * 5);
+  }
+}
+
+/* Giữ giới hạn 6 hàng cả khi expanded (2 cột + inspector) */
+@media (min-width: 992px){
+  .section-expanded .wallet-grid.wallet-grid--expanded-two.wallet-grid--limit-6{
+    max-height: calc(var(--wallet-row-h) * 3 + var(--wallet-row-gap) * 2) !important;
+    overflow:auto !important;
+  }
+}
+@media (max-width: 991.98px){
+  .section-expanded .wallet-grid.wallet-grid--expanded-two.wallet-grid--limit-6{
+    max-height: calc(var(--wallet-row-h) * 6 + var(--wallet-row-gap) * 5) !important;
+    overflow:auto !important;
+  }
+}
+
+/* ✨ FIX: luôn có cuộn khi THU GỌN (không .section-expanded) */
+@media (min-width: 992px) {
+  .wallet-section:not(.section-expanded) .wallet-grid.wallet-grid--limit-6{
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    max-height: calc(var(--wallet-row-h) * 3 + var(--wallet-row-gap) * 2) !important;
+    overflow:auto !important; -webkit-overflow-scrolling: touch; padding-right:6px;
+  }
+}
+@media (max-width: 991.98px) {
+  .wallet-section:not(.section-expanded) .wallet-grid.wallet-grid--limit-6{
+    grid-template-columns:1fr !important;
+    max-height: calc(var(--wallet-row-h) * 6 + var(--wallet-row-gap) * 5) !important;
+    overflow:auto !important; -webkit-overflow-scrolling: touch; padding-right:6px;
+  }
+}
+.wallet-section:not(.section-expanded) .wallet-grid.wallet-grid--limit-6::-webkit-scrollbar { width: 8px; }
+.wallet-section:not(.section-expanded) .wallet-grid.wallet-grid--limit-6::-webkit-scrollbar-thumb { background: rgba(0,0,0,.18); border-radius: 8px; }
+.wallet-section:not(.section-expanded) .wallet-grid.wallet-grid--limit-6::-webkit-scrollbar-track { background: transparent; }
+
+/* Grid reveal khi section mở rộng */
+.section-expanded .wallet-grid{
+  animation: gridClipIn .9s cubic-bezier(.22,.61,.36,1) both; overflow: visible;
+}
+@keyframes gridClipIn {
+  from { opacity:0; clip-path: inset(0 100% 0 0 round 16px); transform: translateY(6px); }
+  60%  { opacity:1; }
+  to   { opacity:1; clip-path: inset(0 0 0 0 round 16px); transform: translateY(0); }
+}
+
+/* Focus layer khi section mở rộng */
+.wallet-page .wallet-section.section-expanded{
+  transform: translateZ(30px) scale(1.01);
+  transition: transform var(--d-base), box-shadow var(--d-base);
+  box-shadow: 0 22px 48px rgba(0,0,0,.18);
+}
+.wallet-page .wallet-section:not(.section-expanded){
+  transition: filter var(--d-base), transform var(--d-base), opacity var(--d-base);
+}
+/* Dim phần còn lại (vẫn đảm bảo root không bị “đè”) */
+.wallet-page .wallet-section.section-expanded ~ .wallet-section,
+.wallet-page .wallet-section.section-expanded ~ * .wallet-section{
+  filter: blur(1.2px) saturate(.9); opacity:.6; transform: scale(.985); pointer-events:none;
+}
+.wallet-page:has(.wallet-section.section-expanded) .wallet-section:not(.section-expanded){
+  filter: blur(1.2px) saturate(.9); opacity:.6; transform: scale(.985); pointer-events:none;
+}
+.wallet-page .wallet-section,
+.wallet-page:has(.wallet-section.section-expanded) .wallet-section{
+  filter:none !important; opacity:1 !important; transform:none !important; pointer-events:auto !important;
+}
+
+/* Inspector slide-in + shadow */
+@keyframes sideClipIn {
+  from { opacity:0; clip-path: inset(0 0 0 100% round 16px); transform: translateX(12px); }
+  60%  { opacity:1; }
+  to   { opacity:1; clip-path: inset(0 0 0 0 round 16px); transform: translateX(0); }
+}
+.section-expanded aside.col-lg-4{
+  animation: sideClipIn .9s cubic-bezier(.22,.61,.36,1) both;
+  position:relative; z-index:4; overflow:visible;
+  filter: drop-shadow(0 10px 28px rgba(0,0,0,.25));
+}
+
+
+/* ==============================================================
+   06) WALLET CARD (Neo Glass Dark)
+   ============================================================== */
+.wallet-grid__item .wallet-card{
+  width:100%; padding:1.2rem 1.4rem; border-radius:18px;
+  background: rgba(255,255,255,.05);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 8px 25px rgba(0,0,0,.4);
+  transition: all .35s ease;
+  position: relative; overflow: hidden;
+}
+.wallet-grid__item .wallet-card:hover{
+  transform: translateY(-4px) scale(1.02);
+  background: rgba(60,65,90,.35);
+  border-color: rgba(140,100,255,.4);
+  box-shadow: 0 12px 35px rgba(100,70,255,.3);
+}
+
+/* Tên ví nổi bật */
+.wallet-card .wallet-name{
+  display:inline-block; font-weight:700; font-size:1.05rem; color:#fff;
+  background: rgba(255,255,255,.18); padding:4px 10px; border-radius:10px;
+  backdrop-filter: blur(6px) saturate(140%); box-shadow: 0 2px 6px rgba(0,0,0,.2);
+  transition: all .3s ease;
+}
+.wallet-card .wallet-name:hover{ background: rgba(255,255,255,.25); transform: translateY(-1px); }
+
+/* Badge “Mặc định” */
+.wallet-card .badge{
+  background: rgba(0,0,0,.85) !important; border:none;
+  font-size:.75rem; padding:3px 6px; border-radius:6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+}
+
+/* Số dư & text phụ */
+.wallet-card .wallet-balance{ font-weight:700; font-size:1.05rem; color:#e4f5ff; text-shadow:0 0 6px rgba(255,255,255,.5); }
+.wallet-card small, .wallet-card .text-muted{ color: rgba(240,240,255,.75); font-size:.85rem; letter-spacing:.3px; }
+
+/* Nút 3 chấm */
+.wallet-grid__item .wallet-card .dropdown { position:absolute; top:8px; right:8px; margin:0; z-index:5; }
+.wallet-grid__item .wallet-card .dropdown > .btn,
+.wallet-grid__item .wallet-card .dropdown-toggle{
+  width:28px; height:28px; padding:0; border-radius:50%;
+  border:none !important; background: rgba(255,255,255,.8); color:#111;
+  display:inline-flex; align-items:center; justify-content:center; line-height:1;
+  box-shadow: 0 2px 4px rgba(0,0,0,.12); transition: all .25s ease;
+}
+.wallet-grid__item .wallet-card .dropdown > .btn:hover{ background: rgba(255,255,255,.95); transform: scale(1.08); }
+
+/* Khi menu mở: cho phép tràn */
+.wallet-grid__item .wallet-card:has(.dropdown-menu.show),
+.wallet-grid__item .wallet-card:has(.dropdown-toggle.show){ z-index:20; overflow:visible; }
+
+/* Chừa khoảng tránh đè nút */
+.wallet-card .card-body { padding-right: 56px !important; }
+
+
+/* ==============================================================
+   07) DROPDOWN MENU (gọn, không viền)
+   ============================================================== */
+.wallet-card .dropdown-menu{
+  position: absolute !important; top: calc(100% + 6px) !important; right: 0 !important; left: auto !important;
+  transform: none !important; z-index: 10000 !important;
+  min-width: 180px; padding: 6px 8px !important;
+  background: rgba(255,255,255,.96);
+  border: none !important; border-radius: 10px !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,.12); backdrop-filter: blur(8px) saturate(160%);
+}
+.wallet-card .dropdown-menu .form-check{
+  display:flex; align-items:center; gap:8px; margin:2px 0 !important;
+  padding:6px 4px !important; font-size:.85rem; color:#222;
+  border:none !important; transition: background .2s ease;
+}
+.wallet-card .dropdown-menu .form-check:hover{ background: rgba(0,0,0,.04); border-radius:6px; }
+.wallet-card .dropdown-menu .form-check-label{ flex:1; font-weight:500; line-height:1.3; color:#333; }
+.wallet-card .dropdown-menu .form-check-input{ transform: scale(.9); cursor:pointer; }
+
+/* Switch custom (đen khi bật) */
+.wallet-card .dropdown-menu .form-switch .form-check-input{
+  appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  position:relative; width:38px; height:22px; border-radius:999px;
+  border:1px solid rgba(0,0,0,.25); background:#e5e7eb; outline:none;
+  cursor:pointer; transition: background .2s ease, border-color .2s ease; margin-left:auto;
+}
+.wallet-card .dropdown-menu .form-switch .form-check-input::before{
+  content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
+  background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.2); transition: transform .2s ease;
+}
+.wallet-card .dropdown-menu .form-switch .form-check-input:checked{ background:#000 !important; border-color:#000 !important; }
+.wallet-card .dropdown-menu .form-switch .form-check-input:checked::before{ transform: translateX(16px); }
+.wallet-card .dropdown-menu .form-switch .form-check-input:focus{ box-shadow:none !important; }
+
+/* Không để wrapper chặn click */
+.wallet-card .wc-dots { pointer-events: none; }
+.wallet-card .wc-dots .dropdown, .wallet-card .wc-dots button { pointer-events: auto; }
+
+
+/* ==============================================================
+   08) INSPECTOR + TABS (mono)
+   ============================================================== */
+.inspector{ border-radius:16px; background:rgba(255,255,255,.92); box-shadow:0 10px 24px rgba(0,0,0,.08); }
+.inspector .card-body{ padding:1rem 1.1rem; }
+
+.inspector__tabs{
+  display:flex; gap:8px; padding:8px;
+  border-bottom:1px dashed rgba(0,0,0,.08);
+}
+.itab{
+  border:1px solid rgba(0,0,0,.08); background:#fff; color:#111;
+  border-radius:10px; padding:6px 10px; font-weight:600; font-size:.92rem; transition:.2s;
+}
+.itab:hover{ background:#f6f7fb; }
+.itab.active{ color:#fff; border-color:transparent; background: linear-gradient(90deg,#1f1f1f,#0c0c0c); }
+
+.inspector__hero{
+  padding:12px 14px; border-radius:14px; color:#fff;
+  background:
+    radial-gradient(900px 360px at 18% -8%, rgba(255,255,255,.10), transparent 60%),
+    linear-gradient(90deg,#1f1f1f 0%,#0c0c0c 52%,#000 100%);
+}
+.inspector__title{ font-weight:800; font-size:1rem; }
+.inspector__desc{ font-size:.9rem; opacity:.9; }
+
+/* Hàng thông tin */
+.info-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 6px; border-bottom:1px dashed rgba(0,0,0,.06);
+  transition: background var(--d-fast), transform var(--d-fast);
+}
+.info-row .label{ color:#6b7280; font-weight:600; }
+.info-row .value{ font-weight:700; }
+.info-row:hover{ background: rgba(0,0,0,.025); transform: translateZ(6px); }
+
+/* 🎨 Accent theo màu ví (đặt từ aside style="--wi-accent: #xxxxxx") */
+.inspector { --wi-accent: var(--wi-accent, #6C7EE1); }
+@supports (color: color-mix(in srgb, red 10%, white)) {
+  .inspector__hero{
+    background: color-mix(in srgb, var(--wi-accent) 12%, #0c0c0c) !important;
+    border: 1px solid color-mix(in srgb, var(--wi-accent) 38%, transparent) !important;
+  }
+  .itab.active{ background: color-mix(in srgb, var(--wi-accent) 22%, #111) !important; }
+  .inspector .info-row .value{ color: color-mix(in srgb, var(--wi-accent) 75%, #111); }
+}
+/* Fallback nếu không hỗ trợ color-mix */
+@supports not (color: color-mix(in srgb, red 10%, white)) {
+  .inspector__hero{
+    position:relative; background:#0d0d0d !important; border:1px solid rgba(255,255,255,.08) !important;
+  }
+  .inspector__hero::after{
+    content:""; position:absolute; inset:0; background: var(--wi-accent); opacity:.10; pointer-events:none; border-radius:inherit;
+  }
+  .itab.active{ background:#111 !important; }
+}
+/* Nút kiểu accent (tuỳ chọn dùng) */
+.inspector .btn-accent-soft{
+  background: color-mix(in srgb, var(--wi-accent) 12%, #fff);
+  border: 1px solid color-mix(in srgb, var(--wi-accent) 40%, transparent);
+  color: var(--wi-accent);
+}
+.inspector .btn-accent-ghost{
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--wi-accent) 40%, transparent);
+  color: var(--wi-accent);
+}
+.inspector .btn-accent-soft:hover,
+.inspector .btn-accent-ghost:hover{ transform: translateY(-1px); }
+
+
+/* ==============================================================
+   09) ICON “EYE” (ẩn/hiện tiền)
+   ============================================================== */
+.money-eye{
+  cursor:pointer; font-size:1rem; opacity:.75;
+  transition: opacity .2s ease, transform .2s ease, filter var(--d-fast), text-shadow var(--d-fast);
+}
+.money-eye:hover{
+  text-shadow:0 0 12px rgba(255,255,255,.65);
+  transform: translateZ(10px) scale(1.12);
+  opacity:1;
+}
+
+
+/* ==============================================================
+   10) KEYFRAMES DÙNG CHUNG
+   ============================================================== */
+@keyframes cardEnter3d{
+  from{ opacity:0; transform: translateY(16px) rotateX(6deg) scale(.98); }
+  to  { opacity:1; transform: translateY(0)   rotateX(0deg)  scale(1); }
+}
+@keyframes clipIn{
+  0%{ clip-path: inset(0 100% 0 0 round 16px); opacity:0; transform: translateY(8px); }
+  60%{ opacity:1; }
+  100%{ clip-path: inset(0 0 0 0 round 16px); transform: translateY(0); }
+}
+
+
+.section-toggle {
+  --arrow-size: 9px;
+  background: rgba(0, 28, 68, 0.06);           /* nền xanh đậm nhạt */
+  color: #001c44;                              /* chữ & icon xanh đậm */
+  border: 1px solid rgba(0, 28, 68, 0.25);     /* viền mảnh cùng tone */
+  border-radius: 10px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  transition: background .25s ease, transform .25s ease, box-shadow .25s ease;
+  will-change: transform, background;
+  box-shadow: 0 4px 10px rgba(0, 28, 68, 0.08); /* bóng nhẹ xanh đậm */
+  position: relative;
+}
+
+.section-toggle:hover {
+  background: rgba(0, 28, 68, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 28, 68, 0.12);
+}
+
+.section-toggle:active {
+  transform: translateY(0) scale(0.96);
+}
+
+/* Mũi tên */
+.section-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 0;
+  height: 0;
+  border-left: var(--arrow-size) solid transparent;
+  border-right: var(--arrow-size) solid transparent;
+  border-top: calc(var(--arrow-size) * 1.2) solid #001c44; /* mũi tên xanh đậm */
+  transform-origin: 50% 40%;
+  transition: transform .25s ease;
+}
+
+.section-toggle[aria-expanded="true"]::before {
+  transform: rotate(-90deg);
+}
+
+/* ==============================================================
+   12) CHOOSER / POPOVER (nếu dùng)
+   ============================================================== */
 .wallet-create-chooser .dropdown-menu,
 .wallet-create-chooser .menu,
 .wallet-create-chooser .panel,
-.wallet-create-chooser .popover,
-.wallet-create-chooser .card {
-  background: #fff !important;
-  color: #111 !important;
-  border: 1px solid rgba(0,0,0,.08) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 12px 32px rgba(0,0,0,.18) !important;
+.wallet-create-chooser .popover { /* giữ nguyên z-index từ phần modal */ }
+/* ==============================================
+   FIX màu label & icon trong header controls
+   ============================================== */
+.wallet-header__controls label,
+.wallet-header__controls i,
+.wallet-header__controls .sort-label {
+  color: #001c44 !important;
+  opacity: 1 !important;      /* xoá độ mờ */
 }
-/* Nút 3 chấm gọn, nổi nhẹ */
-.wc-menu-btn{
-  width: 34px; height: 34px; border-radius: 50%;
-  display:flex; align-items:center; justify-content:center;
-  border: 0; background: #ffffffcf;
-  box-shadow: 0 2px 8px rgba(16,24,40,.12);
-  transition: transform .2s ease, box-shadow .25s ease, background-color .2s ease;
+
+.wallet-header__controls .bi {
+  color: #001c44 !important;
+  opacity: 1 !important;
 }
-.wc-menu-btn:hover{
-  transform: translateY(-1px);
-  background: #fff;
-  box-shadow: 0 6px 16px rgba(16,24,40,.18);
+
+/* đảm bảo nút giữ màu chữ */
+.wallet-header__controls .btn,
+.wallet-header__controls .btn * {
+  color: #001c44 !important;
 }
- 
-/* Dropdown đẹp – bo góc, bóng đổ, không bị đè */
-.wallet-dd{
-  --dd-bg: #fff;
-  --dd-border: rgba(16,24,40,.08);
- 
-  padding: .35rem;
-  border-radius: 14px;
-  border: 1px solid var(--dd-border);
-  background: var(--dd-bg);
-  box-shadow:
-    0 16px 40px rgba(16,24,40,.18),
-    0 2px 6px rgba(16,24,40,.08);
-  z-index: 3000 !important;                    /* ➜ nổi trên mọi thứ */
-  overflow: hidden;                             /* bo góc thật */
-  transform-origin: top right;                  /* hiệu ứng bung */
-  animation: ddPop .14s cubic-bezier(.2,.8,.3,1) both;
+/* ====== FIX: Chooser/Tạo ví luôn nổi trên ====== */
+
+/* Header tự tạo stacking context riêng, không bị perspective làm kẹt */
+.wallet-header{
+  position: relative;
+  z-index: 200;           /* cao hơn section & sum-card */
+  isolation: isolate;     /* tách stacking context để z-index con hoạt động ổn định */
 }
- 
-/* Mũi tên nhỏ (tuỳ thích) */
-.wallet-dd::before{
-  content:""; position:absolute; top:-8px; right:14px;
-  border-width: 8px; border-style: solid;
-  border-color: transparent transparent var(--dd-bg) transparent;
-  filter: drop-shadow(0 -1px 0 var(--dd-border));
-}
- 
-/* Item đẹp + hover mượt */
-.wallet-dd .dropdown-item{
-  border-radius: 10px;
-  padding: .55rem .75rem;
-  display:flex; align-items:center;
-  gap:.4rem; font-weight: 500;
-  transition: background-color .18s ease, transform .12s ease, color .18s ease;
-}
-.wallet-dd .dropdown-item .bi{ font-size: 1rem; opacity:.9; }
- 
-.wallet-dd .dropdown-item:hover{
-  background: linear-gradient(90deg,#eef2ff,#f5f7ff);
-  transform: translateX(2px);
-}
- 
-/* Dòng phân cách mảnh & thoáng */
-.wallet-dd .dropdown-divider{
-  border-color: rgba(16,24,40,.08);
-}
- 
-/* Keyframes bung mềm */
-@keyframes ddPop{
-  from{ opacity:0; transform: translateY(-6px) scale(.98); }
-  to  { opacity:1; transform: translateY(0) scale(1); }
-}
- 
-/* Bảo đảm không bị cắt bởi thẻ cha */
-.wallet-section,
-.wallet-grid__item .wallet-card{
+
+/* Nơi bám menu (div .position-relative chứa nút) */
+.wallet-header .position-relative{
+  position: relative;
+  z-index: 300;
   overflow: visible !important;
 }
+
+/* Bản chắc cú: mọi dropdown/panel trong header đều ở rất cao */
+.wallet-header .dropdown-menu,
+.wallet-header .wallet-create-chooser,
+.wallet-header .popover,
+.wallet-create-chooser,
+.wallet-create-chooser .dropdown-menu,
+.wallet-create-chooser .menu,
+.wallet-create-chooser .panel,
+.wallet-create-chooser .popover{
+  position: absolute; /* hoặc fixed nếu component dùng fixed */
+  z-index: 5000 !important;
+}
+
+/* Hạ lớp nền xung quanh để không “đè” menu */
+.sum-card,
+.wallet-section{
+  position: relative;
+  z-index: 1;
+}
+
+/* Khi có overlay, tắt 3D để tránh stacking kỳ cục */
+.wallet-page.is-overlay-open{ perspective: none !important; }

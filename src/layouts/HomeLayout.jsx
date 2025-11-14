@@ -5,16 +5,36 @@ import "../styles/home/HomeLayout.css";
 
 export default function HomeLayout() {
   return (
-    <div className="home__wrap">
+    <div className="home-page">
+      {/* (Tuỳ chọn) Ảnh nền — overlay đã tắt */}
+      <div className="home-page__bg">
+        <img className="home-page__bg-img" src="/images/home-bg.jpg" alt="" />
+      </div>
+      <div className="home-page__overlay" />
+
+      {/* Sidebar cố định */}
       <aside className="home__sidebar">
         <HomeSidebar />
       </aside>
-      <main className="home__main">
-        <HomeTopbar />
-        <div className="home__content">
-          <Outlet />
-        </div>
-      </main>
+
+      {/* Khối bao nội dung */}
+      <div className="home__wrap">
+        <main className="home__main">
+          {/* TOPBAR CỐ ĐỊNH */}
+          <div className="home__topbar">
+            <div className="tb__wrap">
+              <HomeTopbar />
+            </div>
+          </div>
+
+         
+
+          {/* Vùng nội dung cuộn */}
+          <div className="home__content">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

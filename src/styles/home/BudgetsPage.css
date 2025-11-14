@@ -1,28 +1,323 @@
+/* BudgetsPage.css */
+
 .budget-page {
-  background-color: #f8f9fa;
   min-height: 100vh;
+  background-color: #f8f9fa;
 }
 
-.budget-page h2 {
-  font-size: 1.75rem;
+/* ================= HEADER ================= */
+
+.budget-header {
+  border-radius: 18px;
+  background: linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%);
+  color: #ffffff;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 12px rgba(0, 50, 93, 0.2);
 }
 
-.card {
+/* Bên trong header: chia trái / phải giống trang Giao dịch */
+.budget-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px !important;
+}
+
+/* Cụm bên trái: icon + tiêu đề + mô tả */
+.budget-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Cụm bên phải: nút, select... */
+.budget-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.budget-header-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.budget-header-icon {
+  font-size: 28px;
+  color: #ffffff;
+}
+
+.budget-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.budget-subtitle {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0;
+}
+
+.budget-add-btn {
+  background-color: #0066cc;
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.budget-add-btn:hover {
+  background-color: #0052a3;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+}
+
+/* ================= EMPTY STATE ================= */
+
+.budget-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  background: white;
   border-radius: 12px;
-  transition: all 0.2s ease-in-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+.budget-empty-icon {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 1.5rem;
+  opacity: 0.7;
 }
 
+.budget-empty-state h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 0.5rem;
+}
+
+.budget-empty-state p {
+  color: #6c757d;
+  margin-bottom: 2rem;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+/* ================= CARD ================= */
+
+.budget-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.budget-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px);
+}
+
+.budget-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.budget-card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #212529;
+  margin: 0;
+}
+
+.budget-card-month {
+  background-color: #e9ecef;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #495057;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Progress bar */
 .progress {
+  height: 12px;
   background-color: #e9ecef;
   border-radius: 6px;
+  overflow: hidden;
+  margin: 1rem 0;
 }
 
 .progress-bar {
+  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
   border-radius: 6px;
-  transition: width 0.4s ease;
+  transition: width 0.3s ease;
+}
+
+.progress-bar.bg-danger {
+  background: linear-gradient(90deg, #dc3545 0%, #ff6b6b 100%) !important;
+}
+
+.progress-bar.bg-warning {
+  background: linear-gradient(90deg, #ffc107 0%, #ffb300 100%) !important;
+}
+
+/* Stats */
+.budget-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-bottom: 1rem;
+}
+
+.budget-stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.budget-stat-label {
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 0.25rem;
+}
+
+.budget-stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.budget-stat-value.danger {
+  color: #dc3545;
+}
+
+.budget-stat-value.success {
+  color: #28a745;
+}
+
+.budget-stat-value.warning {
+  color: #ffc107;
+}
+
+/* Actions */
+.budget-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.budget-card-actions button {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-edit-budget {
+  background-color: #e7f3ff;
+  color: #0066cc;
+}
+
+.btn-edit-budget:hover {
+  background-color: #cce5ff;
+  color: #0052a3;
+}
+
+.btn-delete-budget {
+  background-color: #ffe7e7;
+  color: #dc3545;
+}
+
+.btn-delete-budget:hover {
+  background-color: #ffcccc;
+  color: #c82333;
+}
+
+/* Thông tin cảnh báo */
+.budget-warning-info {
+  background-color: #fff8e1;
+  border-left: 4px solid #ffc107;
+  padding: 1rem;
+  border-radius: 4px;
+  margin: 1.5rem 0;
+}
+
+.budget-warning-info label {
+  margin-bottom: 0.5rem;
+  color: #6c757d;
+}
+
+.budget-warning-info p {
+  margin: 0;
+  font-weight: 500;
+  color: #212529;
+}
+
+/* =============== RESPONSIVE =============== */
+
+@media (max-width: 768px) {
+  .budget-header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .budget-title {
+    font-size: 1.4rem;
+  }
+
+  .budget-header-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .budget-add-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .budget-card {
+    padding: 1rem;
+  }
+
+  .budget-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-card-actions {
+    flex-direction: column;
+  }
+
+  .budget-card-actions button {
+    width: 100%;
+  }
 }

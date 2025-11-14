@@ -1,60 +1,95 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
-export default function WalletEditModal({ wallet, onClose, onSubmit, currencies = [], existingNames = [] }) {
+export default function WalletEditModal({
+  wallet,
+  onClose,
+  onSubmit,
+  currencies = [],
+  existingNames = [],
+}) {
   const [form, setForm] = useState({
     name: "",
     currency: "VND",
     balance: "",
     note: "",
     isDefault: false,
-    type: "CASH",
   });
   const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
+  // ✅ chặn cuộn nền khi mở modal
   useEffect(() => {
     if (!wallet) return;
-    setForm({
-      name: wallet.name || "",
-      currency: wallet.currency || "VND",
-      balance: wallet.balance ?? "",
-      note: wallet.note || "",
-      isDefault: !!wallet.isDefault,
-      type: wallet.type || "CASH",
-    });
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [wallet]);
 
   const exists = useMemo(
     () =>
       new Set(
         (existingNames || [])
-          .map(s => s.toLowerCase().trim())
-          .filter(n => n !== (wallet?.name || "").toLowerCase().trim())
+          .map((s) => s.toLowerCase().trim())
+          .filter((n) => n !== (wallet?.name || "").toLowerCase().trim())
       ),
     [existingNames, wallet]
   );
 
-  function validate() {
+  useEffect(() => {
+    if (!wallet) return;
+    setForm({
+      name: wallet.name || "",
+      currency: wallet.currency || "VND",
+      balance:
+        wallet.balance === 0 || wallet.balance ? String(wallet.balance) : "",
+      note: wallet.note || "",
+      isDefault: !!wallet.isDefault,
+    });
+  }, [wallet]);
+
+  function validate(values = form) {
     const e = {};
-    const name = form.name.trim();
-    const balanceNum = Number(form.balance);
-
+    const name = (values.name || "").trim();
     if (!name) e.name = "Vui lòng nhập tên ví";
-    if (exists.has(name.toLowerCase())) e.name = "Tên ví đã tồn tại";
+    else if (name.length < 2) e.name = "Tên ví phải từ 2 ký tự";
+    else if (name.length > 40) e.name = "Tên ví tối đa 40 ký tự";
+    else if (exists.has(name.toLowerCase())) e.name = "Tên ví đã tồn tại";
 
-    if (!form.currency) e.currency = "Vui lòng chọn loại tiền tệ";
-    if (!currencies.includes(form.currency)) e.currency = "Loại tiền tệ không hợp lệ";
+    if (!values.currency) e.currency = "Vui lòng chọn loại tiền tệ";
+    else if (!currencies.includes(values.currency))
+      e.currency = "Loại tiền tệ không hợp lệ";
 
-    if (form.balance === "" || form.balance === null) e.balance = "Vui lòng nhập số dư";
-    if (!isFinite(balanceNum)) e.balance = "Số dư không hợp lệ";
-    if (isFinite(balanceNum) && balanceNum < 0) e.balance = "Số dư phải ≥ 0";
+    if (values.balance === "" || values.balance === null)
+      e.balance = "Vui lòng nhập số dư";
+    else {
+      const bn = Number(values.balance);
+      if (!isFinite(bn)) e.balance = "Số dư không hợp lệ";
+      else if (bn < 0) e.balance = "Số dư phải ≥ 0";
+      else if (String(values.balance).includes("."))
+        e.balance = "Số dư chỉ nhận số nguyên";
+    }
 
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    if ((values.note || "").length > 200)
+      e.note = "Mô tả tối đa 200 ký tự";
+    return e;
   }
+
+  const isValid = useMemo(() => Object.keys(validate()).length === 0, [form]);
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (!validate()) return;
+    const v = validate();
+    setErrors(v);
+    setTouched({
+      name: true,
+      currency: true,
+      balance: true,
+      note: true,
+    });
+    if (Object.keys(v).length > 0) return;
 
     onSubmit({
       id: wallet.id,
@@ -63,111 +98,211 @@ export default function WalletEditModal({ wallet, onClose, onSubmit, currencies 
       balance: Number(form.balance),
       note: form.note?.trim() || "",
       isDefault: !!form.isDefault,
-      type: form.type,
       createdAt: wallet.createdAt,
     });
   }
 
+  function setField(name, value) {
+    const next = { ...form, [name]: value };
+    setForm(next);
+    if (touched[name]) setErrors(validate(next));
+  }
+
   if (!wallet) return null;
 
-  return (
-    <div className="modal d-block" style={{ background: "rgba(0,0,0,0.35)" }}>
-      <div className="modal-dialog modal-dialog-centered">
-        <form className="modal-content" onSubmit={handleSubmit}>
-          <div className="modal-header">
-            <h5 className="modal-title">Sửa ví</h5>
-            <button type="button" className="btn-close" onClick={onClose} />
+  const createdAt =
+    wallet.createdAt &&
+    new Date(wallet.createdAt).toLocaleString("vi-VN", {
+      hour12: false,
+    });
+
+  // ✅ UI modal (light theme)
+  const modalUI = (
+    <>
+      <style>{`
+        .wallet-modal-overlay {
+          position: fixed; inset: 0;
+          background: rgba(0,0,0,0.35);
+          backdrop-filter: blur(4px);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 1300;
+        }
+        .wallet-modal {
+          width: 600px; max-width: 95%;
+          background: #ffffff; color: #111827;
+          border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+          overflow: hidden; border: 1px solid #e5e7eb;
+          position: relative; z-index: 1310;
+        }
+        .wallet-modal__header {
+          display:flex; justify-content:space-between; align-items:center;
+          padding:16px 18px; background:#f9fafb; border-bottom:1px solid #e5e7eb;
+        }
+        .wallet-modal__title { font-size:1.05rem; font-weight:700; color:#111827; }
+        .wallet-modal__close {
+          background:none; border:none; color:#6b7280; font-size:22px;
+          cursor:pointer; padding:4px 8px; border-radius:10px;
+          transition:all .2s ease;
+        }
+        .wallet-modal__close:hover { background:#f3f4f6; color:#000; }
+        .wallet-modal__body { padding:18px; background:#ffffff; }
+        .wallet-modal__footer {
+          display:flex; justify-content:flex-end; gap:10px;
+          padding:16px 18px; border-top:1px solid #e5e7eb;
+          background:#f9fafb;
+        }
+
+        .fm-row { margin-bottom:14px; }
+        .fm-label { color:#374151; font-size:.92rem; margin-bottom:6px; display:block; font-weight:500; }
+        .req { color:#ef4444; margin-left:2px; }
+
+        .fm-input, .fm-select, .fm-textarea {
+          width:100%; background:#fff; color:#111827;
+          border:1px solid #d1d5db; border-radius:10px;
+          padding:10px 12px; transition:all .2s ease;
+        }
+        .fm-input:focus, .fm-select:focus, .fm-textarea:focus {
+          border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.15);
+          outline:none;
+        }
+        .is-invalid {
+          border-color:#ef4444 !important; box-shadow:0 0 0 3px rgba(239,68,68,0.15);
+        }
+        .fm-feedback { color:#ef4444; font-size:.86rem; margin-top:5px; }
+
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        @media (max-width:560px){ .grid-2{grid-template-columns:1fr;} }
+
+        .fm-check { display:flex; align-items:center; gap:8px; margin-top:8px; }
+        .fm-check__input { width:18px; height:18px; accent-color:#2563eb; }
+
+        .fm-meta {
+          margin-top:12px; padding:10px 12px; border:1px dashed #d1d5db;
+          border-radius:10px; display:flex; justify-content:space-between;
+          color:#6b7280;
+        }
+        .fm-meta strong { color:#111827; }
+
+        .btn-cancel, .btn-submit {
+          border:none; border-radius:999px; padding:10px 16px; font-weight:600;
+          transition:all .2s ease; cursor:pointer; font-size:.95rem;
+        }
+        .btn-cancel {
+          background:#f3f4f6; color:#111827; border:1px solid #d1d5db;
+        }
+        .btn-cancel:hover { background:#e5e7eb; }
+        .btn-submit {
+          background:#2563eb; color:#ffffff;
+        }
+        .btn-submit:hover { background:#1d4ed8; }
+        .btn-submit:disabled { opacity:.6; cursor:not-allowed; }
+      `}</style>
+
+      <div className="wallet-modal-overlay" onClick={onClose}>
+        <form className="wallet-modal" onClick={(e)=>e.stopPropagation()} onSubmit={handleSubmit}>
+          <div className="wallet-modal__header">
+            <h5 className="wallet-modal__title">Sửa ví</h5>
+            <button type="button" className="wallet-modal__close" onClick={onClose}>×</button>
           </div>
 
-          <div className="modal-body">
+          <div className="wallet-modal__body">
             {/* Tên ví */}
-            <div className="mb-3">
-              <label className="form-label">Tên ví <span className="text-danger">*</span></label>
+            <div className="fm-row">
+              <label className="fm-label">Tên ví<span className="req">*</span></label>
               <input
-                className={`form-control ${errors.name ? "is-invalid" : ""}`}
+                className={`fm-input ${touched.name && errors.name ? "is-invalid" : ""}`}
                 value={form.name}
-                onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Ví tiền mặt, Techcombank, Momo…"
+                onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+                onChange={(e) => setField("name", e.target.value)}
+                placeholder="Ví tiền mặt, Ngân hàng ACB…"
+                maxLength={40}
               />
-              {errors.name && <div className="invalid-feedback">{errors.name}</div>}
+              {touched.name && errors.name && <div className="fm-feedback">{errors.name}</div>}
             </div>
 
-            {/* Loại tiền tệ */}
-            <div className="mb-3">
-              <label className="form-label">Loại tiền tệ <span className="text-danger">*</span></label>
-              <select
-                className={`form-select ${errors.currency ? "is-invalid" : ""}`}
-                value={form.currency}
-                onChange={(e) => setForm(f => ({ ...f, currency: e.target.value }))}
-              >
-                {(currencies || []).map(cur => <option key={cur} value={cur}>{cur}</option>)}
-              </select>
-              {errors.currency && <div className="invalid-feedback">{errors.currency}</div>}
+            {/* Loại tiền & Số dư */}
+            <div className="grid-2">
+              <div className="fm-row">
+                <label className="fm-label">Loại tiền tệ<span className="req">*</span></label>
+                <select
+                  className={`fm-select ${touched.currency && errors.currency ? "is-invalid" : ""}`}
+                  value={form.currency}
+                  onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
+                  onChange={(e) => setField("currency", e.target.value)}
+                >
+                  {currencies.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                {touched.currency && errors.currency && (
+                  <div className="fm-feedback">{errors.currency}</div>
+                )}
+              </div>
+
+              <div className="fm-row">
+                <label className="fm-label">Số dư<span className="req">*</span></label>
+                <input
+                  type="number"
+                  className={`fm-input ${touched.balance && errors.balance ? "is-invalid" : ""}`}
+                  value={form.balance}
+                  onBlur={() => setTouched((t) => ({ ...t, balance: true }))}
+                  onChange={(e) => setField("balance", e.target.value)}
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+                  }}
+                  placeholder="0"
+                />
+                {touched.balance && errors.balance && (
+                  <div className="fm-feedback">{errors.balance}</div>
+                )}
+              </div>
             </div>
 
-            {/* Số dư */}
-            <div className="mb-3">
-              <label className="form-label">Số dư <span className="text-danger">*</span></label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                className={`form-control ${errors.balance ? "is-invalid" : ""}`}
-                value={form.balance}
-                onChange={(e) => setForm(f => ({ ...f, balance: e.target.value }))}
-                placeholder="0"
-              />
-              {errors.balance && <div className="invalid-feedback">{errors.balance}</div>}
-            </div>
-
-            {/* Loại ví */}
-            <div className="mb-3">
-              <label className="form-label">Loại ví</label>
-              <select
-                className="form-select"
-                value={form.type}
-                onChange={(e) => setForm(f => ({ ...f, type: e.target.value }))}
-              >
-                <option value="CASH">Tiền mặt</option>
-                <option value="BANK">Ngân hàng</option>
-                <option value="EWALLET">Ví điện tử</option>
-              </select>
-            </div>
-
-            {/* Ghi chú */}
-            <div className="mb-3">
-              <label className="form-label">Mô tả</label>
+            {/* Mô tả */}
+            <div className="fm-row">
+              <label className="fm-label">Mô tả (tùy chọn)</label>
               <textarea
-                className="form-control"
+                className={`fm-textarea ${touched.note && errors.note ? "is-invalid" : ""}`}
                 rows="2"
                 value={form.note}
-                onChange={(e) => setForm(f => ({ ...f, note: e.target.value }))}
+                onBlur={() => setTouched((t) => ({ ...t, note: true }))}
+                onChange={(e) => setField("note", e.target.value)}
+                maxLength={200}
+                placeholder="Ghi chú cho ví này (tối đa 200 ký tự)"
               />
+              {touched.note && errors.note && <div className="fm-feedback">{errors.note}</div>}
             </div>
 
-            {/* Mặc định */}
-            <div className="form-check">
+            {/* Checkbox */}
+            <div className="fm-check">
               <input
                 id="editDefaultWallet"
-                className="form-check-input"
+                className="fm-check__input"
                 type="checkbox"
                 checked={form.isDefault}
-                onChange={(e) => setForm(f => ({ ...f, isDefault: e.target.checked }))}
+                onChange={(e) => setField("isDefault", e.target.checked)}
               />
-              <label className="form-check-label" htmlFor="editDefaultWallet">
-                Đặt làm ví mặc định
-              </label>
+              <label htmlFor="editDefaultWallet">Đặt làm ví mặc định</label>
             </div>
+
+            {/* Meta */}
+            {createdAt && (
+              <div className="fm-meta">
+                <span>Thời gian tạo</span>
+                <strong>{createdAt}</strong>
+              </div>
+            )}
           </div>
 
-          <div className="modal-footer">
-            <button type="button" className="btn btn-light" onClick={onClose}>Hủy</button>
-            <button type="submit" className="btn btn-primary">
-              <i className="bi bi-check2 me-1"></i> Lưu
-            </button>
+          <div className="wallet-modal__footer">
+            <button type="button" className="btn-cancel" onClick={onClose}>Hủy</button>
+            <button type="submit" className="btn-submit" disabled={!isValid}>Lưu</button>
           </div>
         </form>
       </div>
-    </div>
+    </>
   );
+
+  // ✅ Render modal ra ngoài layout (không bị đè)
+  return createPortal(modalUI, document.body);
 }
