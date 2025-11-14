@@ -15,7 +15,10 @@ import useToggleMask from "../../hooks/useToggleMask";
 
 import "../../styles/home/WalletsPage.css";
 
+const API_URL = "http://localhost:8080/wallets";
+
 const CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"];
+const API_BASE = "http://localhost:8080/wallets"; // Thay bằng domain thật khi deploy
 
 /** Bảng màu cho ví mới (theo 2 ảnh bạn gửi) */
 const WALLET_COLORS = [
@@ -101,7 +104,10 @@ const formatMoney = (amount = 0, currency = "VND") => {
 };
 
 export default function WalletsPage() {
-  const { wallets, createWallet, updateWallet, deleteWallet } = useWalletData();
+  // ===== State =====
+  const [wallets, setWallets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // ====== “mắt” tổng ======
   const [showTotalAll, toggleTotalAll] = useToggleMask(true);
@@ -184,7 +190,8 @@ export default function WalletsPage() {
 
   const compareByKey = (a, b, key) => {
     if (key === "name") return (a.name || "").localeCompare(b.name || "");
-    if (key === "balance") return Number(a.balance || 0) - Number(b.balance || 0);
+    if (key === "balance")
+      return Number(a.balance || 0) - Number(b.balance || 0);
     return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
   };
   const sortWith = (arr, key, dir) => {
@@ -493,14 +500,11 @@ export default function WalletsPage() {
       {/* ===== Header ===== */}
       <div className="wallet-header card border-0 shadow-sm p-3 p-lg-4 mb-2">
         <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-          <h3 className="wallet-header__title mb-0">
-            <i className="bi bi-wallet2 me-2"></i> Danh sách ví
-          </h3>
+          <h3 className="wallet-header__title mb-0">Danh sách ví</h3>
 
           <div className="wallet-header__controls d-flex align-items-center gap-3 flex-wrap">
             {/* Phạm vi */}
             <div className="d-flex align-items-center gap-2">
-              <i className="bi bi-layers-half text-light opacity-75"></i>
               <label className="sort-label text-light">Phạm vi:</label>
               <select
                 className="form-select form-select-sm sort-select"
@@ -515,7 +519,6 @@ export default function WalletsPage() {
 
             {/* Sắp xếp */}
             <div className="sort-box d-flex align-items-center gap-2">
-              <i className="bi bi-sort-alpha-down text-light opacity-75"></i>
               <label className="sort-label text-light">Sắp xếp theo:</label>
               <select
                 className="form-select form-select-sm sort-select"
@@ -531,15 +534,7 @@ export default function WalletsPage() {
                 className="btn btn-sm btn-outline-light sort-dir-btn"
                 onClick={toggleSortDir}
               >
-                {sortDir === "asc" ? (
-                  <>
-                    <i className="bi bi-sort-down-alt me-1" /> Tăng
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-sort-up me-1" /> Giảm
-                  </>
-                )}
+                {sortDir === "asc" ? "Tăng" : "Giảm"}
               </button>
             </div>
 
@@ -551,7 +546,7 @@ export default function WalletsPage() {
                 onClick={handleAddWalletClick}
                 aria-expanded={showChooser}
               >
-                <i className="bi bi-plus-lg me-2"></i> Tạo ví mới
+                Tạo ví mới
               </button>
               <WalletCreateChooser
                 open={showChooser}
@@ -960,7 +955,9 @@ export default function WalletsPage() {
         open={showGroup}
         onClose={() => setShowGroup(false)}
         currencies={CURRENCIES}
-        onCreated={afterCreateGroupWallet}
+        onCreated={() =>
+          setToast({ open: true, message: "Tạo ví nhóm thành công" })
+        }
       />
 
       {editing && (
@@ -976,7 +973,7 @@ export default function WalletsPage() {
       <ConfirmModal
         open={!!confirmDel}
         title="Xóa ví"
-        message={confirmDel ? `Xóa ví "${confirmDel.name}"?` : ""}
+        message={`Xóa ví "${confirmDel?.name}"?`}
         okText="Xóa"
         cancelText="Hủy"
         onOk={() => doDelete(confirmDel)}
