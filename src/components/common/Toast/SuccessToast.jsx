@@ -22,8 +22,7 @@ export default function SuccessToast({
     return () => clearTimeout(timerRef.current);
   }, [open, duration, onClose]);
 
-  // TÍNH VỊ TRÍ: top = bottom của TOPBAR + offset.top
-  // right = khoảng trống từ mép phải viewport tới mép phải .home__main + offset.right
+  // Tính vị trí cạnh topbar + mép phải vùng nội dung
   useLayoutEffect(() => {
     if (!open) return;
 
@@ -44,14 +43,22 @@ export default function SuccessToast({
 
     calc();
     const ro = new ResizeObserver(calc);
-    topbarSelector && document.querySelectorAll(topbarSelector).forEach(el => ro.observe(el));
+    topbarSelector &&
+      document
+        .querySelectorAll(topbarSelector)
+        .forEach((el) => ro.observe(el));
+
     const onScroll = () => calc();
     const onResize = () => calc();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
 
     const mo = new MutationObserver(calc);
-    mo.observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["class", "style"] });
+    mo.observe(document.documentElement, {
+      attributes: true,
+      subtree: true,
+      attributeFilter: ["class", "style"],
+    });
 
     return () => {
       ro.disconnect();
@@ -78,7 +85,10 @@ export default function SuccessToast({
         <div className="toastx" role="status" aria-live="polite">
           <span className="toastx__icon">✓</span>
           <span className="toastx__text">{message}</span>
-          <span className="toastx__progress" style={{ animationDuration: `${duration}ms` }} />
+          <span
+            className="toastx__progress"
+            style={{ animationDuration: `${duration}ms` }}
+          />
         </div>
       </div>
     </>
@@ -92,9 +102,9 @@ const css = `
   min-width: 280px; max-width: 420px;
   padding: 12px 14px;
   border-radius: 14px;
-  background: rgba(255,255,255,0.92);
-  border: 1px solid rgba(0,0,0,0.06);
-  box-shadow: 0 8px 22px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.6) inset;
+  background: rgba(255,255,255,0.95);
+  border: 1px solid rgba(45,153,174,0.18);
+  box-shadow: 0 8px 22px rgba(15,23,42,0.22), 0 1px 0 rgba(255,255,255,0.6) inset;
   backdrop-filter: saturate(160%) blur(6px);
   font-weight: 600;
   transform: translateY(-8px);
@@ -107,16 +117,33 @@ const css = `
   width: 26px; height: 26px; border-radius: 50%;
   display:inline-flex; align-items:center; justify-content:center;
   font-size: 14px;
-  color: #1b8e5f; background: rgba(27,142,95,.12);
-  box-shadow: 0 0 0 3px rgba(27,142,95,.08) inset;
+  color: #2D99AE;
+  background: rgba(45,153,174,.12);
+  box-shadow: 0 0 0 3px rgba(45,153,174,.08) inset;
 }
-.toastx__text{ flex:1 1 auto; color:#0f172a; }
+.toastx__text{
+  flex:1 1 auto;
+  color:#0f172a;
+  font-size: 0.9rem;
+}
 .toastx__progress{
-  content:""; position:absolute; left:0; bottom:0; height:3px; width:100%;
-  background: linear-gradient(90deg, #22c55e, #16a34a, #22c55e);
-  transform-origin: left; animation: toastx-progress linear forwards;
+  content:"";
+  position:absolute; left:0; bottom:0; height:3px; width:100%;
+  background: linear-gradient(90deg, #2D99AE, #1c7c8f, #48b8c4);
+  transform-origin: left;
+  animation: toastx-progress linear forwards;
 }
-@keyframes toastx-in{ from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
-@keyframes toastx-progress{ from{transform:scaleX(1)} to{transform:scaleX(0)} }
-.toastx:hover{ transform: translateY(-2px); transition: transform .18s ease; }
+@keyframes toastx-in{
+  from{opacity:0;transform:translateY(-8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes toastx-progress{
+  from{transform:scaleX(1)}
+  to{transform:scaleX(0)}
+}
+.toastx:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(15,23,42,0.25);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
 `;

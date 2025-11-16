@@ -1,0 +1,70 @@
+// src/components/feedback/FeedbackList.jsx
+import React from "react";
+import "../../styles/home/FeedbackPage.css";
+
+
+export default function FeedbackList({ feedbacks }) {
+  if (!feedbacks?.length) {
+    return (
+      <div className="feedback-empty">
+        Chưa có đánh giá nào. Hãy là người đầu tiên chia sẻ cảm nhận của bạn! 📝
+      </div>
+    );
+  }
+
+  return (
+    <div className="feedback-list">
+      {feedbacks.map((fb) => (
+        <article key={fb.id} className="feedback-item">
+          <header className="feedback-item-header">
+            <div className="feedback-item-user">
+              <div className="feedback-avatar">
+                {fb.user.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="feedback-username">{fb.user}</div>
+                <div className="feedback-date">
+                  {fb.date || "Không rõ thời gian"}
+                </div>
+              </div>
+            </div>
+
+            <div className="feedback-item-rating">
+              {Array.from({ length: 5 }).map((_, idx) => {
+                const starIndex = idx + 1;
+                const filled = starIndex <= (fb.rating || 0);
+                return (
+                  <span
+                    key={idx}
+                    className={
+                      "fb-star fb-star--small " +
+                      (filled ? "fb-star--filled" : "")
+                    }
+                  >
+                    ★
+                  </span>
+                );
+              })}
+              <span className="feedback-item-rating-number">
+                {fb.rating?.toFixed ? fb.rating.toFixed(1) : fb.rating}/5
+              </span>
+            </div>
+          </header>
+
+          <p className="feedback-comment">{fb.comment}</p>
+
+          {/* Phản hồi admin nếu có */}
+          {fb.adminReply && (
+            <div className="feedback-admin-reply">
+              <div className="feedback-admin-tag">Phản hồi từ admin</div>
+              <p className="feedback-admin-message">{fb.adminReply.message}</p>
+              <div className="feedback-admin-meta">
+                {fb.adminReply.author} • {fb.adminReply.date}
+              </div>
+            </div>
+          )}
+        </article>
+      ))}
+    </div>
+  );
+}

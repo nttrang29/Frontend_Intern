@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import "../../../styles/home/Sidebar.css";
+import { useAuth, ROLES } from "../../../home/store/AuthContext";
 
-const MENU = [
+const BASE_MENU = [
   { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
   { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" },
   { to: "/home/funds", label: "Quỹ", icon: "bi-piggy-bank" },
@@ -11,14 +12,34 @@ const MENU = [
   { to: "/home/wallet-groups", label: "Nhóm ví", icon: "bi-collection" },
   { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
   { to: "/home/reports", label: "Báo cáo", icon: "bi-bar-chart-line" },
-  { to: "/home/accounts", label: "Tài khoản", icon: "bi-credit-card-2-front" },
+  // ❌ Không còn mục “Tài khoản”
 ];
 
 export default function HomeSidebar() {
   const [collapsed, setCollapsed] = useState(
     localStorage.getItem("sb_collapsed") === "1"
   );
+  const { currentUser } = useAuth();
 
+  // =============================
+  // 👉 Build menu
+  // =============================
+  const MENU = [...BASE_MENU];
+
+if (currentUser?.role === ROLES.ADMIN) {
+  MENU.push(
+    {
+      to: "/admin/users",
+      label: "Quản lý người dùng",
+      icon: "bi-people-fill",
+    },
+    {
+      to: "/admin/reviews",
+      label: "Đánh giá & bình luận",
+      icon: "bi-chat-dots",
+    }
+  );
+}
   useEffect(() => {
     document.body.classList.toggle("sb-collapsed", collapsed);
     localStorage.setItem("sb_collapsed", collapsed ? "1" : "0");
@@ -26,36 +47,29 @@ export default function HomeSidebar() {
 
   return (
     <>
-      {/* ============================
-          BRAND / LOGO VIDEO
-         ============================ */}
+      {/* BRAND */}
       <div className="sb__brand">
         <video
           className="sb__brand-video"
-          src="/videos/logo.mp4" // đổi đường dẫn video của bạn ở đây
+          src="/videos/logo.mp4"
           autoPlay
           loop
           muted
           playsInline
         />
-
         <div className="sb__brand-text">
           <div className="sb__brand-title">HỆ THỐNG QUẢN LÝ</div>
           <div className="sb__brand-sub">Quản lý ví cá nhân</div>
         </div>
       </div>
 
-      {/* ============================
-          HEADER BUTTON (MENU)
-         ============================ */}
+      {/* HEADER BUTTON */}
       <button
         type="button"
         className="sb__link sb__link--header"
         onClick={() => setCollapsed((v) => !v)}
-        aria-label="Thu gọn / Mở rộng Sidebar"
-        data-title={collapsed ? "Mở rộng" : undefined}
       >
-        <span className="sb__icon" aria-hidden="true">
+        <span className="sb__icon">
           <i className="bi bi-list" />
         </span>
         <span className="sb__text sb__menu-title">Menu</span>
@@ -63,10 +77,8 @@ export default function HomeSidebar() {
 
       <div className="sb__divider" />
 
-      {/* ============================
-          NAVIGATION
-         ============================ */}
-      <nav className="sb__nav sb__scroll" aria-label="Sidebar">
+      {/* NAV */}
+      <nav className="sb__nav sb__scroll">
         {MENU.map((m) => (
           <NavLink
             key={m.to}
@@ -75,11 +87,10 @@ export default function HomeSidebar() {
             className={({ isActive }) =>
               "sb__link" + (isActive ? " is-active" : "")
             }
-            // dùng data-title để tooltip CSS, tránh title mặc định
             data-title={collapsed ? m.label : undefined}
             aria-label={collapsed ? m.label : undefined}
           >
-            <span className="sb__icon" aria-hidden="true">
+            <span className="sb__icon">
               <i className={`bi ${m.icon}`} />
             </span>
             <span className="sb__text">{m.label}</span>
@@ -87,7 +98,6 @@ export default function HomeSidebar() {
         ))}
       </nav>
 
-      {/* Footer (đệm dưới) */}
       <div className="sb__footer" />
     </>
   );

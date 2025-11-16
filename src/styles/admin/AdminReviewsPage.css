@@ -1,0 +1,196 @@
+/* ============================
+   ADMIN REVIEWS PAGE
+   ============================ */
+
+/* Nền chung của trang admin dashboard (giữ giống DashboardPage) */
+.dashboard-page {
+  padding: 24px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #111827;
+  background: #f3f4f6;
+}
+
+/* Hộp tiêu đề */
+.dashboard-page__header-box {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 18px 45px rgba(0, 28, 68, 0.28);
+  border: 1px solid #e5e7eb;
+}
+
+.dashboard-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-page__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.dashboard-page__subtitle {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+  color: #6b7280;
+}
+
+/* ============================
+   TOOLBAR BỘ LỌC + SEARCH
+   ============================ */
+
+.dashboard-page .btn-group .btn-sm {
+  font-size: 0.8rem;
+  border-radius: 999px;
+}
+
+.dashboard-page .btn-primary,
+.dashboard-page .btn-outline-primary {
+  border-radius: 999px;
+  border-color: #2d99ae;
+  background-color: #2d99ae;
+}
+
+.dashboard-page .btn-primary:hover {
+  background-color: #257f91;
+  border-color: #257f91;
+}
+
+.dashboard-page .btn-outline-primary {
+  background-color: #ffffff;
+  color: #2d99ae;
+}
+
+.dashboard-page .btn-outline-primary:hover {
+  background-color: #e0f6fa;
+}
+
+/* Input search nhỏ gọn */
+.dashboard-page .input-group-text {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+.dashboard-page .input-group .form-control {
+  border-color: #e5e7eb;
+  font-size: 0.85rem;
+}
+
+/* ============================
+   CARD DANH SÁCH
+   ============================ */
+
+.dashboard-page .card {
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+/* Header ngày */
+.dashboard-page .bg-light.border-bottom {
+  background: #f9fafb !important;
+}
+
+/* Mỗi item đánh giá */
+.dashboard-page .list-group-item {
+  background-color: #ffffff;
+}
+
+.dashboard-page .list-group-item.d-flex {
+  padding: 12px 16px;
+}
+
+/* Sao rating */
+.dashboard-page .text-warning .bi-star-fill,
+.dashboard-page .text-warning .bi-star {
+  font-size: 0.95rem;
+}
+
+/* Tên + email */
+.dashboard-page .fw-semibold {
+  color: #111827;
+}
+
+/* Nội dung comment */
+.dashboard-page .text-muted {
+  color: #6b7280 !important;
+}
+
+/* Badge trạng thái */
+.badge.bg-danger-subtle {
+  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+
+.badge.bg-success-subtle {
+  background-color: #dcfce7 !important;
+  color: #166534 !important;
+}
+
+.badge.bg-warning-subtle {
+  background-color: #fef9c3 !important;
+  color: #92400e !important;
+}
+
+/* Nút phản hồi */
+.dashboard-page .btn.btn-sm.btn-outline-primary {
+  border-radius: 999px;
+  border-color: #2d99ae;
+  color: #2d99ae;
+  padding-inline: 14px;
+}
+
+.dashboard-page .btn.btn-sm.btn-outline-primary:hover {
+  background-color: #e0f6fa;
+}
+
+/* ============================
+   FORM PHẢN HỒI INLINE
+   ============================ */
+
+.dashboard-page textarea.form-control-sm {
+  font-size: 0.85rem;
+  border-radius: 10px;
+}
+
+.dashboard-page textarea.form-control-sm:focus {
+  border-color: #2d99ae;
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.35);
+}
+
+/* Khối phản hồi admin */
+.dashboard-page .mt-2.p-2.rounded.bg-light.border {
+  background-color: #f0f9ff !important;
+  border-color: #bfdbfe !important;
+}
+
+/* ============================
+   EMPTY STATE
+   ============================ */
+
+.dashboard-page .card-body > .text-center.text-muted {
+  font-size: 0.9rem;
+  padding: 18px 0;
+}
+
+/* ============================
+   RESPONSIVE
+   ============================ */
+
+@media (max-width: 768px) {
+  .dashboard-page__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dashboard-page .list-group-item.d-flex {
+    padding: 10px 12px;
+  }
+}

@@ -1,20 +1,47 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
 import AccountExistsModal from "../../components/common/Modal/AccountExistsModal";
 import "../../styles/AuthForms.css";
 
-const API_URL = "http://localhost:8080/auth";
+import { useAuth, ROLES } from "../../home/store/AuthContext";
+
+// Danh sách tài khoản ảo
+const FAKE_USERS = [
+  {
+    id: "1",
+    fullName: "Admin System",
+    email: "admin@wallet.com",
+    password: "Admin123!",
+    role: ROLES.ADMIN,
+  },
+  {
+    id: "2",
+    fullName: "User Normal",
+    email: "user@wallet.com",
+    password: "User123!",
+    role: ROLES.USER,
+  },
+  {
+    id: "3",
+    fullName: "Viewer Only",
+    email: "viewer@wallet.com",
+    password: "Viewer123!",
+    role: ROLES.VIEWER,
+  },
+];
 
 export default function LoginPage() {
-  const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showInvalid, setShowInvalid] = useState(false);
   const [error, setError] = useState("");
- 
+  const [successRedirect, setSuccessRedirect] = useState("/home"); // redirect khác nhau theo role
+
+  const { login } = useAuth();
+
   const onChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
     setError("");
@@ -22,7 +49,7 @@ export default function LoginPage() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
- 
+
     if (!form.email || !form.password) {
       return setError("Vui lòng nhập đầy đủ email và mật khẩu!");
     }
@@ -30,10 +57,10 @@ export default function LoginPage() {
     if (!emailRegex.test(form.email)) {
       return setError("Email không hợp lệ! Vui lòng nhập đúng định dạng.");
     }
- 
+
     const passwordRegex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'\",.<>\/?~]).{8,}$/;
- 
+
     if (form.password.length < 8) {
       return setError("Mật khẩu phải có ít nhất 8 ký tự!");
     }
@@ -42,61 +69,45 @@ export default function LoginPage() {
         "Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt!"
       );
     }
- 
-    try {
-      setLoading(true);
 
-      const response = await fetch(`${API_URL}/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: form.email,
-          password: form.password,
-        }),
-      });
+    setLoading(true);
 
-      const data = await response.json();
+    // 🔍 Tìm user trong danh sách ảo
+    const foundUser = FAKE_USERS.find(
+      (u) =>
+        u.email.toLowerCase() === form.email.toLowerCase() &&
+        u.password === form.password
+    );
 
-      if (response.ok && data.accessToken) {
-        // ✅ Lưu token như cũ
-        localStorage.setItem("accessToken", data.accessToken);
-
-        // ✅ Lưu thông tin user nếu backend trả kèm
-        if (data.user) {
-          localStorage.setItem("user", JSON.stringify(data.user));
-        } else {
-          // 🔁 Fallback: gọi /auth/me để lấy thông tin user từ token
-          try {
-            const meRes = await fetch(`${API_URL}/me`, {
-              headers: { Authorization: `Bearer ${data.accessToken}` },
-            });
-            if (meRes.ok) {
-              const me = await meRes.json();
-              localStorage.setItem("user", JSON.stringify(me));
-            }
-          } catch (_) {
-            // im lặng nếu lỗi, vẫn cho đăng nhập (vì đã có token)
-          }
-        }
-        setShowSuccess(true);
-      } else if (response.status === 401 || response.status === 400) {
-        setShowInvalid(true);
-      } else if (data?.error) {
-        setError(data.error);
-      } else {
-        setError(
-          "Lỗi kết nối đến máy chủ. Vui lòng kiểm tra Backend (cổng 8080)."
-        );
-      }
-    } catch (err) {
-      setError("Không thể kết nối server. Kiểm tra backend giúp nhé.");
-    } finally {
+    if (!foundUser) {
+      setShowInvalid(true);
       setLoading(false);
+      return;
     }
+
+    // Tạo object user chuẩn
+    const finalUser = {
+      id: foundUser.id,
+      fullName: foundUser.fullName,
+      email: foundUser.email,
+      role: foundUser.role,
+      accessToken: "FAKE_TOKEN_" + foundUser.role, // cho vui, để chỗ khác nếu có check token
+    };
+
+    // Lưu vào AuthContext + localStorage
+    login(finalUser);
+
+    // ✅ Admin → /admin/users, còn lại → /home
+    if (foundUser.role === ROLES.ADMIN) {
+      setSuccessRedirect("/admin/users");
+    } else {
+      setSuccessRedirect("/home");
+    }
+
+    setLoading(false);
+    setShowSuccess(true);
   };
- 
+
   return (
     <AuthLayout>
       <form className="auth-form" onSubmit={onSubmit}>
@@ -115,7 +126,7 @@ export default function LoginPage() {
             required
           />
         </div>
- 
+
         <div className="mb-2 input-group">
           <span className="input-group-text">
             <i className="bi bi-lock-fill"></i>
@@ -130,15 +141,15 @@ export default function LoginPage() {
           />
           
         </div>
- 
+
         {error && <div className="auth-error">{error}</div>}
- 
+
         <div className="d-grid mb-3 mt-2">
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? "Đang xử lý..." : "Đăng nhập"}
           </button>
         </div>
- 
+
         <div className="text-center">
           <Link
             to="/forgot-password"
@@ -150,38 +161,35 @@ export default function LoginPage() {
             Chưa có tài khoản?
           </Link>
         </div>
- 
+
         <div className="d-flex align-items-center my-3">
           <hr className="flex-grow-1" />
           <span className="mx-2 text-muted">Hoặc đăng nhập bằng</span>
           <hr className="flex-grow-1" />
         </div>
- 
+
+        {/* Đang dùng demo local nên tạm disable Google */}
         <div className="d-grid gap-2">
           <button
             type="button"
             className="btn btn-outline-danger"
-            onClick={() => {
-              const callback = `${window.location.origin}/oauth/callback`;
-              window.location.href = `${API_URL}/oauth2/authorization/google?redirect_uri=${encodeURIComponent(
-                callback
-              )}`;
-            }}
+            disabled
+            title="Đã tắt trong chế độ demo"
           >
-            <i className="bi bi-google me-2"></i> Google
+            <i className="bi bi-google me-2"></i> Google (đã tắt ở chế độ demo)
           </button>
         </div>
       </form>
- 
+
       <LoginSuccessModal
         open={showSuccess}
         onClose={() => setShowSuccess(false)}
         seconds={3}
         title="Đăng nhập"
         message="Đăng nhập thành công!"
-        redirectUrl="/home"
+        redirectUrl={successRedirect}   // 👈 Dùng redirect động
       />
- 
+
       <AccountExistsModal
         open={showInvalid}
         onClose={() => setShowInvalid(false)}
