@@ -105,23 +105,24 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
         .wallet-card .wc-value{ color:#fff; font-weight:600; }
         .wallet-card .wc-value.text-primary{ color:#fff !important; }
 
-        /* Default: keep card's original gradient/background for the selected item
-           and make non-selected cards visually muted (white background + dark text)
+        /* Invert selection visual: by default cards keep their gradient (from --wc-bg)
+           and the IS-SELECTED item becomes white with dark text (so click -> white)
         */
-        .wallet-grid__item:not(.is-selected) .wallet-card{
-          background: #ffffff !important;
+        .wallet-grid__item.is-selected .wallet-card{
+          /* selected card: use darker gray for better visibility */
+          background: #d1d5db !important;
           color: #111 !important;
           box-shadow: 0 6px 14px rgba(17,24,39,0.06) !important;
         }
-        .wallet-grid__item:not(.is-selected) .wallet-card .wallet-name,
-        .wallet-grid__item:not(.is-selected) .wallet-card .wc-label,
-        .wallet-grid__item:not(.is-selected) .wallet-card .wc-value{
+        .wallet-grid__item.is-selected .wallet-card .wallet-name,
+        .wallet-grid__item.is-selected .wallet-card .wc-label,
+        .wallet-grid__item.is-selected .wallet-card .wc-value{
           color: #111 !important;
         }
-        .wallet-grid__item:not(.is-selected) .wallet-card .badge{
+        .wallet-grid__item.is-selected .wallet-card .badge{
           background: rgba(17,24,39,0.06) !important; color:#111 !important; border:none;
         }
-        .wallet-grid__item:not(.is-selected) .wallet-card .wc-dots > .dropdown > .btn{
+        .wallet-grid__item.is-selected .wallet-card .wc-dots > .dropdown > .btn{
           background: rgba(17,24,39,0.06) !important; color:#111 !important;
         }
 

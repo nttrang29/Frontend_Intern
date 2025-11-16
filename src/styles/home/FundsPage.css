@@ -301,6 +301,7 @@
 
 .wallet-source__search {
   /* input đã được style chung ở funds-field */
+  display: flex;
 }
 
 .wallet-source__list {

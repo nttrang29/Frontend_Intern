@@ -1209,27 +1209,47 @@ export default function TransactionsPage() {
                           </span>
                         </td>
                         <td className="text-center">
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Xem chi tiết"
-                            onClick={() => setViewing(t)}
-                          >
-                            <i className="bi bi-eye" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Chỉnh sửa"
-                            onClick={() => setEditing(t)}
-                          >
-                            <i className="bi bi-pencil-square" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-danger"
-                            title="Xóa"
-                            onClick={() => setConfirmDel(t)}
-                          >
-                            <i className="bi bi-trash" />
-                          </button>
+                          <div className="dropdown">
+                            <button
+                              className="btn btn-link btn-sm text-muted p-0"
+                              type="button"
+                              data-bs-toggle="dropdown"
+                              aria-expanded="false"
+                              title="Thêm, sửa, xóa"
+                            >
+                              <i className="bi bi-three-dots-vertical" />
+                            </button>
+                            <ul className="dropdown-menu dropdown-menu-end">
+                              <li>
+                                <button
+                                  className="dropdown-item"
+                                  type="button"
+                                  onClick={() => setViewing(t)}
+                                >
+                                  <i className="bi bi-eye me-2" /> Xem
+                                </button>
+                              </li>
+                              <li>
+                                <button
+                                  className="dropdown-item"
+                                  type="button"
+                                  onClick={() => setEditing(t)}
+                                >
+                                  <i className="bi bi-pencil-square me-2" /> Sửa
+                                </button>
+                              </li>
+                              <li><hr className="dropdown-divider" /></li>
+                              <li>
+                                <button
+                                  className="dropdown-item text-danger"
+                                  type="button"
+                                  onClick={() => setConfirmDel(t)}
+                                >
+                                  <i className="bi bi-trash me-2" /> Xóa
+                                </button>
+                              </li>
+                            </ul>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1293,27 +1313,47 @@ export default function TransactionsPage() {
                           </span>
                         </td>
                         <td className="text-center">
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Xem chi tiết"
-                            onClick={() => setViewing(t)}
-                          >
-                            <i className="bi bi-eye" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Chỉnh sửa"
-                            onClick={() => setEditing(t)}
-                          >
-                            <i className="bi bi-pencil-square" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-danger"
-                            title="Xóa"
-                            onClick={() => setConfirmDel(t)}
-                          >
-                            <i className="bi bi-trash" />
-                          </button>
+                          <div className="dropdown">
+                            <button
+                              className="btn btn-link btn-sm text-muted p-0"
+                              type="button"
+                              data-bs-toggle="dropdown"
+                              aria-expanded="false"
+                              title="Thêm, sửa, xóa"
+                            >
+                              <i className="bi bi-three-dots-vertical" />
+                            </button>
+                            <ul className="dropdown-menu dropdown-menu-end">
+                              <li>
+                                <button
+                                  className="dropdown-item"
+                                  type="button"
+                                  onClick={() => setViewing(t)}
+                                >
+                                  <i className="bi bi-eye me-2" /> Xem
+                                </button>
+                              </li>
+                              <li>
+                                <button
+                                  className="dropdown-item"
+                                  type="button"
+                                  onClick={() => setEditing(t)}
+                                >
+                                  <i className="bi bi-pencil-square me-2" /> Sửa
+                                </button>
+                              </li>
+                              <li><hr className="dropdown-divider" /></li>
+                              <li>
+                                <button
+                                  className="dropdown-item text-danger"
+                                  type="button"
+                                  onClick={() => setConfirmDel(t)}
+                                >
+                                  <i className="bi bi-trash me-2" /> Xóa
+                                </button>
+                              </li>
+                            </ul>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1418,25 +1458,92 @@ export default function TransactionsPage() {
         )}
 
         <div className="card-footer d-flex justify-content-between align-items-center">
-          <span className="text-muted small">
-            Trang {currentPage}/{totalPages}
-          </span>
-          <div className="d-flex gap-2">
+          <div className="d-flex gap-2 align-items-center">
+            <button
+              className="btn btn-outline-secondary btn-sm"
+              disabled={currentPage === 1}
+              onClick={() => handlePageChange(1)}
+              title="Trang đầu"
+            >
+              «
+            </button>
             <button
               className="btn btn-outline-secondary btn-sm"
               disabled={currentPage === 1}
               onClick={() => handlePageChange(currentPage - 1)}
+              title="Trang trước"
             >
-              « Trước
+              ‹
             </button>
+            <span className="text-muted small px-2">
+              {totalPages <= 2 ? (
+                /* Show all page numbers if <= 2 pages */
+                Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    className={`btn btn-link btn-sm p-0 me-1 ${
+                      p === currentPage ? "text-primary fw-bold" : "text-muted"
+                    }`}
+                    onClick={() => handlePageChange(p)}
+                    style={{ textDecoration: "none" }}
+                  >
+                    {p}
+                  </button>
+                ))
+              ) : (
+                /* Show 1,2,...last format if > 2 pages */
+                <>
+                  <button
+                    className={`btn btn-link btn-sm p-0 me-1 ${
+                      currentPage === 1 ? "text-primary fw-bold" : "text-muted"
+                    }`}
+                    onClick={() => handlePageChange(1)}
+                    style={{ textDecoration: "none" }}
+                  >
+                    1
+                  </button>
+                  <button
+                    className={`btn btn-link btn-sm p-0 me-1 ${
+                      currentPage === 2 ? "text-primary fw-bold" : "text-muted"
+                    }`}
+                    onClick={() => handlePageChange(2)}
+                    style={{ textDecoration: "none" }}
+                  >
+                    2
+                  </button>
+                  <span className="text-muted">...</span>
+                  <button
+                    className={`btn btn-link btn-sm p-0 ms-1 ${
+                      currentPage === totalPages ? "text-primary fw-bold" : "text-muted"
+                    }`}
+                    onClick={() => handlePageChange(totalPages)}
+                    style={{ textDecoration: "none" }}
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+            </span>
             <button
               className="btn btn-outline-secondary btn-sm"
               disabled={currentPage === totalPages}
               onClick={() => handlePageChange(currentPage + 1)}
+              title="Trang sau"
             >
-              Sau »
+              ›
+            </button>
+            <button
+              className="btn btn-outline-secondary btn-sm"
+              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(totalPages)}
+              title="Trang cuối"
+            >
+              »
             </button>
           </div>
+          <span className="text-muted small">
+            {currentPage}/{totalPages}
+          </span>
         </div>
       </div>
 

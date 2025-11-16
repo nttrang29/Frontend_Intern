@@ -1,13 +1,13 @@
-/* =========================
-   TRANG GIAO DỊCH
-   ========================= */
+/* ======================
+   PAGE WRAPPER
+   ====================== */
 .transactions-page {
   padding: 18px 24px 32px;
 }
 
-/* =========================
-   HEADER (thanh xanh đậm + nút Thêm giao dịch)
-   ========================= */
+/* ======================
+   HEADER
+   ====================== */
 .page-header-card {
   display: flex;
   align-items: center;
@@ -17,11 +17,12 @@
   padding: 16px 20px;
   box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
   margin-bottom: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .page-title {
   margin: 0;
-  font-size: 1.7rem;
+  font-size: 1.6rem;
   font-weight: 700;
   color: #ffffff;
 }
@@ -29,51 +30,41 @@
 .page-subtitle {
   margin: 4px 0 0;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.92);
 }
 
-/* Icon bên trái trong header */
-.tx-header-icon-wrap {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tx-header-icon {
-  font-size: 1.4rem;
-  color: #ffffff;
-}
-
-/* Nút Thêm giao dịch mới – bo tròn giống nút tìm kiếm */
+/* nút "Thêm giao dịch mới" */
 .btn-add-transaction {
   border-radius: 999px;
   padding: 8px 18px;
   font-weight: 600;
-  background: #0d6efd;
-  border-color: #0d6efd;
+  background: #2563eb;
+  border-color: #2563eb;
   color: #ffffff;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.2);
 }
 
 .btn-add-transaction:hover,
 .btn-add-transaction:focus {
-  background: #0b5ed7;
-  border-color: #0b5ed7;
+  background: #1d4ed8;
+  border-color: #1d4ed8;
   color: #ffffff;
+  transform: translateY(-1px);
 }
 
-/* =========================
-   BỘ LỌC
-   ========================= */
+/* ======================
+   FILTERS
+   ====================== */
+/* Card tìm kiếm – bo góc + đổ bóng mạnh giống Danh mục */
 .transaction-filters {
   background: #ffffff;
   border-radius: 18px;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
   padding: 12px 16px;
   margin-bottom: 18px;
+
+  /* bóng mạnh hơn để nổi giống Danh mục */
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  border: 1px solid #f1f5f9;
 }
 
 .filter-row {
@@ -105,7 +96,7 @@
   border-radius: 999px;
 }
 
-/* Date time range */
+/* Date range */
 .filter-datetime-range {
   display: flex;
   flex-direction: column;
@@ -135,34 +126,41 @@
   color: #6b7280;
 }
 
-/* =========================
-   BẢNG DỮ LIỆU
-   ========================= */
+/* ======================
+   TABLE
+   ====================== */
 .transaction-table-wrapper {
   background: #ffffff;
   border-radius: 18px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
   overflow: hidden;
-  /* thêm padding trong để chữ không sát viền card */
-  padding: 8px 16px;
+  padding: 8px 12px !important; /* cho nội dung cách viền */
+  display: flex;
+  flex-direction: column;
 }
 
-/* đảm bảo bảng full width bên trong wrapper */
-.transaction-table {
-  width: 100%;
+.transaction-table-wrapper .table-responsive {
+  max-height: 360px; /* Show ~6 rows, scroll to see up to 10 */
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-gutter: stable;
 }
 
-/* Header bảng */
+.transaction-table-wrapper .card-footer {
+  border-top: 1px solid #e5e7eb;
+  margin-top: auto;
+}
+
 .transaction-table thead th {
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
   font-weight: 600;
 }
 
-/* Padding ô – canh giống bảng Danh mục (không bị dính viền) */
+/* padding ô giống trang Danh mục – không bị sát viền */
 .transactions-page .transaction-table-wrapper .transaction-table thead th,
 .transactions-page .transaction-table-wrapper .transaction-table tbody td {
-  padding: 0.9rem 1.4rem !important;
+  padding: 0.95rem 1.25rem !important;
 }
 
 .transaction-table tbody td {
@@ -170,7 +168,6 @@
   font-size: 0.9rem;
 }
 
-/* Cột mô tả */
 .description-col {
   width: 30%;
 }
@@ -182,25 +179,22 @@
   text-overflow: ellipsis;
 }
 
-/* Màu tiền */
-.amount-positive,
-.tx-amount-income {
+/* ======================
+   AMOUNT COLOR
+   ====================== */
+.amount-positive {
   color: #059669;
   font-weight: 600;
 }
 
-.amount-negative,
-.tx-amount-expense {
+.amount-negative {
   color: #dc2626;
   font-weight: 600;
 }
 
-.tx-amount-transfer {
-  color: #0ea5e9;
-  font-weight: 600;
-}
-
-/* Nút action */
+/* ======================
+   ACTION BUTTONS
+   ====================== */
 .btn-icon {
   border: none;
   background: transparent;
@@ -224,9 +218,9 @@
   color: #b91c1c;
 }
 
-/* =========================
-   PHÂN TRANG
-   ========================= */
+/* ======================
+   PAGINATION
+   ====================== */
 .transaction-pagination {
   display: flex;
   align-items: center;
@@ -254,9 +248,9 @@
   border-color: #1d4ed8;
 }
 
-/* =========================
+/* ======================
    MODAL
-   ========================= */
+   ====================== */
 .transaction-modal .modal-content {
   border-radius: 22px;
   border: none;
@@ -301,9 +295,7 @@
   color: #ffffff;
 }
 
-/* =========================
-   SEARCHABLE SELECT
-   ========================= */
+/* Searchable select */
 .searchable-select {
   position: relative;
 }
@@ -341,7 +333,7 @@
   color: #ffffff;
 }
 
-/* Preview ảnh đính kèm */
+/* Attachment preview */
 .attachment-preview img {
   max-width: 160px;
   max-height: 120px;
@@ -350,7 +342,7 @@
   border: 1px solid #e5e7eb;
 }
 
-/* Chi tiết trong modal xem giao dịch */
+/* View modal details */
 .detail-row {
   display: flex;
   justify-content: space-between;
@@ -378,9 +370,9 @@
   border-radius: 10px;
 }
 
-/* =========================
+/* ======================
    RESPONSIVE
-   ========================= */
+   ====================== */
 @media (max-width: 768px) {
   .page-header-card {
     flex-direction: column;
@@ -432,10 +424,22 @@
     padding: 0.55rem 0.6rem;
     font-size: 0.88rem;
   }
+
+  .tx-card-list .tx-card .card-body {
+    padding: 0.6rem;
+  }
 }
 
 @media (max-width: 575.98px) {
   .tx-table-card .table-responsive {
     overflow-x: auto;
   }
+}
+/* Bo góc + đổ bóng cho card danh sách giao dịch giống Danh mục */
+.tx-table-card,
+.transaction-table-wrapper {
+  border-radius: 8px !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12) !important;
+  overflow: hidden;
+  border: none;
 }

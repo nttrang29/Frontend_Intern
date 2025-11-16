@@ -279,6 +279,8 @@
   max-height: calc(var(--wallet-row-h) * 5 + var(--wallet-row-gap) * 4);
   overflow:auto; padding-right:6px; min-width:0;
   overflow-x:visible; position:relative; z-index:0;
+  /* Stabilize scrollbar width to prevent page shift when scrollbar appears/disappears */
+  scrollbar-gutter: stable;
 }
 .wallet-grid__item{ display:block; width:100%; min-width:0; min-height:0; position:relative; z-index:1; }
 
@@ -314,12 +316,14 @@
   .wallet-grid--limit-6{
     grid-template-columns: repeat(2, minmax(0,1fr)) !important;
     max-height: calc(var(--wallet-row-h) * 3 + var(--wallet-row-gap) * 2);
+    scrollbar-gutter: stable;
   }
 }
 @media (max-width: 991.98px){
   .wallet-grid--limit-6{
     grid-template-columns: 1fr !important;
     max-height: calc(var(--wallet-row-h) * 6 + var(--wallet-row-gap) * 5);
+    scrollbar-gutter: stable;
   }
 }
 
@@ -343,6 +347,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     max-height: calc(var(--wallet-row-h) * 3 + var(--wallet-row-gap) * 2) !important;
     overflow:auto !important; -webkit-overflow-scrolling: touch; padding-right:6px;
+    scrollbar-gutter: stable;
   }
 }
 @media (max-width: 991.98px) {
@@ -350,6 +355,7 @@
     grid-template-columns:1fr !important;
     max-height: calc(var(--wallet-row-h) * 6 + var(--wallet-row-gap) * 5) !important;
     overflow:auto !important; -webkit-overflow-scrolling: touch; padding-right:6px;
+    scrollbar-gutter: stable;
   }
 }
 .wallet-section:not(.section-expanded) .wallet-grid.wallet-grid--limit-6::-webkit-scrollbar { width: 8px; }
@@ -713,3 +719,95 @@
 
 /* Khi có overlay, tắt 3D để tránh stacking kỳ cục */
 .wallet-page.is-overlay-open{ perspective: none !important; }
+/* =====================================
+   SUM CARD – luôn giữ gradient + chữ trắng
+   ===================================== */
+.sum-card,
+.sum-card--overall {
+  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+}
+
+.sum-card__title,
+.sum-card__value,
+.sum-card__desc {
+  color: #ffffff !important;
+}
+
+/* =====================================
+   WALLET CARD – màu mặc định & khi được chọn
+   (giả sử thẻ được gắn class .active khi chọn)
+   ===================================== */
+
+/* Màu GỐC: giống trạng thái hiện tại khi thẻ đang được chọn */
+.wallet-grid__item .wallet-card {
+  background: linear-gradient(135deg, #0c5776, #2d99ae);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.wallet-grid__item .wallet-card .wallet-name {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.wallet-grid__item .wallet-card .wallet-balance {
+  color: #e4f5ff;
+}
+
+/* Khi THẺ ĐƯỢC CHỌN: đổi sang nền trắng + chữ đậm tương phản */
+.wallet-grid__item .wallet-card.active,
+.wallet-grid__item.active .wallet-card {
+  background: #ffffff;
+  border-color: rgba(0, 28, 68, 0.18);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+  color: #001c44;
+}
+
+.wallet-grid__item .wallet-card.active .wallet-name,
+.wallet-grid__item.active .wallet-card .wallet-name {
+  background: rgba(0, 28, 68, 0.06);
+  color: #001c44;
+}
+
+.wallet-grid__item .wallet-card.active .wallet-balance,
+.wallet-grid__item.active .wallet-card .wallet-balance {
+  color: #001c44;
+}
+
+.wallet-grid__item .wallet-card.active small,
+.wallet-grid__item.active .wallet-card small {
+  color: #4b5563;
+}
+/* ============================================
+   FIX CĂN LỀ TIÊU ĐỀ TRANG VÍ GIỐNG TRANG GIAO DỊCH
+   ============================================ */
+
+/* Đảm bảo trang Ví có padding 18px 24px giống trang Giao dịch */
+.wallet-page {
+  padding: 18px 24px 32px !important;
+  max-width: 100% !important;
+}
+
+/* Bỏ override padding-left/right gây lệch layout */
+.wallet-page.container {
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+
+/* Header ví (thanh xanh) canh theo đúng margin chuẩn */
+.wallet-header {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  width: 100% !important;
+  border-radius: 24px !important;
+  padding: 16px 20px !important;
+}
+
+/* Đảm bảo phần controls bên trong header không bị lệch */
+.wallet-header__controls {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}

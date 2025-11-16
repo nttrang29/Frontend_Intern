@@ -266,17 +266,38 @@ export default function CategoriesPage() {
                       <td className="fw-semibold">{c.name}</td>
                       <td>{c.description || "-"}</td>
                       <td className="text-center">
-                        <button className="btn btn-link btn-sm text-muted me-2" type="button" onClick={() => openEditModal(c)} title="Sửa">
-                          <i className="bi bi-pencil-square" />
-                        </button>
-                        <button
-                          className="btn btn-link btn-sm text-danger"
-                          type="button"
-                          onClick={() => handleDelete(c)}
-                          title="Xóa"
-                        >
-                          <i className="bi bi-trash" />
-                        </button>
+                        <div className="dropdown">
+                          <button
+                            className="btn btn-link btn-sm text-muted p-0"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                            title="Sửa, xóa"
+                          >
+                            <i className="bi bi-three-dots-vertical" />
+                          </button>
+                          <ul className="dropdown-menu dropdown-menu-end">
+                            <li>
+                              <button
+                                className="dropdown-item"
+                                type="button"
+                                onClick={() => openEditModal(c)}
+                              >
+                                <i className="bi bi-pencil-square me-2" /> Sửa
+                              </button>
+                            </li>
+                            <li><hr className="dropdown-divider" /></li>
+                            <li>
+                              <button
+                                className="dropdown-item text-danger"
+                                type="button"
+                                onClick={() => handleDelete(c)}
+                              >
+                                <i className="bi bi-trash me-2" /> Xóa
+                              </button>
+                            </li>
+                          </ul>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -284,19 +305,94 @@ export default function CategoriesPage() {
               </tbody>
             </table>
           </div>
-          {/* PAGINATION (bottom-right) */}
-          <div className="d-flex justify-content-end align-items-center mt-3">
-            <div className="text-muted small me-3">Trang {page} / {totalPages}</div>
-            <nav aria-label="Page navigation">
-              <ul className="pagination mb-0">
-                <li className={`page-item ${page <= 1 ? "disabled" : ""}`}>
-                  <button className="page-link" onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="Previous">« Trước</button>
-                </li>
-                <li className={`page-item ${page >= totalPages ? "disabled" : ""}`}>
-                  <button className="page-link" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} aria-label="Next">Sau »</button>
-                </li>
-              </ul>
-            </nav>
+          {/* PAGINATION (buttons left, counter right) */}
+          <div className="d-flex justify-content-between align-items-center mt-3 gap-2">
+            <div className="d-flex align-items-center gap-2">
+              <button
+                className="btn btn-outline-secondary btn-sm"
+                disabled={page === 1}
+                onClick={() => setPage(1)}
+                title="Trang đầu"
+              >
+                «
+              </button>
+              <button
+                className="btn btn-outline-secondary btn-sm"
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                title="Trang trước"
+              >
+                ‹
+              </button>
+              <span className="text-muted small px-2">
+                {totalPages <= 2 ? (
+                  /* Show all page numbers if <= 2 pages */
+                  Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      className={`btn btn-link btn-sm p-0 me-1 ${
+                        p === page ? "text-primary fw-bold" : "text-muted"
+                      }`}
+                      onClick={() => setPage(p)}
+                      style={{ textDecoration: "none" }}
+                    >
+                      {p}
+                    </button>
+                  ))
+                ) : (
+                  /* Show 1,2,...last format if > 2 pages */
+                  <>
+                    <button
+                      className={`btn btn-link btn-sm p-0 me-1 ${
+                        page === 1 ? "text-primary fw-bold" : "text-muted"
+                      }`}
+                      onClick={() => setPage(1)}
+                      style={{ textDecoration: "none" }}
+                    >
+                      1
+                    </button>
+                    <button
+                      className={`btn btn-link btn-sm p-0 me-1 ${
+                        page === 2 ? "text-primary fw-bold" : "text-muted"
+                      }`}
+                      onClick={() => setPage(2)}
+                      style={{ textDecoration: "none" }}
+                    >
+                      2
+                    </button>
+                    <span className="text-muted">...</span>
+                    <button
+                      className={`btn btn-link btn-sm p-0 ms-1 ${
+                        page === totalPages ? "text-primary fw-bold" : "text-muted"
+                      }`}
+                      onClick={() => setPage(totalPages)}
+                      style={{ textDecoration: "none" }}
+                    >
+                      {totalPages}
+                    </button>
+                  </>
+                )}
+              </span>
+              <button
+                className="btn btn-outline-secondary btn-sm"
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                title="Trang sau"
+              >
+                ›
+              </button>
+              <button
+                className="btn btn-outline-secondary btn-sm"
+                disabled={page === totalPages}
+                onClick={() => setPage(totalPages)}
+                title="Trang cuối"
+              >
+                »
+              </button>
+            </div>
+            <span className="text-muted small">
+              {page}/{totalPages}
+            </span>
           </div>
         </div>
       </div>

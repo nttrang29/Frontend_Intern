@@ -105,6 +105,16 @@
   background: #ffffff;
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+}
+
+.category-list-card .card-body {
+  max-height: 360px; /* Show ~6 rows, scroll to see up to 10 */
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+  flex-grow: 1;
 }
 
 /* Hàng danh mục */
