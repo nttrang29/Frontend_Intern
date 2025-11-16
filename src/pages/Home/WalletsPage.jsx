@@ -18,10 +18,7 @@ import "../../styles/home/WalletsPage.css";
 const CURRENCIES = ["VND", "USD"];
 
 /** Bảng màu cho ví mới (theo 2 ảnh bạn gửi) */
-const WALLET_COLORS = [
-  "#2D99AE",
-  
-];
+const WALLET_COLORS = ["#2D99AE"];
 
 /** Chọn màu ít dùng nhất để hạn chế trùng màu liên tiếp */
 function pickWalletColor(existing = []) {
@@ -164,7 +161,9 @@ export default function WalletsPage() {
   const focusInspector = (section, delay = 280) => {
     setTimeout(() => {
       const el =
-        section === "personal" ? personalInspectorRef.current : groupInspectorRef.current;
+        section === "personal"
+          ? personalInspectorRef.current
+          : groupInspectorRef.current;
       if (!el) return;
       el.scrollIntoView({ behavior: "smooth", block: "nearest" });
       el.classList.remove("flash");
@@ -184,7 +183,8 @@ export default function WalletsPage() {
 
   const compareByKey = (a, b, key) => {
     if (key === "name") return (a.name || "").localeCompare(b.name || "");
-    if (key === "balance") return Number(a.balance || 0) - Number(b.balance || 0);
+    if (key === "balance")
+      return Number(a.balance || 0) - Number(b.balance || 0);
     return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
   };
   const sortWith = (arr, key, dir) => {
@@ -327,7 +327,10 @@ export default function WalletsPage() {
 
   // Inspector actions
   const handleWithdraw = async (wallet, amount) => {
-    const next = { ...wallet, balance: Number(wallet.balance || 0) - Number(amount) };
+    const next = {
+      ...wallet,
+      balance: Number(wallet.balance || 0) - Number(amount),
+    };
     await updateWallet(next);
     setSelectedWallet(next);
     setToast({ open: true, message: "Rút tiền thành công" });
@@ -338,7 +341,8 @@ export default function WalletsPage() {
     if (mode === "this_to_other") {
       const to = {
         ...otherWallet,
-        balance: Number(otherWallet.balance || 0) + Number(baseWallet.balance || 0),
+        balance:
+          Number(otherWallet.balance || 0) + Number(baseWallet.balance || 0),
       };
       await updateWallet(to);
       await deleteWallet(baseWallet.id);
@@ -350,7 +354,8 @@ export default function WalletsPage() {
     } else {
       const to = {
         ...baseWallet,
-        balance: Number(baseWallet.balance || 0) + Number(otherWallet.balance || 0),
+        balance:
+          Number(baseWallet.balance || 0) + Number(otherWallet.balance || 0),
       };
       await updateWallet(to);
       await deleteWallet(otherWallet.id);
@@ -363,7 +368,11 @@ export default function WalletsPage() {
   };
 
   const handleConvert = async (wallet, toShared) => {
-    const next = { ...wallet, isShared: !!toShared, groupId: toShared ? wallet.groupId || null : null };
+    const next = {
+      ...wallet,
+      isShared: !!toShared,
+      groupId: toShared ? wallet.groupId || null : null,
+    };
     await updateWallet(next);
     setSelectedWallet(next);
     setToast({ open: true, message: "Chuyển đổi loại ví thành công" });
@@ -385,7 +394,9 @@ export default function WalletsPage() {
   };
 
   // ====== Auto-height containers ======
-  const personalExpand = useAutoHeight(isPersonalExpanded, [personalWallets.length]);
+  const personalExpand = useAutoHeight(isPersonalExpanded, [
+    personalWallets.length,
+  ]);
   const groupExpand = useAutoHeight(isGroupExpanded, [groupWallets.length]);
 
   // ====== Click card: mở rộng (trừ vùng tương tác) ======
@@ -406,7 +417,11 @@ export default function WalletsPage() {
     const el = id ? cardRefs.current[id] : null;
     if (!el) return;
     const run = () =>
-      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+      el.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
     delayMs > 0 ? setTimeout(run, delayMs) : run();
   };
 
@@ -478,7 +493,9 @@ export default function WalletsPage() {
     }
     const cs = getComputedStyle(card);
     const bgImg =
-      cs.backgroundImage && cs.backgroundImage !== "none" ? cs.backgroundImage : null;
+      cs.backgroundImage && cs.backgroundImage !== "none"
+        ? cs.backgroundImage
+        : null;
     const bg = bgImg || cs.background || null;
     setInspectorBg(bg);
   }, [selectedWalletId]);
@@ -592,12 +609,19 @@ export default function WalletsPage() {
                 role="button"
                 tabIndex={0}
                 aria-pressed={showTotalAll}
-                className={`bi ${showTotalAll ? "bi-eye" : "bi-eye-slash"} money-eye`}
+                className={`bi ${
+                  showTotalAll ? "bi-eye" : "bi-eye-slash"
+                } money-eye`}
                 onClick={toggleTotalAll}
-                onKeyDown={(e)=> (e.key==="Enter"||e.key===" ") && (e.preventDefault(), toggleTotalAll())}
+                onKeyDown={(e) =>
+                  (e.key === "Enter" || e.key === " ") &&
+                  (e.preventDefault(), toggleTotalAll())
+                }
               />
             </div>
-            <div className="sum-card__desc">Tổng hợp tất cả số dư các ví (chỉ tính ví đang bật).</div>
+            <div className="sum-card__desc">
+              Tổng hợp tất cả số dư các ví (chỉ tính ví đang bật).
+            </div>
           </div>
         </section>
       )}
@@ -615,7 +639,9 @@ export default function WalletsPage() {
           }
         >
           <section
-            className={`wallet-section card border-0 shadow-sm h-100 ${isPersonalExpanded ? "section-expanded" : ""}`}
+            className={`wallet-section card border-0 shadow-sm h-100 ${
+              isPersonalExpanded ? "section-expanded" : ""
+            }`}
           >
             <div className="card-header d-flex justify-content-between align-items-center">
               <div className="d-flex align-items-center gap-2">
@@ -641,7 +667,9 @@ export default function WalletsPage() {
                   {/* Tổng cá nhân (mini) */}
                   <div className="col-12">
                     <div className="sum-card sum-card--mini sum-card--personal mb-3">
-                      <div className="sum-card__title">TỔNG SỐ DƯ (CÁ NHÂN)</div>
+                      <div className="sum-card__title">
+                        TỔNG SỐ DƯ (CÁ NHÂN)
+                      </div>
                       <div className="sum-card__value">
                         {formatMoney(
                           showTotalPersonal ? totalPersonal : 0,
@@ -659,9 +687,14 @@ export default function WalletsPage() {
                           role="button"
                           tabIndex={0}
                           aria-pressed={showTotalPersonal}
-                          className={`bi ${showTotalPersonal ? "bi-eye" : "bi-eye-slash"} money-eye`}
+                          className={`bi ${
+                            showTotalPersonal ? "bi-eye" : "bi-eye-slash"
+                          } money-eye`}
                           onClick={toggleTotalPersonal}
-                          onKeyDown={(e)=> (e.key==="Enter"||e.key===" ") && (e.preventDefault(), toggleTotalPersonal())}
+                          onKeyDown={(e) =>
+                            (e.key === "Enter" || e.key === " ") &&
+                            (e.preventDefault(), toggleTotalPersonal())
+                          }
                         />
                       </div>
                       <div className="sum-card__desc">
@@ -681,7 +714,9 @@ export default function WalletsPage() {
                       <div className="wallet-grid wallet-grid--expanded-two wallet-grid--limit-6">
                         {defaultFirst(personalWallets).map((w) => (
                           <div
-                            className={`wallet-grid__item ${selectedWalletId === w.id ? "is-selected" : ""}`}
+                            className={`wallet-grid__item ${
+                              selectedWalletId === w.id ? "is-selected" : ""
+                            }`}
                             key={w.id}
                             ref={setCardRef(w.id)}
                             role="button"
@@ -711,7 +746,9 @@ export default function WalletsPage() {
                   <aside
                     className="col-12 col-lg-4"
                     ref={personalInspectorRef}
-                    style={{ "--wi-accent": selectedWallet?.color || "#6C7EE1" }}
+                    style={{
+                      "--wi-accent": selectedWallet?.color || "#6C7EE1",
+                    }}
                   >
                     <WalletInspector
                       wallet={selectedWallet}
@@ -727,7 +764,7 @@ export default function WalletsPage() {
                       onMerge={handleMerge}
                       onConvert={handleConvert}
                       accent={selectedWallet?.color}
-                      heroBg={inspectorBg}         // <<< truyền nền đồng bộ
+                      heroBg={inspectorBg} // <<< truyền nền đồng bộ
                     />
                   </aside>
                 </div>
@@ -745,7 +782,9 @@ export default function WalletsPage() {
                     <div className="wallet-grid wallet-grid--limit-6 mt-2">
                       {defaultFirst(personalWallets).map((w) => (
                         <div
-                          className={`wallet-grid__item ${selectedWalletId === w.id ? "is-selected" : ""}`}
+                          className={`wallet-grid__item ${
+                            selectedWalletId === w.id ? "is-selected" : ""
+                          }`}
                           key={w.id}
                           ref={setCardRef(w.id)}
                           role="button"
@@ -786,7 +825,9 @@ export default function WalletsPage() {
           }
         >
           <section
-            className={`wallet-section card border-0 shadow-sm h-100 ${isGroupExpanded ? "section-expanded" : ""}`}
+            className={`wallet-section card border-0 shadow-sm h-100 ${
+              isGroupExpanded ? "section-expanded" : ""
+            }`}
           >
             <div className="card-header d-flex justify-content-between align-items-center">
               <div className="d-flex align-items-center gap-2">
@@ -830,9 +871,14 @@ export default function WalletsPage() {
                           role="button"
                           tabIndex={0}
                           aria-pressed={showTotalGroup}
-                          className={`bi ${showTotalGroup ? "bi-eye" : "bi-eye-slash"} money-eye`}
+                          className={`bi ${
+                            showTotalGroup ? "bi-eye" : "bi-eye-slash"
+                          } money-eye`}
                           onClick={toggleTotalGroup}
-                          onKeyDown={(e)=> (e.key==="Enter"||e.key===" ") && (e.preventDefault(), toggleTotalGroup())}
+                          onKeyDown={(e) =>
+                            (e.key === "Enter" || e.key === " ") &&
+                            (e.preventDefault(), toggleTotalGroup())
+                          }
                         />
                       </div>
                       <div className="sum-card__desc">
@@ -852,7 +898,9 @@ export default function WalletsPage() {
                       <div className="wallet-grid wallet-grid--expanded-two wallet-grid--limit-6">
                         {defaultFirst(groupWallets).map((w) => (
                           <div
-                            className={`wallet-grid__item ${selectedWalletId === w.id ? "is-selected" : ""}`}
+                            className={`wallet-grid__item ${
+                              selectedWalletId === w.id ? "is-selected" : ""
+                            }`}
                             key={w.id}
                             ref={setCardRef(w.id)}
                             role="button"
@@ -882,7 +930,9 @@ export default function WalletsPage() {
                   <aside
                     className="col-12 col-lg-4"
                     ref={groupInspectorRef}
-                    style={{ "--wi-accent": selectedWallet?.color || "#6C7EE1" }}
+                    style={{
+                      "--wi-accent": selectedWallet?.color || "#6C7EE1",
+                    }}
                   >
                     <WalletInspector
                       wallet={selectedWallet}
@@ -898,7 +948,7 @@ export default function WalletsPage() {
                       onMerge={handleMerge}
                       onConvert={handleConvert}
                       accent={selectedWallet?.color}
-                      heroBg={inspectorBg}         // <<< truyền nền đồng bộ
+                      heroBg={inspectorBg} // <<< truyền nền đồng bộ
                     />
                   </aside>
                 </div>
@@ -916,7 +966,9 @@ export default function WalletsPage() {
                     <div className="wallet-grid wallet-grid--limit-6 mt-2">
                       {defaultFirst(groupWallets).map((w) => (
                         <div
-                          className={`wallet-grid__item ${selectedWalletId === w.id ? "is-selected" : ""}`}
+                          className={`wallet-grid__item ${
+                            selectedWalletId === w.id ? "is-selected" : ""
+                          }`}
                           key={w.id}
                           ref={setCardRef(w.id)}
                           role="button"

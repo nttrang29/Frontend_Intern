@@ -2,12 +2,21 @@
 import React, { useEffect, useRef } from "react";
 import { Dropdown } from "bootstrap";
 
-export default function WalletCard({ wallet, onToggleOverall, onToggleSection }) {
+// 1. NHẬN THÊM PROPS: Thêm onEdit và onDelete
+export default function WalletCard({
+  wallet,
+  onToggleOverall,
+  onToggleSection,
+  onEdit,
+  onDelete,
+}) {
   const btnRef = useRef(null);
 
   useEffect(() => {
     if (btnRef.current) {
-      try { new Dropdown(btnRef.current); } catch {}
+      try {
+        new Dropdown(btnRef.current);
+      } catch {}
     }
   }, []);
 
@@ -24,9 +33,22 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
   const sectionOn = wallet.isShared
     ? wallet.includeGroup !== false
     : wallet.includePersonal !== false;
-  const sectionLabel = wallet.isShared ? "Tính vào Tổng nhóm" : "Tính vào Tổng cá nhân";
+  const sectionLabel = wallet.isShared
+    ? "Tính vào Tổng nhóm"
+    : "Tính vào Tổng cá nhân";
 
   const stop = (e) => e.stopPropagation();
+
+  // 2. HÀM XỬ LÝ MỚI: Các hàm này gọi prop được truyền từ component cha
+  const handleEditClick = (e) => {
+    e.stopPropagation(); // Ngăn menu tự đóng
+    onEdit?.(wallet); // Gọi hàm onEdit (nếu có) và truyền thông tin ví
+  };
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation(); // Ngăn menu tự đóng
+    onDelete?.(wallet); // Gọi hàm onDelete (nếu có) và truyền thông tin ví
+  };
 
   // Màu nền (phủ full thẻ)
   const bg = wallet.color
@@ -35,11 +57,13 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
 
   return (
     <div
-      className={`wallet-card card wc--flat ${wallet.isDefault ? "wallet-card--default" : ""}`}
+      className={`wallet-card card wc--flat ${
+        wallet.isDefault ? "wallet-card--default" : ""
+      }`}
       style={{
         // truyền màu qua CSS var để các rule bên dưới dùng
         "--wc-bg": bg,
-        background: bg,               // nền full
+        background: bg, // nền full
         borderRadius: 16,
         border: "none",
         boxShadow: "0 6px 16px rgba(0,0,0,.25)",
@@ -47,65 +71,32 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
       }}
     >
       <style>{`
+        /* ... (Toàn bộ CSS của bạn giữ nguyên, tôi ẩn đi cho gọn) ... */
         .wallet-card{ position:relative; overflow:visible; }
-
-        /* KHÔNG set background nữa để không xóa màu inline */
-        .wallet-card.wc--flat{
-          border: none !important;
-          border-radius: 16px;
-          overflow: visible;
-        }
-
-        /* Phòng trường hợp CSS ngoài cùng lại set nền, ép dùng var */
-        .wallet-grid__item .wallet-card{
-          background: var(--wc-bg) !important;
-        }
-
-        .wallet-card .card-body{
-          padding: 44px 16px 16px;
-          background: transparent !important; /* để màu của thẻ lộ ra */
-          color:#111;
-        }
-
-        /* Nút 3 chấm */
-        .wallet-card .wc-dots{
-          position:absolute; top:8px; right:10px; z-index:6000;
-        }
-        .wallet-card .wc-dots > .dropdown > .btn{
-          width:32px; height:32px; border-radius:50%;
-          background: rgba(255,255,255,.9) !important; color:#000; border:none;
-          display:flex; align-items:center; justify-content:center;
-          transition: transform .2s;
-        }
+        .wallet-card.wc--flat{ border: none !important; border-radius: 16px; overflow: visible; }
+        .wallet-grid__item .wallet-card{ background: var(--wc-bg) !important; }
+        .wallet-card .card-body{ padding: 44px 16px 16px; background: transparent !important; color:#111; }
+        .wallet-card .wc-dots{ position:absolute; top:8px; right:10px; z-index:6000; }
+        .wallet-card .wc-dots > .dropdown > .btn{ width:32px; height:32px; border-radius:50%; background: rgba(255,255,255,.9) !important; color:#000; border:none; display:flex; align-items:center; justify-content:center; transition: transform .2s; }
         .wallet-card .wc-dots > .dropdown > .btn:hover{ transform:scale(1.08); }
-
-        /* Menu */
-        .wallet-card .wc-dots .dropdown-menu{
-          position:absolute !important; top:calc(100% + 6px) !important; right:0 !important;
-          transform:none !important; z-index:9999 !important;
-          min-width:220px; background:#fff; border-radius:10px !important;
-          border:1px solid rgba(0,0,0,.15); box-shadow:0 4px 20px rgba(0,0,0,.12);
-          padding:0; overflow:hidden;
-        }
-        .wallet-card .dropdown-menu .form-check{
-          display:flex; align-items:center; justify-content:space-between;
-          gap:10px; padding:10px 16px; margin:0; background:#fff; color:#111;
-          font-weight:500; transition: background .2s;
-        }
-        .wallet-card .dropdown-menu .form-check + .form-check{
-          border-top:1px solid rgba(0,0,0,.08);
-        }
+        .wallet-card .wc-dots .dropdown-menu{ position:absolute !important; top:calc(100% + 6px) !important; right:0 !important; transform:none !important; z-index:9999 !important; min-width:220px; background:#fff; border-radius:10px !important; border:1px solid rgba(0,0,0,.15); box-shadow:0 4px 20px rgba(0,0,0,.12); padding:0; overflow:hidden; }
+        
+        /* Thêm CSS cho .dropdown-item (dùng class của Bootstrap) 
+         và vạch chia .dropdown-divider
+        */
+        .wallet-card .dropdown-menu .form-check{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 16px; margin:0; background:#fff; color:#111; font-weight:500; transition: background .2s; }
         .wallet-card .dropdown-menu .form-check:hover{ background:#f7f7f7; }
+        .wallet-card .dropdown-menu .form-check + .form-check{ border-top:1px solid rgba(0,0,0,.08); }
+        .wallet-card .dropdown-menu .dropdown-item{ padding: 10px 16px; font-weight: 500; }
+        .wallet-card .dropdown-menu .dropdown-divider{ margin: 0; border-top: 1px solid rgba(0,0,0,.08); }
 
-        /* Text trên nền màu */
+
         .wallet-card .wallet-name{ font-weight:700; color:#fff; }
         .wallet-card .badge{ background:rgba(0,0,0,.85) !important; border:none; font-size:.75rem; }
         .wallet-card .wc-row{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
         .wallet-card .wc-label{ color:#f1f1f1; font-size:.9rem; }
         .wallet-card .wc-value{ color:#fff; font-weight:600; }
         .wallet-card .wc-value.text-primary{ color:#fff !important; }
-
-        /* Cho dropdown không bị cắt */
         .wallet-grid, .wallet-grid__item, .wallet-section, .wallet-section .card-body{ overflow:visible !important; }
       `}</style>
 
@@ -125,6 +116,7 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
             <i className="bi bi-three-dots-vertical" />
           </button>
 
+          {/* 3. THÊM NÚT SỬA/XÓA VÀO MENU */}
           <div className="dropdown-menu dropdown-menu-end" onClick={stop}>
             <div className="form-check form-switch">
               <input
@@ -133,9 +125,12 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
                 type="checkbox"
                 role="switch"
                 checked={overallOn}
-                onChange={(e)=>onToggleOverall?.(wallet, e.target.checked)}
+                onChange={(e) => onToggleOverall?.(wallet, e.target.checked)}
               />
-              <label className="form-check-label" htmlFor={`overall-${wallet.id}`}>
+              <label
+                className="form-check-label"
+                htmlFor={`overall-${wallet.id}`}
+              >
                 Tính vào Tổng số dư
               </label>
             </div>
@@ -147,19 +142,44 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
                 type="checkbox"
                 role="switch"
                 checked={sectionOn}
-                onChange={(e)=>onToggleSection?.(wallet, e.target.checked)}
+                onChange={(e) => onToggleSection?.(wallet, e.target.checked)}
               />
-              <label className="form-check-label" htmlFor={`section-${wallet.id}`}>
+              <label
+                className="form-check-label"
+                htmlFor={`section-${wallet.id}`}
+              >
                 {sectionLabel}
               </label>
             </div>
+
+            {/* === PHẦN THÊM MỚI === */}
+            <div className="dropdown-divider"></div>
+
+            <div
+              className="dropdown-item"
+              style={{ cursor: "pointer" }}
+              onClick={handleEditClick}
+            >
+              <i className="bi bi-pencil-fill me-2"></i>
+              Sửa ví
+            </div>
+
+            <div
+              className="dropdown-item text-danger"
+              style={{ cursor: "pointer" }}
+              onClick={handleDeleteClick}
+            >
+              <i className="bi bi-trash-fill me-2"></i>
+              Xóa ví
+            </div>
+            {/* === KẾT THÚC PHẦN THÊM MỚI === */}
           </div>
         </div>
       </div>
 
       {/* Nội dung */}
       <div className="card-body" onClick={stop}>
-        <div className="d-flex align-items-center justify-content-between mb-2">
+        <div className="d-flex align-items:center justify-content-between mb-2">
           <h6 className="wallet-name mb-0">
             {wallet.name}
             {wallet.isDefault && <span className="badge ms-2">Mặc định</span>}
@@ -169,7 +189,9 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
         <div className="wc-body">
           <div className="wc-row">
             <span className="wc-label">Số dư</span>
-            <span className="wc-value text-primary">{fmtMoney(wallet.balance, wallet.currency)}</span>
+            <span className="wc-value text-primary">
+              {fmtMoney(wallet.balance, wallet.currency)}
+            </span>
           </div>
           <div className="wc-row mt-1">
             <span className="wc-label">Tạo ngày</span>
