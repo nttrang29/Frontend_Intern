@@ -152,6 +152,23 @@
   padding-right: 2px;
 }
 
+/* Stabilize scrollbar and enable smooth scrolling on touch devices */
+.sb__scroll {
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sb__scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.sb__scroll::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+  border-radius: 8px;
+}
+.sb__scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.18);
+}
+
 /* =========================================================
    ITEM CHUNG
    ========================================================= */

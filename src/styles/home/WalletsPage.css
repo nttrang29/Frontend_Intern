@@ -55,6 +55,49 @@
   box-shadow: 0 8px 26px rgba(12, 87, 118, 0.18);
 }
 
+/* ======================
+   Unified page header (apply wallet header visual to other pages)
+   Targets: .page-header-card (transactions/dashboard),
+            .category-header-card (categories),
+            .budget-header-card, .funds-header-card, .admin-header-card
+   These selectors are intentionally broad to cover page header variants
+   so all main page headers share the same color, padding, radius and shadow.
+   ====================== */
+.page-header-card,
+.category-header-card,
+.budget-header-card,
+.funds-header-card,
+.admin-header-card {
+  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
+  color: #ffffff;
+  border-radius: 24px;
+  padding: 16px 20px;
+  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.page-header-card .page-title,
+.category-header-card .category-title,
+.budget-header-card .budget-title,
+.funds-header-card .funds-title,
+.admin-header-card .admin-title,
+.wallet-header__title {
+  font-weight: 700;
+  font-size: 1.6rem;
+  color: #ffffff;
+  margin: 0;
+}
+
+/* Ensure header controls inherit white text unless they override it */
+.page-header-card .btn,
+.page-header-card .form-select,
+.category-header-card .btn,
+.category-header-card .form-select,
+.budget-header-card .btn,
+.funds-header-card .btn {
+  color: #ffffff !important;
+}
+
 .wallet-header__title {
   font-weight: 700;
   color: #ffffff;

@@ -157,6 +157,18 @@
   font-weight: 600;
 }
 
+/* Make the table header sticky inside the scrollable table container
+   so the thead stays visible while the tbody scrolls. Scoped to
+   the table-responsive wrappers used on this page. */
+.transaction-table-wrapper .table-responsive thead th,
+.tx-table-card .table-responsive thead th {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: #f9fafb; /* match the non-sticky header background */
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
 /* padding ô giống trang Danh mục – không bị sát viền */
 .transactions-page .transaction-table-wrapper .transaction-table thead th,
 .transactions-page .transaction-table-wrapper .transaction-table tbody td {
@@ -167,6 +179,27 @@
   vertical-align: middle;
   font-size: 0.9rem;
 }
+
+/* Make header consistent & responsive */
+.page-header-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
+  color: #ffffff;
+  padding: 16px 20px;
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.page-header-card .page-title { font-size: 1.6rem; font-weight:700; margin:0; }
+.page-header-card .header-controls { display:flex; gap:12px; align-items:center; flex-wrap:nowrap; overflow-x:auto; }
+
+/* Make table layout flexible so it scales when viewport/zoom changes */
+.tx-table-card { display:flex; flex-direction:column; }
+.tx-table-card .table-responsive { max-height: 360px; overflow:auto; scrollbar-gutter: stable; }
+.tx-table-card table { width:100%; table-layout: auto; }
 
 .description-col {
   width: 30%;

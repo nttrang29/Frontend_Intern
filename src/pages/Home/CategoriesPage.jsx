@@ -233,13 +233,9 @@ export default function CategoriesPage() {
       </div>
 
       {/* BẢNG DANH MỤC */}
-      <div className="card border-0 shadow-sm">
-        <div className="card-body">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">Danh sách danh mục</h5>
-            <span className="text-muted small">Tổng: {displayedList.length} danh mục</span>
-          </div>
+      <div className="card border-0 shadow-sm category-list-card">
 
+        <div className="card-body p-0">
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
               <thead>
@@ -305,6 +301,9 @@ export default function CategoriesPage() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div className="card-footer bg-transparent border-0">
           {/* PAGINATION (buttons left, counter right) */}
           <div className="d-flex justify-content-between align-items-center mt-3 gap-2">
             <div className="d-flex align-items-center gap-2">

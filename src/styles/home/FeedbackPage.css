@@ -14,12 +14,13 @@
    SUMMARY CARD
    ========================== */
 .feedback-summary-card {
-  background: #ffffff;
+  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
   border-radius: 18px;
   padding: 18px 20px;
   margin-bottom: 20px;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
-  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
+  border: none;
+  color: #ffffff;
 }
 
 .feedback-summary-header {
@@ -34,13 +35,13 @@
   font-size: 1.4rem;
   font-weight: 600;
   margin: 0;
-  color: #111827;
+  color: #ffffff;
 }
 
 .feedback-summary-subtitle {
   margin: 4px 0 0;
   font-size: 0.95rem;
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .feedback-summary-body {
@@ -52,7 +53,7 @@
 
 .feedback-summary-left {
   flex: 0 0 220px;
-  border-right: 1px dashed #e5e7eb;
+  border-right: 1px dashed rgba(255, 255, 255, 0.12);
   padding-right: 20px;
 }
 
@@ -65,12 +66,15 @@
 .feedback-summary-score-number {
   font-size: 2.4rem;
   font-weight: 700;
-  color: #2d99ae;
+  color: #ffffff;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .feedback-summary-score-max {
   font-size: 1rem;
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .feedback-summary-stars {

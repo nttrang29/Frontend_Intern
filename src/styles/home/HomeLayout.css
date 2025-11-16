@@ -77,6 +77,10 @@
   box-shadow: none;
   padding: 0;
 
+  display: flex; /* allow inner layout (brand, nav, footer) */
+  flex-direction: column;
+  overflow: hidden; /* keep internal scroll region contained */
+
   transition: width var(--sb-anim);
 }
 
@@ -260,4 +264,90 @@ main {
     left: var(--sb-wc);
     width: calc(100% - var(--sb-wc));
   }
+}
+
+/* =========================================================
+   UNIFIED PAGE HEADER + RESPONSIVE HELPERS
+   Applies a wallet-like header visual (gradient, radius, padding)
+   and ensures header controls and page sections respond when
+   the viewport or zoom changes. Appended here so it's global.
+   ========================================================= */
+.unified-page-header,
+.page-header-card,
+.category-header-card,
+.budget-header,
+.funds-header,
+.admin-header-card,
+.dashboard-header {
+  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%) !important;
+  color: #ffffff !important;
+  border-radius: 24px !important;
+  padding: 16px 20px !important;
+  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Title style */
+.unified-page-header .page-title,
+.page-header-card .page-title,
+.category-header-card .category-title,
+.budget-header .budget-title,
+.funds-header .funds-title,
+.admin-header-card .admin-title,
+.dashboard-header .dashboard-title {
+  font-weight: 700 !important;
+  font-size: 1.6rem !important;
+  margin: 0 !important;
+  color: #ffffff !important;
+}
+
+/* Header inner controls: flexible, wrap when needed, allow horizontal scroll on small viewports */
+.unified-page-header .header-controls,
+.page-header-card .header-controls,
+.category-header-card .category-header-right,
+.budget-header .budget-header-right,
+.funds-header .funds-header-right {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+.unified-page-header .header-controls::-webkit-scrollbar,
+.page-header-card .header-controls::-webkit-scrollbar { display: none; }
+
+/* Make main section cards adapt fluidly */
+.tx-table-card,
+.category-list-card,
+.budget-card,
+.funds-card {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Responsive table tweaks: let table shrink/expand with container */
+.tx-table-card table,
+.category-list-card table {
+  width: 100% !important;
+  table-layout: auto !important;
+  word-break: break-word; /* allow cells to wrap */
+}
+
+/* Ensure card footers stay outside scrollable list areas */
+.tx-table-card,
+.category-list-card { display: flex; flex-direction: column; }
+.tx-table-card .table-responsive,
+.category-list-card .card-body { flex: 0 1 auto; }
+.tx-table-card .card-footer,
+.category-list-card .card-footer { margin-top: auto; }
+
+/* Small viewport adjustments */
+@media (max-width: 768px) {
+  .unified-page-header,
+  .page-header-card,
+  .category-header-card { padding: 12px 14px !important; }
+  .unified-page-header .page-title { font-size: 1.25rem !important; }
 }

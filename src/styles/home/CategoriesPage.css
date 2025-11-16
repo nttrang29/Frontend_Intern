@@ -109,12 +109,36 @@
   flex-direction: column;
 }
 
+
+/* Make the inner .table-responsive the scroll container so sticky thead
+   works reliably (sticky elements stick relative to the nearest scrollable ancestor). */
 .category-list-card .card-body {
+  /* keep layout behavior but allow the inner .table-responsive to handle scrolling */
+  max-height: 360px; /* ensures the card doesn't grow too tall */
+  padding: 0; /* we use .table-responsive to hold padding if needed */
+  display: block;
+  flex-grow: 1;
+}
+
+.category-list-card .card-body .table-responsive {
   max-height: 360px; /* Show ~6 rows, scroll to see up to 10 */
   overflow-y: auto;
   overflow-x: auto;
   scrollbar-gutter: stable;
-  flex-grow: 1;
+}
+
+/* If category lists are rendered as tables, keep the table header
+   visible while the list body scrolls. Scoped to the card body scroller. */
+
+/* Sticky header scoped to the scrolling .table-responsive container */
+.category-list-card .card-body .table-responsive thead th,
+.category-list-card .card-body .table-responsive table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
 }
 
 /* Hàng danh mục */
@@ -267,4 +291,12 @@
 .category-header {
   background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%) !important;
   color: #ffffff !important;
+}
+
+/* Ensure header controls are scrollable instead of wrapping unexpectedly when zoomed */
+.category-header-card .category-header-right,
+.category-header-card .category-header-left {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }

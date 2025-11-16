@@ -22,30 +22,6 @@
 }
 
 /* Header có nền */
-.admin-users__header {
-  padding: 14px 18px;
-  border-radius: 18px;
-  margin-bottom: 20px;
-  background: linear-gradient(
-    90deg,
-    rgba(45, 153, 174, 0.12),
-    rgba(255, 255, 255, 1)
-  );
-  border: 1px solid var(--admin-border);
-}
-
-.admin-users__title {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 6px;
-  color: var(--admin-primary);
-}
-
-.admin-users__subtitle {
-  margin: 0;
-  font-size: 14px;
-  color: var(--admin-muted);
-}
 
 /* =========================================================
    LAYOUT
@@ -56,28 +32,25 @@
   gap: 20px;
 }
 
-.admin-users__left,
-.admin-users__right {
-  min-width: 0;
+.admin-users__header {
+  padding: 16px 20px;
+  border-radius: 24px;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
+  border: none;
+  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
+  color: #ffffff;
 }
-
-/* =========================================================
-   CARD
-   ========================================================= */
-.admin-card {
-  background: var(--admin-surface);
-  border-radius: 16px;
-  border: 1px solid var(--admin-border);
-  padding: 16px 18px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+.admin-users__title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: #ffffff;
 }
-
-.admin-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  gap: 12px;
+.admin-users__subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .admin-card__header h2 {
