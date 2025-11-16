@@ -1,8 +1,19 @@
 /* ======================
    PAGE WRAPPER
    ====================== */
-.transactions-page {
+/* alias: some pages use `.tx-page` as root class */
+.transactions-page,
+.tx-page {
   padding: 18px 24px 32px;
+}
+
+/* Ensure container doesn't force horizontal scroll like other pages */
+.tx-page.container,
+.transactions-page.container {
+  max-width: 100% !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  box-sizing: border-box;
 }
 
 /* ======================
@@ -129,7 +140,8 @@
 /* ======================
    TABLE
    ====================== */
-.transaction-table-wrapper {
+.transaction-table-wrapper,
+.tx-table-card {
   background: #ffffff;
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
@@ -139,7 +151,8 @@
   flex-direction: column;
 }
 
-.transaction-table-wrapper .table-responsive {
+.transaction-table-wrapper .table-responsive,
+.tx-table-card .table-responsive {
   max-height: 360px; /* Show ~6 rows, scroll to see up to 10 */
   overflow-y: auto;
   overflow-x: auto;
@@ -200,6 +213,21 @@
 .tx-table-card { display:flex; flex-direction:column; }
 .tx-table-card .table-responsive { max-height: 360px; overflow:auto; scrollbar-gutter: stable; }
 .tx-table-card table { width:100%; table-layout: auto; }
+
+/* Make description column able to shrink instead of forcing horizontal scroll */
+.tx-page .description-col,
+.transactions-page .description-col {
+  min-width: 0;
+  width: 30%;
+}
+
+.tx-page .description-cell,
+.transactions-page .description-cell {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .description-col {
   width: 30%;

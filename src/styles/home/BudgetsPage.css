@@ -5,6 +5,14 @@
   background-color: #f8f9fa;
 }
 
+/* container alias to avoid horizontal overflow like other pages */
+.budget-page.container {
+  max-width: 100% !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  box-sizing: border-box;
+}
+
 /* ================= HEADER ================= */
 
 .budget-header {
