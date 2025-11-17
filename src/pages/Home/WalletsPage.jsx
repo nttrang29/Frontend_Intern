@@ -249,12 +249,41 @@ export default function WalletsPage() {
   // ====== CRUD ======
   const handleAddWalletClick = () => setShowChooser((v) => !v);
 
-  const doDelete = async (w) => {
-    setConfirmDel(null);
-    await deleteWallet(w.id);
-    setToast({ open: true, message: `Đã xóa ví "${w.name}"` });
-    if (selectedWallet?.id === w.id) setSelectedWallet(null);
-  };
+
+const doDelete = async (wallet) => {
+  if (!wallet || !wallet.id) {
+    console.error("Lỗi doDelete: Không có thông tin ví.");
+    return;
+  }
+
+  setConfirmDel(null); // Đóng modal
+
+  try {
+    // Gọi API (đã sửa ở Bước 1)
+    const { response, data } = await deleteWallet(wallet.id); 
+
+    // Kiểm tra kết quả
+    if (response.ok) {
+      // THÀNH CÔNG: Cập nhật UI
+      setToast({ open: true, message: `Đã xóa ví "${wallet.name}"` });
+      
+      // [QUAN TRỌNG] Cập nhật lại danh sách ví của bạn
+      // (Ví dụ: gọi lại hàm fetchWallets() hoặc dùng mutate() của SWR)
+      // fetchWallets(); 
+
+      if (selectedWallet?.id === wallet.id) {
+        setSelectedWallet(null);
+      }
+    } else {
+      // THẤT BẠI (Backend trả về lỗi, ví dụ: "Còn giao dịch")
+      setToast({ open: true, message: data.error || "Xóa ví thất bại", danger: true });
+    }
+  } catch (error) {
+    // THẤT BẠI (Lỗi mạng hoặc lỗi code)
+    console.error("Lỗi nghiêm trọng khi gọi deleteWallet:", error);
+    setToast({ open: true, message: "Lỗi kết nối máy chủ", danger: true });
+  }
+};
 
   /** Tạo ví cá nhân: thêm color ngẫu nhiên từ bảng */
   const handleCreatePersonal = async (f) => {
