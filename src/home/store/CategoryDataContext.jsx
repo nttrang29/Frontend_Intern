@@ -23,26 +23,90 @@ export function CategoryDataProvider({ children }) {
   const [incomeCategories, setIncomeCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
-  // Load categories từ API (nếu có API endpoint)
-  // Tạm thời giữ mock data, chờ API endpoint để lấy danh sách categories
+  // Load categories từ API
   useEffect(() => {
-    // TODO: Khi có API GET /categories, load từ đó
-    // Hiện tại giữ mock data
-    setExpenseCategories([
-      { id: 1, name: "Ăn uống", description: "Cơm, nước, cafe, đồ ăn vặt" },
-      { id: 2, name: "Di chuyển", description: "Xăng xe, gửi xe, phương tiện công cộng" },
-      { id: 3, name: "Mua sắm", description: "Quần áo, giày dép, đồ dùng cá nhân" },
-      { id: 4, name: "Hóa đơn", description: "Điện, nước, internet, điện thoại" },
-      { id: 5, name: "Giải trí", description: "Xem phim, game, du lịch, hội họp bạn bè" },
-    ]);
-    setIncomeCategories([
-      { id: 101, name: "Lương", description: "Lương chính hàng tháng" },
-      { id: 102, name: "Thưởng", description: "Thưởng dự án, thưởng KPI" },
-      { id: 103, name: "Bán hàng", description: "Bán đồ cũ, bán online" },
-      { id: 104, name: "Lãi tiết kiệm", description: "Lãi ngân hàng, lãi đầu tư an toàn" },
-      { id: 105, name: "Khác", description: "Các khoản thu nhập khác" },
-    ]);
-    setCategoriesLoading(false);
+    const loadCategories = async () => {
+      setCategoriesLoading(true);
+      try {
+        const response = await categoryAPI.getCategories();
+        
+        if (response && Array.isArray(response)) {
+          // Phân loại categories theo transactionType
+          const expenseList = [];
+          const incomeList = [];
+          
+          response.forEach((category) => {
+            const typeName = category.transactionType?.typeName || "";
+            const mappedCategory = {
+              id: category.categoryId,
+              categoryId: category.categoryId,
+              name: category.categoryName,
+              categoryName: category.categoryName,
+              description: category.description || "",
+              icon: category.description || "default", // Backend dùng description thay vì icon
+              transactionTypeId: category.transactionType?.typeId,
+              isSystem: category.isSystem || false,
+            };
+            
+            // Phân loại: "Chi tiêu" = expense, "Thu nhập" = income
+            if (typeName === "Chi tiêu" || category.transactionType?.typeId === 1) {
+              expenseList.push(mappedCategory);
+            } else if (typeName === "Thu nhập" || category.transactionType?.typeId === 2) {
+              incomeList.push(mappedCategory);
+            }
+          });
+          
+          setExpenseCategories(expenseList);
+          setIncomeCategories(incomeList);
+        }
+      } catch (error) {
+        console.error("Error loading categories:", error);
+        // Fallback to empty arrays on error
+        setExpenseCategories([]);
+        setIncomeCategories([]);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  // Helper function to reload categories from API
+  const reloadCategories = useCallback(async () => {
+    try {
+      const response = await categoryAPI.getCategories();
+      
+      if (response && Array.isArray(response)) {
+        const expenseList = [];
+        const incomeList = [];
+        
+        response.forEach((category) => {
+          const typeName = category.transactionType?.typeName || "";
+          const mappedCategory = {
+            id: category.categoryId,
+            categoryId: category.categoryId,
+            name: category.categoryName,
+            categoryName: category.categoryName,
+            description: category.description || "",
+            icon: category.description || "default",
+            transactionTypeId: category.transactionType?.typeId,
+            isSystem: category.isSystem || false,
+          };
+          
+          if (typeName === "Chi tiêu" || category.transactionType?.typeId === 1) {
+            expenseList.push(mappedCategory);
+          } else if (typeName === "Thu nhập" || category.transactionType?.typeId === 2) {
+            incomeList.push(mappedCategory);
+          }
+        });
+        
+        setExpenseCategories(expenseList);
+        setIncomeCategories(incomeList);
+      }
+    } catch (error) {
+      console.error("Error reloading categories:", error);
+    }
   }, []);
 
   // Create expense category
@@ -56,23 +120,29 @@ export function CategoryDataProvider({ children }) {
       const response = await categoryAPI.createCategory(
         userId,
         payload.name,
-        payload.icon || "default",
+        payload.description || payload.icon || "default",
         1 // transactionTypeId: 1 = Chi tiêu
       );
       
-      const newCategory = {
+      // Reload categories to get the latest data
+      await reloadCategories();
+      
+      // Return the created category
+      return {
         id: response.categoryId,
+        categoryId: response.categoryId,
         name: response.categoryName,
-        description: payload.description || "",
-        icon: response.icon,
+        categoryName: response.categoryName,
+        description: response.description || "",
+        icon: response.description || "default",
+        transactionTypeId: 1,
+        isSystem: response.isSystem || false,
       };
-      setExpenseCategories((prev) => [newCategory, ...prev]);
-      return newCategory;
     } catch (err) {
       console.error("Error creating expense category:", err);
       throw err;
     }
-  }, []);
+  }, [reloadCategories]);
 
   // Create income category
   const createIncomeCategory = useCallback(async (payload) => {
@@ -85,23 +155,29 @@ export function CategoryDataProvider({ children }) {
       const response = await categoryAPI.createCategory(
         userId,
         payload.name,
-        payload.icon || "default",
+        payload.description || payload.icon || "default",
         2 // transactionTypeId: 2 = Thu nhập
       );
       
-      const newCategory = {
+      // Reload categories to get the latest data
+      await reloadCategories();
+      
+      // Return the created category
+      return {
         id: response.categoryId,
+        categoryId: response.categoryId,
         name: response.categoryName,
-        description: payload.description || "",
-        icon: response.icon,
+        categoryName: response.categoryName,
+        description: response.description || "",
+        icon: response.description || "default",
+        transactionTypeId: 2,
+        isSystem: response.isSystem || false,
       };
-      setIncomeCategories((prev) => [newCategory, ...prev]);
-      return newCategory;
     } catch (err) {
       console.error("Error creating income category:", err);
       throw err;
     }
-  }, []);
+  }, [reloadCategories]);
 
   // Update expense category
   const updateExpenseCategory = useCallback(async (id, patch) => {
@@ -115,25 +191,29 @@ export function CategoryDataProvider({ children }) {
         id,
         userId,
         patch.name,
-        patch.icon || "default",
+        patch.description || patch.icon || "default",
         1 // transactionTypeId: 1 = Chi tiêu
       );
       
-      const updatedCategory = {
+      // Reload categories to get the latest data
+      await reloadCategories();
+      
+      // Return the updated category
+      return {
         id: response.categoryId,
+        categoryId: response.categoryId,
         name: response.categoryName,
-        description: patch.description || "",
-        icon: response.icon,
+        categoryName: response.categoryName,
+        description: response.description || "",
+        icon: response.description || "default",
+        transactionTypeId: 1,
+        isSystem: response.isSystem || false,
       };
-      setExpenseCategories((prev) =>
-        prev.map((c) => (c.id === id ? updatedCategory : c))
-      );
-      return updatedCategory;
     } catch (err) {
       console.error("Error updating expense category:", err);
       throw err;
     }
-  }, []);
+  }, [reloadCategories]);
 
   // Update income category
   const updateIncomeCategory = useCallback(async (id, patch) => {
@@ -147,47 +227,53 @@ export function CategoryDataProvider({ children }) {
         id,
         userId,
         patch.name,
-        patch.icon || "default",
+        patch.description || patch.icon || "default",
         2 // transactionTypeId: 2 = Thu nhập
       );
       
-      const updatedCategory = {
+      // Reload categories to get the latest data
+      await reloadCategories();
+      
+      // Return the updated category
+      return {
         id: response.categoryId,
+        categoryId: response.categoryId,
         name: response.categoryName,
-        description: patch.description || "",
-        icon: response.icon,
+        categoryName: response.categoryName,
+        description: response.description || "",
+        icon: response.description || "default",
+        transactionTypeId: 2,
+        isSystem: response.isSystem || false,
       };
-      setIncomeCategories((prev) =>
-        prev.map((c) => (c.id === id ? updatedCategory : c))
-      );
-      return updatedCategory;
     } catch (err) {
       console.error("Error updating income category:", err);
       throw err;
     }
-  }, []);
+  }, [reloadCategories]);
 
   // Delete expense category
   const deleteExpenseCategory = useCallback(async (id) => {
     try {
       await categoryAPI.deleteCategory(id);
-      setExpenseCategories((prev) => prev.filter((c) => c.id !== id));
+      // Reload categories to get the latest data
+      await reloadCategories();
     } catch (err) {
       console.error("Error deleting expense category:", err);
       throw err;
     }
-  }, []);
+  }, [reloadCategories]);
 
   // Delete income category
   const deleteIncomeCategory = useCallback(async (id) => {
     try {
       await categoryAPI.deleteCategory(id);
-      setIncomeCategories((prev) => prev.filter((c) => c.id !== id));
+      // Reload categories to get the latest data
+      await reloadCategories();
     } catch (err) {
       console.error("Error deleting income category:", err);
       throw err;
     }
-  }, []);
+  }, [reloadCategories]);
 
   // Get category by name and type
   const getCategoryByName = useCallback(
@@ -202,6 +288,7 @@ export function CategoryDataProvider({ children }) {
     () => ({
       expenseCategories,
       incomeCategories,
+      categoriesLoading,
       createExpenseCategory,
       createIncomeCategory,
       updateExpenseCategory,
@@ -209,10 +296,12 @@ export function CategoryDataProvider({ children }) {
       deleteExpenseCategory,
       deleteIncomeCategory,
       getCategoryByName,
+      reloadCategories, // Export để có thể reload từ bên ngoài nếu cần
     }),
     [
       expenseCategories,
       incomeCategories,
+      categoriesLoading,
       createExpenseCategory,
       createIncomeCategory,
       updateExpenseCategory,
@@ -220,6 +309,7 @@ export function CategoryDataProvider({ children }) {
       deleteExpenseCategory,
       deleteIncomeCategory,
       getCategoryByName,
+      reloadCategories,
     ]
   );
 

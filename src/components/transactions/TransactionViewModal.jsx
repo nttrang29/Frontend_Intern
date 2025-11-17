@@ -2,16 +2,44 @@
 import React from "react";
 import { createPortal } from "react-dom";
 
+/**
+ * Format ngày theo múi giờ Việt Nam (UTC+7)
+ */
+function formatVietnamDate(date) {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  
+  return d.toLocaleDateString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+/**
+ * Format giờ theo múi giờ Việt Nam (UTC+7)
+ */
+function formatVietnamTime(date) {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  
+  return d.toLocaleTimeString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 export default function TransactionViewModal({ open, tx, onClose }) {
   if (!open || !tx) return null;
 
   const d = tx.date ? new Date(tx.date) : null;
-  const dateStr = d
-    ? d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })
-    : "";
-  const timeStr = d
-    ? d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
-    : "";
+  const dateStr = formatVietnamDate(d);
+  const timeStr = formatVietnamTime(d);
 
   const isTransfer = !!tx.sourceWallet && !!tx.targetWallet;
 

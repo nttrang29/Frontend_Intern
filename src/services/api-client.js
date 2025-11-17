@@ -512,6 +512,13 @@ export const walletAPI = {
       }),
     });
   },
+
+  /**
+   * Lấy danh sách tất cả wallet transfers
+   */
+  getAllTransfers: async () => {
+    return apiCall('/wallets/transfers');
+  },
 };
 
 /**
@@ -521,6 +528,13 @@ export const walletAPI = {
  */
 
 export const transactionAPI = {
+  /**
+   * Lấy danh sách tất cả transactions
+   */
+  getAllTransactions: async () => {
+    return apiCall('/transactions');
+  },
+
   /**
    * Thêm chi tiêu
    * @param {number} amount 
@@ -576,19 +590,25 @@ export const transactionAPI = {
 
 export const categoryAPI = {
   /**
+   * Lấy danh sách tất cả categories (bao gồm system và user categories)
+   */
+  getCategories: async () => {
+    return apiCall('/categories');
+  },
+
+  /**
    * Tạo danh mục
-   * @param {number} userId 
+   * @param {number} userId - Không cần gửi lên, backend tự lấy từ token
    * @param {string} categoryName 
-   * @param {string} icon 
+   * @param {string} description 
    * @param {number} transactionTypeId - 1: Chi tiêu, 2: Thu nhập
    */
-  createCategory: async (userId, categoryName, icon, transactionTypeId) => {
+  createCategory: async (userId, categoryName, description, transactionTypeId) => {
     return apiCall('/categories/create', {
       method: 'POST',
       body: JSON.stringify({
-        userId,
         categoryName,
-        icon,
+        description: description || "",
         transactionTypeId,
       }),
     });
@@ -597,19 +617,17 @@ export const categoryAPI = {
   /**
    * Cập nhật danh mục
    * @param {number} id 
-   * @param {number} userId 
+   * @param {number} userId - Không cần gửi lên, backend tự lấy từ token
    * @param {string} categoryName 
-   * @param {string} icon 
-   * @param {number} transactionTypeId 
+   * @param {string} description 
+   * @param {number} transactionTypeId - Không cần gửi lên, backend giữ nguyên
    */
-  updateCategory: async (id, userId, categoryName, icon, transactionTypeId) => {
+  updateCategory: async (id, userId, categoryName, description, transactionTypeId) => {
     return apiCall(`/categories/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
-        userId,
         categoryName,
-        icon,
-        transactionTypeId,
+        description: description || "",
       }),
     });
   },

@@ -8,554 +8,9 @@ import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { transactionAPI, walletAPI } from "../../services/api-client";
 
-// ===== GIAO DỊCH NGOÀI – 20 dữ liệu mẫu =====
-const MOCK_TRANSACTIONS = [
-  {
-    id: 1,
-    code: "TX-0001",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 50000,
-    currency: "VND",
-    date: "2023-10-20T12:00",
-    category: "Ăn uống",
-    note: "Bữa trưa với đồng nghiệp",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 2,
-    code: "TX-0002",
-    type: "income",
-    walletName: "Ngân hàng A",
-    amount: 1500000,
-    currency: "VND",
-    date: "2023-10-19T09:00",
-    category: "Lương",
-    note: "Lương tháng 10",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 3,
-    code: "TX-0003",
-    type: "expense",
-    walletName: "Momo",
-    amount: 120000,
-    currency: "VND",
-    date: "2023-10-18T18:30",
-    category: "Giải trí",
-    note: "Xem phim",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 4,
-    code: "TX-0004",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 80000,
-    currency: "VND",
-    date: "2023-10-18T07:45",
-    category: "Ăn uống",
-    note: "Ăn sáng",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 5,
-    code: "TX-0005",
-    type: "income",
-    walletName: "Ngân hàng B",
-    amount: 300000,
-    currency: "VND",
-    date: "2023-10-17T16:10",
-    category: "Thưởng",
-    note: "Thưởng dự án",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 6,
-    code: "TX-0006",
-    type: "expense",
-    walletName: "Techcombank",
-    amount: 450000,
-    currency: "VND",
-    date: "2023-10-17T20:05",
-    category: "Mua sắm",
-    note: "Mua áo khoác",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 7,
-    code: "TX-0007",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 30000,
-    currency: "VND",
-    date: "2023-10-16T10:20",
-    category: "Di chuyển",
-    note: "Gửi xe",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 8,
-    code: "TX-0008",
-    type: "income",
-    walletName: "Momo",
-    amount: 200000,
-    currency: "VND",
-    date: "2023-10-16T21:00",
-    category: "Bán đồ",
-    note: "Bán sách cũ",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 9,
-    code: "TX-0009",
-    type: "expense",
-    walletName: "Ngân hàng A",
-    amount: 900000,
-    currency: "VND",
-    date: "2023-10-15T08:30",
-    category: "Hóa đơn",
-    note: "Thanh toán tiền điện",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 10,
-    code: "TX-0010",
-    type: "expense",
-    walletName: "Ngân hàng B",
-    amount: 350000,
-    currency: "VND",
-    date: "2023-10-15T19:15",
-    category: "Ăn uống",
-    note: "Đi ăn với gia đình",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 11,
-    code: "TX-0011",
-    type: "income",
-    walletName: "Techcombank",
-    amount: 1200000,
-    currency: "VND",
-    date: "2023-10-14T09:05",
-    category: "Lãi tiết kiệm",
-    note: "Lãi tháng 10",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 12,
-    code: "TX-0012",
-    type: "expense",
-    walletName: "Momo",
-    amount: 60000,
-    currency: "VND",
-    date: "2023-10-14T13:25",
-    category: "Giải trí",
-    note: "Mua game",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 13,
-    code: "TX-0013",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 40000,
-    currency: "VND",
-    date: "2023-10-13T07:50",
-    category: "Ăn uống",
-    note: "Ăn sáng",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 14,
-    code: "TX-0014",
-    type: "income",
-    walletName: "Ngân hàng A",
-    amount: 250000,
-    currency: "VND",
-    date: "2023-10-13T18:40",
-    category: "Tiền thưởng",
-    note: "Thưởng KPI quý",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 15,
-    code: "TX-0015",
-    type: "expense",
-    walletName: "Techcombank",
-    amount: 150000,
-    currency: "VND",
-    date: "2023-10-12T20:10",
-    category: "Mua sắm",
-    note: "Mua giày",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 16,
-    code: "TX-0016",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 20000,
-    currency: "VND",
-    date: "2023-10-12T09:15",
-    category: "Di chuyển",
-    note: "Xe buýt",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 17,
-    code: "TX-0017",
-    type: "income",
-    walletName: "Momo",
-    amount: 500000,
-    currency: "VND",
-    date: "2023-10-11T14:00",
-    category: "Bán đồ",
-    note: "Bán tai nghe cũ",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 18,
-    code: "TX-0018",
-    type: "expense",
-    walletName: "Ngân hàng B",
-    amount: 700000,
-    currency: "VND",
-    date: "2023-10-11T19:30",
-    category: "Hóa đơn",
-    note: "Thanh toán tiền nước",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 19,
-    code: "TX-0019",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 100000,
-    currency: "VND",
-    date: "2023-10-10T11:45",
-    category: "Giải trí",
-    note: "Đi cafe",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 20,
-    code: "TX-0020",
-    type: "income",
-    walletName: "Ngân hàng A",
-    amount: 1000000,
-    currency: "VND",
-    date: "2023-10-10T08:00",
-    category: "Lương phụ",
-    note: "Làm thêm",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-];
-
-// ===== GIAO DỊCH GIỮA CÁC VÍ – 20 dữ liệu mẫu =====
-const MOCK_INTERNAL_TRANSFERS = [
-  {
-    id: 101,
-    code: "TR-0101",
-    type: "transfer",
-    sourceWallet: "Tiền mặt",
-    targetWallet: "Techcombank",
-    amount: 200000,
-    currency: "VND",
-    date: "2023-10-20T09:00",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chuyển tiền tiết kiệm",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 102,
-    code: "TR-0102",
-    type: "transfer",
-    sourceWallet: "Techcombank",
-    targetWallet: "Momo",
-    amount: 150000,
-    currency: "VND",
-    date: "2023-10-19T20:10",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chuyển tiền tiêu vặt",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 103,
-    code: "TR-0103",
-    type: "transfer",
-    sourceWallet: "Ngân hàng A",
-    targetWallet: "Tiền mặt",
-    amount: 300000,
-    currency: "VND",
-    date: "2023-10-19T08:30",
-    category: "Chuyển tiền giữa các ví",
-    note: "Rút tiền mặt",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 104,
-    code: "TR-0104",
-    type: "transfer",
-    sourceWallet: "Techcombank",
-    targetWallet: "Ngân hàng B",
-    amount: 500000,
-    currency: "VND",
-    date: "2023-10-18T15:00",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chuyển tiền trả nợ",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 105,
-    code: "TR-0105",
-    type: "transfer",
-    sourceWallet: "Momo",
-    targetWallet: "Tiền mặt",
-    amount: 100000,
-    currency: "VND",
-    date: "2023-10-18T11:20",
-    category: "Chuyển tiền giữa các ví",
-    note: "Rút tiền từ ví điện tử",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 106,
-    code: "TR-0106",
-    type: "transfer",
-    sourceWallet: "Ngân hàng B",
-    targetWallet: "Techcombank",
-    amount: 800000,
-    currency: "VND",
-    date: "2023-10-17T09:30",
-    category: "Chuyển tiền giữa các ví",
-    note: "Gộp tài khoản",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 107,
-    code: "TR-0107",
-    type: "transfer",
-    sourceWallet: "Tiền mặt",
-    targetWallet: "Momo",
-    amount: 50000,
-    currency: "VND",
-    date: "2023-10-17T18:45",
-    category: "Chuyển tiền giữa các ví",
-    note: "Nạp ví Momo",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 108,
-    code: "TR-0108",
-    type: "transfer",
-    sourceWallet: "Techcombank",
-    targetWallet: "Ngân hàng A",
-    amount: 2000000,
-    currency: "VND",
-    date: "2023-10-16T10:15",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chuyển về tài khoản chính",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 109,
-    code: "TR-0109",
-    type: "transfer",
-    sourceWallet: "Ngân hàng A",
-    targetWallet: "Techcombank",
-    amount: 400000,
-    currency: "VND",
-    date: "2023-10-16T21:05",
-    category: "Chuyển tiền giữa các ví",
-    note: "Đầu tư",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 110,
-    code: "TR-0110",
-    type: "transfer",
-    sourceWallet: "Ngân hàng B",
-    targetWallet: "Momo",
-    amount: 60000,
-    currency: "VND",
-    date: "2023-10-15T19:40",
-    category: "Chuyển tiền giữa các ví",
-    note: "Thanh toán hóa đơn online",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 111,
-    code: "TR-0111",
-    type: "transfer",
-    sourceWallet: "Tiền mặt",
-    targetWallet: "Ngân hàng A",
-    amount: 250000,
-    currency: "VND",
-    date: "2023-10-15T08:20",
-    category: "Chuyển tiền giữa các ví",
-    note: "Nộp vào ngân hàng",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 112,
-    code: "TR-0112",
-    type: "transfer",
-    sourceWallet: "Momo",
-    targetWallet: "Ngân hàng A",
-    amount: 90000,
-    currency: "VND",
-    date: "2023-10-14T13:00",
-    category: "Chuyển tiền giữa các ví",
-    note: "Rút tiền hoàn",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 113,
-    code: "TR-0113",
-    type: "transfer",
-    sourceWallet: "Ngân hàng A",
-    targetWallet: "Tiền mặt",
-    amount: 150000,
-    currency: "VND",
-    date: "2023-10-14T09:45",
-    category: "Chuyển tiền giữa các ví",
-    note: "Tiền đi chơi",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 114,
-    code: "TR-0114",
-    type: "transfer",
-    sourceWallet: "Techcombank",
-    targetWallet: "Tiền mặt",
-    amount: 100000,
-    currency: "VND",
-    date: "2023-10-13T18:15",
-    category: "Chuyển tiền giữa các ví",
-    note: "Rút tiền tiêu",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 115,
-    code: "TR-0115",
-    type: "transfer",
-    sourceWallet: "Ngân hàng B",
-    targetWallet: "Techcombank",
-    amount: 300000,
-    currency: "VND",
-    date: "2023-10-13T11:35",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chuyển khoản chung",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 116,
-    code: "TR-0116",
-    type: "transfer",
-    sourceWallet: "Momo",
-    targetWallet: "Ngân hàng B",
-    amount: 70000,
-    currency: "VND",
-    date: "2023-10-12T20:25",
-    category: "Chuyển tiền giữa các ví",
-    note: "Hoàn tiền về ngân hàng",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 117,
-    code: "TR-0117",
-    type: "transfer",
-    sourceWallet: "Tiền mặt",
-    targetWallet: "Momo",
-    amount: 40000,
-    currency: "VND",
-    date: "2023-10-12T09:55",
-    category: "Chuyển tiền giữa các ví",
-    note: "Nạp ví để thanh toán",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 118,
-    code: "TR-0118",
-    type: "transfer",
-    sourceWallet: "Ngân hàng A",
-    targetWallet: "Ngân hàng B",
-    amount: 1000000,
-    currency: "VND",
-    date: "2023-10-11T16:00",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chia tiền tiết kiệm",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 119,
-    code: "TR-0119",
-    type: "transfer",
-    sourceWallet: "Techcombank",
-    targetWallet: "Ngân hàng A",
-    amount: 350000,
-    currency: "VND",
-    date: "2023-10-11T10:20",
-    category: "Chuyển tiền giữa các ví",
-    note: "Cân bằng tài khoản",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 120,
-    code: "TR-0120",
-    type: "transfer",
-    sourceWallet: "Tiền mặt",
-    targetWallet: "Ngân hàng B",
-    amount: 220000,
-    currency: "VND",
-    date: "2023-10-10T14:30",
-    category: "Chuyển tiền giữa các ví",
-    note: "Gửi tiết kiệm",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-];
+// ===== REMOVED MOCK DATA - Now using API =====
 
 const TABS = {
   EXTERNAL: "external",
@@ -570,28 +25,71 @@ function toDateObj(str) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Format ngày theo múi giờ Việt Nam (UTC+7)
+ * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
+ * @returns {string} - Format: "DD/MM/YYYY"
+ */
+function formatVietnamDate(date) {
+  if (!date) return "";
+  
+  // Parse date string từ API (thường là ISO string ở UTC)
+  // Không dùng new Date() trực tiếp vì nó sẽ parse theo local timezone
+  // Thay vào đó, parse ISO string và convert sang VN timezone
+  let d;
+  if (date instanceof Date) {
+    d = date;
+  } else if (typeof date === 'string') {
+    // Nếu là ISO string, parse nó như UTC time
+    d = new Date(date);
+  } else {
+    return "";
+  }
+  
+  if (Number.isNaN(d.getTime())) return "";
+  
+  // Dùng toLocaleString với timezone VN để convert đúng
+  return d.toLocaleDateString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+/**
+ * Format giờ theo múi giờ Việt Nam (UTC+7)
+ * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
+ * @returns {string} - Format: "HH:mm"
+ */
+function formatVietnamTime(date) {
+  if (!date) return "";
+  
+  let d;
+  if (date instanceof Date) {
+    d = date;
+  } else if (typeof date === 'string') {
+    // Parse ISO string như UTC time
+    d = new Date(date);
+  } else {
+    return "";
+  }
+  
+  if (Number.isNaN(d.getTime())) return "";
+  
+  // Dùng toLocaleString với timezone VN để convert đúng
+  return d.toLocaleTimeString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 export default function TransactionsPage() {
-  // Persist transactions to localStorage so newly-created items survive navigation
-  const STORAGE_EXTERNAL = "app_external_transactions_v1";
-  const STORAGE_INTERNAL = "app_internal_transfers_v1";
-
-  const readStored = (key, fallback) => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) return fallback;
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : fallback;
-    } catch (e) {
-      console.warn("Failed to read from storage", key, e);
-      return fallback;
-    }
-  };
-
-  const [externalTransactions, setExternalTransactions] =
-    useState(() => readStored(STORAGE_EXTERNAL, MOCK_TRANSACTIONS));
-  const [internalTransactions, setInternalTransactions] = useState(() =>
-    readStored(STORAGE_INTERNAL, MOCK_INTERNAL_TRANSFERS)
-  );
+  const [externalTransactions, setExternalTransactions] = useState([]);
+  const [internalTransactions, setInternalTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(TABS.EXTERNAL);
 
   const [searchText, setSearchText] = useState("");
@@ -612,21 +110,95 @@ export default function TransactionsPage() {
   // Get shared data from contexts
   const { budgets, getSpentAmount, getSpentForBudget, updateTransactionsByCategory, updateAllExternalTransactions } = useBudgetData();
   const { expenseCategories, incomeCategories } = useCategoryData();
-  const { wallets } = useWalletData();
+  const { wallets, loadWallets } = useWalletData();
   
   // Budget warning state
   const [budgetWarning, setBudgetWarning] = useState(null);
   const [pendingTransaction, setPendingTransaction] = useState(null);
 
-  const nextCode = () => {
-    const all = [...externalTransactions, ...internalTransactions];
-    const max = all.reduce((m, t) => {
-      const num = parseInt(String(t.code || "").replace(/\D/g, ""), 10);
-      return Number.isNaN(num) ? m : Math.max(m, num);
-    }, 0);
-    const n = max + 1;
-    return `TX-${String(n).padStart(4, "0")}`;
-  };
+  // Helper function to map Transaction entity to frontend format
+  const mapTransactionToFrontend = useCallback((tx) => {
+    const walletName = wallets.find(w => w.walletId === tx.wallet?.walletId)?.walletName || tx.wallet?.walletName || "Unknown";
+    const categoryName = tx.category?.categoryName || "Unknown";
+    const typeName = tx.transactionType?.typeName || "";
+    const type = typeName === "Chi tiêu" ? "expense" : "income";
+    
+    // Dùng created_at từ database thay vì transaction_date
+    // Giữ nguyên date string từ API (ISO format), không convert
+    // Format sẽ được xử lý khi hiển thị bằng formatVietnamDate/Time
+    const dateValue = tx.createdAt || tx.transactionDate || new Date().toISOString();
+    
+    return {
+      id: tx.transactionId,
+      code: `TX-${String(tx.transactionId).padStart(4, "0")}`,
+      type: type,
+      walletName: walletName,
+      amount: parseFloat(tx.amount || 0),
+      currency: tx.wallet?.currencyCode || "VND",
+      date: dateValue,
+      category: categoryName,
+      note: tx.note || "",
+      creatorCode: `USR${String(tx.user?.userId || 0).padStart(3, "0")}`,
+      attachment: tx.imageUrl || "",
+    };
+  }, [wallets]);
+
+  // Helper function to map WalletTransfer entity to frontend format
+  const mapTransferToFrontend = useCallback((transfer) => {
+    const sourceWalletName = wallets.find(w => w.walletId === transfer.fromWallet?.walletId)?.walletName || transfer.fromWallet?.walletName || "Unknown";
+    const targetWalletName = wallets.find(w => w.walletId === transfer.toWallet?.walletId)?.walletName || transfer.toWallet?.walletName || "Unknown";
+    
+    // Dùng created_at từ database thay vì transfer_date
+    // Giữ nguyên date string từ API (ISO format), không convert
+    const dateValue = transfer.createdAt || transfer.transferDate || new Date().toISOString();
+    
+    return {
+      id: transfer.transferId,
+      code: `TR-${String(transfer.transferId).padStart(4, "0")}`,
+      type: "transfer",
+      sourceWallet: sourceWalletName,
+      targetWallet: targetWalletName,
+      amount: parseFloat(transfer.amount || 0),
+      currency: transfer.currencyCode || "VND",
+      date: dateValue,
+      category: "Chuyển tiền giữa các ví",
+      note: transfer.note || "",
+      creatorCode: `USR${String(transfer.user?.userId || 0).padStart(3, "0")}`,
+      attachment: "",
+    };
+  }, [wallets]);
+
+  // Load transactions from API
+  useEffect(() => {
+
+    const loadTransactions = async () => {
+      setLoading(true);
+      try {
+        // Load external transactions
+        const txResponse = await transactionAPI.getAllTransactions();
+        if (txResponse.transactions) {
+          const mapped = txResponse.transactions.map(mapTransactionToFrontend);
+          setExternalTransactions(mapped);
+        }
+
+        // Load internal transfers
+        const transferResponse = await walletAPI.getAllTransfers();
+        if (transferResponse.transfers) {
+          const mapped = transferResponse.transfers.map(mapTransferToFrontend);
+          setInternalTransactions(mapped);
+        }
+      } catch (error) {
+        console.error("Error loading transactions:", error);
+        setToast({ open: true, message: "Không thể tải danh sách giao dịch: " + (error.message || "Lỗi không xác định") });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (wallets && wallets.length > 0) {
+      loadTransactions();
+    }
+  }, [wallets]); // Reload when wallets change
 
   const handleTabChange = (e) => {
     const value = e.target.value;
@@ -644,7 +216,7 @@ export default function TransactionsPage() {
     setCreating(false);
   };
 
-  const handleCreate = (payload) => {
+  const handleCreate = async (payload) => {
     // Check for budget warning if this is an external expense transaction with a category
     if (activeTab === TABS.EXTERNAL && payload.type === "expense") {
       const categoryBudget = budgets.find((b) => b.categoryName === payload.category);
@@ -690,59 +262,125 @@ export default function TransactionsPage() {
       }
     }
 
-    // Proceed with transaction creation
+    try {
     if (activeTab === TABS.EXTERNAL) {
-      const tx = {
-        id: Date.now(),
-        code: nextCode(),
-        creatorCode: "USR001",
-        attachment: payload.attachment || "",
-        ...payload,
-      };
-      setExternalTransactions((list) => [tx, ...list]);
+        // Find walletId and categoryId
+        const wallet = wallets.find(w => w.walletName === payload.walletName || w.name === payload.walletName);
+        if (!wallet) {
+          setToast({ open: true, message: "Không tìm thấy ví: " + payload.walletName });
+          return;
+        }
+
+        // Tìm category trong đúng danh sách dựa trên loại giao dịch
+        // Tránh tìm nhầm category cùng tên nhưng khác loại
+        const categoryList = payload.type === "income" 
+          ? (incomeCategories || [])
+          : (expenseCategories || []);
+        
+        const category = categoryList.find(
+          c => c.name === payload.category || 
+               c.categoryName === payload.category ||
+               (c.name && c.name.trim() === payload.category?.trim()) ||
+               (c.categoryName && c.categoryName.trim() === payload.category?.trim())
+        );
+        
+        if (!category) {
+          setToast({ 
+            open: true, 
+            message: `Không tìm thấy danh mục "${payload.category}" trong loại ${payload.type === "income" ? "thu nhập" : "chi tiêu"}.` 
+          });
+          return;
+        }
+
+        const walletId = wallet.walletId || wallet.id;
+        const categoryId = category.categoryId || category.id;
+        
+        if (!categoryId) {
+          setToast({ open: true, message: "Không tìm thấy ID của danh mục. Vui lòng thử lại." });
+          return;
+        }
+        
+        const transactionDate = payload.date ? new Date(payload.date).toISOString() : new Date().toISOString();
+
+        // Call API
+        if (payload.type === "expense") {
+          await transactionAPI.addExpense(
+            payload.amount,
+            transactionDate,
+            walletId,
+            categoryId,
+            payload.note || "",
+            payload.attachment || null
+          );
     } else {
-      const tx = {
-        id: Date.now(),
-        code: nextCode(),
-        type: "transfer",
-        sourceWallet: payload.sourceWallet,
-        targetWallet: payload.targetWallet,
-        amount: payload.amount,
-        currency: payload.currency || "VND",
-        date: payload.date,
-        category: "Chuyển tiền giữa các ví",
-        note: payload.note || "",
-        creatorCode: "USR001",
-        attachment: payload.attachment || "",
-      };
-      setInternalTransactions((list) => [tx, ...list]);
-    }
+          await transactionAPI.addIncome(
+            payload.amount,
+            transactionDate,
+            walletId,
+            categoryId,
+            payload.note || "",
+            payload.attachment || null
+          );
+        }
+
+        setToast({ open: true, message: "Đã thêm giao dịch mới." });
+      } else {
+        // Internal transfer
+        const sourceWallet = wallets.find(w => w.walletName === payload.sourceWallet || w.name === payload.sourceWallet);
+        const targetWallet = wallets.find(w => w.walletName === payload.targetWallet || w.name === payload.targetWallet);
+        
+        if (!sourceWallet || !targetWallet) {
+          setToast({ open: true, message: "Không tìm thấy ví nguồn hoặc ví đích." });
+          return;
+        }
+
+        const fromWalletId = sourceWallet.walletId || sourceWallet.id;
+        const toWalletId = targetWallet.walletId || targetWallet.id;
+
+        await walletAPI.transferMoney(
+          fromWalletId,
+          toWalletId,
+          payload.amount,
+          payload.note || ""
+        );
+
+        setToast({ open: true, message: "Đã thêm giao dịch chuyển tiền mới." });
+      }
+
+      // Reload wallets để cập nhật số dư sau khi tạo giao dịch
+      // Điều này đảm bảo trang ví tiền tự động cập nhật mà không cần reload
+      await loadWallets();
+
+      // Reload all transaction data
+      const txResponse = await transactionAPI.getAllTransactions();
+      if (txResponse.transactions) {
+        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
+        setExternalTransactions(mapped);
+      }
+
+      const transferResponse = await walletAPI.getAllTransfers();
+      if (transferResponse.transfers) {
+        const mapped = transferResponse.transfers.map(mapTransferToFrontend);
+        setInternalTransactions(mapped);
+      }
 
     setCreating(false);
-    setToast({ open: true, message: "Đã thêm giao dịch mới." });
     setCurrentPage(1);
+    } catch (error) {
+      console.error("Error creating transaction:", error);
+      setToast({ open: true, message: "Lỗi khi tạo giao dịch: " + (error.message || "Lỗi không xác định") });
+    }
   };
 
   // Handle budget warning confirmation (user wants to continue)
-  const handleBudgetWarningConfirm = () => {
+  const handleBudgetWarningConfirm = async () => {
     if (!pendingTransaction) return;
 
-    // Create the transaction anyway
-    if (activeTab === TABS.EXTERNAL) {
-      const tx = {
-        id: Date.now(),
-        code: nextCode(),
-        creatorCode: "USR001",
-        attachment: pendingTransaction.attachment || "",
-        ...pendingTransaction,
-      };
-      setExternalTransactions((list) => [tx, ...list]);
-    }
+    // Create the transaction anyway by calling handleCreate
+    await handleCreate(pendingTransaction);
 
     setBudgetWarning(null);
     setPendingTransaction(null);
-    setToast({ open: true, message: "Đã thêm giao dịch mới (vượt hạn mức)." });
-    setCurrentPage(1);
   };
 
   // Handle budget warning cancellation
@@ -753,56 +391,17 @@ export default function TransactionsPage() {
   };
 
   const handleUpdate = (payload) => {
-    if (!editing) return;
-    const isTransfer = !!editing.sourceWallet && !!editing.targetWallet;
-
-    if (isTransfer) {
-      setInternalTransactions((list) =>
-        list.map((t) =>
-          t.id === editing.id
-            ? {
-                ...t,
-                sourceWallet: payload.sourceWallet,
-                targetWallet: payload.targetWallet,
-                amount: payload.amount,
-                date: payload.date,
-                note: payload.note || "",
-                currency: payload.currency || t.currency,
-                attachment: payload.attachment || t.attachment,
-              }
-            : t
-        )
-      );
-    } else {
-      setExternalTransactions((list) =>
-        list.map((t) =>
-          t.id === editing.id
-            ? { ...t, ...payload, attachment: payload.attachment || t.attachment }
-            : t
-        )
-      );
-    }
-
+    // TODO: Backend chưa có API update transaction
+    // Tạm thời hiển thị thông báo
     setEditing(null);
-    setToast({ open: true, message: "Đã cập nhật giao dịch." });
+    setToast({ open: true, message: "Tính năng chỉnh sửa giao dịch chưa được hỗ trợ. Vui lòng xóa và tạo lại." });
   };
 
   const handleDelete = () => {
-    if (!confirmDel) return;
-    const isTransfer = !!confirmDel.sourceWallet && !!confirmDel.targetWallet;
-
-    if (isTransfer) {
-      setInternalTransactions((list) =>
-        list.filter((t) => t.id !== confirmDel.id)
-      );
-    } else {
-      setExternalTransactions((list) =>
-        list.filter((t) => t.id !== confirmDel.id)
-      );
-    }
-
+    // TODO: Backend chưa có API delete transaction
+    // Tạm thời hiển thị thông báo
     setConfirmDel(null);
-    setToast({ open: true, message: "Đã xóa giao dịch." });
+    setToast({ open: true, message: "Tính năng xóa giao dịch chưa được hỗ trợ." });
   };
 
   // Update budget data when transactions change
@@ -832,24 +431,7 @@ export default function TransactionsPage() {
     updateTransactionsByCategory(categoryMap);
     // also provide the full transactions list to budget context for period-based calculations
     updateAllExternalTransactions(externalTransactions);
-  }, [externalTransactions, updateTransactionsByCategory]);
-
-  // Persist lists to localStorage when they change
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_EXTERNAL, JSON.stringify(externalTransactions));
-    } catch (e) {
-      console.warn("Failed to persist externalTransactions", e);
-    }
-  }, [externalTransactions]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_INTERNAL, JSON.stringify(internalTransactions));
-    } catch (e) {
-      console.warn("Failed to persist internalTransactions", e);
-    }
-  }, [internalTransactions]);
+  }, [externalTransactions, updateTransactionsByCategory, updateAllExternalTransactions]);
 
   const currentTransactions = useMemo(
     () =>
@@ -1145,6 +727,14 @@ export default function TransactionsPage() {
 
       {/* Bảng danh sách */}
       <div className="card border-0 shadow-sm tx-table-card">
+        {loading ? (
+          <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Đang tải...</span>
+            </div>
+            <p className="mt-2 text-muted">Đang tải danh sách giao dịch...</p>
+          </div>
+        ) : (
         <div className="table-responsive">
           {activeTab === TABS.EXTERNAL ? (
             <table className="table table-hover align-middle mb-0">
@@ -1172,19 +762,8 @@ export default function TransactionsPage() {
                   paginated.map((t, i) => {
                     const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
                     const d = toDateObj(t.date);
-                    const dateStr = d
-                      ? d.toLocaleDateString("vi-VN", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })
-                      : "";
-                    const timeStr = d
-                      ? d.toLocaleTimeString("vi-VN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "";
+                    const dateStr = formatVietnamDate(d);
+                    const timeStr = formatVietnamTime(d);
 
                     return (
                       <tr key={t.id}>
@@ -1263,19 +842,8 @@ export default function TransactionsPage() {
                   paginated.map((t, i) => {
                     const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
                     const d = toDateObj(t.date);
-                    const dateStr = d
-                      ? d.toLocaleDateString("vi-VN", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })
-                      : "";
-                    const timeStr = d
-                      ? d.toLocaleTimeString("vi-VN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "";
+                    const dateStr = formatVietnamDate(d);
+                    const timeStr = formatVietnamTime(d);
 
                     return (
                       <tr key={t.id}>
@@ -1323,6 +891,7 @@ export default function TransactionsPage() {
             </table>
           )}
         </div>
+        )}
 
         <div className="card-footer d-flex justify-content-between align-items-center">
           <span className="text-muted small">

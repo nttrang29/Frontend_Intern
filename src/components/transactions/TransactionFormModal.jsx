@@ -4,6 +4,72 @@ import { createPortal } from "react-dom";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
 
+/* ================== HELPER FUNCTIONS ================== */
+/**
+ * Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7)
+ * Format: YYYY-MM-DDTHH:mm (cho datetime-local input)
+ */
+function getVietnamDateTime() {
+  const now = new Date();
+  
+  // Dùng toLocaleString với timezone Việt Nam để lấy đúng giờ VN
+  const vnDateStr = now.toLocaleString('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  // Parse: "11/17/2025, 21:16" -> "2025-11-17T21:16"
+  const parts = vnDateStr.split(', ');
+  const datePart = parts[0].split('/'); // ["11", "17", "2025"]
+  const timePart = parts[1]; // "21:16"
+  
+  const year = datePart[2];
+  const month = datePart[0].padStart(2, '0');
+  const day = datePart[1].padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${timePart}`;
+}
+
+/**
+ * Convert một Date string/object sang múi giờ Việt Nam
+ * Format: YYYY-MM-DDTHH:mm
+ */
+function convertToVietnamDateTime(dateInput) {
+  if (!dateInput) return "";
+  
+  const d = new Date(dateInput);
+  if (Number.isNaN(d.getTime())) return "";
+  
+  // Dùng toLocaleString với timezone Việt Nam
+  const vnDateStr = d.toLocaleString('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  // Parse: "11/17/2025, 21:16" -> "2025-11-17T21:16"
+  const parts = vnDateStr.split(', ');
+  if (parts.length !== 2) return "";
+  
+  const datePart = parts[0].split('/'); // ["11", "17", "2025"]
+  const timePart = parts[1]; // "21:16"
+  
+  const year = datePart[2];
+  const month = datePart[0].padStart(2, '0');
+  const day = datePart[1].padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${timePart}`;
+}
+
 /* ================== CẤU HÌNH MẶC ĐỊNH ================== */
 const EMPTY_FORM = {
   type: "expense",
@@ -107,13 +173,13 @@ export default function TransactionFormModal({
   /* ========== Đổ dữ liệu ban đầu ========== */
   useEffect(() => {
     if (!open) return;
-    const now = new Date().toISOString().slice(0, 16);
+    // Luôn lấy thời gian hiện tại mới nhất theo múi giờ Việt Nam khi mở form
+    const now = getVietnamDateTime();
   if (variant === "internal") {
       if (mode === "edit" && initialData) {
         let dateValue = "";
         if (initialData.date) {
-          const d = new Date(initialData.date);
-          if (!Number.isNaN(d.getTime())) dateValue = d.toISOString().slice(0, 16);
+          dateValue = convertToVietnamDateTime(initialData.date);
         }
         setForm({
           ...EMPTY_FORM,
@@ -129,27 +195,28 @@ export default function TransactionFormModal({
         });
         setAttachmentPreview(initialData.attachment || "");
       } else {
+        // Mode create: luôn dùng thời gian hiện tại theo múi giờ Việt Nam
         setForm({
           ...EMPTY_FORM,
           type: "transfer",
-          date: now,
+          date: getVietnamDateTime(), // Luôn lấy thời gian mới nhất theo VN
           category: "Chuyển tiền giữa các ví",
         });
         setAttachmentPreview("");
       }
     } else {
       if (mode === "edit" && initialData) {
+        // Mode edit: giữ nguyên thời gian của giao dịch cũ (convert sang VN timezone)
         let dateValue = "";
         if (initialData.date) {
-          const d = new Date(initialData.date);
-          if (!Number.isNaN(d.getTime())) dateValue = d.toISOString().slice(0, 16);
+          dateValue = convertToVietnamDateTime(initialData.date);
         }
         setForm({
           ...EMPTY_FORM,
           type: initialData.type,
           walletName: initialData.walletName,
           amount: String(initialData.amount),
-          date: dateValue || now,
+          date: dateValue || getVietnamDateTime(),
           category: initialData.category,
           note: initialData.note || "",
           currency: initialData.currency || "VND",
@@ -157,7 +224,8 @@ export default function TransactionFormModal({
         });
         setAttachmentPreview(initialData.attachment || "");
       } else {
-        setForm({ ...EMPTY_FORM, date: now });
+        // Mode create: luôn dùng thời gian hiện tại theo múi giờ Việt Nam
+        setForm({ ...EMPTY_FORM, date: getVietnamDateTime() });
         setAttachmentPreview("");
       }
     }
@@ -167,9 +235,10 @@ export default function TransactionFormModal({
   const { expenseCategories, incomeCategories } = useCategoryData();
   const { wallets: walletList } = useWalletData();
 
+  // Map categories - hỗ trợ cả name và categoryName
   const categoryOptions = form.type === "income"
-    ? (incomeCategories?.map(c => c.name) || DEFAULT_CATEGORIES)
-    : (expenseCategories?.map(c => c.name) || DEFAULT_CATEGORIES);
+    ? (incomeCategories?.map(c => c.name || c.categoryName || "").filter(Boolean) || DEFAULT_CATEGORIES)
+    : (expenseCategories?.map(c => c.name || c.categoryName || "").filter(Boolean) || DEFAULT_CATEGORIES);
 
   const walletOptions = (walletList && walletList.length > 0)
     ? walletList.map(w => w.name)
@@ -335,9 +404,11 @@ export default function TransactionFormModal({
                         name="date"
                         className="form-control"
                         value={form.date}
-                        onChange={handleChange}
+                        readOnly
+                        style={{ backgroundColor: "#f8f9fa", cursor: "not-allowed" }}
                         required
                       />
+                      <small className="text-muted">Tự động lấy thời gian hiện tại</small>
                     </div>
 
                     <div className="col-md-6">
@@ -443,9 +514,11 @@ export default function TransactionFormModal({
                       name="date"
                       className="form-control"
                       value={form.date}
-                      onChange={handleChange}
+                      readOnly
+                      style={{ backgroundColor: "#f8f9fa", cursor: "not-allowed" }}
                       required
                     />
+                    <small className="text-muted">Tự động lấy thời gian hiện tại</small>
                   </div>
 
                   <div className="col-12">

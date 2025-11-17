@@ -92,7 +92,7 @@ export default function WalletCard({
 
 
         .wallet-card .wallet-name{ font-weight:700; color:#fff; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-        .wallet-card .wallet-name-badge{ 
+        .wallet-card{ 
           display:inline-block; 
           padding:4px 12px; 
           border-radius:12px; 
