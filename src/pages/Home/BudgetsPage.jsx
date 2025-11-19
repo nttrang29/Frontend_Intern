@@ -5,7 +5,7 @@ import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
 import BudgetFormModal from "../../components/budgets/BudgetFormModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
-import SuccessToast from "../../components/common/Toast/SuccessToast";
+import Toast from "../../components/common/Toast/Toast";
 
 // Use centralized categories from CategoryDataContext
 
@@ -25,7 +25,7 @@ export default function BudgetsPage() {
   const [modalInitial, setModalInitial] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
-  const [toast, setToast] = useState({ open: false, message: "" });
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
   const [searchName, setSearchName] = useState("");
   const [searchDesc, setSearchDesc] = useState("");
 
@@ -56,10 +56,10 @@ export default function BudgetsPage() {
   const handleModalSubmit = (payload) => {
     if (modalMode === "create") {
       createBudget(payload);
-      setToast({ open: true, message: "Đã thêm hạn mức chi tiêu mới." });
+      setToast({ open: true, message: "Đã thêm hạn mức chi tiêu mới.", type: "success" });
     } else {
       updateBudget(editingId, payload);
-      setToast({ open: true, message: "Đã cập nhật hạn mức chi tiêu." });
+      setToast({ open: true, message: "Đã cập nhật hạn mức chi tiêu.", type: "success" });
     }
     setModalOpen(false);
   };
@@ -68,7 +68,7 @@ export default function BudgetsPage() {
     if (!confirmDel) return;
     deleteBudget(confirmDel.id);
     setConfirmDel(null);
-    setToast({ open: true, message: "Đã xóa hạn mức chi tiêu." });
+    setToast({ open: true, message: "Đã xóa hạn mức chi tiêu.", type: "success" });
   };
 
   // Check if a category is already budgeted
@@ -350,11 +350,12 @@ export default function BudgetsPage() {
         onClose={() => setConfirmDel(null)}
       />
 
-      <SuccessToast
+      <Toast
         open={toast.open}
         message={toast.message}
+        type={toast.type}
         duration={2200}
-        onClose={() => setToast({ open: false, message: "" })}
+        onClose={() => setToast({ open: false, message: "", type: "success" })}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import { transactionAPI } from "../../services/api-client";
 import WalletCard from "../../components/wallets/WalletCard";
 import WalletEditModal from "../../components/wallets/WalletEditModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
-import SuccessToast from "../../components/common/Toast/SuccessToast";
+import Toast from "../../components/common/Toast/Toast";
 import WalletCreateChooser from "../../components/wallets/WalletCreateChooser";
 import WalletCreatePersonalModal from "../../components/wallets/WalletCreatePersonalModal";
 import WalletCreateGroupModal from "../../components/wallets/WalletCreateGroupModal";
@@ -134,7 +134,7 @@ export default function WalletsPage() {
   // ====== Modals / toast ======
   const [editing, setEditing] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
-  const [toast, setToast] = useState({ open: false, message: "" });
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
 
   // ====== Sort ======
   const [sortKey, setSortKey] = useState("createdAt");
@@ -376,7 +376,7 @@ const doDelete = async (wallet) => {
     await deleteWallet(wallet.id); 
 
     // THÀNH CÔNG: Cập nhật UI
-    setToast({ open: true, message: `Đã xóa ví "${wallet.name}"` });
+    setToast({ open: true, message: `Đã xóa ví "${wallet.name}"`, type: "success" });
     
     if (selectedWallet?.id === wallet.id) {
       setSelectedWallet(null);
@@ -384,7 +384,7 @@ const doDelete = async (wallet) => {
   } catch (error) {
     // THẤT BẠI (Lỗi mạng hoặc lỗi code)
     console.error("Lỗi nghiêm trọng khi gọi deleteWallet:", error);
-    setToast({ open: true, message: error.message || "Lỗi kết nối máy chủ" });
+    setToast({ open: true, message: error.message || "Lỗi kết nối máy chủ", type: "error" });
   }
 };
 
@@ -409,7 +409,7 @@ const doDelete = async (wallet) => {
     // (Logic này đã được xử lý trong createWallet của Context)
 
     setShowPersonal(false);
-    setToast({ open: true, message: `Đã tạo ví cá nhân "${w.name}"` });
+    setToast({ open: true, message: `Đã tạo ví cá nhân "${w.name}"`, type: "success" });
   };
 
   /** Sau khi tạo ví nhóm: chêm include flags + color nếu thiếu */
@@ -427,7 +427,7 @@ const doDelete = async (wallet) => {
       const updated = { ...w, ...patch };
       await updateWallet(updated);
     }
-    setToast({ open: true, message: `Đã tạo ví nhóm "${w?.name || ""}"` });
+    setToast({ open: true, message: `Đã tạo ví nhóm "${w?.name || ""}"`, type: "success" });
   };
 
   const handleSubmitEdit = async (data) => {
@@ -460,7 +460,7 @@ const doDelete = async (wallet) => {
       // khi setAsDefault: true được gửi
       
       setEditing(null);
-      setToast({ open: true, message: "Cập nhật ví thành công" });
+      setToast({ open: true, message: "Cập nhật ví thành công", type: "success" });
       if (selectedWallet?.id === walletId && updated) {
         setSelectedWallet(updated);
       }
@@ -469,6 +469,7 @@ const doDelete = async (wallet) => {
       setToast({
         open: true,
         message: error.message || "Không thể cập nhật ví",
+        type: "error",
       });
     }
   };
@@ -504,7 +505,7 @@ const doDelete = async (wallet) => {
           balance: newBalance
         });
         
-        setToast({ open: true, message: "Rút tiền thành công. Giao dịch đã được lưu vào lịch sử." });
+        setToast({ open: true, message: "Rút tiền thành công. Giao dịch đã được lưu vào lịch sử.", type: "success" });
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
@@ -513,6 +514,7 @@ const doDelete = async (wallet) => {
       setToast({
         open: true,
         message: error.message || error.error || "Không thể rút tiền",
+        type: "error",
       });
     }
   };
@@ -547,7 +549,7 @@ const doDelete = async (wallet) => {
           balance: newBalance
         });
         
-        setToast({ open: true, message: "Nạp tiền thành công. Giao dịch đã được lưu vào lịch sử." });
+        setToast({ open: true, message: "Nạp tiền thành công. Giao dịch đã được lưu vào lịch sử.", type: "success" });
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
@@ -556,6 +558,7 @@ const doDelete = async (wallet) => {
       setToast({
         open: true,
         message: error.message || error.error || "Không thể nạp tiền",
+        type: "error",
       });
     }
   };
@@ -589,6 +592,7 @@ const doDelete = async (wallet) => {
         setToast({
           open: true,
           message: `Đã gộp ví thành công`,
+          type: "success",
         });
       } else {
         console.warn("handleMerge - Không tìm thấy wallet sau khi gộp");
@@ -598,6 +602,7 @@ const doDelete = async (wallet) => {
         setToast({
           open: true,
           message: `Gộp ví đã được thực hiện. Vui lòng làm mới trang nếu không thấy thay đổi.`,
+          type: "success",
         });
       }
     } catch (error) {
@@ -605,6 +610,7 @@ const doDelete = async (wallet) => {
       setToast({
         open: true,
         message: error.message || "Không thể gộp ví",
+        type: "error",
       });
     }
   };
@@ -636,7 +642,8 @@ const doDelete = async (wallet) => {
         
         setToast({ 
           open: true, 
-          message: result?.message || "Chuyển đổi ví thành nhóm thành công" 
+          message: result?.message || "Chuyển đổi ví thành nhóm thành công",
+          type: "success",
         });
       } else if (!toShared && wallet.isShared) {
         // Chuyển từ nhóm sang cá nhân
@@ -644,7 +651,8 @@ const doDelete = async (wallet) => {
         // Sẽ báo lỗi: "Không thể chuyển ví nhóm về ví cá nhân. Vui lòng xóa các thành viên trước."
         setToast({ 
           open: true, 
-          message: "Không thể chuyển ví nhóm về ví cá nhân. Vui lòng xóa các thành viên trước." 
+          message: "Không thể chuyển ví nhóm về ví cá nhân. Vui lòng xóa các thành viên trước.",
+          type: "error",
         });
       }
     } catch (error) {
@@ -652,6 +660,7 @@ const doDelete = async (wallet) => {
       setToast({
         open: true,
         message: error.message || "Không thể chuyển đổi ví",
+        type: "error",
       });
     }
   };
@@ -691,12 +700,14 @@ const doDelete = async (wallet) => {
       setToast({
         open: true,
         message: "Chuyển tiền thành công",
+        type: "success",
       });
     } catch (error) {
       console.error("Error transferring money:", error);
       setToast({
         open: true,
         message: error.message || "Không thể chuyển tiền",
+        type: "error",
       });
     }
   };
@@ -1358,11 +1369,12 @@ const doDelete = async (wallet) => {
         onClose={() => setConfirmDel(null)}
       />
 
-      <SuccessToast
+      <Toast
         open={toast.open}
         message={toast.message}
+        type={toast.type}
         duration={2200}
-        onClose={() => setToast({ open: false, message: "" })}
+        onClose={() => setToast({ open: false, message: "", type: "success" })}
       />
     </div>
   );

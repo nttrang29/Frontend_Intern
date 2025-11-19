@@ -27,6 +27,12 @@ export default function UserMenu({ avatarUrl }) {
  const doLogout = () => {
    localStorage.removeItem("accessToken");
    localStorage.removeItem("auth_token");
+   localStorage.removeItem("user");
+   localStorage.removeItem("refreshToken");
+   
+   // ✅ Trigger event để CategoryDataContext clear categories
+   window.dispatchEvent(new CustomEvent('userChanged'));
+   
    setConfirm(false);
    navigate("/login", { replace: true });
  };

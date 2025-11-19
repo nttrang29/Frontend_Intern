@@ -3,7 +3,7 @@ import "../../styles/home/TransactionsPage.css";
 import TransactionViewModal from "../../components/transactions/TransactionViewModal";
 import TransactionFormModal from "../../components/transactions/TransactionFormModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
-import SuccessToast from "../../components/common/Toast/SuccessToast";
+import Toast from "../../components/common/Toast/Toast";
 import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
@@ -103,7 +103,7 @@ export default function TransactionsPage() {
   const [editing, setEditing] = useState(null);
   const [creating, setCreating] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
-  const [toast, setToast] = useState({ open: false, message: "" });
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
 
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -189,7 +189,7 @@ export default function TransactionsPage() {
         }
       } catch (error) {
         console.error("Error loading transactions:", error);
-        setToast({ open: true, message: "Không thể tải danh sách giao dịch: " + (error.message || "Lỗi không xác định") });
+        setToast({ open: true, message: "Không thể tải danh sách giao dịch: " + (error.message || "Lỗi không xác định"), type: "error" });
       } finally {
         setLoading(false);
       }
@@ -267,7 +267,7 @@ export default function TransactionsPage() {
         // Find walletId and categoryId
         const wallet = wallets.find(w => w.walletName === payload.walletName || w.name === payload.walletName);
         if (!wallet) {
-          setToast({ open: true, message: "Không tìm thấy ví: " + payload.walletName });
+          setToast({ open: true, message: "Không tìm thấy ví: " + payload.walletName, type: "error" });
           return;
         }
 
@@ -287,7 +287,8 @@ export default function TransactionsPage() {
         if (!category) {
           setToast({ 
             open: true, 
-            message: `Không tìm thấy danh mục "${payload.category}" trong loại ${payload.type === "income" ? "thu nhập" : "chi tiêu"}.` 
+            message: `Không tìm thấy danh mục "${payload.category}" trong loại ${payload.type === "income" ? "thu nhập" : "chi tiêu"}.`,
+            type: "error",
           });
           return;
         }
@@ -296,7 +297,7 @@ export default function TransactionsPage() {
         const categoryId = category.categoryId || category.id;
         
         if (!categoryId) {
-          setToast({ open: true, message: "Không tìm thấy ID của danh mục. Vui lòng thử lại." });
+          setToast({ open: true, message: "Không tìm thấy ID của danh mục. Vui lòng thử lại.", type: "error" });
           return;
         }
         
@@ -323,14 +324,14 @@ export default function TransactionsPage() {
           );
         }
 
-        setToast({ open: true, message: "Đã thêm giao dịch mới." });
+        setToast({ open: true, message: "Đã thêm giao dịch mới.", type: "success" });
       } else {
         // Internal transfer
         const sourceWallet = wallets.find(w => w.walletName === payload.sourceWallet || w.name === payload.sourceWallet);
         const targetWallet = wallets.find(w => w.walletName === payload.targetWallet || w.name === payload.targetWallet);
         
         if (!sourceWallet || !targetWallet) {
-          setToast({ open: true, message: "Không tìm thấy ví nguồn hoặc ví đích." });
+          setToast({ open: true, message: "Không tìm thấy ví nguồn hoặc ví đích.", type: "error" });
           return;
         }
 
@@ -344,7 +345,7 @@ export default function TransactionsPage() {
           payload.note || ""
         );
 
-        setToast({ open: true, message: "Đã thêm giao dịch chuyển tiền mới." });
+        setToast({ open: true, message: "Đã thêm giao dịch chuyển tiền mới.", type: "success" });
       }
 
       // Reload wallets để cập nhật số dư sau khi tạo giao dịch
@@ -368,7 +369,7 @@ export default function TransactionsPage() {
     setCurrentPage(1);
     } catch (error) {
       console.error("Error creating transaction:", error);
-      setToast({ open: true, message: "Lỗi khi tạo giao dịch: " + (error.message || "Lỗi không xác định") });
+      setToast({ open: true, message: "Lỗi khi tạo giao dịch: " + (error.message || "Lỗi không xác định"), type: "error" });
     }
   };
 
@@ -394,7 +395,7 @@ export default function TransactionsPage() {
     // TODO: Backend chưa có API update transaction
     // Tạm thời hiển thị thông báo
     setEditing(null);
-    setToast({ open: true, message: "Tính năng chỉnh sửa giao dịch chưa được hỗ trợ. Vui lòng xóa và tạo lại." });
+    setToast({ open: true, message: "Tính năng chỉnh sửa giao dịch chưa được hỗ trợ. Vui lòng xóa và tạo lại.", type: "error" });
   };
 
   const handleDelete = () => {
@@ -963,11 +964,12 @@ export default function TransactionsPage() {
         onCancel={handleBudgetWarningCancel}
       />
 
-      <SuccessToast
+      <Toast
         open={toast.open}
         message={toast.message}
+        type={toast.type}
         duration={2200}
-        onClose={() => setToast({ open: false, message: "" })}
+        onClose={() => setToast({ open: false, message: "", type: "success" })}
       />
     </div>
   );

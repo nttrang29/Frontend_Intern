@@ -229,6 +229,9 @@ export const authAPI = {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    
+    // ✅ Trigger event để CategoryDataContext clear categories
+    window.dispatchEvent(new CustomEvent('userChanged'));
   },
 };
 

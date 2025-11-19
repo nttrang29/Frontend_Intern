@@ -163,6 +163,35 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (response.ok && data.message?.includes("Xác minh thành công")) {
+        // ✅ Lưu token nếu có
+        if (data.accessToken) {
+          localStorage.setItem("accessToken", data.accessToken);
+          if (data.refreshToken) {
+            localStorage.setItem("refreshToken", data.refreshToken);
+          }
+          
+          // ✅ Lưu thông tin user nếu có
+          if (data.user) {
+            localStorage.setItem("user", JSON.stringify(data.user));
+          } else {
+            // 🔁 Fallback: gọi /auth/me để lấy thông tin user từ token
+            try {
+              const meRes = await fetch(`${API_URL}/me`, {
+                headers: { Authorization: `Bearer ${data.accessToken}` },
+              });
+              if (meRes.ok) {
+                const me = await meRes.json();
+                localStorage.setItem("user", JSON.stringify(me));
+              }
+            } catch (_) {
+              // im lặng nếu lỗi
+            }
+          }
+          
+          // ✅ Trigger event để CategoryDataContext reload categories
+          window.dispatchEvent(new CustomEvent('userChanged'));
+        }
+        
         setShowSuccess(true);
       } else {
         setError(data.error || "Lỗi xác minh mã.");

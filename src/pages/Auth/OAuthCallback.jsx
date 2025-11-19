@@ -46,6 +46,9 @@ export default function OAuthCallback() {
 
         // 6. Bắn tín hiệu cho HomeTopbar cập nhật ngay lập tức
         window.dispatchEvent(new CustomEvent('storageUpdated'));
+        
+        // 7. ✅ Trigger event để CategoryDataContext reload categories
+        window.dispatchEvent(new CustomEvent('userChanged'));
 
         // 7. Chuyển hướng
         setMessage("Đăng nhập Google thành công! Đang chuyển hướng...");

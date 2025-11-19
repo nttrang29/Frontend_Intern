@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
+import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../utils/formatMoneyInput";
 
 export default function WalletInspector({
   wallet,
@@ -73,12 +74,14 @@ export default function WalletInspector({
   };
 
   // ===== RÚT TIỀN =====
+  const wAmountNum = getMoneyValue(wAmount);
   const canWithdraw =
-    !!wallet && +wAmount > 0 && +wAmount <= +(wallet?.balance || 0) && !!wCategoryId;
+    !!wallet && wAmountNum > 0 && wAmountNum <= +(wallet?.balance || 0) && !!wCategoryId;
   
   // ===== NẠP TIỀN =====
+  const dAmountNum = getMoneyValue(dAmount);
   const canDeposit =
-    !!wallet && +dAmount > 0 && !!dCategoryId;
+    !!wallet && dAmountNum > 0 && !!dCategoryId;
 
   // ======================== MERGE ========================
   const [mStep, setMStep] = useState(1);
@@ -185,7 +188,7 @@ export default function WalletInspector({
     [tSrc?.currency, tDst?.currency]
   );
 
-  const tAmountNum = +tAmount || 0;
+  const tAmountNum = getMoneyValue(tAmount);
   
   // Số tiền nhập vào là theo currency của ví gửi (tSrc.currency)
   // Tính số tiền chuyển đổi sang currency của ví nhận (tDst.currency)
@@ -389,6 +392,18 @@ export default function WalletInspector({
         {/* ===== Rút ví ===== */}
         {wallet && tab === "withdraw" && (
           <>
+            <div
+              ref={heroRef}
+              className="inspector__hero mb-3 d-flex align-items-start justify-content-between gap-2"
+            >
+              <div>
+                <div className="inspector__title">{wallet.name}</div>
+                <div className="inspector__desc">
+                  Rút tiền từ ví này.
+                </div>
+              </div>
+            </div>
+            
             <div className="mb-2" style={{ position: 'relative', zIndex: 1 }}>
               <label className="form-label">Danh mục <span className="text-danger">*</span></label>
               <select
@@ -409,12 +424,12 @@ export default function WalletInspector({
             <div className="mb-2">
               <label className="form-label">Số tiền rút</label>
               <input
-                type="number"
+                type="text"
                 className="form-control"
-                min={0}
-                value={wAmount}
-                onChange={(e) => setWAmount(e.target.value)}
+                value={formatMoneyInput(wAmount)}
+                onChange={(e) => handleMoneyInputChange(e, setWAmount)}
                 placeholder="Nhập số tiền cần rút"
+                inputMode="numeric"
               />
               <div className="form-text">
                 Số dư hiện tại:{" "}
@@ -448,7 +463,7 @@ export default function WalletInspector({
               className="btn btn-accent"
               onClick={() => {
                 if (!canWithdraw) return;
-                const v = roundTo(+wAmount, decimalsOf(wallet.currency));
+                const v = roundTo(wAmountNum, decimalsOf(wallet.currency));
                 onWithdraw?.(wallet, v, wCategoryId, wNote);
                 setWAmount("");
                 setWCategoryId("");
@@ -467,6 +482,18 @@ export default function WalletInspector({
         {/* ===== Nạp ví ===== */}
         {wallet && tab === "deposit" && (
           <>
+            <div
+              ref={heroRef}
+              className="inspector__hero mb-3 d-flex align-items-start justify-content-between gap-2"
+            >
+              <div>
+                <div className="inspector__title">{wallet.name}</div>
+                <div className="inspector__desc">
+                  Nạp tiền vào ví này.
+                </div>
+              </div>
+            </div>
+            
             <div className="mb-2" style={{ position: 'relative', zIndex: 1 }}>
               <label className="form-label">Danh mục <span className="text-danger">*</span></label>
               <select
@@ -487,12 +514,12 @@ export default function WalletInspector({
             <div className="mb-2">
               <label className="form-label">Số tiền nạp</label>
               <input
-                type="number"
+                type="text"
                 className="form-control"
-                min={0}
-                value={dAmount}
-                onChange={(e) => setDAmount(e.target.value)}
+                value={formatMoneyInput(dAmount)}
+                onChange={(e) => handleMoneyInputChange(e, setDAmount)}
                 placeholder="Nhập số tiền cần nạp"
+                inputMode="numeric"
               />
               <div className="form-text">
                 Số dư hiện tại:{" "}
@@ -526,7 +553,7 @@ export default function WalletInspector({
               className="btn btn-accent"
               onClick={() => {
                 if (!canDeposit) return;
-                const v = roundTo(+dAmount, decimalsOf(wallet.currency));
+                const v = roundTo(dAmountNum, decimalsOf(wallet.currency));
                 onDeposit?.(wallet, v, dCategoryId, dNote);
                 setDAmount("");
                 setDCategoryId("");
@@ -545,6 +572,18 @@ export default function WalletInspector({
         {/* ===== Chuyển tiền ===== */}
         {wallet && tab === "transfer" && (
           <>
+            <div
+              ref={heroRef}
+              className="inspector__hero mb-3 d-flex align-items-start justify-content-between gap-2"
+            >
+              <div>
+                <div className="inspector__title">{wallet.name}</div>
+                <div className="inspector__desc">
+                  Chuyển tiền giữa các ví.
+                </div>
+              </div>
+            </div>
+            
             <div className="mb-3">
               <div className="progress" style={{ height: 6 }}>
                 <div
@@ -628,12 +667,12 @@ export default function WalletInspector({
                     Số tiền chuyển (theo {tSrc?.currency || "-"})
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     className="form-control"
-                    min={0}
-                    value={tAmount}
-                    onChange={(e) => setTAmount(e.target.value)}
+                    value={formatMoneyInput(tAmount)}
+                    onChange={(e) => handleMoneyInputChange(e, setTAmount)}
                     placeholder={`Nhập số tiền bằng ${tSrc?.currency || "ví gửi"}`}
+                    inputMode="numeric"
                   />
                   <div className="form-text">
                     Số dư ví nguồn:{" "}
@@ -821,6 +860,18 @@ export default function WalletInspector({
         {/* ===== Gộp ví ===== */}
         {wallet && tab === "merge" && (
           <>
+            <div
+              ref={heroRef}
+              className="inspector__hero mb-3 d-flex align-items-start justify-content-between gap-2"
+            >
+              <div>
+                <div className="inspector__title">{wallet.name}</div>
+                <div className="inspector__desc">
+                  Gộp ví.
+                </div>
+              </div>
+            </div>
+            
             <div className="mb-3">
               <div className="progress" style={{ height: 6 }}>
                 <div
@@ -1105,6 +1156,18 @@ export default function WalletInspector({
         {/* ===== Chuyển đổi cá nhân/nhóm ===== */}
         {wallet && tab === "convert" && (
           <>
+            <div
+              ref={heroRef}
+              className="inspector__hero mb-3 d-flex align-items-start justify-content-between gap-2"
+            >
+              <div>
+                <div className="inspector__title">{wallet.name}</div>
+                <div className="inspector__desc">
+                  Chuyển đổi loại ví (cá nhân / nhóm).
+                </div>
+              </div>
+            </div>
+            
             {wallet.isDefault && !wallet.isShared && (
               <div className="alert alert-warning mb-3">
                 <strong>Lưu ý:</strong> Không thể chuyển đổi ví mặc định sang ví nhóm. 

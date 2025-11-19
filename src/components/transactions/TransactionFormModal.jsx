@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../utils/formatMoneyInput";
 
 /* ================== HELPER FUNCTIONS ================== */
 /**
@@ -282,7 +283,7 @@ export default function TransactionFormModal({
     ? getRate(sourceWallet.currency || "VND", targetWallet.currency || "VND")
     : 1;
   
-  const amountNum = Number(form.amount) || 0;
+  const amountNum = getMoneyValue(form.amount);
   const convertedAmount = useMemo(() => {
     if (!sourceWallet || !targetWallet || !amountNum) return 0;
     if (!currenciesDiffer) return amountNum;
@@ -505,13 +506,16 @@ export default function TransactionFormModal({
                       <label className="form-label fw-semibold">Số tiền</label>
                       <div className="input-group">
                         <input
-                          type="number"
+                          type="text"
                           name="amount"
                           className="form-control"
-                          value={form.amount}
-                          onChange={handleChange}
+                          value={formatMoneyInput(form.amount)}
+                          onChange={(e) => {
+                            const parsed = getMoneyValue(e.target.value);
+                            setForm((f) => ({ ...f, amount: parsed ? String(parsed) : "" }));
+                          }}
                           required
-                          min={0}
+                          inputMode="numeric"
                         />
                         <span className="input-group-text">{form.currency}</span>
                       </div>
@@ -641,13 +645,16 @@ export default function TransactionFormModal({
                     <label className="form-label fw-semibold">Số tiền</label>
                     <div className="input-group">
                       <input
-                        type="number"
+                        type="text"
                         name="amount"
                         className="form-control"
-                        value={form.amount}
-                        onChange={handleChange}
+                        value={formatMoneyInput(form.amount)}
+                        onChange={(e) => {
+                          const parsed = getMoneyValue(e.target.value);
+                          setForm((f) => ({ ...f, amount: parsed ? String(parsed) : "" }));
+                        }}
                         required
-                        min={0}
+                        inputMode="numeric"
                         placeholder={sourceWallet ? `Nhập số tiền bằng ${sourceWallet.currency || "ví gửi"}` : ""}
                       />
                       <span className="input-group-text">{sourceWallet?.currency || form.currency || "VND"}</span>

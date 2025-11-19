@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import "../../styles/home/CategoriesPage.css";
-import SuccessToast from "../../components/common/Toast/SuccessToast";
+import Toast from "../../components/common/Toast/Toast";
 import CategoryFormModal from "../../components/categories/CategoryFormModal";
+import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 
 export default function CategoriesPage() {
@@ -20,7 +21,8 @@ export default function CategoriesPage() {
   // pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [toast, setToast] = useState({ open: false, message: "" });
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
+  const [confirmDel, setConfirmDel] = useState(null); // Danh mục cần xóa
 
   const currentList =
     activeTab === "expense" ? expenseCategories : incomeCategories;
@@ -58,6 +60,12 @@ export default function CategoriesPage() {
   };
 
   const openEditModal = (cat) => {
+    // Không cho phép sửa danh mục hệ thống
+    const isSystemValue = cat.isSystem !== undefined ? cat.isSystem : (cat.system !== undefined ? cat.system : false);
+    const isSystemCategory = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
+    if (isSystemCategory) {
+      return;
+    }
     setModalMode("edit");
     setModalInitial({ name: cat.name, description: cat.description || "" });
     setModalEditingId(cat.id);
@@ -74,14 +82,14 @@ export default function CategoriesPage() {
       }
       // go to first page to show the new item
       setPage(1);
-      setToast({ open: true, message: "Đã thêm danh mục mới." });
+      setToast({ open: true, message: "Đã thêm danh mục mới.", type: "success" });
     } else if (modalMode === "edit") {
       if (activeTab === "expense") {
         updateExpenseCategory(modalEditingId, payload);
       } else {
         updateIncomeCategory(modalEditingId, payload);
       }
-      setToast({ open: true, message: "Đã cập nhật danh mục." });
+      setToast({ open: true, message: "Đã cập nhật danh mục.", type: "success" });
     }
     setModalOpen(false);
     setModalEditingId(null);
@@ -92,18 +100,40 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = (cat) => {
-    if (!window.confirm(`Xóa danh mục "${cat.name}"?`)) return;
-
-    if (activeTab === "expense") {
-      deleteExpenseCategory(cat.id);
-    } else {
-      deleteIncomeCategory(cat.id);
+    // Không cho phép xóa danh mục hệ thống
+    const isSystemValue = cat.isSystem !== undefined ? cat.isSystem : (cat.system !== undefined ? cat.system : false);
+    const isSystemCategory = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
+    if (isSystemCategory) {
+      return;
     }
+    
+    // Mở modal xác nhận thay vì window.confirm
+    setConfirmDel(cat);
+  };
 
-    setToast({ open: true, message: "Đã xóa danh mục." });
-    if (modalEditingId === cat.id) {
-      setModalEditingId(null);
-      setModalOpen(false);
+  const doDelete = async () => {
+    if (!confirmDel) return;
+
+    const cat = confirmDel;
+    setConfirmDel(null); // Đóng modal
+
+    try {
+      if (activeTab === "expense") {
+        await deleteExpenseCategory(cat.id);
+      } else {
+        await deleteIncomeCategory(cat.id);
+      }
+
+      setToast({ open: true, message: `Đã xóa danh mục "${cat.name}"`, type: "success" });
+      
+      // Đóng modal edit nếu đang edit danh mục này
+      if (modalEditingId === cat.id) {
+        setModalEditingId(null);
+        setModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Lỗi khi xóa danh mục:", error);
+      setToast({ open: true, message: error.message || "Lỗi khi xóa danh mục", type: "error" });
     }
   };
 
@@ -259,26 +289,39 @@ export default function CategoriesPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedList.map((c, idx) => (
-                    <tr key={c.id}>
-                      <td>{(page - 1) * pageSize + idx + 1}</td>
-                      <td className="fw-semibold">{c.name}</td>
-                      <td>{c.description || "-"}</td>
-                      <td className="text-center">
-                        <button className="btn btn-link btn-sm text-muted me-2" type="button" onClick={() => openEditModal(c)} title="Sửa">
-                          <i className="bi bi-pencil-square" />
-                        </button>
-                        <button
-                          className="btn btn-link btn-sm text-danger"
-                          type="button"
-                          onClick={() => handleDelete(c)}
-                          title="Xóa"
-                        >
-                          <i className="bi bi-trash" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  paginatedList.map((c, idx) => {
+                    // Kiểm tra isSystem - hỗ trợ cả boolean và string
+                    // Jackson có thể serialize thành "system" thay vì "isSystem" (đã fix ở backend với @JsonProperty)
+                    const isSystemValue = c.isSystem !== undefined ? c.isSystem : (c.system !== undefined ? c.system : false);
+                    const isSystemCategory = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
+                    
+                    return (
+                      <tr key={c.id}>
+                        <td>{(page - 1) * pageSize + idx + 1}</td>
+                        <td className="fw-semibold">{c.name}</td>
+                        <td>{c.description || "-"}</td>
+                        <td className="text-center">
+                          {!isSystemCategory ? (
+                            <>
+                              <button className="btn btn-link btn-sm text-muted me-2" type="button" onClick={() => openEditModal(c)} title="Sửa">
+                                <i className="bi bi-pencil-square" />
+                              </button>
+                              <button
+                                className="btn btn-link btn-sm text-danger"
+                                type="button"
+                                onClick={() => handleDelete(c)}
+                                title="Xóa"
+                              >
+                                <i className="bi bi-trash" />
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-muted small">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -309,11 +352,22 @@ export default function CategoriesPage() {
         onClose={() => setModalOpen(false)}
       />
 
-      <SuccessToast
+      <ConfirmModal
+        open={!!confirmDel}
+        title="Xóa danh mục"
+        message={confirmDel ? `Xóa danh mục "${confirmDel.name}"?` : ""}
+        okText="Xóa"
+        cancelText="Hủy"
+        onOk={doDelete}
+        onClose={() => setConfirmDel(null)}
+      />
+
+      <Toast
         open={toast.open}
         message={toast.message}
+        type={toast.type}
         duration={2200}
-        onClose={() => setToast({ open: false, message: "" })}
+        onClose={() => setToast({ open: false, message: "", type: "success" })}
       />
     </div>
   );

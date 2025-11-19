@@ -81,6 +81,10 @@ export default function LoginPage() {
             // im lặng nếu lỗi, vẫn cho đăng nhập (vì đã có token)
           }
         }
+        
+        // ✅ Trigger event để CategoryDataContext reload categories
+        window.dispatchEvent(new CustomEvent('userChanged'));
+        
         setShowSuccess(true);
       } else if (response.status === 401 || response.status === 400) {
         setShowInvalid(true);
