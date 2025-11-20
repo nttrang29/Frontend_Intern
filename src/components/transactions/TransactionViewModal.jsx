@@ -196,26 +196,21 @@ export default function TransactionViewModal({ open, tx, onClose }) {
               {tx.attachment && (
                 <div className="col-12">
                   <label className="form-label small text-muted mb-1">Ảnh đính kèm</label>
-                  <div className="d-flex gap-2 align-items-center">
-                    <div
-                      style={{
-                        width: 120,
-                        height: 90,
-                        borderRadius: 12,
-                        overflow: "hidden",
-                        background: "#f3f4f6",
-                        border: "1px solid #e5e7eb",
-                      }}
-                    >
-                      <img
-                        src={tx.attachment}
-                        alt="Đính kèm"
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      />
-                    </div>
-                    <div className="small text-muted flex-grow-1">
-                      Ảnh minh họa (demo). Sau này sẽ lấy từ API file thật.
-                    </div>
+                  <div
+                    style={{
+                      width: 120,
+                      height: 90,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      background: "#f3f4f6",
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <img
+                      src={tx.attachment}
+                      alt="Đính kèm"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
                   </div>
                 </div>
               )}

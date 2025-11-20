@@ -293,20 +293,20 @@ export default function WalletsPage() {
 
   // Helper function để chuyển đổi số tiền về VND
   const convertToVND = (amount, currency) => {
-    if (!currency || currency === "VND") return Number(amount) || 0;
+    const numericAmount = Number(amount) || 0;
+    if (!currency || currency === "VND") return numericAmount;
     const rate = getRate(currency, "VND");
-    const converted = (Number(amount) || 0) * rate;
-    // Làm tròn về số nguyên vì VND không có số thập phân
-    return Math.round(converted);
+    return numericAmount * rate;
   };
 
   // Helper function để chuyển đổi từ VND sang currency khác
   const convertFromVND = (amountVND, targetCurrency) => {
-    if (!targetCurrency || targetCurrency === "VND") return Number(amountVND) || 0;
+    const base = Number(amountVND) || 0;
+    if (!targetCurrency || targetCurrency === "VND") return base;
     const rate = getRate("VND", targetCurrency);
-    const converted = (Number(amountVND) || 0) * rate;
+    const converted = base * rate;
     // Làm tròn theo số chữ số thập phân của currency đích
-    const decimals = targetCurrency === "VND" ? 0 : 2;
+    const decimals = targetCurrency === "VND" ? 0 : 8;
     return Math.round(converted * Math.pow(10, decimals)) / Math.pow(10, decimals);
   };
 
@@ -923,7 +923,7 @@ const doDelete = async (wallet) => {
                 /[\d,.]+/,
                 showTotalAll
                   ? new Intl.NumberFormat("vi-VN", {
-                      maximumFractionDigits: displayCurrency === "VND" ? 0 : 2,
+                      maximumFractionDigits: displayCurrency === "VND" ? 0 : 8,
                     }).format(totalAll)
                   : "••••••"
               )}
@@ -1000,7 +1000,7 @@ const doDelete = async (wallet) => {
                           /[\d,.]+/,
                           showTotalPersonal
                             ? new Intl.NumberFormat("vi-VN", {
-                                maximumFractionDigits: displayCurrency === "VND" ? 0 : 2,
+                                maximumFractionDigits: displayCurrency === "VND" ? 0 : 8,
                               }).format(totalPersonal)
                             : "••••••"
                         )}
@@ -1185,7 +1185,7 @@ const doDelete = async (wallet) => {
                           /[\d,.]+/,
                           showTotalGroup
                             ? new Intl.NumberFormat("vi-VN", {
-                                maximumFractionDigits: displayCurrency === "VND" ? 0 : 2,
+                                maximumFractionDigits: displayCurrency === "VND" ? 0 : 8,
                               }).format(totalGroup)
                             : "••••••"
                         )}
