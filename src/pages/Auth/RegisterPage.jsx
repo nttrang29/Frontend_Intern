@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
@@ -30,9 +30,43 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const OTP_LENGTH = 6;
+  const OTP_EXPIRE_SECONDS = 600; // 10 phút
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""));
   const otpRefs = useRef([]);
+  const countdownTimerRef = useRef(null);
+  const [otpCountdown, setOtpCountdown] = useState(0);
   const captchaRef = useRef(null);
+
+  const formatCountdown = (seconds) => {
+    const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
+    const ss = String(seconds % 60).padStart(2, "0");
+    return `${mm}:${ss}`;
+  };
+
+  const clearOtpCountdown = () => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+  };
+
+  const startOtpCountdown = () => {
+    clearOtpCountdown();
+    setOtpCountdown(OTP_EXPIRE_SECONDS);
+    countdownTimerRef.current = setInterval(() => {
+      setOtpCountdown((prev) => {
+        if (prev <= 1) {
+          clearOtpCountdown();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => clearOtpCountdown();
+  }, []);
 
   const onChange = (e) => {
     const name = e.target.name === "username" ? "fullName" : e.target.name;
@@ -103,6 +137,7 @@ export default function RegisterPage() {
           setSuccessMsg("");
           setStep(2);
           otpRefs.current[0]?.focus();
+          startOtpCountdown();
         }, 1200);
       } else {
         setError(data.error || "Đã xảy ra lỗi, vui lòng thử lại.");
@@ -163,6 +198,8 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (response.ok && data.message?.includes("Xác minh thành công")) {
+        clearOtpCountdown();
+        setOtpCountdown(0);
         // ✅ Lưu token nếu có
         if (data.accessToken) {
           localStorage.setItem("accessToken", data.accessToken);
@@ -209,7 +246,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/forgot-password`, {
+      const response = await fetch(`${API_URL}/resend-verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: form.email }),
@@ -219,6 +256,9 @@ export default function RegisterPage() {
 
       if (response.ok) {
         setSuccessMsg("Đã gửi lại mã xác minh mới vào email!");
+        startOtpCountdown();
+        setOtp(Array(OTP_LENGTH).fill(""));
+        otpRefs.current[0]?.focus();
       } else {
         setError(data.error || "Lỗi gửi lại mã xác minh.");
       }
@@ -369,7 +409,11 @@ export default function RegisterPage() {
             {successMsg && <div className="auth-success">{successMsg}</div>}
 
             <div className="d-grid mb-3 mt-2">
-              <button type="submit" className="btn btn-success" disabled={loading}>
+              <button
+                type="submit"
+                className="btn btn-success"
+                disabled={loading || otpCountdown <= 0}
+              >
                 {loading ? "Đang xác minh..." : "Xác nhận mã"}
               </button>
             </div>
@@ -384,6 +428,8 @@ export default function RegisterPage() {
                   setCaptchaValue(null);
                   captchaRef.current?.reset();
                   setStep(1);
+                  clearOtpCountdown();
+                  setOtpCountdown(0);
                 }}
               >
                 Nhập lại thông tin
@@ -397,6 +443,11 @@ export default function RegisterPage() {
               >
                 Gửi lại mã
               </button>
+            </div>
+            <div className="text-center small text-muted mt-2">
+              {otpCountdown > 0
+                ? `Mã sẽ hết hạn sau ${formatCountdown(otpCountdown)}`
+                : "Mã đã hết hạn, vui lòng gửi lại mã mới."}
             </div>
           </>
         )}

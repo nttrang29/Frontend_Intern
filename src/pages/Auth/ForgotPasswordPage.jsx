@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
@@ -65,11 +65,13 @@ export default function ForgotPasswordPage() {
       if (response.ok) {
         // Backend trả về: { message: "Mã xác thực đã gửi đến email" }
         setSuccessMsg(data.message || "Mã xác minh đã được gửi!");
-       setTimeout(() => {
-        setStep(2);
-        setSuccessMsg("");
-      otpRefs.current[0]?.focus();
-  }, 1200);
+        setTimeout(() => {
+          setStep(2);
+          setSuccessMsg("");
+          setOtp(Array(OTP_LEN).fill(""));
+          otpRefs.current[0]?.focus();
+          startOtpCountdown();
+        }, 1200);
       } else {
         // Backend trả về: { error: "Email không tồn tại" }
         setError(data.error || "Gửi mã thất bại. Vui lòng thử lại.");
@@ -88,8 +90,42 @@ export default function ForgotPasswordPage() {
    * (Chỉ lưu mã và chuyển step, xác minh mã gộp vào Step 3)
    * ========================= */
   const OTP_LEN = 6;
+  const OTP_EXPIRE_SECONDS = 600; // 10 phút
   const [otp, setOtp] = useState(Array(OTP_LEN).fill(""));
   const otpRefs = useRef([]);
+  const countdownRef = useRef(null);
+  const [otpCountdown, setOtpCountdown] = useState(0);
+
+  const formatCountdown = (seconds) => {
+    const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
+    const ss = String(seconds % 60).padStart(2, "0");
+    return `${mm}:${ss}`;
+  };
+
+  const clearOtpCountdown = () => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+  };
+
+  const startOtpCountdown = () => {
+    clearOtpCountdown();
+    setOtpCountdown(OTP_EXPIRE_SECONDS);
+    countdownRef.current = setInterval(() => {
+      setOtpCountdown((prev) => {
+        if (prev <= 1) {
+          clearOtpCountdown();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => clearOtpCountdown();
+  }, []);
 
   const handleOtpChange = (idx, val) => {
     const v = val.replace(/\D/g, "").slice(0, 1); // chỉ số 0-9
@@ -147,6 +183,8 @@ export default function ForgotPasswordPage() {
         // OTP đúng, lưu mã và chuyển sang Step 3
         setForm((f) => ({ ...f, code: code }));
         setSuccessMsg(data.message || "Xác thực mã thành công. Vui lòng nhập mật khẩu mới.");
+        clearOtpCountdown();
+        setOtpCountdown(0);
         setTimeout(() => {
           setStep(3);
           setSuccessMsg("");
@@ -181,6 +219,9 @@ export default function ForgotPasswordPage() {
 
       if (response.ok) {
         setSuccessMsg("Đã gửi lại mã xác minh vào email của bạn!");
+        setOtp(Array(OTP_LEN).fill(""));
+        otpRefs.current[0]?.focus();
+        startOtpCountdown();
       } else {
         setError(data.error || "Gửi lại mã thất bại. Vui lòng thử lại.");
       }
@@ -342,6 +383,8 @@ export default function ForgotPasswordPage() {
                   setOtp(Array(OTP_LEN).fill(""));
                   setError("");
                   setSuccessMsg("");
+                  clearOtpCountdown();
+                  setOtpCountdown(0);
                 }}
                 disabled={loading}
               >
@@ -356,6 +399,11 @@ export default function ForgotPasswordPage() {
               >
                 Gửi lại mã
               </button>
+            </div>
+            <div className="text-center small text-muted mt-2">
+              {otpCountdown > 0
+                ? `Mã sẽ hết hạn sau ${formatCountdown(otpCountdown)}`
+                : "Mã đã hết hạn, vui lòng gửi lại mã mới."}
             </div>
           </>
         )}

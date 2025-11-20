@@ -86,33 +86,45 @@ const EMPTY_FORM = {
 };
 
 // static defaults kept as fallback
-const DEFAULT_CATEGORIES = ["Ăn uống", "Di chuyển", "Quà tặng", "Giải trí", "Hóa đơn", "Khác"];
-
-/* WALLETS will be sourced from WalletDataContext; keep default fallback */
-const DEFAULT_WALLETS = ["Ví tiền mặt", "Techcombank", "Momo", "Ngân hàng A", "Ngân hàng B"];
-
 /* ================== Select Input (chỉ dropdown) ================== */
-function SelectInput({ label, value, onChange, options, required = true }) {
+function SelectInput({
+  label,
+  value,
+  onChange,
+  options = [],
+  required = true,
+  disabled = false,
+  emptyMessage,
+}) {
   const handleSelect = (e) => {
     onChange(e.target.value);
   };
 
+  const hasOptions = Array.isArray(options) && options.length > 0;
+
   return (
     <div className="mb-3">
       <label className="form-label fw-semibold">{label}</label>
-      <select
-        className="form-select"
-        value={value || ""}
-        onChange={handleSelect}
-        required={required}
-      >
-        <option value="">Chọn</option>
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
+      {hasOptions ? (
+        <select
+          className="form-select"
+          value={value || ""}
+          onChange={handleSelect}
+          required={required}
+          disabled={disabled}
+        >
+          <option value="">Chọn</option>
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <div className="text-muted small">
+          {emptyMessage || "Không có dữ liệu để hiển thị."}
+        </div>
+      )}
     </div>
   );
 }
@@ -222,24 +234,32 @@ export default function TransactionFormModal({
   }, [open, mode, initialData, variant, defaultWallet]);
 
   // Map categories - hỗ trợ cả name và categoryName
-  const categoryOptions = form.type === "income"
-    ? (incomeCategories?.map(c => c.name || c.categoryName || "").filter(Boolean) || DEFAULT_CATEGORIES)
-    : (expenseCategories?.map(c => c.name || c.categoryName || "").filter(Boolean) || DEFAULT_CATEGORIES);
+  const categoryOptions = useMemo(() => {
+    const source =
+      form.type === "income" ? incomeCategories : expenseCategories;
+    if (!source || source.length === 0) return [];
+    return source.map((c) => c.name || c.categoryName || "").filter(Boolean);
+  }, [form.type, expenseCategories, incomeCategories]);
+  const hasCategories = categoryOptions.length > 0;
 
   // Danh sách ví cho ví gửi (tất cả ví)
-  const walletOptions = (walletList && walletList.length > 0)
-    ? walletList.map(w => w.name)
-    : DEFAULT_WALLETS;
+  const walletOptions = useMemo(() => {
+    if (!walletList || walletList.length === 0) return [];
+    return walletList.map((w) => w.name).filter(Boolean);
+  }, [walletList]);
+  const hasWallets = walletOptions.length > 0;
   
   // Danh sách ví cho ví nhận (loại bỏ ví gửi đã chọn)
   const targetWalletOptions = useMemo(() => {
-    if (!walletList || walletList.length === 0) return DEFAULT_WALLETS;
-    if (!form.sourceWallet) return walletList.map(w => w.name);
+    if (!walletList || walletList.length === 0) return [];
+    if (!form.sourceWallet) return walletList.map((w) => w.name).filter(Boolean);
     // Loại bỏ ví gửi khỏi danh sách ví nhận
     return walletList
-      .filter(w => w.name !== form.sourceWallet)
-      .map(w => w.name);
+      .filter((w) => w.name !== form.sourceWallet)
+      .map((w) => w.name)
+      .filter(Boolean);
   }, [walletList, form.sourceWallet]);
+  const hasTargetWallets = targetWalletOptions.length > 0;
 
   // Tìm ví đã chọn trong form giao dịch thông thường
   const selectedWallet = walletList?.find(w => w.name === form.walletName);
@@ -587,9 +607,11 @@ export default function TransactionFormModal({
                         <select
                           className="form-select"
                           value={form.walletName || ""}
-                          onChange={(e) => setForm((f) => ({ ...f, walletName: e.target.value }))}
-                          disabled={mode === "edit"}
-                          required
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, walletName: e.target.value }))
+                          }
+                          disabled={mode === "edit" || !hasWallets}
+                          required={hasWallets}
                         >
                           <option value="">Chọn</option>
                           {walletOptions.map((opt) => (
@@ -598,6 +620,11 @@ export default function TransactionFormModal({
                             </option>
                           ))}
                         </select>
+                        {!hasWallets && (
+                          <div className="text-muted small mt-1">
+                            Không có ví nào. Vui lòng tạo ví trước khi thêm giao dịch.
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -660,6 +687,9 @@ export default function TransactionFormModal({
                         value={form.category}
                         onChange={(v) => setForm((f) => ({ ...f, category: v }))}
                         options={categoryOptions}
+                        required={hasCategories}
+                        disabled={!hasCategories}
+                        emptyMessage="Không có danh mục nào. Vui lòng tạo danh mục trước."
                       />
                     </div>
 
@@ -725,8 +755,8 @@ export default function TransactionFormModal({
                             return { ...f, sourceWallet: v, targetWallet: newTarget };
                           });
                         }}
-                        disabled={mode === "edit"}
-                        required
+                        disabled={mode === "edit" || !hasWallets}
+                        required={hasWallets}
                       >
                         <option value="">Chọn</option>
                         {walletOptions.map((opt) => (
@@ -736,6 +766,11 @@ export default function TransactionFormModal({
                         ))}
                       </select>
                     </div>
+                    {!hasWallets && (
+                      <div className="text-muted small mt-n2 mb-2">
+                        Không có ví nào. Vui lòng tạo ít nhất một ví trước khi chuyển tiền.
+                      </div>
+                    )}
                     {sourceWallet && mode !== "edit" && (
                       <div className="text-muted small mt-1">
                         Số dư: <strong>{formatMoney(sourceWallet.balance, sourceWallet.currency)}</strong>
@@ -750,8 +785,13 @@ export default function TransactionFormModal({
                         className="form-select"
                         value={form.targetWallet || ""}
                         onChange={(e) => setForm((f) => ({ ...f, targetWallet: e.target.value }))}
-                        disabled={mode === "edit"}
-                        required
+                        disabled={
+                          mode === "edit" ||
+                          !hasWallets ||
+                          !hasTargetWallets ||
+                          walletOptions.length < 2
+                        }
+                        required={hasTargetWallets}
                       >
                         <option value="">Chọn</option>
                         {targetWalletOptions.map((opt) => (
@@ -761,6 +801,11 @@ export default function TransactionFormModal({
                         ))}
                       </select>
                     </div>
+                    {(!hasWallets || walletOptions.length < 2) && (
+                      <div className="text-muted small mt-n2 mb-2">
+                        Cần ít nhất hai ví để chuyển tiền. Vui lòng tạo thêm ví.
+                      </div>
+                    )}
                     {targetWallet && mode !== "edit" && (
                       <div className="text-muted small mt-1">
                         Số dư: <strong>{formatMoney(targetWallet.balance, targetWallet.currency)}</strong>

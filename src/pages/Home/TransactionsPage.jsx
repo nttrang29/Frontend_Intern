@@ -207,6 +207,8 @@ export default function TransactionsPage() {
     };
   }, [wallets]);
 
+  const hasWallets = Array.isArray(wallets) && wallets.length > 0;
+
   // Load transactions from API
   useEffect(() => {
 
@@ -234,10 +236,14 @@ export default function TransactionsPage() {
       }
     };
 
-    if (wallets && wallets.length > 0) {
+    if (hasWallets) {
       loadTransactions();
+    } else {
+      setExternalTransactions([]);
+      setInternalTransactions([]);
+      setLoading(false);
     }
-  }, [wallets]); // Reload when wallets change
+  }, [hasWallets, mapTransactionToFrontend, mapTransferToFrontend]);
 
   const handleTabChange = (e) => {
     const value = e.target.value;
