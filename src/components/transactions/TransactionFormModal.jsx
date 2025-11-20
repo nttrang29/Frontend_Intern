@@ -542,7 +542,7 @@ export default function TransactionFormModal({
 
         .type-pill.active:disabled {
           border-width: 2px !important;
-          border-color: #1d4ed8 !important;
+          border-color: #black !important;
         }
 
         .type-pill:disabled:not(.active) {
