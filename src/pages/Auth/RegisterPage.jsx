@@ -30,7 +30,7 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const OTP_LENGTH = 6;
-  const OTP_EXPIRE_SECONDS = 600; // 10 phút
+  const OTP_EXPIRE_SECONDS = 60; // 10 phút
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""));
   const otpRefs = useRef([]);
   const countdownTimerRef = useRef(null);

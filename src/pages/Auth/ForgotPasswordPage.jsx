@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
    * (Chỉ lưu mã và chuyển step, xác minh mã gộp vào Step 3)
    * ========================= */
   const OTP_LEN = 6;
-  const OTP_EXPIRE_SECONDS = 600; // 10 phút
+  const OTP_EXPIRE_SECONDS = 60; // 10 phút
   const [otp, setOtp] = useState(Array(OTP_LEN).fill(""));
   const otpRefs = useRef([]);
   const countdownRef = useRef(null);
