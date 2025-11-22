@@ -41,11 +41,20 @@ export function WalletDataProvider({ children }) {
     // Ưu tiên walletType từ API để xác định isShared
     // Nếu API có walletType, dùng nó; nếu không, mới dùng isShared từ API hoặc state cũ
     const walletType = apiWallet.walletType || apiWallet.type;
-    const isShared = walletType === "GROUP" 
+    const rawIsShared = walletType === "GROUP" 
       ? true 
       : (walletType === "PERSONAL" 
           ? false 
           : (apiWallet.isShared !== undefined ? apiWallet.isShared : (existingWallet?.isShared || false)));
+
+    const resolvedMembersCount = apiWallet.totalMembers ?? apiWallet.membersCount ?? existingWallet?.membersCount ?? 0;
+    const resolvedSharedEmails = apiWallet.sharedEmails || existingWallet?.sharedEmails || [];
+    const resolvedRole = (apiWallet.walletRole || apiWallet.role || apiWallet.accessRole || apiWallet.sharedRole || existingWallet?.walletRole || existingWallet?.sharedRole || "")
+      .toString()
+      .toUpperCase();
+    const hasSharedMembers = resolvedMembersCount > 1
+      || resolvedSharedEmails.length > 0
+      || (resolvedRole && !["", "OWNER", "MASTER", "ADMIN"].includes(resolvedRole));
     
     return {
       id: apiWallet.walletId || apiWallet.id,
@@ -58,8 +67,15 @@ export function WalletDataProvider({ children }) {
       isDefault: apiWallet.isDefault !== undefined 
         ? apiWallet.isDefault 
         : (apiWallet.default !== undefined ? apiWallet.default : false),
-      isShared: isShared,
+      isShared: rawIsShared,
       groupId: apiWallet.groupId || null,
+      ownerUserId: apiWallet.ownerId || apiWallet.ownerUserId || apiWallet.createdBy || existingWallet?.ownerUserId || null,
+      ownerName: apiWallet.ownerName || apiWallet.ownerFullName || existingWallet?.ownerName || "",
+      walletRole: apiWallet.walletRole || apiWallet.role || apiWallet.accessRole || existingWallet?.walletRole || null,
+      sharedRole: apiWallet.sharedRole || existingWallet?.sharedRole || null,
+      sharedEmails: resolvedSharedEmails,
+      membersCount: resolvedMembersCount,
+      hasSharedMembers,
       createdAt: apiWallet.createdAt,
       note: apiWallet.description || apiWallet.note || "",
       color: finalColor,

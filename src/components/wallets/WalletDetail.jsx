@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useMemo } from "react";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
+import { walletAPI } from "../../services/api-client";
 
 export default function WalletDetail(props) {
   const {
     wallet,
     walletTabType = "personal",
+    sharedFilter = "sharedByMe",
+    sharedEmailsOverride,
+    forceLoadSharedMembers = false,
+    canInviteMembers = false,
+    onQuickShareEmail,
+    quickShareLoading = false,
     currencies,
     incomeCategories,
     expenseCategories,
@@ -18,6 +25,12 @@ export default function WalletDetail(props) {
     allWallets,
     topupCategoryId,
     setTopupCategoryId,
+    sharedWithMeOwners = [],
+    selectedSharedOwnerId,
+    selectedSharedOwnerWalletId,
+    onSelectSharedOwnerWallet,
+    onSharedWalletDemoView,
+    onSharedWalletDemoCancel,
 
     // create
     createForm,
@@ -37,6 +50,7 @@ export default function WalletDetail(props) {
     setEditShareEmail,
     onAddEditShareEmail,
     onRemoveEditShareEmail,
+    shareWalletLoading,
     onSubmitEdit,
 
     // merge
@@ -80,8 +94,48 @@ export default function WalletDetail(props) {
   // Extract loadingTransactions với default value
   const isLoadingTransactions = loadingTransactions || false;
 
-  const sharedEmails = wallet?.sharedEmails || [];
+  const sharedEmails = useMemo(() => {
+    const base = Array.isArray(wallet?.sharedEmails)
+      ? wallet.sharedEmails
+      : [];
+    if (!sharedEmailsOverride || !sharedEmailsOverride.length) {
+      return base;
+    }
+    const merged = new Set(
+      base.filter((email) => typeof email === "string" && email.trim())
+    );
+    sharedEmailsOverride.forEach((email) => {
+      if (typeof email === "string" && email.trim()) {
+        merged.add(email.trim());
+      }
+    });
+    return Array.from(merged);
+  }, [wallet?.sharedEmails, sharedEmailsOverride]);
   const balance = Number(wallet?.balance ?? wallet?.current ?? 0) || 0;
+
+  const [sharedMembers, setSharedMembers] = useState([]);
+  const [sharedMembersLoading, setSharedMembersLoading] = useState(false);
+  const [sharedMembersError, setSharedMembersError] = useState("");
+  const [removingMemberId, setRemovingMemberId] = useState(null);
+
+  const isSharedTab = walletTabType === "shared";
+  const canManageSharedMembers = isSharedTab && sharedFilter === "sharedByMe";
+  const allowSharedMembersFetch = isSharedTab || forceLoadSharedMembers;
+  const isSharedWithMeMode = isSharedTab && sharedFilter === "sharedWithMe";
+  const safeSharedWithMeOwners = Array.isArray(sharedWithMeOwners)
+    ? sharedWithMeOwners
+    : [];
+  const selectedSharedOwnerGroup = useMemo(() => {
+    if (!safeSharedWithMeOwners.length) return null;
+    if (selectedSharedOwnerId) {
+      return (
+        safeSharedWithMeOwners.find(
+          (owner) => owner.id === selectedSharedOwnerId
+        ) || null
+      );
+    }
+    return safeSharedWithMeOwners[0];
+  }, [safeSharedWithMeOwners, selectedSharedOwnerId]);
 
   // Format số dư để hiển thị (giống với WalletList.jsx)
   const formatBalance = (amount = 0, currency = "VND") => {
@@ -116,6 +170,63 @@ export default function WalletDetail(props) {
       setActiveDetailTab("view");
     }
   }, [wallet?.isShared, activeDetailTab, setActiveDetailTab]);
+
+  useEffect(() => {
+    let ignore = false;
+    if (!wallet?.id || !allowSharedMembersFetch) {
+      setSharedMembers([]);
+      setSharedMembersError("");
+      setSharedMembersLoading(false);
+      return () => {};
+    }
+
+    const fetchMembers = async () => {
+      setSharedMembersLoading(true);
+      setSharedMembersError("");
+      try {
+        const data = await walletAPI.getWalletMembers(wallet.id);
+        if (ignore) return;
+        const members = Array.isArray(data?.members) ? data.members : [];
+        setSharedMembers(members);
+      } catch (error) {
+        if (ignore) return;
+        setSharedMembers([]);
+        setSharedMembersError(error.message || "Không thể tải danh sách chia sẻ.");
+      } finally {
+        if (!ignore) {
+          setSharedMembersLoading(false);
+        }
+      }
+    };
+
+    fetchMembers();
+
+    return () => {
+      ignore = true;
+    };
+  }, [wallet?.id, allowSharedMembersFetch]);
+
+  const handleRemoveSharedMember = async (member) => {
+    if (!canManageSharedMembers || !wallet?.id || !member) return;
+    const targetId = member.userId ?? member.memberUserId ?? member.memberId;
+    if (!targetId) return;
+    const displayName = member.fullName || member.email || "thành viên";
+    const confirmMessage = `Bạn chắc chắn muốn xóa ${displayName} khỏi ví?`;
+    if (typeof window !== "undefined" && !window.confirm(confirmMessage)) {
+      return;
+    }
+    try {
+      setRemovingMemberId(targetId);
+      await walletAPI.removeMember(wallet.id, targetId);
+      setSharedMembers((prev) =>
+        prev.filter((m) => (m.userId ?? m.memberUserId ?? m.memberId) !== targetId)
+      );
+    } catch (error) {
+      setSharedMembersError(error.message || "Không thể xóa thành viên khỏi ví.");
+    } finally {
+      setRemovingMemberId(null);
+    }
+  };
 
   // ======= VIEW: CREATE NEW WALLET =======
   if (showCreate) {
@@ -261,6 +372,125 @@ export default function WalletDetail(props) {
 
   // ======= KHÔNG CÓ VÍ ĐANG CHỌN → PLACEHOLDER THEO TỪNG TAB =======
   if (!wallet) {
+    if (isSharedWithMeMode) {
+      const hasOwners = safeSharedWithMeOwners.length > 0;
+      const ownerWallets = selectedSharedOwnerGroup?.wallets || [];
+      const ownerName = selectedSharedOwnerGroup?.displayName || "Chưa chọn người chia sẻ";
+
+      return (
+        <div className="wallets-detail-panel wallets-detail-panel--shared-with-me">
+          <div className="wallets-shared-detail__header">
+            <h2>Ví được chia sẻ cho bạn</h2>
+            <p>
+              Chọn một người chia sẻ ở danh sách bên trái để xem các ví mà họ đã cấp quyền sử dụng.
+            </p>
+          </div>
+
+          {!hasOwners ? (
+            <div className="wallets-shared-detail__empty">
+              Hiện chưa có ví nào được người khác chia sẻ cho bạn.
+            </div>
+          ) : !selectedSharedOwnerGroup ? (
+            <div className="wallets-shared-detail__empty">
+              Hãy chọn một người chia sẻ để xem danh sách ví.
+            </div>
+          ) : ownerWallets.length === 0 ? (
+            <div className="wallets-shared-detail__empty">
+              Không có ví nào khớp với tìm kiếm hiện tại.
+            </div>
+          ) : (
+            <>
+              <div className="wallets-shared-detail__owner-card">
+                <div>
+                  <p className="wallets-shared-detail__owner-label">Người chia sẻ</p>
+                  <h3 className="wallets-shared-detail__owner-name">{ownerName}</h3>
+                  {selectedSharedOwnerGroup?.email && (
+                    <p className="wallets-shared-detail__owner-email">
+                      {selectedSharedOwnerGroup.email}
+                    </p>
+                  )}
+                </div>
+                <div className="wallets-shared-detail__owner-meta">
+                  <span>{ownerWallets.length} ví</span>
+                  <small>Chọn người khác ở cột trái để xem ví khác.</small>
+                </div>
+              </div>
+
+              <div className="wallets-shared-owner-wallets wallets-shared-owner-wallets--detail">
+                {ownerWallets.map((sharedWallet) => {
+                  const balance =
+                    Number(sharedWallet.balance ?? sharedWallet.current ?? 0) || 0;
+                  const isSelected =
+                    selectedSharedOwnerWalletId &&
+                    String(selectedSharedOwnerWalletId) ===
+                      String(sharedWallet.id);
+
+                  return (
+                    <div
+                      key={sharedWallet.id}
+                      className={
+                        isSelected
+                          ? "wallets-shared-owner-wallet wallets-shared-owner-wallet--selected"
+                          : "wallets-shared-owner-wallet"
+                      }
+                      onClick={() => onSelectSharedOwnerWallet?.(sharedWallet.id)}
+                    >
+                      <div className="wallets-shared-owner-wallet__header">
+                        <div className="wallets-shared-owner-wallet__title">
+                          <span className="wallets-shared-owner-wallet__name">
+                            {sharedWallet.name || "Chưa đặt tên"}
+                          </span>
+                          {sharedWallet.isDemoShared && (
+                            <span className="wallets-shared-demo-tag">Demo</span>
+                          )}
+                        </div>
+                        <span className="wallets-shared-owner-wallet__balance">
+                          {formatBalance(balance, sharedWallet.currency || "VND")}
+                        </span>
+                      </div>
+                      {sharedWallet.note && (
+                        <p className="wallets-shared-owner-wallet__note">
+                          {sharedWallet.note}
+                        </p>
+                      )}
+                      <div className="wallets-shared-owner-wallet__meta">
+                        <span>{sharedWallet.ownerName}</span>
+                        {sharedWallet.ownerEmail && <span>{sharedWallet.ownerEmail}</span>}
+                      </div>
+                      {isSelected && (
+                        <div className="wallets-shared-wallet-actions">
+                          <button
+                            type="button"
+                            className="wallets-shared-wallet-actions__btn wallets-shared-wallet-actions__btn--primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSharedWalletDemoView?.(sharedWallet);
+                            }}
+                          >
+                            Xem
+                          </button>
+                          <button
+                            type="button"
+                            className="wallets-shared-wallet-actions__btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSharedWalletDemoCancel?.();
+                            }}
+                          >
+                            Hủy
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
     const isGroupTab = walletTabType === "group";
 
     return (
@@ -402,6 +632,19 @@ export default function WalletDetail(props) {
             Chuyển thành ví nhóm
           </button>
         )}
+
+        {canManageSharedMembers && (
+          <button
+            className={
+              activeDetailTab === "manageMembers"
+                ? "wallets-detail-tab wallets-detail-tab--active"
+                : "wallets-detail-tab"
+            }
+            onClick={() => setActiveDetailTab("manageMembers")}
+          >
+            Quản lý người dùng
+          </button>
+        )}
       </div>
 
       {/* NỘI DUNG THEO TAB */}
@@ -409,8 +652,29 @@ export default function WalletDetail(props) {
         <DetailViewTab
           wallet={wallet}
           sharedEmails={sharedEmails}
+          sharedMembers={sharedMembers}
+          sharedMembersLoading={sharedMembersLoading}
+          sharedMembersError={sharedMembersError}
+          canManageSharedMembers={canManageSharedMembers}
+          canInviteMembers={canInviteMembers}
+          removingMemberId={removingMemberId}
+          onRemoveSharedMember={handleRemoveSharedMember}
+          onQuickShareEmail={onQuickShareEmail}
+          quickShareLoading={quickShareLoading}
+          sharedFilter={sharedFilter}
           demoTransactions={demoTransactions}
           isLoadingTransactions={isLoadingTransactions}
+        />
+      )}
+
+      {activeDetailTab === "manageMembers" && canManageSharedMembers && (
+        <ManageMembersTab
+          wallet={wallet}
+          sharedMembers={sharedMembers}
+          sharedMembersLoading={sharedMembersLoading}
+          sharedMembersError={sharedMembersError}
+          onRemoveSharedMember={handleRemoveSharedMember}
+          removingMemberId={removingMemberId}
         />
       )}
 
@@ -591,7 +855,118 @@ function formatExchangeRate(rate = 0, toCurrency = "VND") {
 
 /* ====== SUB TABS COMPONENTS ====== */
 
-function DetailViewTab({ wallet, sharedEmails, demoTransactions, isLoadingTransactions = false }) {
+function DetailViewTab({
+  wallet,
+  sharedEmails,
+  sharedMembers = [],
+  sharedMembersLoading = false,
+  sharedMembersError = "",
+  canManageSharedMembers = false,
+  canInviteMembers = false,
+  removingMemberId = null,
+  onRemoveSharedMember,
+  onQuickShareEmail,
+  quickShareLoading = false,
+  sharedFilter,
+  demoTransactions,
+  isLoadingTransactions = false,
+}) {
+  const [showQuickShareForm, setShowQuickShareForm] = useState(false);
+  const [quickShareEmail, setQuickShareEmail] = useState("");
+  const [quickShareMessage, setQuickShareMessage] = useState("");
+
+  const toggleQuickShareForm = () => {
+    setShowQuickShareForm((prev) => !prev);
+    setQuickShareMessage("");
+    if (!showQuickShareForm) {
+      setQuickShareEmail("");
+    }
+  };
+
+  const handleQuickShareSubmit = async (event) => {
+    event?.preventDefault?.();
+    if (!onQuickShareEmail) return;
+    setQuickShareMessage("");
+    const result = await onQuickShareEmail(quickShareEmail);
+    if (result?.success) {
+      setQuickShareEmail("");
+      setShowQuickShareForm(false);
+      setQuickShareMessage("");
+    } else if (result?.message) {
+      setQuickShareMessage(result.message);
+    }
+  };
+
+  const fallbackEmails = Array.isArray(sharedEmails) ? sharedEmails : [];
+  const displayMembers = sharedMembers.length
+    ? sharedMembers
+    : fallbackEmails.map((email) => ({ email }));
+
+  const emptyShareMessage = canManageSharedMembers
+    ? "Bạn chưa chia sẻ ví này cho ai."
+    : sharedFilter === "sharedWithMe"
+    ? "Ví này đang được người khác chia sẻ cho bạn."
+    : "Chưa có thành viên nào được chia sẻ.";
+
+  const renderShareSection = () => {
+    if (sharedMembersLoading) {
+      return (
+        <p className="wallets-detail__share-empty">Đang tải danh sách chia sẻ...</p>
+      );
+    }
+    if (sharedMembersError) {
+      return (
+        <p className="wallets-detail__share-error">{sharedMembersError}</p>
+      );
+    }
+    if (!displayMembers.length) {
+      return (
+        <p className="wallets-detail__share-empty">{emptyShareMessage}</p>
+      );
+    }
+
+    return (
+      <div className="wallet-share-list">
+        {displayMembers.map((member) => {
+          const key = member.memberId || member.userId || member.email || member.fullName;
+          const name = member.fullName || member.name || member.email || "Không rõ tên";
+          const detail = member.email && member.email !== name
+            ? member.email
+            : member.role && member.role !== "OWNER"
+              ? member.role
+              : "";
+          const memberId = member.userId ?? member.memberUserId ?? member.memberId;
+          const allowRemove =
+            canManageSharedMembers &&
+            memberId &&
+            (member.role || "").toUpperCase() !== "OWNER";
+          const pillClass = allowRemove
+            ? "wallet-share-pill"
+            : "wallet-share-pill wallet-share-pill--readonly";
+          const isRemoving = removingMemberId === memberId;
+          return (
+            <span key={key || name} className={pillClass}>
+              <span className="wallet-share-pill__info">
+                {name}
+                {detail && <small>{detail}</small>}
+              </span>
+              {allowRemove && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveSharedMember?.(member)}
+                  disabled={isRemoving}
+                  aria-label={`Xóa ${name}`}
+                >
+                  {isRemoving ? "…" : "×"}
+                </button>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="wallets-section wallets-section--view">
       <div className="wallets-section__header">
@@ -636,23 +1011,38 @@ function DetailViewTab({ wallet, sharedEmails, demoTransactions, isLoadingTransa
             </div>
 
             <div className="wallets-detail__share">
-              <h4>Chia sẻ ví</h4>
-              {sharedEmails.length === 0 ? (
-                <p className="wallets-detail__share-empty">
-                  Hiện tại ví chưa được chia sẻ cho ai.
-                </p>
-              ) : (
-                <div className="wallet-share-list">
-                  {sharedEmails.map((email) => (
-                    <span
-                      key={email}
-                      className="wallet-share-pill wallet-share-pill--readonly"
-                    >
-                      {email}
-                    </span>
-                  ))}
-                </div>
+              <div className="wallets-detail__share-header">
+                <h4>Chia sẻ ví</h4>
+                {canInviteMembers && (
+                  <button
+                    type="button"
+                    className="wallet-share-add-btn"
+                    onClick={toggleQuickShareForm}
+                  >
+                    {showQuickShareForm ? "-" : "+"}
+                  </button>
+                )}
+              </div>
+              {canInviteMembers && showQuickShareForm && (
+                <form className="wallet-share-quick-form" onSubmit={handleQuickShareSubmit}>
+                  <input
+                    type="email"
+                    value={quickShareEmail}
+                    onChange={(e) => setQuickShareEmail(e.target.value)}
+                    placeholder="example@gmail.com"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!quickShareEmail.trim() || quickShareLoading}
+                  >
+                    {quickShareLoading ? "Đang chia sẻ..." : "Chia sẻ"}
+                  </button>
+                </form>
               )}
+              {quickShareMessage && (
+                <p className="wallet-share-quick-message">{quickShareMessage}</p>
+              )}
+              {renderShareSection()}
             </div>
           </div>
         </div>
@@ -735,6 +1125,80 @@ function DetailViewTab({ wallet, sharedEmails, demoTransactions, isLoadingTransa
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ManageMembersTab({
+  wallet,
+  sharedMembers = [],
+  sharedMembersLoading = false,
+  sharedMembersError = "",
+  onRemoveSharedMember,
+  removingMemberId,
+}) {
+  const ownerBadge = (role = "") => {
+    const upper = role.toUpperCase();
+    if (upper === "OWNER" || upper === "MASTER" || upper === "ADMIN") {
+      return "Chủ ví";
+    }
+    if (upper === "USE" || upper === "USER") return "Được sử dụng";
+    if (upper === "VIEW" || upper === "VIEWER") return "Chỉ xem";
+    return role;
+  };
+
+  const safeMembers = Array.isArray(sharedMembers) ? sharedMembers : [];
+
+  return (
+    <div className="wallets-section wallets-section--manage">
+      <div className="wallets-section__header">
+        <h3>Quản lý người dùng</h3>
+        <span>Kiểm soát danh sách người được chia sẻ ví "{wallet?.name}".</span>
+      </div>
+
+      <div className="wallets-manage-list">
+        {sharedMembersLoading && (
+          <div className="wallets-manage__state">Đang tải danh sách...</div>
+        )}
+        {!sharedMembersLoading && sharedMembersError && (
+          <div className="wallets-manage__state wallets-manage__state--error">
+            {sharedMembersError}
+          </div>
+        )}
+        {!sharedMembersLoading && !sharedMembersError && safeMembers.length === 0 && (
+          <div className="wallets-manage__state">
+            Chưa có người dùng nào được chia sẻ.
+          </div>
+        )}
+
+        {!sharedMembersLoading && !sharedMembersError && safeMembers.length > 0 && (
+          <ul>
+            {safeMembers.map((member) => {
+              const memberId = member.userId ?? member.memberUserId ?? member.memberId;
+              const role = member.role || "";
+              const isOwner = ["OWNER", "MASTER", "ADMIN"].includes(role.toUpperCase());
+              return (
+                <li key={memberId || member.email || role}>
+                  <div>
+                    <div className="wallets-manage__name">{member.fullName || member.name || member.email}</div>
+                    <div className="wallets-manage__meta">
+                      {member.email && <span>{member.email}</span>}
+                      {role && <span>{ownerBadge(role)}</span>}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveSharedMember?.(member)}
+                    disabled={isOwner || removingMemberId === memberId}
+                  >
+                    {removingMemberId === memberId ? "Đang xóa..." : "Xóa"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -1238,6 +1702,7 @@ function EditTab({
   setEditShareEmail,
   onAddEditShareEmail,
   onRemoveEditShareEmail,
+  shareWalletLoading = false,
   onSubmitEdit,
   onDeleteWallet,
 }) {
@@ -1425,8 +1890,9 @@ function EditTab({
                 type="button"
                 className="wallets-btn wallets-btn--ghost"
                 onClick={onAddEditShareEmail}
+                disabled={!editShareEmail?.trim() || shareWalletLoading}
               >
-                Thêm
+                {shareWalletLoading ? "Đang chia sẻ..." : "Thêm"}
               </button>
             </div>
           </label>

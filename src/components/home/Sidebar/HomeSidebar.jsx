@@ -25,7 +25,7 @@ export default function HomeSidebar() {
   }, [collapsed]);
 
   return (
-    <>
+    <div className={`sb__container ${collapsed ? "is-collapsed" : ""}`}>
       {/* ============================
           BRAND / LOGO VIDEO
          ============================ */}
@@ -89,6 +89,6 @@ export default function HomeSidebar() {
 
       {/* Footer (đệm dưới) */}
       <div className="sb__footer" />
-    </>
+    </div>
   );
 }

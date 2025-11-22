@@ -76,6 +76,9 @@
   border-radius: 0;
   box-shadow: none;
   padding: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.25) transparent;
 
   transition: width var(--sb-anim);
 }
@@ -83,6 +86,15 @@
 /* fallback nếu JS chưa apply biến (có cũng được, không có cũng ok) */
 .sb-collapsed .home__sidebar {
   width: var(--sb-wc);
+}
+
+.home__sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.home__sidebar::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
 }
 
 /* =========================================================

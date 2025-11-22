@@ -16,6 +16,23 @@
 }
 
 /* =========================================================
+   BASE CONTAINER
+   ========================================================= */
+.sb__container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 18px 16px 16px;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.sb-collapsed .sb__container {
+  align-items: center;
+  padding: 14px 10px;
+}
+
+/* =========================================================
    BRAND / LOGO VIDEO
    ========================================================= */
 
@@ -149,7 +166,16 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding-right: 2px;
+  padding-right: 4px;
+}
+
+.sb__scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sb__scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
 }
 
 /* =========================================================

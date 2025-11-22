@@ -1,5 +1,5 @@
 // src/pages/Home/WalletsPage.jsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
 import { useWalletData } from "../../home/store/WalletDataContext";
@@ -10,6 +10,20 @@ import Toast from "../../components/common/Toast/Toast";
 import "../../styles/home/WalletsPage.css";
 
 const CURRENCIES = ["VND", "USD"];
+
+const getLocalUserId = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      const user = JSON.parse(stored);
+      return user.userId || user.id || null;
+    }
+  } catch (error) {
+    console.error("Không thể đọc user từ localStorage:", error);
+  }
+  return null;
+};
 
 const DEMO_CATEGORIES = [
   { id: "cat-food", name: "Ăn uống" },
@@ -25,6 +39,106 @@ const buildWalletForm = (wallet) => ({
   isDefault: !!wallet?.isDefault,
   sharedEmails: wallet?.sharedEmails || [],
 });
+
+const DEMO_SHARED_WITH_ME = [
+  {
+    id: "demo-shared-wallet-1",
+    name: "Quỹ du lịch Hội An",
+    currency: "VND",
+    balance: 3250000,
+    note: "Lan Phạm chia sẻ quỹ chuyến đi.",
+    isShared: true,
+    ownerUserId: "demo-owner-lan",
+    ownerName: "Lan Phạm",
+    ownerEmail: "lan.pham@example.com",
+    walletRole: "MEMBER",
+    sharedRole: "USE",
+    membersCount: 3,
+    hasSharedMembers: true,
+    includeOverall: false,
+    includePersonal: false,
+    includeGroup: true,
+    color: "#E7F4F2",
+    isDemoShared: true,
+  },
+  {
+    id: "demo-shared-wallet-2",
+    name: "Quỹ từ thiện Noel",
+    currency: "VND",
+    balance: 1500000,
+    note: "Lan Phạm thêm bạn vào ví chung.",
+    isShared: true,
+    ownerUserId: "demo-owner-lan",
+    ownerName: "Lan Phạm",
+    ownerEmail: "lan.pham@example.com",
+    walletRole: "MEMBER",
+    sharedRole: "VIEW",
+    membersCount: 4,
+    hasSharedMembers: true,
+    includeOverall: false,
+    includePersonal: false,
+    includeGroup: true,
+    color: "#FDECEF",
+    isDemoShared: true,
+  },
+  {
+    id: "demo-shared-wallet-3",
+    name: "Ví tiền học nhóm",
+    currency: "USD",
+    balance: 220,
+    note: "Quốc Bảo chia sẻ phí workshop.",
+    isShared: true,
+    ownerUserId: "demo-owner-bao",
+    ownerName: "Quốc Bảo",
+    ownerEmail: "quoc.bao@example.com",
+    walletRole: "MEMBER",
+    sharedRole: "USE",
+    membersCount: 5,
+    hasSharedMembers: true,
+    includeOverall: false,
+    includePersonal: false,
+    includeGroup: true,
+    color: "#EEF2FF",
+    isDemoShared: true,
+  },
+];
+
+const buildOwnerId = (wallet) => {
+  if (wallet.ownerUserId) return `owner-${wallet.ownerUserId}`;
+  if (wallet.ownerEmail) return `owner-${wallet.ownerEmail}`;
+  if (wallet.ownerName) return `owner-${wallet.ownerName.replace(/\s+/g, "-").toLowerCase()}`;
+  return `owner-${wallet.id}`;
+};
+
+const normalizeOwnerName = (wallet) =>
+  wallet.ownerName || wallet.ownerFullName || wallet.ownerDisplayName || wallet.ownerEmail || "Người chia sẻ";
+
+const normalizeOwnerEmail = (wallet) => wallet.ownerEmail || wallet.ownerContact || "";
+
+const sortWalletsByMode = (walletList = [], sortMode = "default") => {
+  const arr = [...walletList];
+  arr.sort((a, b) => {
+    if ((a?.isDefault && !b?.isDefault) && sortMode === "default") return -1;
+    if ((!a?.isDefault && b?.isDefault) && sortMode === "default") return 1;
+
+    const nameA = (a?.name || "").toLowerCase();
+    const nameB = (b?.name || "").toLowerCase();
+    const balA = Number(a?.balance ?? a?.current ?? 0) || 0;
+    const balB = Number(b?.balance ?? b?.current ?? 0) || 0;
+
+    switch (sortMode) {
+      case "name_asc":
+        return nameA.localeCompare(nameB);
+      case "balance_desc":
+        return balB - balA;
+      case "balance_asc":
+        return balA - balB;
+      default:
+        return 0;
+    }
+  });
+  return arr;
+};
 
 /**
  * Format ngày theo múi giờ Việt Nam (UTC+7)
@@ -116,6 +230,21 @@ export default function WalletsPage() {
     setDefaultWallet,
   } = useWalletData();
 
+  const [currentUserId, setCurrentUserId] = useState(() => getLocalUserId());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleUserChange = () => {
+      setCurrentUserId(getLocalUserId());
+    };
+    window.addEventListener("userChanged", handleUserChange);
+    window.addEventListener("storage", handleUserChange);
+    return () => {
+      window.removeEventListener("userChanged", handleUserChange);
+      window.removeEventListener("storage", handleUserChange);
+    };
+  }, []);
+
   const { expenseCategories = [], incomeCategories = [] } = useCategoryData();
 
   const incomeCategoryOptions = useMemo(
@@ -128,6 +257,24 @@ export default function WalletsPage() {
     [expenseCategories]
   );
 
+  const [localSharedMap, setLocalSharedMap] = useState({});
+
+  const walletHasSharedMembers = useCallback((wallet) => {
+    if (!wallet) return false;
+    const localEmails = localSharedMap[wallet.id];
+    if (localEmails && localEmails.length) return true;
+    if (wallet.hasSharedMembers) return true;
+    const sharedEmails = wallet.sharedEmails || [];
+    if (sharedEmails.length > 0) return true;
+    const memberCount = Number(wallet.membersCount || 0);
+    if (memberCount > 1) return true;
+    const role = (wallet.walletRole || wallet.sharedRole || wallet.role || "").toUpperCase();
+    if (role && !["", "OWNER", "MASTER", "ADMIN"].includes(role)) {
+      return true;
+    }
+    return false;
+  }, [localSharedMap]);
+
   const personalWallets = useMemo(
     () => wallets.filter((w) => !w.isShared),
     [wallets]
@@ -137,9 +284,91 @@ export default function WalletsPage() {
     [wallets]
   );
 
+  const sharedCandidates = useMemo(
+    () => wallets.filter((w) => walletHasSharedMembers(w) || w.isShared),
+    [wallets, walletHasSharedMembers]
+  );
+
+  const isWalletOwnedByMe = useCallback(
+    (wallet) => {
+      if (!wallet) return false;
+      if (!(wallet.isShared || walletHasSharedMembers(wallet))) return false;
+      const role = (wallet.walletRole || wallet.sharedRole || wallet.role || "").toUpperCase();
+      if (role) {
+        if (["OWNER", "MASTER", "ADMIN"].includes(role)) return true;
+        if (["MEMBER", "VIEW", "VIEWER", "USER", "USE"].includes(role)) return false;
+      }
+      if (wallet.ownerUserId && currentUserId) {
+        return String(wallet.ownerUserId) === String(currentUserId);
+      }
+      return true;
+    },
+    [currentUserId, walletHasSharedMembers]
+  );
+
+  const sharedByMeWallets = useMemo(
+    () => sharedCandidates.filter((w) => isWalletOwnedByMe(w)),
+    [sharedCandidates, isWalletOwnedByMe]
+  );
+  const sharedWithMeWallets = useMemo(
+    () => sharedCandidates.filter((w) => !isWalletOwnedByMe(w)),
+    [sharedCandidates, isWalletOwnedByMe]
+  );
+
+  const sharedWithMeDisplayWallets = useMemo(() => {
+    const normalizedActual = sharedWithMeWallets.map((wallet) => ({
+      ...wallet,
+      ownerName: normalizeOwnerName(wallet),
+      ownerEmail: normalizeOwnerEmail(wallet),
+    }));
+    const demoWallets = DEMO_SHARED_WITH_ME.map((wallet) => ({
+      ...wallet,
+      ownerName: normalizeOwnerName(wallet),
+      ownerEmail: normalizeOwnerEmail(wallet),
+    }));
+    return [...normalizedActual, ...demoWallets];
+  }, [sharedWithMeWallets]);
+
+  const [sharedFilter, setSharedFilter] = useState("sharedByMe");
+  const sharedWallets = useMemo(() => {
+    return sharedFilter === "sharedWithMe"
+      ? sharedWithMeWallets
+      : sharedByMeWallets;
+  }, [sharedFilter, sharedByMeWallets, sharedWithMeWallets]);
+
   const [activeTab, setActiveTab] = useState("personal");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("default");
+
+  const sharedWithMeOwnerGroups = useMemo(() => {
+    const keyword = (search || "").trim().toLowerCase();
+    const ownersMap = new Map();
+
+    sharedWithMeDisplayWallets.forEach((wallet) => {
+      const matchesKeyword = keyword
+        ? [wallet.name, wallet.note, wallet.ownerName, wallet.ownerEmail]
+            .filter(Boolean)
+            .some((text) => text.toLowerCase().includes(keyword))
+        : true;
+      if (!matchesKeyword) return;
+
+      const ownerId = buildOwnerId(wallet);
+      if (!ownersMap.has(ownerId)) {
+        ownersMap.set(ownerId, {
+          id: ownerId,
+          displayName: normalizeOwnerName(wallet),
+          email: normalizeOwnerEmail(wallet),
+          wallets: [],
+        });
+      }
+      ownersMap.get(ownerId).wallets.push(wallet);
+    });
+
+    return Array.from(ownersMap.values()).map((owner) => ({
+      ...owner,
+      wallets: sortWalletsByMode(owner.wallets, sortBy),
+    }));
+  }, [sharedWithMeDisplayWallets, search, sortBy]);
 
   const [selectedId, setSelectedId] = useState(null);
   const selectedWallet = useMemo(
@@ -147,6 +376,11 @@ export default function WalletsPage() {
       wallets.find((w) => String(w.id) === String(selectedId)) || null,
     [wallets, selectedId]
   );
+
+  const shouldForceLoadMembers = useMemo(() => {
+    if (!selectedWallet) return false;
+    return walletHasSharedMembers(selectedWallet);
+  }, [selectedWallet, walletHasSharedMembers]);
 
   const [activeDetailTab, setActiveDetailTab] = useState("view");
 
@@ -157,6 +391,56 @@ export default function WalletsPage() {
 
   const [editForm, setEditForm] = useState(buildWalletForm());
   const [editShareEmail, setEditShareEmail] = useState("");
+  const [shareWalletLoading, setShareWalletLoading] = useState(false);
+  const [selectedSharedOwnerId, setSelectedSharedOwnerId] = useState(null);
+  const [selectedSharedOwnerWalletId, setSelectedSharedOwnerWalletId] = useState(null);
+
+  const selectedWalletSharedEmails = useMemo(() => {
+    if (!selectedWallet?.id) return [];
+    const apiEmails = Array.isArray(selectedWallet.sharedEmails)
+      ? selectedWallet.sharedEmails
+      : [];
+    const localEmails = localSharedMap[selectedWallet.id] || [];
+    const editEmails = Array.isArray(editForm.sharedEmails)
+      ? editForm.sharedEmails
+      : [];
+    const mergedSet = new Set(
+      apiEmails.filter((email) => typeof email === "string" && email.trim())
+    );
+    [...localEmails, ...editEmails].forEach((email) => {
+      if (typeof email === "string" && email.trim()) {
+        mergedSet.add(email.trim());
+      }
+    });
+    return Array.from(mergedSet);
+  }, [selectedWallet?.id, selectedWallet?.sharedEmails, localSharedMap, editForm.sharedEmails]);
+
+  const selectedWalletEmailSet = useMemo(() => {
+    if (!selectedWallet?.id) return new Set();
+    const combine = [];
+    if (Array.isArray(selectedWallet.sharedEmails)) {
+      combine.push(...selectedWallet.sharedEmails);
+    }
+    if (localSharedMap[selectedWallet.id]) {
+      combine.push(...localSharedMap[selectedWallet.id]);
+    }
+    if (Array.isArray(editForm.sharedEmails)) {
+      combine.push(...editForm.sharedEmails);
+    }
+    return new Set(
+      combine
+        .map((email) =>
+          typeof email === "string" ? email.trim().toLowerCase() : ""
+        )
+        .filter(Boolean)
+    );
+  }, [selectedWallet?.id, selectedWallet?.sharedEmails, localSharedMap, editForm.sharedEmails]);
+
+  const canInviteSelectedWallet = useMemo(() => {
+    if (!selectedWallet) return false;
+    if (!selectedWallet.isShared) return true;
+    return isWalletOwnedByMe(selectedWallet);
+  }, [selectedWallet, isWalletOwnedByMe]);
 
   const [mergeTargetId, setMergeTargetId] = useState("");
 
@@ -178,6 +462,12 @@ export default function WalletsPage() {
     type: "success",
   });
 
+  const [demoNavigationState, setDemoNavigationState] = useState({
+    visible: false,
+    walletName: "",
+  });
+  const demoNavigationTimeoutRef = useRef(null);
+
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [transactionsRefreshKey, setTransactionsRefreshKey] = useState(0);
@@ -187,8 +477,153 @@ export default function WalletsPage() {
   const closeToast = () =>
     setToast((prev) => ({ ...prev, open: false }));
 
-  const currentList =
-    activeTab === "personal" ? personalWallets : groupWallets;
+  const markLocalShared = useCallback((walletId, emails = []) => {
+    const cleanEmails = emails
+      .map((email) => email?.trim())
+      .filter((email) => !!email);
+    if (!walletId || !cleanEmails.length) return;
+    setLocalSharedMap((prev) => {
+      const existing = prev[walletId] || [];
+      const merged = Array.from(new Set([...existing, ...cleanEmails]));
+      if (merged.length === existing.length) {
+        return prev;
+      }
+      return { ...prev, [walletId]: merged };
+    });
+  }, []);
+
+  const shareEmailForSelectedWallet = useCallback(
+    async (rawEmail) => {
+      const email = rawEmail?.trim();
+      if (!email) {
+        const message = "Vui lòng nhập email hợp lệ.";
+        showToast(message, "error");
+        return { success: false, message };
+      }
+      if (!selectedWallet?.id) {
+        const message = "Vui lòng chọn ví trước khi chia sẻ.";
+        showToast(message, "error");
+        return { success: false, message };
+      }
+      const normalized = email.toLowerCase();
+      if (selectedWalletEmailSet.has(normalized)) {
+        const message = "Email này đã nằm trong danh sách chia sẻ.";
+        showToast(message, "error");
+        return { success: false, message };
+      }
+
+      try {
+        setShareWalletLoading(true);
+        await walletAPI.shareWallet(selectedWallet.id, email);
+        markLocalShared(selectedWallet.id, [email]);
+        setEditForm((prev) => {
+          const list = prev.sharedEmails || [];
+          if (list.includes(email)) return prev;
+          return { ...prev, sharedEmails: [...list, email] };
+        });
+        showToast(`Đã chia sẻ ví cho ${email}`);
+        await loadWallets();
+        return { success: true };
+      } catch (error) {
+        const message = error.message || "Không thể chia sẻ ví";
+        showToast(message, "error");
+        return { success: false, message };
+      } finally {
+        setShareWalletLoading(false);
+      }
+    },
+    [
+      selectedWallet?.id,
+      selectedWalletEmailSet,
+      markLocalShared,
+      loadWallets,
+      showToast,
+      setEditForm,
+    ]
+  );
+
+  useEffect(() => {
+    if (activeTab !== "shared" || sharedFilter !== "sharedWithMe") {
+      setSelectedSharedOwnerId(null);
+      setSelectedSharedOwnerWalletId(null);
+      return;
+    }
+    if (!sharedWithMeOwnerGroups.length) {
+      setSelectedSharedOwnerId(null);
+      setSelectedSharedOwnerWalletId(null);
+      return;
+    }
+    setSelectedSharedOwnerId((prev) => {
+      if (prev && sharedWithMeOwnerGroups.some((owner) => owner.id === prev)) {
+        return prev;
+      }
+      return sharedWithMeOwnerGroups[0]?.id || null;
+    });
+  }, [activeTab, sharedFilter, sharedWithMeOwnerGroups]);
+
+  useEffect(() => {
+    if (!selectedSharedOwnerId) {
+      if (selectedSharedOwnerWalletId !== null) {
+        setSelectedSharedOwnerWalletId(null);
+      }
+      return;
+    }
+    const owner = sharedWithMeOwnerGroups.find((o) => o.id === selectedSharedOwnerId);
+    if (!owner) {
+      if (selectedSharedOwnerWalletId !== null) {
+        setSelectedSharedOwnerWalletId(null);
+      }
+      return;
+    }
+    if (
+      selectedSharedOwnerWalletId &&
+      !owner.wallets.some((wallet) => String(wallet.id) === String(selectedSharedOwnerWalletId))
+    ) {
+      setSelectedSharedOwnerWalletId(null);
+    }
+  }, [selectedSharedOwnerId, sharedWithMeOwnerGroups, selectedSharedOwnerWalletId]);
+
+  const handleSelectSharedOwner = useCallback((ownerId) => {
+    setSelectedSharedOwnerId(ownerId);
+    setSelectedSharedOwnerWalletId(null);
+  }, []);
+
+  const handleSelectSharedOwnerWallet = useCallback((walletId) => {
+    setSelectedSharedOwnerWalletId((prev) =>
+      prev && String(prev) === String(walletId) ? null : walletId
+    );
+  }, []);
+
+  const handleDemoViewWallet = useCallback((wallet) => {
+    if (!wallet) return;
+    if (demoNavigationTimeoutRef.current) {
+      clearTimeout(demoNavigationTimeoutRef.current);
+    }
+    setDemoNavigationState({
+      visible: true,
+      walletName: wallet.name || "ví được chia sẻ",
+    });
+    demoNavigationTimeoutRef.current = setTimeout(() => {
+      setDemoNavigationState({ visible: false, walletName: "" });
+    }, 3000);
+  }, []);
+
+  const handleDemoCancelSelection = useCallback(() => {
+    setSelectedSharedOwnerWalletId(null);
+  }, []);
+
+  useEffect(() => () => {
+    if (demoNavigationTimeoutRef.current) {
+      clearTimeout(demoNavigationTimeoutRef.current);
+    }
+  }, []);
+
+  const currentList = useMemo(() => {
+    if (activeTab === "personal") return personalWallets;
+    if (activeTab === "group") return groupWallets;
+    if (activeTab === "shared") return sharedWallets;
+    return personalWallets;
+  }, [activeTab, personalWallets, groupWallets, sharedWallets]);
 
   const filteredWallets = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -200,30 +635,10 @@ export default function WalletsPage() {
     });
   }, [currentList, search]);
 
-  const sortedWallets = useMemo(() => {
-    const arr = [...filteredWallets];
-    arr.sort((a, b) => {
-      if (a.isDefault && !b.isDefault) return -1;
-      if (!a.isDefault && b.isDefault) return 1;
-
-      const nameA = (a.name || "").toLowerCase();
-      const nameB = (b.name || "").toLowerCase();
-      const balA = Number(a.balance ?? a.current ?? 0) || 0;
-      const balB = Number(b.balance ?? b.current ?? 0) || 0;
-
-      switch (sortBy) {
-        case "name_asc":
-          return nameA.localeCompare(nameB);
-        case "balance_desc":
-          return balB - balA;
-        case "balance_asc":
-          return balA - balB;
-        default:
-          return 0;
-      }
-    });
-    return arr;
-  }, [filteredWallets, sortBy]);
+  const sortedWallets = useMemo(
+    () => sortWalletsByMode(filteredWallets, sortBy),
+    [filteredWallets, sortBy]
+  );
 
   useEffect(() => {
     setEditForm(buildWalletForm(selectedWallet));
@@ -244,18 +659,13 @@ export default function WalletsPage() {
 
   useEffect(() => {
     if (!selectedId) return;
-    const w = wallets.find((x) => String(x.id) === String(selectedId));
-    if (!w) {
-      setSelectedId(null);
-      return;
-    }
-    if (activeTab === "personal" && w.isShared) {
+    const isStillVisible = currentList.some(
+      (item) => String(item.id) === String(selectedId)
+    );
+    if (!isStillVisible) {
       setSelectedId(null);
     }
-    if (activeTab === "group" && !w.isShared) {
-      setSelectedId(null);
-    }
-  }, [activeTab, wallets, selectedId]);
+  }, [currentList, selectedId]);
 
   // Helper function để tính tỷ giá
   const getRate = (from, to) => {
@@ -308,6 +718,21 @@ export default function WalletsPage() {
       window.removeEventListener('currencySettingChanged', handleCurrencyChange);
     };
   }, []);
+
+  useEffect(() => {
+    setLocalSharedMap((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      wallets.forEach((wallet) => {
+        const hasServerShare = wallet?.hasSharedMembers || (wallet?.sharedEmails?.length > 0) || (wallet?.membersCount > 1);
+        if (hasServerShare && next[wallet.id]) {
+          delete next[wallet.id];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [wallets]);
 
   // Format số tiền
   const formatMoney = (amount = 0, currency = "VND") => {
@@ -380,9 +805,39 @@ export default function WalletsPage() {
     }));
   };
 
+  const shareWalletWithEmails = useCallback(async (walletId, emails = []) => {
+    const results = { success: 0, failed: [], successEmails: [] };
+    if (!walletId || !emails.length) {
+      return results;
+    }
+
+    for (const rawEmail of emails) {
+      const email = rawEmail?.trim();
+      if (!email) continue;
+      try {
+        await walletAPI.shareWallet(walletId, email);
+        results.success += 1;
+        results.successEmails.push(email);
+      } catch (error) {
+        results.failed.push({ email, message: error.message || "Không thể chia sẻ ví" });
+      }
+    }
+
+    if (results.successEmails.length) {
+      markLocalShared(walletId, results.successEmails);
+    }
+
+    return results;
+  }, [markLocalShared]);
+
   const handleSubmitCreate = async (e) => {
     e.preventDefault();
     if (!createWallet) return;
+
+    const shareEmails = createShareEnabled
+      ? createForm.sharedEmails.map((email) => email.trim()).filter(Boolean)
+      : [];
+
     try {
       const payload = {
         name: createForm.name.trim(),
@@ -391,13 +846,40 @@ export default function WalletsPage() {
         isDefault: !!createForm.isDefault,
         isShared: false,
       };
+
       const created = await createWallet(payload);
-      showToast(`Đã tạo ví cá nhân "${created?.name || createForm.name}"`);
-      if (created?.id) {
-        setSelectedId(created.id);
-        setActiveDetailTab("view");
-        setActiveTab(created.isShared ? "group" : "personal");
+
+      if (!created?.id) {
+        throw new Error("Không nhận được thông tin ví vừa tạo");
       }
+
+      let shareResult = { success: 0, failed: [] };
+      if (shareEmails.length) {
+        shareResult = await shareWalletWithEmails(created.id, shareEmails);
+        await loadWallets();
+      }
+
+      const hasSuccessfulShare = shareResult.success > 0;
+      const hasFailedShare = shareResult.failed.length > 0;
+
+      if (shareEmails.length) {
+        if (hasSuccessfulShare && !hasFailedShare) {
+          showToast(`Đã tạo và chia sẻ ví "${created.name || createForm.name}" cho ${shareResult.success} người`);
+        } else if (hasSuccessfulShare && hasFailedShare) {
+          const failedEmails = shareResult.failed.map((item) => item.email).join(", ");
+          showToast(`Đã tạo ví nhưng không thể chia sẻ cho: ${failedEmails}`, "error");
+        } else {
+          const failedEmails = shareEmails.join(", ");
+          showToast(`Không thể chia sẻ ví cho: ${failedEmails}`, "error");
+        }
+      } else {
+        showToast(`Đã tạo ví cá nhân "${created.name || createForm.name}"`);
+      }
+
+      setSelectedId(created.id);
+      setActiveDetailTab("view");
+      setActiveTab("personal");
+
       setCreateForm(buildWalletForm());
       setCreateShareEmail("");
       setCreateShareEnabled(false);
@@ -411,15 +893,11 @@ export default function WalletsPage() {
     setEditForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleAddEditShareEmail = () => {
-    const email = editShareEmail.trim();
-    if (!email) return;
-    setEditForm((prev) => {
-      const list = prev.sharedEmails || [];
-      if (list.includes(email)) return prev;
-      return { ...prev, sharedEmails: [...list, email] };
-    });
-    setEditShareEmail("");
+  const handleAddEditShareEmail = async () => {
+    const result = await shareEmailForSelectedWallet(editShareEmail);
+    if (result?.success) {
+      setEditShareEmail("");
+    }
   };
 
   const handleRemoveEditShareEmail = (email) => {
@@ -790,6 +1268,11 @@ export default function WalletsPage() {
           onTabChange={setActiveTab}
           personalCount={personalWallets.length}
           groupCount={groupWallets.length}
+          sharedCount={sharedByMeWallets.length + sharedWithMeDisplayWallets.length}
+          sharedFilter={sharedFilter}
+          onSharedFilterChange={setSharedFilter}
+          sharedByMeCount={sharedByMeWallets.length}
+          sharedWithMeCount={sharedWithMeDisplayWallets.length}
           search={search}
           onSearchChange={setSearch}
           sortBy={sortBy}
@@ -797,11 +1280,26 @@ export default function WalletsPage() {
           wallets={sortedWallets}
           selectedId={selectedId}
           onSelectWallet={handleSelectWallet}
+          sharedWithMeOwners={sharedWithMeOwnerGroups}
+          selectedSharedOwnerId={selectedSharedOwnerId}
+          onSelectSharedOwner={handleSelectSharedOwner}
         />
 
         <WalletDetail
                       wallet={selectedWallet}
           walletTabType={activeTab}
+          sharedFilter={sharedFilter}
+          sharedEmailsOverride={selectedWalletSharedEmails}
+          forceLoadSharedMembers={shouldForceLoadMembers}
+          canInviteMembers={canInviteSelectedWallet}
+          onQuickShareEmail={shareEmailForSelectedWallet}
+          quickShareLoading={shareWalletLoading}
+          sharedWithMeOwners={sharedWithMeOwnerGroups}
+          selectedSharedOwnerId={selectedSharedOwnerId}
+          selectedSharedOwnerWalletId={selectedSharedOwnerWalletId}
+          onSelectSharedOwnerWallet={handleSelectSharedOwnerWallet}
+          onSharedWalletDemoView={handleDemoViewWallet}
+          onSharedWalletDemoCancel={handleDemoCancelSelection}
           currencies={CURRENCIES}
           incomeCategories={incomeCategoryOptions}
           expenseCategories={expenseCategoryOptions}
@@ -826,6 +1324,7 @@ export default function WalletsPage() {
           editShareEmail={editShareEmail}
           setEditShareEmail={setEditShareEmail}
           onAddEditShareEmail={handleAddEditShareEmail}
+          shareWalletLoading={shareWalletLoading}
           onRemoveEditShareEmail={handleRemoveEditShareEmail}
           onSubmitEdit={handleSubmitEdit}
           mergeTargetId={mergeTargetId}
@@ -865,6 +1364,20 @@ export default function WalletsPage() {
         duration={2500}
         onClose={closeToast}
       />
+
+        {demoNavigationState.visible && (
+          <div className="wallets-demo-overlay">
+            <div className="wallets-demo-overlay__box">
+              <p className="wallets-demo-overlay__title">Đang điều hướng đến trang…</p>
+              {demoNavigationState.walletName && (
+                <p className="wallets-demo-overlay__wallet">{demoNavigationState.walletName}</p>
+              )}
+              <span className="wallets-demo-overlay__hint">
+                Đây là bản demo, chức năng sẽ được hoàn thiện trong bản chính thức.
+              </span>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
