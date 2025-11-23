@@ -222,8 +222,15 @@ export default function TransactionsPage() {
 
   // Load transactions from API
   useEffect(() => {
-
     const loadTransactions = async () => {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        setExternalTransactions([]);
+        setInternalTransactions([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         // Load external transactions
@@ -247,13 +254,39 @@ export default function TransactionsPage() {
       }
     };
 
+    // Load ngay khi mount hoặc khi có wallets
     if (hasWallets) {
       loadTransactions();
     } else {
-      setExternalTransactions([]);
-      setInternalTransactions([]);
-      setLoading(false);
+      // Nếu chưa có wallets nhưng có token, vẫn thử load (có thể wallets đang load)
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        loadTransactions();
+      } else {
+        setExternalTransactions([]);
+        setInternalTransactions([]);
+        setLoading(false);
+      }
     }
+
+    // Lắng nghe event khi user đăng nhập
+    const handleUserChange = () => {
+      loadTransactions();
+    };
+    window.addEventListener("userChanged", handleUserChange);
+
+    // Lắng nghe storage event
+    const handleStorageChange = (e) => {
+      if (e.key === "accessToken" || e.key === "user" || e.key === "auth_user") {
+        loadTransactions();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("userChanged", handleUserChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, [hasWallets, mapTransactionToFrontend, mapTransferToFrontend]);
 
   // Apply wallet filter when navigated with ?focus=<walletId|walletName>

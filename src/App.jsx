@@ -20,6 +20,7 @@ import FeedbackPage from "./pages/Home/FeedbackPage";
 
 import FundsPage from "./pages/Home/FundsPage"; 
 import CategoriesPage from "./pages/Home/CategoriesPage";
+import AdminUsersPage from "./pages/Admin/AdminUsersPage";
 
 export default function App() {
   return (
@@ -47,6 +48,13 @@ export default function App() {
     <Route path="feedback" element={<FeedbackPage />} />
     
     <Route path="funds" element={<FundsPage />} />
+  </Route>
+  {/* ADMIN: yêu cầu role ADMIN */}
+  <Route element={<ProtectedRoute requiredRoles={["ADMIN"]} />}>
+    {/* ADMIN dùng lại HomeLayout để giữ sidebar/topbar */}
+    <Route path="/admin/*" element={<HomeLayout />}>
+      <Route path="users" element={<AdminUsersPage />} />
+    </Route>
   </Route>
 </Route>
 

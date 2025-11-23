@@ -9,6 +9,8 @@ import "./styles/variables.css";
 import { WalletDataProvider } from "./home/store/WalletDataContext";
 import { BudgetDataProvider } from "./home/store/BudgetDataContext";
 import { CategoryDataProvider } from "./home/store/CategoryDataContext";
+import { AuthProvider } from "./home/store/AuthContext";
+import { ToastProvider } from "./components/common/Toast/ToastContext";
 
 // Global error handler để bắt unhandled promise rejections
 window.addEventListener('unhandledrejection', (event) => {
@@ -24,14 +26,18 @@ window.addEventListener('error', (event) => {
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {/* ✅ Wrap with providers - CategoryDataProvider first, then others */}
-    <CategoryDataProvider>
-      <WalletDataProvider>
-        <BudgetDataProvider>
-          <App />
-        </BudgetDataProvider>
-      </WalletDataProvider>
-    </CategoryDataProvider>
+    {/* ✅ Wrap with providers - AuthProvider first, then others */}
+    <AuthProvider>
+      <ToastProvider>
+        <CategoryDataProvider>
+          <WalletDataProvider>
+            <BudgetDataProvider>
+              <App />
+            </BudgetDataProvider>
+          </WalletDataProvider>
+        </CategoryDataProvider>
+      </ToastProvider>
+    </AuthProvider>
   </React.StrictMode>
 );
 

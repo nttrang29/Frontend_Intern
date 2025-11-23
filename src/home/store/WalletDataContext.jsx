@@ -23,10 +23,40 @@ export function WalletDataProvider({ children }) {
     { id: 11, name: "Đầu tư",  description: "", walletIds: [], budgetWalletId: null, isDefault: false, createdAt: "2025-11-02T09:00:00Z" },
   ]);
 
-  // Load wallets từ API khi component mount
+  // Load wallets từ API khi component mount hoặc khi user đăng nhập (chỉ khi có token)
   useEffect(() => {
-    loadWallets();
-  }, []);
+    const loadWalletsIfToken = async () => {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        await loadWallets();
+      } else {
+        setWallets([]);
+        setLoading(false);
+      }
+    };
+
+    // Load ngay khi mount
+    loadWalletsIfToken();
+
+    // Lắng nghe custom event khi user đăng nhập/đăng xuất trong cùng tab
+    const handleUserChange = () => {
+      loadWalletsIfToken();
+    };
+    window.addEventListener("userChanged", handleUserChange);
+
+    // Lắng nghe sự kiện storage để reload khi user đăng nhập/đăng xuất từ tab khác
+    const handleStorageChange = (e) => {
+      if (e.key === "accessToken" || e.key === "user" || e.key === "auth_user") {
+        loadWalletsIfToken();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("userChanged", handleUserChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Màu mặc định cho ví (theo hình 2)
   const DEFAULT_WALLET_COLOR = "#2D99AE";

@@ -103,7 +103,48 @@ async function apiCall(endpoint, options = {}) {
 
 export const authAPI = {
   /**
-   * Đăng ký tài khoản
+   * Đăng ký tài khoản - Bước 1: Yêu cầu OTP
+   * @param {string} fullName 
+   * @param {string} email 
+   */
+  registerRequestOtp: async (fullName, email) => {
+    return apiCall('/auth/register-request-otp', {
+      method: 'POST',
+      body: JSON.stringify({
+        fullName,
+        email,
+      }),
+    });
+  },
+
+  /**
+   * Đăng ký tài khoản - Bước 2: Xác thực OTP và tạo tài khoản
+   * @param {string} email 
+   * @param {string} otp 
+   * @param {string} password 
+   * @param {string} fullName 
+   */
+  verifyRegisterOtp: async (email, otp, password, fullName) => {
+    const data = await apiCall('/auth/verify-register-otp', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        otp,
+        password,
+        fullName,
+      }),
+    });
+    
+    // Lưu token vào localStorage
+    if (data.token) {
+      localStorage.setItem('accessToken', data.token);
+    }
+    
+    return data;
+  },
+
+  /**
+   * Đăng ký tài khoản (CŨ - giữ lại để tương thích)
    * @param {string} fullName 
    * @param {string} email 
    * @param {string} password 
@@ -154,15 +195,19 @@ export const authAPI = {
       body: JSON.stringify({ email, password }),
     });
     
-    // ✅ Kiểm tra xem có accessToken không - nếu không có thì throw error
-    if (!data || !data.accessToken) {
+    // ✅ Kiểm tra xem có token không (format mới) hoặc accessToken (format cũ)
+    if (!data || (!data.token && !data.accessToken)) {
       throw new Error("Đăng nhập thất bại. Email hoặc mật khẩu không đúng.");
     }
     
     // Lưu token vào localStorage
-    localStorage.setItem('accessToken', data.accessToken);
-    if (data.refreshToken) {
-      localStorage.setItem('refreshToken', data.refreshToken);
+    if (data.token) {
+      localStorage.setItem('accessToken', data.token);
+    } else if (data.accessToken) {
+      localStorage.setItem('accessToken', data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
     }
     
     return data;
@@ -186,7 +231,7 @@ export const authAPI = {
   },
 
   /**
-   * Quên mật khẩu
+   * Quên mật khẩu - Bước 1: Gửi OTP
    * @param {string} email 
    */
   forgotPassword: async (email) => {
@@ -197,13 +242,43 @@ export const authAPI = {
   },
 
   /**
-   * Đặt lại mật khẩu
+   * Quên mật khẩu - Bước 2: Xác nhận OTP, nhận resetToken
+   * @param {string} email 
+   * @param {string} otp 
+   */
+  verifyForgotOtp: async (email, otp) => {
+    return apiCall('/auth/verify-forgot-otp', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        otp,
+      }),
+    });
+  },
+
+  /**
+   * Quên mật khẩu - Bước 3: Đặt lại mật khẩu với resetToken
+   * @param {string} resetToken 
+   * @param {string} newPassword 
+   */
+  resetPassword: async (resetToken, newPassword) => {
+    return apiCall('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        resetToken,
+        newPassword,
+      }),
+    });
+  },
+
+  /**
+   * Đặt lại mật khẩu (CŨ - giữ lại để tương thích)
    * @param {string} email 
    * @param {string} otp 
    * @param {string} newPassword 
    * @param {string} confirmPassword 
    */
-  resetPassword: async (email, otp, newPassword, confirmPassword) => {
+  resetPasswordOld: async (email, otp, newPassword, confirmPassword) => {
     return apiCall('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify({
@@ -220,6 +295,52 @@ export const authAPI = {
    */
   getMe: async () => {
     return apiCall('/auth/me');
+  },
+
+  /**
+   * Đổi mật khẩu khi đã đăng nhập
+   * @param {string} oldPassword 
+   * @param {string} newPassword 
+   */
+  changePassword: async (oldPassword, newPassword) => {
+    return apiCall('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        oldPassword,
+        newPassword,
+      }),
+    });
+  },
+
+  /**
+   * Đăng nhập bằng Google
+   * @param {string} idToken - Google ID Token
+   */
+  loginWithGoogle: async (idToken) => {
+    const data = await apiCall('/auth/google-login', {
+      method: 'POST',
+      body: JSON.stringify({ idToken }),
+    });
+    
+    // Lưu token vào localStorage
+    if (data.token) {
+      localStorage.setItem('accessToken', data.token);
+    }
+    
+    return data;
+  },
+
+  /**
+   * Đặt mật khẩu lần đầu cho tài khoản Google
+   * @param {string} newPassword 
+   */
+  setFirstPassword: async (newPassword) => {
+    return apiCall('/auth/set-first-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        newPassword,
+      }),
+    });
   },
 
   /**
@@ -740,14 +861,113 @@ export const googleOAuthAPI = {
 };
 
 /**
+ * ============================================
+ * ADMIN APIs
+ * ============================================
+ */
+
+export const adminAPI = {
+  /**
+   * Lấy danh sách tất cả users (Admin only)
+   */
+  getUsers: async () => {
+    return apiCall('/admin/users');
+  },
+
+  /**
+   * Lấy chi tiết 1 user
+   * @param {number} userId 
+   */
+  getUserDetail: async (userId) => {
+    return apiCall(`/admin/users/${userId}/detail`);
+  },
+
+  /**
+   * Khóa user
+   * @param {number} userId 
+   */
+  lockUser: async (userId) => {
+    return apiCall(`/admin/users/${userId}/lock`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Mở khóa user
+   * @param {number} userId 
+   */
+  unlockUser: async (userId) => {
+    return apiCall(`/admin/users/${userId}/unlock`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Đổi role user
+   * @param {number} userId 
+   * @param {string} role - "USER" hoặc "ADMIN"
+   */
+  changeUserRole: async (userId, role) => {
+    return apiCall(`/admin/users/${userId}/role`, {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  /**
+   * Xóa user (soft delete)
+   * @param {number} userId 
+   */
+  deleteUser: async (userId) => {
+    return apiCall(`/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Lấy login logs của 1 user
+   * @param {number} userId 
+   */
+  getUserLoginLogs: async (userId) => {
+    return apiCall(`/admin/users/${userId}/login-logs`);
+  },
+
+  /**
+   * Lấy admin action logs
+   */
+  getAdminLogs: async () => {
+    return apiCall('/admin/users/logs');
+  },
+};
+
+/**
+ * ============================================
+ * LOGIN LOGS APIs
+ * ============================================
+ */
+
+export const loginLogAPI = {
+  /**
+   * User tự xem login logs của mình
+   */
+  getMyLoginLogs: async () => {
+    return apiCall('/me/login-logs');
+  },
+};
+
+/**
  * Export default object chứa tất cả APIs
  */
-export default {
+const apiClient = {
   auth: authAPI,
   profile: profileAPI,
   wallet: walletAPI,
   transaction: transactionAPI,
   category: categoryAPI,
   googleOAuth: googleOAuthAPI,
+  admin: adminAPI,
+  loginLog: loginLogAPI,
 };
+
+export default apiClient;
 

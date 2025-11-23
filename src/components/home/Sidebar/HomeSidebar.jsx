@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import "../../../styles/home/Sidebar.css";
+import { useAuth, ROLES } from "../../../home/store/AuthContext";
 
-const MENU = [
+const BASE_MENU = [
   { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
   { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" },
   { to: "/home/funds", label: "Quỹ", icon: "bi-piggy-bank" },
@@ -18,6 +19,37 @@ export default function HomeSidebar() {
   const [collapsed, setCollapsed] = useState(
     localStorage.getItem("sb_collapsed") === "1"
   );
+  const { currentUser } = useAuth();
+
+  // =============================
+  // Build menu - thêm menu admin nếu user là ADMIN
+  // =============================
+  const MENU = [...BASE_MENU];
+  
+  // Debug: log để kiểm tra role
+  useEffect(() => {
+    console.log("HomeSidebar - currentUser:", currentUser);
+    console.log("HomeSidebar - currentUser?.role:", currentUser?.role);
+    console.log("HomeSidebar - ROLES.ADMIN:", ROLES.ADMIN);
+    console.log("HomeSidebar - Is admin?", currentUser?.role === ROLES.ADMIN || (currentUser?.role && currentUser.role.toUpperCase() === "ADMIN"));
+  }, [currentUser]);
+  
+  // Kiểm tra role ADMIN (hỗ trợ cả "ADMIN" và "ROLE_ADMIN")
+  const isAdmin = currentUser?.role && (
+    currentUser.role === ROLES.ADMIN ||
+    currentUser.role.toUpperCase() === "ADMIN" ||
+    currentUser.role.toUpperCase().includes("ADMIN")
+  );
+  
+  if (isAdmin) {
+    MENU.push(
+      {
+        to: "/admin/users",
+        label: "Quản lý người dùng",
+        icon: "bi-people-fill",
+      }
+    );
+  }
 
   useEffect(() => {
     document.body.classList.toggle("sb-collapsed", collapsed);
