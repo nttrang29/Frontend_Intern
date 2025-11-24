@@ -8,6 +8,7 @@ export default function CategoryFormModal({
   typeLabel = "chi phí",
   onSubmit,
   onClose,
+  isAdmin,
 }) {
   // initialValue can be a string (name) or object { name, description }
   const [name, setName] = useState(
@@ -49,7 +50,12 @@ export default function CategoryFormModal({
       setError("Tên danh mục tối đa 40 ký tự");
       return;
     }
-    onSubmit && onSubmit({ name: trimmed, description: (description || "").trim() });
+    onSubmit &&
+      onSubmit({
+        name: trimmed,
+        description: (description || "").trim(),
+        isSystem: !!isAdmin,
+      });
   };
 
   if (!open) return null;
@@ -94,6 +100,13 @@ export default function CategoryFormModal({
             />
           </div>
 
+          {isAdmin && (
+            <div className="alert alert-info py-2 small mb-3">
+              <i className="bi bi-info-circle me-1"></i>
+              Danh mục này sẽ là <strong>Danh mục hệ thống</strong> (hiển thị
+              cho tất cả user).
+            </div>
+          )}
           <div className="d-flex justify-content-end gap-2 mt-3">
             <button type="button" className="btn btn-light" onClick={onClose}>
               Hủy

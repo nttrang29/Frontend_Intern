@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useCallback,
+  useEffect,
+} from "react";
 import { categoryAPI } from "../../services/api-client";
 
 const CategoryDataContext = createContext(null);
@@ -76,7 +83,7 @@ export function CategoryDataProvider({ children }) {
   const loadCategories = useCallback(async () => {
     // Kiểm tra xem có user đăng nhập không
     const userId = getCurrentUserId();
-    
+
     if (!userId) {
       // Nếu không có user, clear categories
       setExpenseCategories([]);
@@ -93,36 +100,54 @@ export function CategoryDataProvider({ children }) {
       console.log("CategoryDataContext: API response:", response);
       console.log("CategoryDataContext: Response type:", typeof response);
       console.log("CategoryDataContext: Is array?", Array.isArray(response));
-      
+
       // Xử lý response có thể là array trực tiếp hoặc wrap trong object
       let categories = [];
       if (Array.isArray(response)) {
         categories = response;
       } else if (response && Array.isArray(response.data)) {
         categories = response.data;
-      } else if (response && response.categories && Array.isArray(response.categories)) {
+      } else if (
+        response &&
+        response.categories &&
+        Array.isArray(response.categories)
+      ) {
         categories = response.categories;
       } else {
-        console.warn("CategoryDataContext: Unexpected response format:", response);
+        console.warn(
+          "CategoryDataContext: Unexpected response format:",
+          response
+        );
         setExpenseCategories([]);
         setIncomeCategories([]);
         setCategoriesLoading(false);
         return;
       }
-      
-      console.log("CategoryDataContext: Processed categories count:", categories.length);
-      
+
+      console.log(
+        "CategoryDataContext: Processed categories count:",
+        categories.length
+      );
+
       if (categories.length > 0) {
         // Phân loại categories theo transactionType
         const expenseList = [];
         const incomeList = [];
-        
+
         categories.forEach((category) => {
           const typeName = category.transactionType?.typeName || "";
           // Jackson có thể serialize isSystem() thành "system" thay vì "isSystem"
-          const isSystemValue = category.isSystem !== undefined ? category.isSystem : (category.system !== undefined ? category.system : false);
-          const isSystemBool = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
-          
+          const isSystemValue =
+            category.isSystem !== undefined
+              ? category.isSystem
+              : category.system !== undefined
+              ? category.system
+              : false;
+          const isSystemBool =
+            isSystemValue === true ||
+            isSystemValue === "true" ||
+            String(isSystemValue).toLowerCase() === "true";
+
           const mappedCategory = {
             id: category.categoryId,
             categoryId: category.categoryId,
@@ -133,18 +158,30 @@ export function CategoryDataProvider({ children }) {
             transactionTypeId: category.transactionType?.typeId,
             isSystem: isSystemBool,
           };
-          
+
           // Phân loại: "Chi tiêu" = expense, "Thu nhập" = income
-          if (typeName === "Chi tiêu" || category.transactionType?.typeId === 1) {
+          if (
+            typeName === "Chi tiêu" ||
+            category.transactionType?.typeId === 1
+          ) {
             expenseList.push(mappedCategory);
-          } else if (typeName === "Thu nhập" || category.transactionType?.typeId === 2) {
+          } else if (
+            typeName === "Thu nhập" ||
+            category.transactionType?.typeId === 2
+          ) {
             incomeList.push(mappedCategory);
           }
         });
-        
-        console.log("CategoryDataContext: Expense categories:", expenseList.length);
-        console.log("CategoryDataContext: Income categories:", incomeList.length);
-        
+
+        console.log(
+          "CategoryDataContext: Expense categories:",
+          expenseList.length
+        );
+        console.log(
+          "CategoryDataContext: Income categories:",
+          incomeList.length
+        );
+
         setExpenseCategories(expenseList);
         setIncomeCategories(incomeList);
         setCurrentUserId(userId);
@@ -191,7 +228,11 @@ export function CategoryDataProvider({ children }) {
 
     // Lắng nghe sự kiện storage để reload khi user đăng nhập/đăng xuất từ tab khác
     const handleStorageChange = (e) => {
-      if (e.key === "user" || e.key === "accessToken" || e.key === "auth_user") {
+      if (
+        e.key === "user" ||
+        e.key === "accessToken" ||
+        e.key === "auth_user"
+      ) {
         const token = localStorage.getItem("accessToken");
         if (token) {
           // Reload categories khi có thay đổi về user hoặc token
@@ -236,17 +277,25 @@ export function CategoryDataProvider({ children }) {
   const reloadCategories = useCallback(async () => {
     try {
       const response = await categoryAPI.getCategories();
-      
+
       if (response && Array.isArray(response)) {
         const expenseList = [];
         const incomeList = [];
-        
+
         response.forEach((category) => {
           const typeName = category.transactionType?.typeName || "";
           // Jackson có thể serialize isSystem() thành "system" thay vì "isSystem"
-          const isSystemValue = category.isSystem !== undefined ? category.isSystem : (category.system !== undefined ? category.system : false);
-          const isSystemBool = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
-          
+          const isSystemValue =
+            category.isSystem !== undefined
+              ? category.isSystem
+              : category.system !== undefined
+              ? category.system
+              : false;
+          const isSystemBool =
+            isSystemValue === true ||
+            isSystemValue === "true" ||
+            String(isSystemValue).toLowerCase() === "true";
+
           const mappedCategory = {
             id: category.categoryId,
             categoryId: category.categoryId,
@@ -257,14 +306,20 @@ export function CategoryDataProvider({ children }) {
             transactionTypeId: category.transactionType?.typeId,
             isSystem: isSystemBool,
           };
-          
-          if (typeName === "Chi tiêu" || category.transactionType?.typeId === 1) {
+
+          if (
+            typeName === "Chi tiêu" ||
+            category.transactionType?.typeId === 1
+          ) {
             expenseList.push(mappedCategory);
-          } else if (typeName === "Thu nhập" || category.transactionType?.typeId === 2) {
+          } else if (
+            typeName === "Thu nhập" ||
+            category.transactionType?.typeId === 2
+          ) {
             incomeList.push(mappedCategory);
           }
         });
-        
+
         setExpenseCategories(expenseList);
         setIncomeCategories(incomeList);
       }
@@ -274,198 +329,248 @@ export function CategoryDataProvider({ children }) {
   }, []);
 
   // Create expense category
-  const createExpenseCategory = useCallback(async (payload) => {
-    // Kiểm tra token thay vì userId vì backend tự lấy user từ token
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      throw new Error("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
-    }
+  const createExpenseCategory = useCallback(
+    async (payload) => {
+      // Kiểm tra token thay vì userId vì backend tự lấy user từ token
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        throw new Error(
+          "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại."
+        );
+      }
 
-    try {
-      // Nếu description rỗng hoặc chỉ có khoảng trắng thì gửi null
-      const descriptionValue = (payload.description || payload.icon || "").trim() || null;
-      // Backend tự lấy userId từ token, không cần gửi userId
-      const response = await categoryAPI.createCategory(
-        null, // userId không cần thiết, backend tự lấy từ token
-        payload.name,
-        descriptionValue,
-        1 // transactionTypeId: 1 = Chi tiêu
-      );
-      
-      // Reload categories to get the latest data
-      await reloadCategories();
-      
-      // Return the created category
-      return {
-        id: response.categoryId,
-        categoryId: response.categoryId,
-        name: response.categoryName,
-        categoryName: response.categoryName,
-        description: response.description || "",
-        icon: response.description || "default",
-        transactionTypeId: 1,
-        isSystem: response.isSystem === true || response.isSystem === "true" || String(response.isSystem).toLowerCase() === "true",
-      };
-    } catch (err) {
-      console.error("Error creating expense category:", err);
-      throw err;
-    }
-  }, [reloadCategories]);
+      try {
+        // Nếu description rỗng hoặc chỉ có khoảng trắng thì gửi null
+        const descriptionValue =
+          (payload.description || payload.icon || "").trim() || null;
+
+        // Backend tự lấy userId từ token, không cần gửi userId
+        const response = await categoryAPI.createCategory(
+          null, // userId không cần thiết
+          payload.name,
+          descriptionValue,
+          1, // transactionTypeId: 1 = Chi tiêu
+          payload.isSystem // <--- Đã có: Gửi cờ hệ thống
+        );
+
+        // Reload categories to get the latest data
+        await reloadCategories();
+
+        // Return the created category
+        return {
+          id: response.categoryId,
+          categoryId: response.categoryId,
+          name: response.categoryName,
+          categoryName: response.categoryName,
+          description: response.description || "",
+          icon: response.description || "default",
+          transactionTypeId: 1,
+          isSystem:
+            response.isSystem === true ||
+            response.isSystem === "true" ||
+            String(response.isSystem).toLowerCase() === "true",
+        };
+      } catch (err) {
+        console.error("Error creating expense category:", err);
+        throw err;
+      }
+    },
+    [reloadCategories]
+  );
 
   // Create income category
-  const createIncomeCategory = useCallback(async (payload) => {
-    // Kiểm tra token thay vì userId vì backend tự lấy user từ token
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      throw new Error("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
-    }
+  const createIncomeCategory = useCallback(
+    async (payload) => {
+      // Kiểm tra token thay vì userId vì backend tự lấy user từ token
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        throw new Error(
+          "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại."
+        );
+      }
 
-    try {
-      // Nếu description rỗng hoặc chỉ có khoảng trắng thì gửi null
-      const descriptionValue = (payload.description || payload.icon || "").trim() || null;
-      // Backend tự lấy userId từ token, không cần gửi userId
-      const response = await categoryAPI.createCategory(
-        null, // userId không cần thiết, backend tự lấy từ token
-        payload.name,
-        descriptionValue,
-        2 // transactionTypeId: 2 = Thu nhập
-      );
-      
-      // Reload categories to get the latest data
-      await reloadCategories();
-      
-      // Return the created category
-      return {
-        id: response.categoryId,
-        categoryId: response.categoryId,
-        name: response.categoryName,
-        categoryName: response.categoryName,
-        description: response.description || "",
-        icon: response.description || "default",
-        transactionTypeId: 2,
-        isSystem: response.isSystem === true || response.isSystem === "true" || String(response.isSystem).toLowerCase() === "true",
-      };
-    } catch (err) {
-      console.error("Error creating income category:", err);
-      throw err;
-    }
-  }, [reloadCategories]);
+      try {
+        // Nếu description rỗng hoặc chỉ có khoảng trắng thì gửi null
+        const descriptionValue =
+          (payload.description || payload.icon || "").trim() || null;
+
+        // Backend tự lấy userId từ token, không cần gửi userId
+        const response = await categoryAPI.createCategory(
+          null, // userId không cần thiết
+          payload.name,
+          descriptionValue,
+          2, // transactionTypeId: 2 = Thu nhập
+          payload.isSystem // <--- QUAN TRỌNG: Đã thêm tham số này
+        );
+
+        // Reload categories to get the latest data
+        await reloadCategories();
+
+        // Return the created category
+        return {
+          id: response.categoryId,
+          categoryId: response.categoryId,
+          name: response.categoryName,
+          categoryName: response.categoryName,
+          description: response.description || "",
+          icon: response.description || "default",
+          transactionTypeId: 2,
+          isSystem:
+            response.isSystem === true ||
+            response.isSystem === "true" ||
+            String(response.isSystem).toLowerCase() === "true",
+        };
+      } catch (err) {
+        console.error("Error creating income category:", err);
+        throw err;
+      }
+    },
+    [reloadCategories]
+  );
 
   // Update expense category
-  const updateExpenseCategory = useCallback(async (id, patch) => {
-    // Kiểm tra token thay vì userId vì backend tự lấy user từ token
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      throw new Error("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
-    }
+  const updateExpenseCategory = useCallback(
+    async (id, patch) => {
+      // Kiểm tra token thay vì userId vì backend tự lấy user từ token
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        throw new Error(
+          "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại."
+        );
+      }
 
-    try {
-      // Nếu description rỗng hoặc chỉ có khoảng trắng thì gửi null
-      const descriptionValue = (patch.description || patch.icon || "").trim() || null;
-      // Backend tự lấy userId từ token, không cần gửi userId
-      const response = await categoryAPI.updateCategory(
-        id,
-        null, // userId không cần thiết, backend tự lấy từ token
-        patch.name,
-        descriptionValue,
-        1 // transactionTypeId: 1 = Chi tiêu
-      );
-      
-      // Reload categories to get the latest data
-      await reloadCategories();
-      
-      // Return the updated category
-      return {
-        id: response.categoryId,
-        categoryId: response.categoryId,
-        name: response.categoryName,
-        categoryName: response.categoryName,
-        description: response.description || "",
-        icon: response.description || "default",
-        transactionTypeId: 1,
-        isSystem: response.isSystem === true || response.isSystem === "true" || String(response.isSystem).toLowerCase() === "true",
-      };
-    } catch (err) {
-      console.error("Error updating expense category:", err);
-      throw err;
-    }
-  }, [reloadCategories]);
+      try {
+        // Nếu description rỗng hoặc chỉ có khoảng trắng thì gửi null
+        const descriptionValue =
+          (patch.description || patch.icon || "").trim() || null;
+        // Backend tự lấy userId từ token, không cần gửi userId
+        const response = await categoryAPI.updateCategory(
+          id,
+          null, // userId không cần thiết, backend tự lấy từ token
+          patch.name,
+          descriptionValue,
+          1 // transactionTypeId: 1 = Chi tiêu
+        );
+
+        // Reload categories to get the latest data
+        await reloadCategories();
+
+        // Return the updated category
+        return {
+          id: response.categoryId,
+          categoryId: response.categoryId,
+          name: response.categoryName,
+          categoryName: response.categoryName,
+          description: response.description || "",
+          icon: response.description || "default",
+          transactionTypeId: 1,
+          isSystem:
+            response.isSystem === true ||
+            response.isSystem === "true" ||
+            String(response.isSystem).toLowerCase() === "true",
+        };
+      } catch (err) {
+        console.error("Error updating expense category:", err);
+        throw err;
+      }
+    },
+    [reloadCategories]
+  );
 
   // Update income category
-  const updateIncomeCategory = useCallback(async (id, patch) => {
-    // Kiểm tra token thay vì userId vì backend tự lấy user từ token
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      throw new Error("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
-    }
+  const updateIncomeCategory = useCallback(
+    async (id, patch) => {
+      // Kiểm tra token thay vì userId vì backend tự lấy user từ token
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        throw new Error(
+          "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại."
+        );
+      }
 
-    try {
-      // Nếu description rỗng hoặc chỉ có khoảng trắng thì gửi null
-      const descriptionValue = (patch.description || patch.icon || "").trim() || null;
-      // Backend tự lấy userId từ token, không cần gửi userId
-      const response = await categoryAPI.updateCategory(
-        id,
-        null, // userId không cần thiết, backend tự lấy từ token
-        patch.name,
-        descriptionValue,
-        2 // transactionTypeId: 2 = Thu nhập (không cần gửi, backend giữ nguyên)
-      );
-      
-      // Reload categories to get the latest data
-      await reloadCategories();
-      
-      // Return the updated category
-      return {
-        id: response.categoryId,
-        categoryId: response.categoryId,
-        name: response.categoryName,
-        categoryName: response.categoryName,
-        description: response.description || "",
-        icon: response.description || "default",
-        transactionTypeId: 2,
-        isSystem: response.isSystem === true || response.isSystem === "true" || String(response.isSystem).toLowerCase() === "true",
-      };
-    } catch (err) {
-      console.error("Error updating income category:", err);
-      throw err;
-    }
-  }, [reloadCategories]);
+      try {
+        // Nếu description rỗng hoặc chỉ có khoảng trắng thì gửi null
+        const descriptionValue =
+          (patch.description || patch.icon || "").trim() || null;
+        // Backend tự lấy userId từ token, không cần gửi userId
+        const response = await categoryAPI.updateCategory(
+          id,
+          null, // userId không cần thiết, backend tự lấy từ token
+          patch.name,
+          descriptionValue,
+          2 // transactionTypeId: 2 = Thu nhập (không cần gửi, backend giữ nguyên)
+        );
+
+        // Reload categories to get the latest data
+        await reloadCategories();
+
+        // Return the updated category
+        return {
+          id: response.categoryId,
+          categoryId: response.categoryId,
+          name: response.categoryName,
+          categoryName: response.categoryName,
+          description: response.description || "",
+          icon: response.description || "default",
+          transactionTypeId: 2,
+          isSystem:
+            response.isSystem === true ||
+            response.isSystem === "true" ||
+            String(response.isSystem).toLowerCase() === "true",
+        };
+      } catch (err) {
+        console.error("Error updating income category:", err);
+        throw err;
+      }
+    },
+    [reloadCategories]
+  );
 
   // Delete expense category
-  const deleteExpenseCategory = useCallback(async (id) => {
-    try {
-      await categoryAPI.deleteCategory(id);
-      
-      // Optimistic update: Xóa ngay khỏi state sau khi xóa thành công
-      setExpenseCategories(prev => prev.filter(cat => cat.id !== id && cat.categoryId !== id));
-      
-      // Reload categories to get the latest data from server
-      await reloadCategories();
-    } catch (err) {
-      console.error("Error deleting expense category:", err);
-      // Nếu lỗi, reload lại để đảm bảo state đúng (không xóa optimistic vì đã có lỗi)
-      await reloadCategories();
-      throw err;
-    }
-  }, [reloadCategories]);
+  const deleteExpenseCategory = useCallback(
+    async (id) => {
+      try {
+        await categoryAPI.deleteCategory(id);
+
+        // Optimistic update: Xóa ngay khỏi state sau khi xóa thành công
+        setExpenseCategories((prev) =>
+          prev.filter((cat) => cat.id !== id && cat.categoryId !== id)
+        );
+
+        // Reload categories to get the latest data from server
+        await reloadCategories();
+      } catch (err) {
+        console.error("Error deleting expense category:", err);
+        // Nếu lỗi, reload lại để đảm bảo state đúng (không xóa optimistic vì đã có lỗi)
+        await reloadCategories();
+        throw err;
+      }
+    },
+    [reloadCategories]
+  );
 
   // Delete income category
-  const deleteIncomeCategory = useCallback(async (id) => {
-    try {
-      await categoryAPI.deleteCategory(id);
-      
-      // Optimistic update: Xóa ngay khỏi state sau khi xóa thành công
-      setIncomeCategories(prev => prev.filter(cat => cat.id !== id && cat.categoryId !== id));
-      
-      // Reload categories to get the latest data from server
-      await reloadCategories();
-    } catch (err) {
-      console.error("Error deleting income category:", err);
-      // Nếu lỗi, reload lại để đảm bảo state đúng (không xóa optimistic vì đã có lỗi)
-      await reloadCategories();
-      throw err;
-    }
-  }, [reloadCategories]);
+  const deleteIncomeCategory = useCallback(
+    async (id) => {
+      try {
+        await categoryAPI.deleteCategory(id);
+
+        // Optimistic update: Xóa ngay khỏi state sau khi xóa thành công
+        setIncomeCategories((prev) =>
+          prev.filter((cat) => cat.id !== id && cat.categoryId !== id)
+        );
+
+        // Reload categories to get the latest data from server
+        await reloadCategories();
+      } catch (err) {
+        console.error("Error deleting income category:", err);
+        // Nếu lỗi, reload lại để đảm bảo state đúng (không xóa optimistic vì đã có lỗi)
+        await reloadCategories();
+        throw err;
+      }
+    },
+    [reloadCategories]
+  );
 
   // Get category by name and type
   const getCategoryByName = useCallback(
@@ -515,8 +620,6 @@ export function CategoryDataProvider({ children }) {
 export function useCategoryData() {
   const ctx = useContext(CategoryDataContext);
   if (!ctx)
-    throw new Error(
-      "useCategoryData must be used within CategoryDataProvider"
-    );
+    throw new Error("useCategoryData must be used within CategoryDataProvider");
   return ctx;
 }
