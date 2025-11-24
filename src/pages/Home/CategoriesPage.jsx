@@ -5,9 +5,24 @@ import CategoryFormModal from "../../components/categories/CategoryFormModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import useOnClickOutside from "../../hooks/useOnClickOutside";
+import { useAuth } from "../../home/store/AuthContext";
 
 export default function CategoriesPage() {
-  const { expenseCategories, incomeCategories, createExpenseCategory, createIncomeCategory, updateExpenseCategory, updateIncomeCategory, deleteExpenseCategory, deleteIncomeCategory } = useCategoryData();
+  const {
+    expenseCategories,
+    incomeCategories,
+    createExpenseCategory,
+    createIncomeCategory,
+    updateExpenseCategory,
+    updateIncomeCategory,
+    deleteExpenseCategory,
+    deleteIncomeCategory,
+  } = useCategoryData();
+
+  const { currentUser } = useAuth();
+  // Kiểm tra role an toàn
+  const isAdmin =
+    currentUser?.role === "ADMIN" || currentUser?.role === "ROLE_ADMIN";
 
   const [activeTab, setActiveTab] = useState("expense"); // expense | income
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
@@ -22,7 +37,11 @@ export default function CategoriesPage() {
   // pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+    type: "success",
+  });
   const [confirmDel, setConfirmDel] = useState(null); // Danh mục cần xóa
 
   const currentList =
@@ -33,14 +52,19 @@ export default function CategoriesPage() {
   const filteredOptions = React.useMemo(() => {
     const keyword = (searchQuery || "").trim().toLowerCase();
     if (!keyword) return currentList;
-    return currentList.filter((c) => (c.name || "").toLowerCase().includes(keyword));
+    return currentList.filter((c) =>
+      (c.name || "").toLowerCase().includes(keyword)
+    );
   }, [currentList, searchQuery]);
   const displayedList = currentList.filter((c) => {
     if (!selectedCategoryId) return true;
     return String(c.id) === selectedCategoryId;
   });
   const totalPages = Math.max(1, Math.ceil(displayedList.length / pageSize));
-  const paginatedList = displayedList.slice((page - 1) * pageSize, page * pageSize);
+  const paginatedList = displayedList.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
 
   const paginationRange = React.useMemo(() => {
     const maxButtons = 5;
@@ -91,14 +115,23 @@ export default function CategoriesPage() {
   };
 
   const openEditModal = (cat) => {
-    // Không cho phép sửa danh mục hệ thống
-    const isSystemValue = cat.isSystem !== undefined ? cat.isSystem : (cat.system !== undefined ? cat.system : false);
-    const isSystemCategory = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
-    if (isSystemCategory) {
+    const isSystemValue =
+      cat.isSystem !== undefined
+        ? cat.isSystem
+        : cat.system !== undefined
+        ? cat.system
+        : false;
+    const isSystemCategory =
+      String(isSystemValue) === "true" || isSystemValue === true;
+    if (isSystemCategory && !isAdmin) {
       return;
     }
+
     setModalMode("edit");
-    setModalInitial({ name: cat.name, description: cat.description || "" });
+    setModalInitial({
+      name: cat.name,
+      description: cat.description || "",
+    });
     setModalEditingId(cat.id);
     setModalOpen(true);
   };
@@ -113,14 +146,22 @@ export default function CategoriesPage() {
       }
       // go to first page to show the new item
       setPage(1);
-      setToast({ open: true, message: "Đã thêm danh mục mới.", type: "success" });
+      setToast({
+        open: true,
+        message: "Đã thêm danh mục mới.",
+        type: "success",
+      });
     } else if (modalMode === "edit") {
       if (activeTab === "expense") {
         updateExpenseCategory(modalEditingId, payload);
       } else {
         updateIncomeCategory(modalEditingId, payload);
       }
-      setToast({ open: true, message: "Đã cập nhật danh mục.", type: "success" });
+      setToast({
+        open: true,
+        message: "Đã cập nhật danh mục.",
+        type: "success",
+      });
     }
     setModalOpen(false);
     setModalEditingId(null);
@@ -131,14 +172,19 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = (cat) => {
-    // Không cho phép xóa danh mục hệ thống
-    const isSystemValue = cat.isSystem !== undefined ? cat.isSystem : (cat.system !== undefined ? cat.system : false);
-    const isSystemCategory = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
-    if (isSystemCategory) {
+    const isSystemValue =
+      cat.isSystem !== undefined
+        ? cat.isSystem
+        : cat.system !== undefined
+        ? cat.system
+        : false;
+
+    const isSystemCategory =
+      String(isSystemValue) === "true" || isSystemValue === true;
+    if (isSystemCategory && !isAdmin) {
       return;
     }
-    
-    // Mở modal xác nhận thay vì window.confirm
+
     setConfirmDel(cat);
   };
 
@@ -155,8 +201,12 @@ export default function CategoriesPage() {
         await deleteIncomeCategory(cat.id);
       }
 
-      setToast({ open: true, message: `Đã xóa danh mục "${cat.name}"`, type: "success" });
-      
+      setToast({
+        open: true,
+        message: `Đã xóa danh mục "${cat.name}"`,
+        type: "success",
+      });
+
       // Đóng modal edit nếu đang edit danh mục này
       if (modalEditingId === cat.id) {
         setModalEditingId(null);
@@ -164,7 +214,11 @@ export default function CategoriesPage() {
       }
     } catch (error) {
       console.error("Lỗi khi xóa danh mục:", error);
-      setToast({ open: true, message: error.message || "Lỗi khi xóa danh mục", type: "error" });
+      setToast({
+        open: true,
+        message: error.message || "Lỗi khi xóa danh mục",
+        type: "error",
+      });
     }
   };
 
@@ -182,7 +236,7 @@ export default function CategoriesPage() {
       >
         <div className="card-body d-flex justify-content-between align-items-center">
           {/* BÊN TRÁI: ICON + TEXT */}
-            <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-2">
             <div className="cat-header-icon-wrap">
               {/* icon giống ở sidebar: Danh mục = bi-tags */}
               <i className="bi bi-tags cat-header-icon" />
@@ -196,7 +250,6 @@ export default function CategoriesPage() {
                 đây.
               </p>
             </div>
-          
           </div>
 
           {/* BÊN PHẢI: NÚT TAB */}
@@ -254,8 +307,6 @@ export default function CategoriesPage() {
         </div>
       </div>
 
-      
-
       {/* FORM THÊM / SỬA */}
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">
@@ -263,7 +314,9 @@ export default function CategoriesPage() {
             <label className="form-label fw-semibold">Tìm danh mục</label>
             <div className="category-search-inline">
               <div
-                className={`searchable-select category-search-select flex-grow-1 ${selectMenuOpen ? "is-open" : ""}`}
+                className={`searchable-select category-search-select flex-grow-1 ${
+                  selectMenuOpen ? "is-open" : ""
+                }`}
                 ref={selectRef}
               >
                 <input
@@ -282,7 +335,9 @@ export default function CategoriesPage() {
                   <div className="searchable-select-menu">
                     <button
                       type="button"
-                      className={`searchable-option ${selectedCategoryId === "" ? "active" : ""}`}
+                      className={`searchable-option ${
+                        selectedCategoryId === "" ? "active" : ""
+                      }`}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         setSelectedCategoryId("");
@@ -293,13 +348,19 @@ export default function CategoriesPage() {
                       Tất cả danh mục
                     </button>
                     {filteredOptions.length === 0 ? (
-                      <div className="px-3 py-2 text-muted small">Không tìm thấy danh mục</div>
+                      <div className="px-3 py-2 text-muted small">
+                        Không tìm thấy danh mục
+                      </div>
                     ) : (
                       filteredOptions.map((cat) => (
                         <button
                           key={cat.id}
                           type="button"
-                          className={`searchable-option ${selectedCategoryId === String(cat.id) ? "active" : ""}`}
+                          className={`searchable-option ${
+                            selectedCategoryId === String(cat.id)
+                              ? "active"
+                              : ""
+                          }`}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
                             setSelectedCategoryId(String(cat.id));
@@ -319,7 +380,11 @@ export default function CategoriesPage() {
                 <button type="submit" className="btn btn-primary">
                   Tìm kiếm
                 </button>
-                <button type="button" className="btn btn-outline-secondary" onClick={resetSearch}>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={resetSearch}
+                >
                   Xóa lọc
                 </button>
               </div>
@@ -354,18 +419,36 @@ export default function CategoriesPage() {
                   paginatedList.map((c, idx) => {
                     // Kiểm tra isSystem - hỗ trợ cả boolean và string
                     // Jackson có thể serialize thành "system" thay vì "isSystem" (đã fix ở backend với @JsonProperty)
-                    const isSystemValue = c.isSystem !== undefined ? c.isSystem : (c.system !== undefined ? c.system : false);
-                    const isSystemCategory = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
-                    
+                    const isSystemValue =
+                      c.isSystem !== undefined
+                        ? c.isSystem
+                        : c.system !== undefined
+                        ? c.system
+                        : false;
+                    const isSystemCategory =
+                      isSystemValue === true ||
+                      isSystemValue === "true" ||
+                      String(isSystemValue).toLowerCase() === "true";
+
                     return (
                       <tr key={c.id}>
                         <td>{(page - 1) * pageSize + idx + 1}</td>
                         <td className="fw-semibold">{c.name}</td>
-                        <td className="category-note-cell" title={c.description || "-"}>{c.description || "-"}</td>
+                        <td
+                          className="category-note-cell"
+                          title={c.description || "-"}
+                        >
+                          {c.description || "-"}
+                        </td>
                         <td className="text-center">
-                          {!isSystemCategory ? (
+                          {!isSystemCategory || isAdmin ? (
                             <>
-                              <button className="btn btn-link btn-sm text-muted me-2" type="button" onClick={() => openEditModal(c)} title="Sửa">
+                              <button
+                                className="btn btn-link btn-sm text-muted me-2"
+                                type="button"
+                                onClick={() => openEditModal(c)}
+                                title="Sửa"
+                              >
                                 <i className="bi bi-pencil-square" />
                               </button>
                               <button
@@ -391,7 +474,9 @@ export default function CategoriesPage() {
         </div>
         {/* PAGINATION */}
         <div className="card-footer category-pagination-bar">
-          <span className="text-muted small">Trang {page} / {totalPages}</span>
+          <span className="text-muted small">
+            Trang {page} / {totalPages}
+          </span>
           <div className="category-pagination">
             <button
               type="button"
@@ -411,7 +496,9 @@ export default function CategoriesPage() {
             </button>
             {paginationRange.map((item, idx) =>
               typeof item === "string" && item.includes("ellipsis") ? (
-                <span key={item + idx} className="page-ellipsis">…</span>
+                <span key={item + idx} className="page-ellipsis">
+                  …
+                </span>
               ) : (
                 <button
                   key={`page-${item}`}
@@ -450,6 +537,7 @@ export default function CategoriesPage() {
         typeLabel={activeTab === "expense" ? "chi phí" : "thu nhập"}
         onSubmit={handleModalSubmit}
         onClose={() => setModalOpen(false)}
+        isAdmin={isAdmin}
       />
 
       <ConfirmModal
