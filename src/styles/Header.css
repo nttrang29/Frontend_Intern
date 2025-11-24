@@ -1,27 +1,19 @@
-.app-header {
-  z-index: 1000;
+.app-header { z-index: 1000;
   background-color: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Logo tròn */
-.app-header__logo {
+  box-shadow: none !important; }
+.app-header__logo {   
   height: 70px;
   width: 70px;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 0 10px rgba(0, 28, 68, 0.35);
-  display: flex;
-  flex-direction: column;
-}
-
-/* Tiêu đề / slogan dùng navy + teal */
+  border-radius: 50%;        /* bo tròn hoàn hảo */
+  object-fit: cover;         /* căn đều, không méo */
+  box-shadow: 0 0 10px rgba(0,0,0,0.2); /* đổ bóng nhẹ */
+  display: flex; 
+  flex-direction: column; }
 .app-header__title {
-  color: #001c44; /* navy */
+  color: #1e3a8a; /* xanh navy đậm – dễ nhìn, hợp nền trắng */
   font-weight: 700;
 }
-
 .app-header__subtitle {
-  color: #2d99ae; /* teal trung bình */
+  color: #2563eb; /* xanh lam sáng – nổi bật nhẹ */
   font-size: 14px;
 }

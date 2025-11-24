@@ -1,46 +1,8 @@
-/* Reset + theme nền chung (trừ trang đăng nhập) */
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-
-body,
-#root {
-  min-height: 100vh;
-}
-
-/* =======================
-   THEME CHUNG – PALETTE
-   001C44 – 0C5776 – 2D99AE – BCFEFE – F8DAD0
-   ======================= */
-
-:root {
-  --c-navy: #001c44;
-  --c-deep-teal: #0c5776;
-  --c-teal: #2d99ae;
-  --c-mint: #bcfefe;
-  --c-peach: #f8dad0;
-
-  --bg-body: linear-gradient(135deg, #bcfefe, #f8dad0);
-  --bg-surface: #ffffff;
-  --bg-surface-soft: #fdfaf8;
-
-  --text-main: #001c44;
-  --text-soft: #0c5776;
-  --text-muted: #64748b;
-  --text-on-dark: #f9fafb;
-
-  --btn-primary-bg: linear-gradient(135deg, #0c5776, #2d99ae);
-  --btn-primary-bg-hover: linear-gradient(135deg, #001c44, #0c5776);
-  --btn-primary-text: #f9fafb;
-
-  --border-subtle: rgba(0, 28, 68, 0.12);
-  --shadow-soft: 0 18px 45px rgba(0, 28, 68, 0.18);
-}
-
-body {
-  background: var(--bg-body);
-  color: var(--text-main);
-}
+body, #root { min-height: 100vh; }

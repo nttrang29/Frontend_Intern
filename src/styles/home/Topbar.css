@@ -1,176 +1,163 @@
 /* =========================================================
-   TOPBAR – Clean & Grouped
+   TOPBAR – Clean, sát mép & có control bên trong
    ========================================================= */
 
-/* ============ 1) WRAPPER & WELCOME ============ */
-.tb__wrap {
-  background: #ffffff;
-  border-radius: 20px;
-  padding: 10px 16px;
+/* .tb__wrap phủ kín khung topbar, có padding trong để không sát viền */
+.home__topbar .tb__wrap{
+  height: 100%;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 8px 24px rgba(0, 28, 68, 0.15);
+
+  margin: 0;
+  /* ✅ thêm padding đều 2 bên để không dính sát viền */
+  padding: 0 var(--content-pad);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+
+  background: #2D99AE;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+
+  min-width: 0;
+  box-sizing: border-box;
 }
 
-.tb__welcome {
+
+/* Nhóm trái/phải */
+.tb__left{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.tb__right{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+/* Chào mừng */
+.tb__welcome{
   font-weight: 700;
-  color: #001c44;
+  color: #fff;
   white-space: nowrap;
 }
 
-/* trái: xin chào + search */
-.tb__left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-}
-
-/* phải: chuông + avatar (đẩy sát phải) */
-.tb__right,
-.tb__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: auto;          /* 🔹 đẩy sang phải */
-}
-
-/* ============ 2) SEARCH (PILL STYLE) ============ */
-.tb__search--pill {
-  flex: 1;
-  max-width: 520px;
+/* Search pill */
+.tb__search--pill{
+  flex: 0 1 clamp(220px, 32vw, 520px);
   height: 34px;
-  background: #ffffff;        /* 🔹 đổi từ xanh nhạt sang TRẮNG */
-  border-radius: 999px;
   display: flex;
   align-items: center;
   padding-left: 14px;
-  border: 1px solid #e5e7eb;
   position: relative;
-}
 
-.tb__search--pill input {
+  background: rgba(255,255,255,0.66);
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 999px;
+  transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+.tb__search--pill:hover{
+  background: rgba(255,255,255,0.78);
+  border-color: rgba(15,23,42,0.12);
+}
+.tb__search--pill:focus-within{
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+  border-color: rgba(59,130,246,0.45);
+  background: rgba(255,255,255,0.9);
+}
+.tb__search--pill input{
   flex: 1;
+  height: 100%;
   border: none;
   outline: none;
   background: transparent;
   font-size: 14px;
-  height: 100%;
-  color: #001c44;
+  color: #0f172a;
 }
-
-.tb__search--pill input::placeholder {
-  color: #94a3b8;
-}
-
-/* Icon kính lúp nhỏ bên phải – KHÔNG có khung vuông */
-.tb__search-btn {
+.tb__search-btn{
   position: absolute;
-  right: 10px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  border: 0;
+  width: 42px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,0.15);
+  background: #ffffff;
+  color: #475569;
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  background: transparent;    /* 🔹 bỏ khung, bỏ nền */
-  width: auto;
-  height: auto;
-  padding: 0;
-  color: #0c5776;
+  transition: all .2s ease;
+}
+.tb__search-btn:hover{
+  background: #f8fafc;
+  border-color: rgba(15,23,42,0.3);
+  color: #1e293b;
+}
+.tb__search-btn:active{
+  transform: translateY(-50%) scale(0.97);
+}
+
+/* Actions & divider */
+.tb__actions{
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 18px;
+  gap: 10px;
+  margin-left: auto;
 }
-
-.tb__search-btn:hover {
-  color: #2d99ae;
-}
-
-/* ============ 3) ACTIONS & DIVIDER ============ */
-
-/* icon button dùng cho chuông – KHÔNG khung vuông */
-.tb__icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;               /* 🔹 bỏ border */
-  background: transparent;    /* 🔹 nền trong suốt */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #0c5776;
-  font-size: 18px;
-  transition: color 0.15s ease, transform 0.06s ease;
-}
-
-.tb__icon-btn:hover {
-  color: #2d99ae;
-  transform: translateY(-1px);
-}
-
-.tb__divider {
+.tb__divider{
   width: 1px;
   height: 26px;
-  background: #e5e7eb;
+  background: rgba(15,23,42,0.12);
+  border-radius: 1px;
 }
 
-/* ============ 4) AVATAR & USER INFO ============ */
+/* Icon & avatar */
+.tb__icon{
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 50%;
+  font-size: 18px;
+  color: #475569;
+  transition: all .2s ease;
+}
+.tb__icon:hover{
+  background: rgba(255,255,255,0.95);
+  color: #5b3cc4;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.12);
+}
 
-.tb__avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
+.tb__avatar{
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   overflow: hidden;
-  border: 2px solid #bcfefe;
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.3);
+  border: 2px solid rgba(226,232,240,0.9);
+  cursor: pointer;
+  transition: border-color .2s;
 }
-
-.tb__avatar img {
+.tb__avatar:hover{ border-color: #3b82f6; }
+.tb__avatar img{
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.tb__user-info {
-  display: flex;
-  flex-direction: column;
-  margin-left: 6px;
-  line-height: 1.2;
-}
-
-.tb__user-name {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #001c44;
-}
-
-.tb__user-role {
-  font-size: 0.75rem;
-  color: #64748b;
-}
-
-/* container user + avatar */
-.tb__user-dropdown {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.tb__user-dropdown:hover .tb__user-name {
-  color: #2d99ae;
-}
-
-/* ============ 5) DROPDOWN / NOTIF PANEL ============ */
-
-.tb__dropdown {
-  position: relative;
-}
-
-/* Badge số thông báo */
-.tb__badge {
+/* Dropdowns */
+.tb__dd{ position: relative; }
+.tb__badge{
   position: absolute;
   top: -4px;
   right: -4px;
@@ -181,114 +168,47 @@
   padding: 2px 6px;
   line-height: 1;
 }
-
-.dd__panel {
+.dd__panel{
   position: absolute;
   right: 0;
   top: 46px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: rgba(255,255,255,0.98);
+  border: 1px solid rgba(226,232,240,0.9);
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.15);
+  box-shadow: 0 10px 30px rgba(2,6,23,0.18);
   padding: 8px;
   z-index: 100;
-  animation: tbFadeIn 0.15s ease-in-out;
+  animation: tbFadeIn .15s ease-in-out;
+}
+@keyframes tbFadeIn{
+  from{ opacity:0; transform: translateY(-5px); }
+  to  { opacity:1; transform: none; }
 }
 
-.tb__notif-list {
-  max-height: 280px;
-  overflow-y: auto;
-}
-
-.tb__notif-empty {
-  padding: 8px 10px;
-  font-size: 0.85rem;
-  color: #6b7280;
-}
-
-.tb__notif-item {
+/* User menu */
+.dd__section{ padding: 4px; }
+.dd__link{
+  width: 100%;
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 7px 10px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
   border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.tb__notif-item:hover {
-  background: #f1f5f9;
-}
-
-.tb__notif-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  background: #f8dad0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: transparent;
+  border: 0;
   font-size: 14px;
-  color: #001c44;
+  color: #0f172a;
+  transition: background .15s ease, transform .05s ease;
 }
-
-.tb__notif-main {
-  flex: 1;
-}
-
-.tb__notif-title {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #001c44;
-}
-
-.tb__notif-time {
-  font-size: 0.75rem;
-  color: #6b7280;
-}
-
-/* ============ 6) USER MENU DROPDOWN ============ */
-
-.tb__user-menu {
-  position: absolute;
-  right: 0;
-  top: 46px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.18);
-  padding: 6px 0;
-  z-index: 100;
-  min-width: 220px;
-  animation: tbFadeIn 0.15s ease-in-out;
-}
-
-.tb__user-menu-item {
-  padding: 8px 12px;
-  font-size: 0.86rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  color: #001c44;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.tb__user-menu-item:hover {
-  background: #f1f5f9;
-  color: #0c5776;
-}
-
-.tb__user-menu-item--danger {
-  color: #b91c1c;
-}
-
-.tb__user-menu-item--danger:hover {
-  background: #fee2e2;
-}
+.dd__link:hover{ background: #f5f7fb; }
+.dd__link:active{ transform: translateY(1px); }
+.dd__icon{ font-size: 18px; width: 20px; text-align: center; }
+.dd__danger{ color: #ef4444; }
+.dd__danger:hover{ background: #fee2e2; }
+.dd__divider{ height: 1px; background: #e5e7eb; margin: 6px 0; }
 
 /* Button reset */
-.btn-reset {
+.btn-reset{
   background: none;
   border: none;
   padding: 0;
@@ -296,13 +216,84 @@
   cursor: pointer;
 }
 
-/* ============ ANIMATION + RESPONSIVE ============ */
-@keyframes tbFadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+/* <= 1200px: giảm gap, co search & icon nhẹ */
+@media (max-width: 1200px){
+  .home__topbar .tb__wrap{ gap: 12px; }
+  .tb__left, .tb__right{ gap: 10px; }
+  .tb__icon, .tb__avatar{ width: 34px; height: 34px; }
+  .tb__search--pill{
+    flex: 0 1 clamp(200px, 30vw, 440px);
+  }
 }
 
-@media (max-width: 768px) {
-  .tb__welcome { display: none; }
-  .tb__search--pill { max-width: 100%; }
+/* <= 992px: cho phép wrap 2 hàng */
+@media (max-width: 992px){
+  .home__topbar .tb__wrap{
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  .tb__left{
+    flex: 1 1 auto;
+    min-width: 260px;
+  }
+
+  .tb__right{
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+ 
+
+  .tb__search--pill{
+    flex: 1 1 360px;
+    max-width: none;
+    width: auto;
+  }
 }
+
+/* <= 768px: ưu tiên icon + search, không cho topbar sát viền */
+@media (max-width: 768px){
+  .home__topbar .tb__wrap{
+    padding-inline: 12px;
+  }
+
+  .tb__left, .tb__right{
+    flex: 1 1 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tb__search--pill{
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .tb__icon, .tb__avatar{ width: 32px; height: 32px; }
+  .tb__search-btn{ width: 40px; height: 24px; }
+}
+
+/* <= 576px: xếp gọn, bỏ divider */
+@media (max-width: 576px){
+  .home__topbar .tb__wrap{
+    padding: 0 12px;    /* hoặc 0 8px, miễn là trái = phải */
+  }
+  .tb__left, .tb__right{
+    gap: 8px;
+  }
+  .tb__search--pill{
+    height: 32px;
+  }
+  .tb__icon, .tb__avatar{ width: 30px; height: 30px; }
+  .tb__divider{ display: none; }
+}
+
+
+/* Khi sidebar THU GỌN chỉ cần co search nhẹ lại */
+/* Sidebar thu gọn nhưng search vẫn FULL */
+

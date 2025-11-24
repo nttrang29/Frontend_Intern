@@ -1,786 +1,1709 @@
-/* ===================================================================
-   01) TOKENS – DÙNG PALETTE MỚI (KHÔNG DÙNG ẢNH)
-   =================================================================== */
-:root{
-  /* Sidebar gradient (xanh đậm) */
-  --sb-grad-1: #001c44;
-  --sb-grad-2: #0c5776;
-
-  /* Kích thước & layout */
-  --wallet-row-h: 140px;
-  --wallet-row-gap: 14px;
-  --wallet-col-gap: 18px;
-
-  /* Card */
-  --card-radius: 18px;
-  --card-padding: 16px;
-  --card-border: rgba(0,28,68,.10);
-  --card-bg: rgba(255,255,255,.96);
-  --card-shadow-1: 0 1px 2px rgba(0,0,0,.06);
-  --card-shadow-2: 0 8px 24px rgba(0,28,68,.16);
-  --card-shadow-hover: 0 12px 32px rgba(0,28,68,.20);
-
-  /* Text */
-  --text-strong: #001c44;
-  --text-soft: #0c5776;
-  --brand: #001c44;
-
-  /* Summary */
-  --sum-g1: #001c44;
-  --sum-g2: #0c5776;
-  --sum-radial: rgba(188,254,254,.28);
-  --sum-border: rgba(188,254,254,0.35);
-  --sum-shadow: 0 12px 28px rgba(0,28,68,0.26);
-
-  /* Motion */
-  --ease3d: cubic-bezier(.22,.61,.36,1);
-  --d-fast: .45s var(--ease3d);
-  --d-base: .8s  var(--ease3d);
-  --d-slow: 1.25s var(--ease3d);
-}
-
-/* ===================================================================
-   02) HEADER + CONTROLS
-   =================================================================== */
-.wallet-header{
-  width:100%; max-width:none; margin-left:auto; margin-right:auto;
-  border-radius:16px;
-  background: linear-gradient(135deg, var(--sb-grad-1), var(--sb-grad-2));
-  color:#fff; border:none;
-  box-shadow:0 8px 20px rgba(0,28,68,.45);
-}
-.wallet-header__title{
-  font-weight:700; color:#fff;
-  display:flex; align-items:center;
-}
-
-/* Controls 1 dòng + scroll ngang khi hẹp */
-.wallet-header__controls{
-  display:flex; align-items:center; gap:1rem;
-  flex-wrap:nowrap !important;
-  overflow-x:auto; scrollbar-width:none;
-}
-.wallet-header__controls::-webkit-scrollbar{ display:none; }
-.wallet-header__controls .position-relative{ margin-left:auto; }
-
-.wallet-header__controls label,
-.wallet-header__controls select,
-.wallet-header__controls button{
-  white-space:nowrap; line-height:1.1;
-}
-
-/* Select — ĐỔI SANG NỀN TRẮNG, CHỮ XANH ĐẬM */
-.wallet-header__controls select.sort-select{
-  min-width:160px;
-  background:#ffffff; /* trước: rgba(255,255,255,.12) */
-  color:#001c44;      /* trước: #fff */
-  border:1px solid rgba(148,163,184,.7); /* trước: rgba(188,254,254,.6) */
-  border-radius:10px;
-  transition: all .2s ease;
-  -webkit-text-fill-color:#001c44; /* đồng bộ màu chữ trong webkit */
-  caret-color:#001c44;
-}
-.wallet-header__controls select.sort-select option{
-  color:#001c44; background:#fff;
-}
-.wallet-header__controls select.sort-select:focus{
-  border-color:#bcfefe;
-  box-shadow:0 0 0 3px rgba(188,254,254,.4);
-  outline:none;
-}
-.wallet-header__controls label{ font-weight:500; color:#e5f5ff; }
-
-/* Nút đổi chiều sort “Giảm/Tăng” — NỀN TRẮNG, CHỮ XANH */
-.sort-dir-btn{
-  border:1px solid rgba(148,163,184,.7);
-  color:#001c44;
-  background:#ffffff; /* trước: rgba(255,255,255,.15) */
-  border-radius:8px;
-  transition:all .25s ease;
-}
-.sort-dir-btn:hover{
-  background:#f1f5f9; /* sáng nhẹ khi hover */
-  transform:translateY(-1px);
-}
-
-/* Nút TẠO VÍ MỚI — NỀN TRẮNG, CHỮ XANH ĐẬM */
-.btn-gradient{
-  border:1px solid rgba(148,163,184,.7);
-  color:#001c44;                 /* chữ tương phản */
-  background:#ffffff;            /* trước: gradient mint */
-  border-radius:999px; transition:all .25s ease;
-  padding:0.45rem 1rem; font-weight:600;
-  box-shadow:0 8px 20px rgba(0,28,68,.20);
-}
-.btn-gradient:hover{
-  background:#f1f5f9;
-  transform:translateY(-1px) scale(1.02);
-}
-
-.wallet-header__controls i{ font-size:1.05rem; }
-
-/* Z-index cho overlay */
-.wallet-header,
-.wallet-header__controls,
-.wallet-header .position-relative{ position:relative; z-index:20; }
-
-/* Overlay/Modal ưu tiên */
-.wallet-create-chooser,
-.wallet-create-modal,
-.modal.d-block{
-  position:fixed; inset:0; z-index:2000;
-}
-.modal-dialog{ z-index:2100; }
-
-/* Desktop/Mobile overflow */
-@media (min-width: 576px) { .wallet-header__controls { overflow: visible; } }
-@media (max-width: 575.98px){
-  .wallet-header__controls { overflow-x:auto; scrollbar-width:none; }
-  .wallet-header__controls::-webkit-scrollbar { display:none; }
-}
-
-/* ===================================================================
-   03) PAGE / SECTION WRAPPER
-   =================================================================== */
-.wallet-page{ perspective:900px; perspective-origin:50% 20%; }
-.wallet-page.container {
-  max-width:100% !important; width:100% !important;
-  padding-left:0 !important; padding-right:0 !important;
-}
-.wallet-page > .wallet-header,
-.wallet-page > section,
-.wallet-page .row { padding-left:15px; padding-right:15px; }
-
-.wallet-section{
-  position:relative;
-  border-radius:16px; overflow:hidden;
-  background:#ffffff;
-  box-shadow:0 8px 20px rgba(0,28,68,.12);
-  transition: all .3s;
-}
-.wallet-section:hover{
-  transform:translateY(-2px);
-  box-shadow:0 12px 28px rgba(0,28,68,.18);
-}
-.wallet-page .card-header{
-  background: linear-gradient(135deg,#001c44,#0c5776);
-  color:#fff; border:none; border-radius:16px 16px 0 0; padding:.85rem 1.1rem;
-  position:relative; z-index:3;
-}
-.wallet-page .card-header h5{ font-weight:600; font-size:1.02rem; }
-.wallet-page .card-header .badge{
-  background:rgba(188,254,254,.25); font-size:.84rem; border-radius:10px;
-}
-.wallet-page .card-body{ background:#fff; padding:1.1rem 1.2rem; }
-.wallet-section .card-body{ position:relative; overflow:visible; }
-
-/* Khi overlay mở: giữ trạng thái header */
-.wallet-page.is-overlay-open .wallet-header,
-.wallet-page.is-overlay-open .wallet-header__controls,
-.wallet-page.is-overlay-open .wallet-header__controls .position-relative{
-  overflow:visible !important; transform:none !important;
-  filter:none !important; will-change:auto !important;
-}
-
-/* ===================================================================
-   04) SUMMARY CARDS (TỔNG SỐ DƯ) — THEO PALETTE MỚI
-   =================================================================== */
-.sum-card{
-  position:relative; width:100%;
-  padding:18px 22px; border-radius:22px; color:#f9fafb; overflow:hidden;
-  border:1px solid var(--sum-border); box-shadow: var(--sum-shadow);
-  background:
-    radial-gradient(1100px 420px at 20% -10%, var(--sum-radial), transparent 60%),
-    linear-gradient(120deg, var(--sum-g1) 0%, var(--sum-g2) 55%, #2d99ae 100%);
-  transform-style:preserve-3d;
-  transition: transform var(--d-base), box-shadow var(--d-base), filter var(--d-base);
-}
-.sum-card:hover{
-  transform: translateZ(18px) scale(1.01);
-  filter: brightness(1.04);
-  box-shadow: 0 22px 46px rgba(0,28,68,.3);
-}
-.sum-card::after{
-  content:""; position:absolute; inset:-40%;
-  background: conic-gradient(from 210deg at 50% 50%, rgba(188,254,254,.3), transparent 60%);
-  transform: translateX(-10%) rotate(8deg);
-  opacity:0; transition: opacity var(--d-fast), transform var(--d-slow); pointer-events:none;
-}
-.sum-card:hover::after{ opacity:.3; transform: translateX(6%) rotate(8deg); }
-.sum-card::before{
-  content:""; position:absolute; left:-20%; right:-20%; bottom:-2px; height:2px;
-  background: linear-gradient(90deg, rgba(0,0,0,0) 0%,
-    rgba(0,28,68,.0.8) 40%, rgba(0,28,68,0.8) 60%, rgba(0,0,0,0) 100%);
-  filter: blur(2px); opacity:.7;
-}
-
-.sum-card__title{
-  font-size:12px; letter-spacing:.12em; font-weight:700; opacity:.9; text-transform:uppercase;
-}
-.sum-card__value{ margin-top:6px; font-size:clamp(22px,3vw,32px); font-weight:800; line-height:1.1; }
-.sum-card__desc{ margin-top:6px; font-size:13px; opacity:.9; }
-
-.sum-card--mini{ padding:14px 16px; border-radius:18px; box-shadow:0 10px 24px rgba(0,28,68,.2); }
-.sum-card--overall,
-.sum-card--personal,
-.sum-card--group{
-  background:
-    radial-gradient(900px 360px at 18% -8%, var(--sum-radial), transparent 60%),
-    linear-gradient(120deg,#001c44 0%,#0c5776 52%,#2d99ae 100%);
-}
-.sum-card--overall{
-  margin-top:20px; margin-bottom:28px;
-  box-shadow:0 16px 36px rgba(0,28,68,.3);
-}
-.wallet-page > .sum-card--overall{ max-width:100%; border-radius:22px; }
-.wallet-header + .sum-card--overall{ margin-top:16px; margin-bottom:32px; }
-
-/* ===================================================================
-   05) GRID & EXPAND STATES
-   =================================================================== */
-.wallet-grid{
-  display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  grid-auto-rows: minmax(var(--wallet-row-h), auto);
-  gap:16px; max-height: calc(var(--wallet-row-h) * 5 + var(--wallet-row-gap) * 4);
-  overflow:auto; padding-right:6px; min-width:0;
-  overflow-x:visible; position:relative; z-index:0;
-}
-.wallet-grid__item{ display:block; width:100%; min-width:0; min-height:0; position:relative; z-index:1; }
-
-.wallet-grid::-webkit-scrollbar{ width:8px; }
-.wallet-grid::-webkit-scrollbar-thumb{ background:rgba(0,28,68,.25); border-radius:8px; }
-.wallet-grid::-webkit-scrollbar-track{ background:transparent; }
-
-/* Expanded two-column */
-.wallet-grid--expanded-two{
-  grid-template-columns: repeat(2, 1fr) !important;
-  max-height:none !important; overflow:visible !important;
-  gap:16px 18px;
-}
-@media (max-width: 992px){
-  .wallet-grid--expanded-two{ grid-template-columns:1fr !important; }
-}
-
-/* Flip/expansion container */
-.exp-anim{
-  display:block;
-  contain: layout paint;
-  overflow:hidden;
-  transition:
-    max-height .42s cubic-bezier(.22,.61,.36,1),
-    opacity .32s ease,
-    padding-top .42s cubic-bezier(.22,.61,.36,1),
-    padding-bottom .42s cubic-bezier(.22,.61,.36,1);
-}
-
-/* Limit 6 items (giữ cuộn) */
-.wallet-grid--limit-6{
-  position:relative;
-  grid-auto-rows:minmax(var(--wallet-row-h), auto);
-  align-content:start;
-  overflow:auto; padding-right:6px; z-index:1;
-}
-@media (min-width: 992px){
-  .wallet-grid--limit-6{
-    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
-    max-height: calc(var(--wallet-row-h) * 3 + var(--wallet-row-gap) * 2);
-  }
-}
-@media (max-width: 991.98px){
-  .wallet-grid--limit-6{
-    grid-template-columns:1fr !important;
-    max-height: calc(var(--wallet-row-h) * 6 + var(--wallet-row-gap) * 5);
-  }
-}
-/* Giữ giới hạn 6 cả khi expanded */
-@media (min-width: 992px){
-  .section-expanded .wallet-grid.wallet-grid--expanded-two.wallet-grid--limit-6{
-    max-height: calc(var(--wallet-row-h) * 3 + var(--wallet-row-gap) * 2) !important;
-    overflow:auto !important;
-  }
-}
-@media (max-width: 991.98px){
-  .section-expanded .wallet-grid.wallet-grid--expanded-two.wallet-grid--limit-6{
-    max-height: calc(var(--wallet-row-h) * 6 + var(--wallet-row-gap) * 5) !important;
-    overflow:auto !important;
-  }
-}
-
-/* Grid reveal khi section mở rộng */
-.section-expanded .wallet-grid{
-  --reveal:0%;
-  animation: gridClipIn 0.9s cubic-bezier(.22,.61,.36,1) both;
-  overflow:visible;
-}
-@keyframes gridClipIn {
-  from { opacity:0; clip-path: inset(0 100% 0 0 round 16px); transform: translateY(6px); }
-  60%  { opacity:1; }
-  to   { opacity:1; clip-path: inset(0 0 0 0 round 16px); transform: translateY(0); }
-}
-
-/* Focus section */
-.wallet-page .wallet-section.section-expanded{
-  transform: translateZ(30px) scale(1.01);
-  transition: transform var(--d-base), box-shadow var(--d-base);
-  box-shadow: 0 22px 48px rgba(0,28,68,.28);
-}
-.wallet-page .wallet-section:not(.section-expanded){
-  transition: filter var(--d-base), transform var(--d-base), opacity var(--d-base);
-}
-
-/* Bỏ dim cưỡng bức (giữ tương tác bình thường) */
-.wallet-page .wallet-section,
-.wallet-page:has(.wallet-section.section-expanded) .wallet-section{
-  filter:none !important; opacity:1 !important; transform:none !important; pointer-events:auto !important;
-}
-
-/* Inspector slide-in + shadow */
-@keyframes sideClipIn {
-  from { opacity:0; clip-path: inset(0 0 0 100% round 16px); transform: translateX(12px); }
-  60%  { opacity:1; }
-  to   { opacity:1; clip-path: inset(0 0 0 0 round 16px); transform: translateX(0); }
-}
-.section-expanded aside.col-lg-4{
-  animation: sideClipIn 0.9s cubic-bezier(.22,.61,.36,1) both;
-  -webkit-mask-image:none !important; mask-image:none !important; mask:none !important;
-  position:relative; z-index:4; overflow:visible;
-  filter: drop-shadow(0 10px 28px rgba(0,28,68,.3));
-}
-
-/* ===================================================================
-   06) WALLET CARD — DÙNG MÀU TEAL/MINT, KHÔNG ẢNH
-   =================================================================== */
-.wallet-grid__item .wallet-card {
-  width: 100%;
-  padding: 1.1rem 1.3rem;
-  border-radius: 18px;
+/* =============================
+   PAGE LAYOUT
+   ============================= */
+.wallets-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 20px;
+  color: #000000;
   background: #ffffff;
-  border: 1px solid var(--card-border);
-  box-shadow: var(--card-shadow-1), var(--card-shadow-2);
-  transition: all 0.25s ease;
-  position: relative;
-  overflow: hidden;
 }
 
-.wallet-grid__item .wallet-card::before{
-  content:"";
-  position:absolute;
-  inset:0; /* <-- FIX: phủ đúng trong card, không tràn lệch */
-  background: radial-gradient(circle at 0 0, rgba(188,254,254,.6), transparent 60%);
-  opacity:0;
-  transition:opacity .25s ease, transform .4s ease;
-  pointer-events:none;
+/* HEADER */
+.wallets-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-
-.wallet-grid__item .wallet-card:hover {
-  transform: translateY(-4px);
-  background: #ffffff;
-  border-color: #2d99ae;
-  box-shadow: 0 16px 34px rgba(0,28,68,.26);
-}
-.wallet-grid__item .wallet-card:hover::before{
-  opacity:1;
- transform:none;
-}
-
-/* Tiêu đề */
-.wallet-card .wallet-name {
+.wallets-page__title {
+  font-size: 22px;
   font-weight: 700;
-  font-size: 1.05rem;
-  color: #001c44;
-}
-
-/* Số dư */
-.wallet-card .wallet-balance {
-  font-weight: 700;
-  font-size: 1rem;
-  color: #0c5776;
-}
-
-/* Thông tin phụ */
-.wallet-card small,
-.wallet-card .text-muted {
-  color: #64748b;
-  font-size: 0.85rem;
-}
-
-/* Nút 3 chấm */
-.wallet-grid__item .wallet-card .dropdown > .btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #f1f5f9;
-  border: 1px solid rgba(148,163,184,.7);
-  color: #001c44;
-  transition: all 0.25s ease;
-}
-.wallet-grid__item .wallet-card .dropdown > .btn:hover {
-  background: #bcfefe;
-  border-color:#2d99ae;
-  color: #001c44;
-}
-
-/* ===================================================================
-   07) DROPDOWN (nút 3 chấm)
-   =================================================================== */
-.wallet-grid__item .wallet-card .dropdown {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   margin: 0;
-  z-index: 5;
+  color: #000000;
 }
 
-.wallet-grid__item .wallet-card .dropdown > .btn,
-.wallet-grid__item .wallet-card .dropdown-toggle {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid #001c44 !important;
-  background: #ffffff;
-  color: #001c44;
+.wallets-page__subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #555555;
+}
+
+/* STATS */
+.wallets-page__stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wallets-stat {
+  flex: 0 0 auto;
+  min-width: 160px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #e3e3e3;
+  background: #f9fafb;
+}
+
+.wallets-stat__label {
+  display: block;
+  font-size: 11px;
+  color: #666666;
+  margin-bottom: 4px;
+}
+
+.wallets-stat__value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #000000;
+}
+
+/* MAIN LAYOUT */
+.wallets-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* =============================
+   LEFT PANEL: LIST
+   ============================= */
+.wallets-list-panel__tabs {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 4px;
+  background: #e5f2f5;
+  padding: 2px;
+  border-radius: 999px;
+}
+.wallets-tab {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #0a4350;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
-  box-shadow: none;
-  transition: background-color .2s, transform .2s, color .2s;
-}
-.wallet-grid__item .wallet-card .dropdown > .btn:hover,
-.wallet-grid__item .wallet-card .dropdown-toggle:hover {
-  background: #bcfefe;
-  color:#0c5776;
-  transform: scale(1.05);
+  gap: 6px;
+  cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 80px;
 }
 
-/* Khi menu mở */
-.wallet-grid__item .wallet-card:has(.dropdown-menu.show),
-.wallet-grid__item .wallet-card:has(.dropdown-toggle.show) {
-  z-index: 20;
-  overflow: visible;
+.wallets-shared-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 12px;
 }
 
-/* Menu dropdown */
-.wallet-card .dropdown-menu {
-  position: absolute !important;
-  top: calc(100% + 6px) !important;
-  right: 6px !important;
-  left: auto !important;
-  transform: none !important;
-  z-index: 10000 !important;
-
-  min-width: 220px;
-  padding: 8px 10px !important;
-  background: #fff;
-  border: 2px solid #001c44 !important;
-  border-radius: 12px !important;
-  box-shadow: none !important;
+.wallets-shared-toggle__btn {
+  border-radius: 12px;
+  padding: 6px 10px;
+  border: 1px solid #d0e8ee;
+  background: #f3fbfc;
+  font-size: 12px;
+  color: #0a4350;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.wallet-card .dropdown-menu .form-check{
+.wallets-shared-toggle__btn--active {
+  background: #2d99ae;
+  border-color: #2d99ae;
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.2);
+}
+
+.wallets-tab--active {
+  background: #2d99ae;
+  color: #ffffff;
+}
+
+.wallets-tab__badge {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Search & Sort */
+.wallets-list-panel__controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.wallets-list-panel__search {
+  flex: 1;
+}
+
+.wallets-list-panel__search input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #dddddd;
+  font-size: 13px;
+  outline: none;
+}
+
+.wallets-list-panel__search input:focus {
+  border-color: #2d99ae;
+}
+
+.wallets-list-panel__sort select {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #dddddd;
+  font-size: 13px;
+  background: #ffffff;
+  outline: none;
+}
+
+/* LIST */
+.wallets-list-panel__list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 560px; /* ~10 card */
+  overflow-y: auto;
+}
+
+.wallets-list__empty {
+  font-size: 13px;
+  color: #777777;
+  padding: 8px;
+}
+
+/* Card */
+.wallets-list-item {
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.1s ease,
+    border-color 0.15s ease, background 0.15s ease;
+}
+
+.wallets-list-item:hover {
+  border-color: #2d99ae;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.wallets-list-item--active {
+  border-color: #2d99ae;
+  background: #e5f4f8;
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.25);
+}
+
+.wallets-list-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.wallets-list-item__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.wallets-list-item__pill-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.wallets-list-item__type {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid #e3e3e3;
+  color: #333333;
+  background: #f8fafb;
+}
+
+.wallets-list-item__default-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: #2d99ae;
+  color: #ffffff;
+}
+
+.wallets-list-item__balance {
+  font-size: 14px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.wallets-list-item__desc {
+  font-size: 12px;
+  color: #666666;
+}
+
+.wallets-shared-owner-wrapper {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wallets-shared-owner-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wallets-shared-owner-hint {
+  font-size: 12px;
+  color: #475467;
+  margin: 4px 0 0;
+}
+
+.wallets-owner-chip {
+  border-radius: 10px;
+  border: 1px solid #d0e8ee;
+  background: #f0fbfd;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #0a4350;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  min-width: 120px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.wallets-owner-chip--active {
+  background: #2d99ae;
+  border-color: #2d99ae;
+  color: #ffffff;
+}
+
+.wallets-owner-chip__name {
+  font-weight: 600;
+}
+
+.wallets-owner-chip__count {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.wallets-shared-owner-wallets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.wallets-shared-owner-wallets--detail {
+  max-height: none;
+  padding-right: 0;
+}
+
+.wallets-shared-owner-wallet {
+  border-radius: 12px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.wallets-shared-owner-wallet:hover {
+  border-color: #2d99ae;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.wallets-shared-owner-wallet--selected {
+  border-color: #2d99ae;
+  background: #e4f6fb;
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.25);
+}
+
+.wallets-shared-owner-wallet__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.wallets-shared-owner-wallet__title {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.wallets-shared-owner-wallet__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.wallets-shared-owner-wallet__balance {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.wallets-shared-owner-wallet__note {
+  margin: 0;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.wallets-shared-owner-wallet__meta {
+  font-size: 11px;
+  color: #4b5563;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.wallets-shared-demo-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #fde68a;
+  color: #78350f;
+}
+
+.wallets-shared-wallet-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.wallets-shared-wallet-actions__btn {
+  flex: 1;
+  border-radius: 999px;
+  border: 1px solid #d0d7de;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.wallets-shared-wallet-actions__btn--primary {
+  background: #2d99ae;
+  border-color: #2d99ae;
+  color: #ffffff;
+}
+
+.wallets-detail-panel--shared-with-me {
+  border-radius: 16px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wallets-shared-detail__header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.wallets-shared-detail__header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #475467;
+}
+
+.wallets-shared-detail__empty {
+  border-radius: 12px;
+  border: 1px dashed #d0d5dd;
+  padding: 18px;
+  text-align: center;
+  font-size: 13px;
+  color: #475467;
+  background: #f9fafb;
+}
+
+.wallets-shared-detail__owner-card {
+  border-radius: 12px;
+  border: 1px solid #e0e7ec;
+  background: #f5fbfc;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wallets-shared-detail__owner-label {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.wallets-shared-detail__owner-name {
+  margin: 2px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.wallets-shared-detail__owner-email {
+  margin: 0;
+  font-size: 12px;
+  color: #475467;
+}
+
+.wallets-shared-detail__owner-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 12px;
+  color: #475467;
+}
+
+.wallets-demo-overlay {
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 4px 0 !important;
-  padding: 4px 2px !important;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.2);
+  z-index: 9999;
+  pointer-events: none;
 }
-.wallet-card .dropdown-menu .form-check + .form-check {
-  border-top: 1px solid rgba(148,163,184,0.4);
+
+.wallets-demo-overlay__box {
+  min-width: 260px;
+  max-width: 360px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  text-align: center;
+  box-shadow: 0 15px 45px rgba(15, 23, 42, 0.25);
 }
-.wallet-card .dropdown-menu .form-check-label {
-  flex: 1;
+
+.wallets-demo-overlay__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.wallets-demo-overlay__wallet {
+  margin: 8px 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d99ae;
+}
+
+.wallets-demo-overlay__hint {
+  font-size: 12px;
+  color: #475467;
+}
+
+/* =============================
+   RIGHT PANEL: DETAIL
+   ============================= */
+.wallets-detail-panel {
+  border-radius: 16px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+  padding: 12px 14px 14px;
+  min-height: 320px;
+}
+
+/* Header detail */
+.wallets-detail__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #f0fbfd;
+  border: 1px solid #d3edf3;
+  margin-bottom: 10px;
+}
+
+.wallets-detail__name {
+  margin: 0;
+  font-size: 18px;
   font-weight: 700;
-  color: #001c44;
+  color: #000000;
+}
+
+.wallets-detail__tags {
+  margin-top: 4px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.wallet-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2d99ae;
+  color: #ffffff;
+}
+
+.wallet-tag--outline {
+  background: #ffffff;
+  color: #2d99ae;
+  border: 1px solid #2d99ae;
+}
+
+.wallets-detail__balance {
+  text-align: right;
+}
+
+.wallets-detail__balance-label {
+  font-size: 11px;
+  color: #666666;
+}
+
+.wallets-detail__balance-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000000;
+}
+
+/* Tabs detail */
+.wallets-detail__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.wallets-detail-tab {
+  border-radius: 999px;
+  border: 1px solid #e3e3e3;
+  background: #f9fafb;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #333333;
+}
+
+.wallets-detail-tab--active {
+  background: #2d99ae;
+  border-color: #2d99ae;
+  color: #ffffff;
+}
+
+/* Empty state */
+.wallets-detail__empty {
+  padding: 32px 10px;
+  text-align: center;
+}
+
+.wallets-detail__empty h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.wallets-detail__empty p {
+  margin: 0;
+  font-size: 13px;
+  color: #777777;
+}
+
+/* Sections */
+.wallets-section {
+  margin-top: 8px;
+}
+
+.wallets-section--inline {
+  margin-top: 0;
+}
+
+.wallets-section__header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.wallets-section__header span {
+  font-size: 12px;
+  color: #777777;
+}
+
+/* Detail grid */
+.wallet-detail-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+
+.wallet-detail-item {
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid #e3e3e3;
+  background: #f9fafb;
+}
+
+.wallet-detail-item--full {
+  grid-column: 1 / -1;
+}
+
+.wallet-detail-item--inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wallet-detail-item__label {
+  display: block;
+  font-size: 11px;
+  color: #777777;
+  margin-bottom: 2px;
+}
+
+.wallet-detail-item__value {
+  font-size: 13px;
+  color: #111827;
+}
+
+/* Share info */
+.wallets-detail__share {
+  margin-top: 10px;
+}
+
+.wallets-detail__share h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.wallets-detail__share-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.wallet-share-add-btn {
+  border: 1px solid #2d99ae;
+  background: #e5f4f8;
+  color: #065f73;
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.wallet-share-add-btn:hover {
+  background: #d4eef3;
+}
+
+.wallet-share-quick-form {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.wallet-share-quick-form input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #d0d7de;
+  font-size: 12px;
+}
+
+.wallet-share-quick-form button {
+  border-radius: 999px;
+  border: 1px solid #2d99ae;
+  background: #2d99ae;
+  color: #ffffff;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.wallet-share-quick-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.wallet-share-quick-message {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #b42318;
+}
+
+.wallets-detail__share-empty {
+  font-size: 13px;
+  color: #777777;
+}
+
+/* Share pills */
+.wallet-share-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.wallet-share-pill {
+  background: #e0f4f7;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #0a4350;
+}
+
+.wallet-share-pill__info {
+  display: flex;
+  flex-direction: column;
   line-height: 1.2;
 }
 
-/* Không chắn click */
-.wallet-card .wc-dots { pointer-events: none; }
-.wallet-card .wc-dots .dropdown,
-.wallet-card .wc-dots button { pointer-events: auto; }
-
-/* Chừa không gian bên phải nội dung */
-.wallet-card .card-body {
-  padding-right: 56px !important;
-}
-.wallet-card .wallet-name { padding-right: 0 !important; }
-
-/* ===================================================================
-   08) ACCESSIBILITY & RESPONSIVE
-   =================================================================== */
-.wallet-grid__item .wallet-card:focus-within{
-  outline:2px solid rgba(45,153,174,.6); outline-offset:2px;
-}
-@media (prefers-reduced-motion: reduce){
-  .wallet-grid__item .wallet-card, .wc-menu > .btn{ transition:none; }
-}
-@media (max-width: 992px){
-  .wallet-page .card-body{ padding:1rem; }
-  .btn-gradient{ font-size:.92rem; }
-  :root{ --wallet-row-h:132px; }
-}
-@media (max-width: 576px){
-  .wallet-grid{ grid-template-columns:1fr; }
-  :root{ --wallet-row-h:120px; }
+.wallet-share-pill__info small {
+  font-size: 10px;
+  opacity: 0.8;
 }
 
-/* ===================================================================
-   09) INSPECTOR + TABS
-   =================================================================== */
-.inspector{
-  border-radius:16px;
-  background:#ffffff;
-  box-shadow:0 10px 24px rgba(0,28,68,.18);
-}
-.inspector .card-body{ padding:1rem 1.1rem; }
-
-.inspector__tabs{
-  display:flex; gap:8px;
-  padding:8px; border-bottom:1px dashed rgba(0,28,68,.1);
-}
-.itab{
-  border:1px solid rgba(148,163,184,.6);
-  background:#fff; color:#001c44;
-  border-radius:10px; padding:6px 10px;
-  font-weight:600; font-size:.92rem; transition:.2s;
-}
-.itab:hover{ background:#f1f5f9; }
-.itab.active{
-  color:#f9fafb; border-color:transparent;
-  background: linear-gradient(135deg,#001c44,#0c5776);
+.wallet-share-pill button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: #0a4350;
 }
 
-.inspector__hero{
-  padding:12px 14px; border-radius:14px; color:#f9fafb;
-  background:
-    radial-gradient(900px 360px at 18% -8%, rgba(188,254,254,.25), transparent 60%),
-    linear-gradient(135deg,#001c44 0%,#0c5776 52%,#2d99ae 100%);
-}
-.inspector__title{ font-weight:800; font-size:1rem; }
-.inspector__desc{ font-size:.9rem; opacity:.9; }
-
-.info-row{
-  display:flex; align-items:center; justify-content:space-between;
-  gap:10px; padding:10px 6px;
-  border-bottom:1px dashed rgba(148,163,184,.4);
-  transition: background var(--d-fast), transform var(--d-fast);
-}
-.info-row .label{ color:#6b7280; font-weight:600; }
-.info-row .value{ font-weight:700; }
-.info-row:hover{ background: rgba(188,254,254,.2); transform: translateZ(6px); }
-
-/* ===================================================================
-   10) ICON “EYE” (ẩn/hiện tiền)
-   =================================================================== */
-.money-eye{
-  cursor:pointer; font-size:1rem; opacity:.75;
-  transition:opacity .2s ease, transform .2s ease, filter var(--d-fast), text-shadow var(--d-fast);
-  color:#0c5776;
-}
-.money-eye:hover{
-  text-shadow:0 0 12px rgba(188,254,254,.8);
-  transform: translateZ(10px) scale(1.12);
-  opacity:1;
+.wallet-share-pill--readonly button {
+  display: none;
 }
 
-/* ===================================================================
-   11) MOTION KEYFRAMES (giữ nguyên)
-   =================================================================== */
-@keyframes cardEnter3d{
-  from{ opacity:0; transform: translateY(16px) rotateX(6deg) scale(.98); }
-  to  { opacity:1; transform: translateY(0)   rotateX(0deg)  scale(1); }
-}
-@keyframes clipIn{
-  0%{ clip-path: inset(0 100% 0 0 round 16px); opacity:0; transform: translateY(8px); }
-  60%{ opacity:1; }
-  100%{ clip-path: inset(0 0 0 0 round 16px); transform: translateY(0); }
+.wallets-detail__share-error {
+  font-size: 12px;
+  color: #b42318;
+  background: #fdecea;
+  border-radius: 8px;
+  padding: 6px 10px;
 }
 
-/* ===================================================================
-   12) SECTION TOGGLE – NÚT MŨI TÊN “VÍ CÁ NHÂN” NỀN TRẮNG
-   =================================================================== */
-.section-toggle{
-  --arrow-size:9px;
-  background:#ffffff; /* trước: rgba(188,254,254,.25) */
-  color:#001c44;
-  border:1px solid rgba(148,163,184,.9);
-  border-radius:10px; width:30px; height:30px;
-  display:inline-flex; align-items:center; justify-content:center;
-  padding:0; line-height:1;
-  transition: background var(--d-fast), transform var(--d-fast), box-shadow var(--d-fast);
-  will-change: transform, background;
-  box-shadow:0 6px 14px rgba(0,28,68,.18);
-  position:relative;
-}
-.section-toggle:hover{
-  background:#f1f5f9;
-  transform: translateY(-2px) rotateX(8deg);
-}
-.section-toggle:active{ transform: translateY(0) scale(.95); }
-.section-toggle::before{
-  content:""; position:absolute; inset:0; margin:auto; width:0; height:0;
-  border-left: var(--arrow-size) solid transparent;
-  border-right: var(--arrow-size) solid transparent;
-  border-top: calc(var(--arrow-size) * 1.2) solid #001c44;
-  transform-origin:50% 40%; transition: transform var(--d-fast);
-}
-.section-toggle[aria-expanded="true"]::before{ transform: rotate(-90deg); }
-
-/* ===================================================================
-   13) CHOOSER / POPOVER UI
-   =================================================================== */
-.wallet-create-chooser .dropdown-menu,
-.wallet-create-chooser .menu,
-.wallet-create-chooser .panel,
-.wallet-create-chooser .popover,
-.wallet-create-chooser .card{
-  background:#fff !important; color:#001c44 !important;
-  border:1px solid rgba(148,163,184,.6) !important;
-  border-radius:12px !important;
-  box-shadow:0 12px 32px rgba(0,28,68,.28) !important;
+/* Manage tab */
+.wallets-section--manage {
+  margin-top: 12px;
 }
 
-/* Override vị trí nút ... khi dùng kiểu wc--flat */
-.wallet-card.wc--flat .wc-dots,
-.wallet-card.wc--flat .dropdown {
-  top: 0 !important;
-  right: 0 !important;
-  padding: 6px !important;
-  z-index: 6000 !important;
+.wallets-manage-list {
+  margin-top: 10px;
+  border-radius: 12px;
+  border: 1px solid #e3e3e3;
+  background: #fdfefe;
+  padding: 10px 12px;
 }
 
-/* FIX scroll & form-switch trong menu */
-.wallet-section:not(.section-expanded) .wallet-grid--limit-6{
+.wallets-manage-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wallets-manage-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px dashed #e3e3e3;
+}
+
+.wallets-manage-list li:last-child {
+  border-bottom: none;
+}
+
+.wallets-manage__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.wallets-manage__meta {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: #667085;
+}
+
+.wallets-manage__meta span:last-child {
+  font-weight: 600;
+  color: #055160;
+}
+
+.wallets-manage-list button {
+  border-radius: 999px;
+  border: 1px solid #e11d48;
+  background: transparent;
+  color: #e11d48;
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.wallets-manage-list button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.wallets-manage__state {
+  font-size: 12px;
+  color: #555555;
+  padding: 6px 0;
+}
+
+.wallets-manage__state--error {
+  color: #b42318;
+}
+
+/* History */
+.wallets-detail__history-summary {
+  margin-top: 10px;
+}
+
+.wallets-detail__history {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.wallets-detail__history::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wallets-detail__history::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wallets-detail__history::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
+}
+
+.wallets-detail__history-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.wallets-detail__history-empty {
+  font-size: 13px;
+  color: #777777;
+}
+
+.wallets-detail__history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wallets-detail__history-item {
+  border-radius: 10px;
+  border: 1px solid #e0e0e0;
+  padding: 8px 10px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wallets-detail__history-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.wallets-detail__history-title {
+  font-size: 13px;
+  color: #111111;
+}
+
+.wallets-detail__history-amount {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wallets-detail__history-amount--pos {
+  color: #15803d;
+}
+
+.wallets-detail__history-amount--neg {
+  color: #b91c1c;
+}
+
+/* danh mục + thời gian dưới history */
+.wallets-detail__history-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #777777;
+}
+
+.wallets-detail__history-category {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e0f4f7;
+  color: #0a4350;
+  font-size: 11px;
+}
+
+/* =============================
+   FORMS
+   ============================= */
+.wallet-form {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wallet-form__row {
+  display: flex;
+  gap: 8px;
+}
+
+.wallet-form__row label {
+  flex: 1;
+  font-size: 12px;
+  color: #111827;
+}
+
+.wallet-form__full {
+  flex: 1 1 100%;
+}
+
+.wallet-form input[type="text"],
+.wallet-form input[type="number"],
+.wallet-form input[type="email"],
+.wallet-form select,
+.wallet-form textarea {
+  width: 100%;
+  margin-top: 3px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid #e3e3e3;
+  font-size: 13px;
+  outline: none;
+  background: #ffffff;
+}
+
+.wallet-form textarea {
+  resize: vertical;
+}
+
+.wallet-form input:focus,
+.wallet-form select:focus,
+.wallet-form textarea:focus {
+  border-color: #2d99ae;
+}
+
+/* checkbox row */
+.wallet-form__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #111111;
+}
+
+.wallet-form__checkbox input {
+  width: auto;
+}
+
+/* Share row input + button */
+.wallet-form__share-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.wallet-form__share-row input {
+  flex: 1;
+}
+
+/* Footer */
+.wallet-form__footer {
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wallet-form__footer--right {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.wallet-form__actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+/* Buttons */
+.wallets-btn {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.wallets-btn--primary {
+  background: #2d99ae;
+  color: #ffffff;
+  border-color: #2d99ae;
+}
+
+.wallets-btn--primary:hover {
+  background: #227b8a;
+  border-color: #227b8a;
+  transform: translateY(-0.5px);
+}
+
+.wallets-btn--ghost {
+  background: #ffffff;
+  color: #2d99ae;
+  border-color: #2d99ae;
+}
+
+.wallets-btn--ghost:hover {
+  background: #e5f4f8;
+}
+
+/* =============================
+   VIEW TAB – 2 CỘT
+   ============================= */
+.wallets-detail-view {
+  margin-top: 10px;
   display: grid;
-  grid-auto-rows: minmax(var(--wallet-row-h), auto);
-  align-content: start;
-  overflow-y: auto !important;
-  overflow-x: visible;
-  padding-right: 6px;
-  position: relative;
-  z-index: 1;
-  -webkit-overflow-scrolling: touch;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 10px 14px;
+  align-items: flex-start;
 }
 
-@media (min-width: 992px){
-  .wallet-section:not(.section-expanded) .wallet-grid--limit-6{
-    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
-    max-height: calc(var(--wallet-row-h) * 3 + var(--wallet-row-gap) * 2) !important;
-  }
-}
-@media (max-width: 991.98px){
-  .wallet-section:not(.section-expanded) .wallet-grid--limit-6{
-    grid-template-columns: 1fr !important;
-    max-height: calc(var(--wallet-row-h) * 6 + var(--wallet-row-gap) * 5) !important;
-  }
-}
-.wallet-section .card-body{
-  overflow: visible !important;
+.wallets-detail-view__card {
+  border-radius: 12px;
+  border: 1px solid #e3e3e3;
+  background: #f9fafb;
+  padding: 8px 10px;
 }
 
-.wallet-card .dropdown-menu .form-check {
-  padding-left: 0 !important;
-}
-.wallet-card .dropdown-menu .form-check .form-check-input {
-  float: none;
-  position: static;
-  margin-left: 0 !important;
-  margin-right: 10px;
-}
-.wallet-card .dropdown-menu .form-switch .form-check-input {
-  width: 2.2rem;
-  height: 1.1rem;
-}
-
-/* Card được chọn – đổi nền giống “Tổng số dư”, toàn bộ chữ trắng */
-.wallet-grid__item.is-selected .wallet-card {
-  outline: 1px solid rgba(45,153,174,0.9);
-  box-shadow: 0 8px 20px rgba(0,28,68,0.25),
-              0 0 0 1px rgba(188,254,254,0.9);
-  background:
-    radial-gradient(900px 360px at 18% -8%, var(--sum-radial), transparent 60%),
-    linear-gradient(120deg,#001c44 0%,#0c5776 52%,#2d99ae 100%);
-  color:#ffffff;
-  transform: translateY(-2px) scale(1.015);
-}
-
-/* Làm trong suốt phần thân để gradient phủ toàn bộ ví */
-.wallet-grid__item.is-selected .wallet-card .card-body {
-  background: transparent !important;
-}
-
-/* Toàn bộ chữ trong card được chọn đều trắng */
-/* Toàn bộ chữ TRONG NỘI DUNG ví (card-body) chuyển sang trắng */
-.wallet-grid__item.is-selected .wallet-card .card-body,
-.wallet-grid__item.is-selected .wallet-card .card-body * {
-  color: #ffffff !important;
-  fill: #ffffff !important;
-}
-
-/* Badge “Mặc định” giữ nền đen, chữ trắng */
-.wallet-grid__item.is-selected .wallet-card .badge {
-  background: #000000 !important;
-  color: #ffffff !important;
-  border-radius: 6px;
-  padding: 3px 8px;
+.wallets-detail-view__card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #0f172a;
   font-weight: 600;
-  font-size: 0.75rem;
 }
 
-/* Nút 3 chấm giữ nguyên style gốc (trắng – viền xám – icon xanh) */
-.wallet-grid__item.is-selected .wallet-card .dropdown > .btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #f1f5f9 !important;
-  border: 1px solid rgba(148,163,184,.7) !important;
-  color: #001c44 !important;
+.wallets-detail-view__counter {
+  font-weight: 500;
+  font-size: 11px;
+  color: #555;
+}
+
+.wallets-detail-view__col--history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* =============================
+   MERGE – STEP HEADER
+   ============================= */
+.wallet-merge__panel {
+  margin-top: 8px;
+}
+
+.wallet-merge__step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.wallet-merge__step-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text, #000);
+}
+
+.wallet-merge__step-pill {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d8dfe3);
+  color: #555;
+  background: #f5f9fa;
+}
+
+/* BOX & GRID */
+.wallet-merge__box {
+  background: #ffffff;
+  padding: 18px;
+  border-radius: var(--radius, 14px);
+  box-shadow: var(--shadow, 0 4px 10px rgba(0, 0, 0, 0.08));
+  margin-top: 8px;
+}
+
+.wallet-merge__grid-2 {
+  display: grid;
+  grid-template-columns: 1.1fr 1.9fr;
+  gap: 16px;
+}
+
+.wallet-merge__grid-2--equal {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* SUMMARY CARDS */
+.wallet-merge__summary-card {
+  background: #f8fbfc;
+  border-radius: var(--radius, 14px);
+  padding: 14px 16px;
+  border: 1px solid var(--border, #d8dfe3);
+}
+
+.wallet-merge__summary-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.wallet-merge__summary-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.wallet-merge__summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* Card ví nguồn không kéo dài full chiều cao */
+.wallet-merge__summary-card--source {
+  align-self: flex-start;
+}
+
+/* Cột tóm tắt bên trái chứa 2 card xếp dọc */
+.wallet-merge__summary-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Card ví đích đang chọn (nhẹ hơn ví nguồn) */
+.wallet-merge__summary-card--target {
+  background: #f9fafb;
+}
+
+/* RIGHT AREA – TARGET LIST & DIRECTION */
+.wallet-merge__right {
+  display: flex;
+  flex-direction: column;
+}
+
+.wallet-merge__section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.wallet-merge__hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 10px;
+}
+
+.wallet-merge__empty {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Chọn chiều gộp */
+.wallet-merge__direction {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.wallet-merge__direction-btn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d8dfe3);
+  background: #f8fbfc;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.wallet-merge__direction-btn--active {
+  background: var(--main, #2d99ae);
+  color: #ffffff;
+  border-color: var(--main, #2d99ae);
+}
+
+.wallet-merge__direction-note {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 10px;
+}
+
+/* Search */
+.wallet-merge__search {
+  margin: 6px 0 10px;
+}
+
+.wallet-merge__search input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d8dfe3);
+  font-size: 13px;
+}
+
+/* List ví – tối đa 4 item → cuộn */
+.wallet-merge__target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;   /* ~4 card */
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* target item */
+.wallet-merge__target {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--radius, 14px);
+  border: 1px solid var(--border, #d8dfe3);
+  background: #f8fbfc;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.wallet-merge__target--active {
+  border-color: var(--main, #2d99ae);
+  background: #e8f5f8;
+}
+
+.wallet-merge__target input {
+  margin-top: 4px;
+}
+
+.wallet-merge__target-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wallet-merge__target-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wallet-merge__target-name {
+  font-weight: 600;
+}
+
+.wallet-merge__target-chip {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d8dfe3);
+  color: #4b5563;
+}
+
+.wallet-merge__target-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.wallet-merge__target-warning {
+  font-size: 11px;
+  color: #d97706;
+}
+
+/* OPTIONS (CURRENCY MODES) */
+.wallet-merge__options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.wallet-merge__option {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--radius, 14px);
+  border: 1px solid var(--border, #d8dfe3);
+  background: #f8fbfc;
+  cursor: pointer;
+}
+
+.wallet-merge__option input {
+  margin-top: 4px;
+}
+
+.wallet-merge__option-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.wallet-merge__option-desc {
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.wallet-merge__option-foot {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+/* RESULT BLOCK / WARNING / LIST */
+.wallet-merge__section-divider {
+  margin: 16px 0 12px;
+  border-top: 1px dashed var(--border, #d8dfe3);
+}
+
+.wallet-merge__section-block {
+  margin-bottom: 14px;
+}
+
+.wallet-merge__section-block--warning {
+  background: #fff5f5;
+  border-radius: var(--radius, 14px);
+  padding: 12px;
+  border: 1px solid #fecaca;
+}
+
+.wallet-merge__result-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.wallet-merge__result-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.wallet-merge__list {
+  padding-left: 18px;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+/* AGREEMENT + PROGRESS */
+.wallet-merge__agree {
   display: flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: none !important;
-}
-.wallet-grid__item.is-selected .wallet-card .dropdown > .btn:hover {
-  background: #bcfefe !important;
-  border-color: #2d99ae !important;
-  color: #001c44 !important;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
 }
 
-
-/* GIỮ NGUYÊN style của nút 3 chấm và thẻ “Mặc định” */
-.wallet-grid__item.is-selected .wallet-card .dropdown > .btn,
-.wallet-grid__item.is-selected .wallet-card .badge {
-  all: unset;
+.wallet-merge__progress-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #e5edf0;
+  overflow: hidden;
+  margin: 10px 0;
 }
 
-/* Nút 3 chấm giữ nguyên trắng đen gốc */
-.wallet-grid__item.is-selected .wallet-card .dropdown > .btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #f1f5f9 !important;
-  border: 1px solid rgba(148,163,184,.7) !important;
-  color: #001c44 !important;
+.wallet-merge__progress-fill {
+  height: 100%;
+  background: var(--main, #2d99ae);
+  transition: width 0.25s;
+}
+
+.wallet-merge__progress-text {
+  font-size: 12px;
+  color: #4b5563;
+}
+
+/* ACTIONS */
+.wallet-merge__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.wallet-merge__processing,
+.wallet-merge__success {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Dòng mô tả quan hệ gộp ở giữa 2 cột */
+.wallet-merge__relation {
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: #374151;
+}
+
+.wallet-merge__relation strong {
+  font-weight: 600;
+}
+
+/* =============================
+   RESPONSIVE
+   ============================= */
+@media (max-width: 1100px) {
+  .wallets-detail-view {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 992px) {
+  .wallet-merge__grid-2,
+  .wallet-merge__grid-2--equal {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .wallets-layout {
+    grid-template-columns: 1fr;
+  }
+}
+/* =============================
+   TRANSFER – CẢNH BÁO KHÁC TIỀN TỆ
+   ============================= */
+.wallet-transfer__fx-warning {
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  font-size: 12px;
+  color: #78350f;
+}
+
+.wallet-transfer__fx-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.wallet-transfer__fx-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.wallet-transfer__fx-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #92400e;
+}
+.wallet-merge__summary-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wallet-merge__summary-card {
+  width: 100%;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+/* Khối bọc tóm tắt bên trái */
+.wallet-merge__summary-wrapper {
+  border-radius: 16px;
+  border: 1px solid #e0e7ec;
+  background: #f8fbfc;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wallet-merge__summary-wrapper-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.wallet-merge__summary-wrapper-header span {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Khối bọc cột phải: thiết lập + list ví */
+.wallet-merge__right-wrapper {
+  border-radius: 16px;
+  border: 1px solid #e0e7ec;
+  background: #ffffff;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wallet-merge__right-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.wallet-merge__right-header span {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Giữ layout cũ cho nội dung bên trong */
+.wallet-merge__summary-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wallets-detail-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wallet-merge-default-panel {
+  margin-top: 8px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #2D99AE80;
+  background: #ffffff;
+  color: #000;
+}
+
+.wallet-merge-default-panel h4 {
+  margin-bottom: 8px;
+}
+
+.wallet-merge-default-panel p {
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.wmdp-option {
   display: flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: none !important;
-}
-.wallet-grid__item.is-selected .wallet-card .dropdown > .btn:hover {
-  background: #bcfefe !important;
-  border-color: #2d99ae !important;
-  color: #001c44 !important;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
 }
 
-/* Thẻ “Mặc định” giữ nguyên trắng chữ đen */
-.wallet-grid__item.is-selected .wallet-card .badge {
-  background: #000000 !important;
-  color: #ffffff !important;
-  border-radius: 6px;
-  padding: 3px 8px;
-  font-weight: 600;
-  font-size: 0.75rem;
+.wmdp-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.wmdp-confirm-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: #2D99AE;
+  color: #fff;
+  font-weight: 500;
+}
+
+.wmdp-cancel-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #2D99AE;
+  background: #fff;
+  color: #2D99AE;
 }

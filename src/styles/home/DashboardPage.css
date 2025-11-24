@@ -148,11 +148,9 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: conic-gradient(
-    #2d99ae 0 210deg,
-    #0c5776 210deg 282deg,
-    #bcfefe 282deg 324deg,
-    #f8dad0 324deg 360deg
+  background: var(
+    --donut-gradient,
+    conic-gradient(#2d99ae 0 210deg, #0c5776 210deg 282deg, #bcfefe 282deg 324deg, #f8dad0 324deg 360deg)
   );
   position: relative;
   box-shadow: 0 12px 24px rgba(0, 28, 68, 0.35);
@@ -284,7 +282,7 @@
 }
 
 .db-line-chart__line--secondary {
-  stroke: #0c5776;
+  stroke: #c0476a;
 }
 
 .db-line-chart__labels {
@@ -416,6 +414,25 @@
 
 .db-side__search-input::placeholder {
   color: rgba(12, 87, 118, 0.9);
+}
+
+.db-side__filters {
+  margin-bottom: 12px;
+}
+
+.db-side__select {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 28, 68, 0.16);
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: #001c44;
+  background: #f2fbff;
+  outline: none;
+}
+
+.db-side__select:focus {
+  border-color: #2d99ae;
 }
 
 .db-history-list {

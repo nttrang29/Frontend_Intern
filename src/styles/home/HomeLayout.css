@@ -1,56 +1,266 @@
+/* =========================================================
+   TOKENS
+   ========================================================= */
 :root {
-  --bg: #bcfefe;
-  --surface: #ffffff;
-  --sb-grad-1: #0c5776; /* sidebar gradient 1 */
-  --sb-grad-2: #2d99ae; /* sidebar gradient 2 */
-  --text: #001c44;
-  --muted: #0c5776;
   --radius: 22px;
   --gap: 18px;
+  --text: #0f172a;
+  --content-pad: 24px;
+
+  /* Nền & viền */
+  --main-bg: #f8fafc;
+  --sidebar-bg: #ffffff;
+  --header-bg: #ffffff;
+  --content-bg: #f9fafb;
+  --border-color: #e5e7eb;
+
+  /* Sidebar / Topbar */
+  --sb-w: 260px;       /* sidebar mở */
+  --sb-wc: 78px;       /* sidebar thu gọn */
+  --tb-h: 64px;        /* chiều cao topbar */
+
+  /* Seam: chồng 1px để che border sidebar (liền mạch) */
+  --sb-seam: 1px;
+
+  /* Hiệu ứng chung sidebar/topbar/content */
+  --sb-anim: 0.36s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* Khung bao toàn bộ layout home (/home/...) */
+/* =========================================================
+   PAGE WRAPPER
+   ========================================================= */
+.home-page {
+  position: relative;
+  min-height: 100vh;
+  color: var(--text);
+  background: var(--main-bg);
+  overflow: hidden;
+
+  /* mặc định: sidebar đang mở */
+  --sb-current: var(--sb-w);
+}
+
+/* Khi body (hoặc wrapper cha) có class sb-collapsed */
+.sb-collapsed .home-page {
+  --sb-current: var(--sb-wc);
+}
+
+/* BG optional */
+.home-page__bg {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+}
+.home-page__bg-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.home-page__overlay {
+  display: none;
+}
+
+/* =========================================================
+   SIDEBAR — FLUSH
+   ========================================================= */
+.home__sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sb-current);       /* chạy theo biến */
+  height: 100vh;
+  z-index: 200;
+  background: var(--sidebar-bg);
+  color: var(--text);
+  border-right: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.25) transparent;
+
+  transition: width var(--sb-anim);
+}
+
+/* fallback nếu JS chưa apply biến (có cũng được, không có cũng ok) */
+.sb-collapsed .home__sidebar {
+  width: var(--sb-wc);
+}
+
+.home__sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.home__sidebar::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
+}
+
+/* =========================================================
+   MAIN WRAP
+   ========================================================= */
 .home__wrap {
   display: flex;
+  align-items: stretch;
   min-height: 100vh;
-  background: linear-gradient(135deg, #bcfefe 0%, #f8dad0 100%);
-  padding: 20px;
   gap: var(--gap);
+  padding: 0;
 }
 
-/* Sidebar chiếm bên trái – phần style chi tiết ở Sidebar.css */
-.home__sidebar {
-  width: 260px;
-}
-
-/* Main content */
+/* Phần main bên phải sidebar */
 .home__main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+
+  margin-left: var(--sb-current);
+  transition: margin-left var(--sb-anim);
 }
 
-/* Nội dung bên trong (topbar + page) */
+.sb-collapsed .home__main {
+  margin-left: var(--sb-wc); /* fallback */
+}
+
+/* =========================================================
+   TOPBAR — FIXED, CHẠY THEO SIDEBAR
+   ========================================================= */
+.home__topbar {
+  position: fixed;
+  top: 0;
+  left: calc(var(--sb-current) - var(--sb-seam)); /* dính mép sidebar */
+  width: calc(100% - (var(--sb-current) - var(--sb-seam)));
+  height: var(--tb-h);
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  background: var(--header-bg);   /* nền base, bên trong tb__wrap bạn phủ màu */
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: none;
+  overflow: visible;              /* cho dropdown tràn xuống */
+
+  transition:
+    left var(--sb-anim),
+    width var(--sb-anim);
+}
+
+/* fallback khi thu gọn */
+.sb-collapsed .home__topbar {
+  left: calc(var(--sb-wc) - var(--sb-seam));
+  width: calc(100% - (var(--sb-wc) - var(--sb-seam)));
+}
+
+/* tb__wrap được style chi tiết trong Topbar.css,
+   ở đây chỉ lo layer cho dropdown */
+.home__topbar .tb__wrap {
+  position: relative;   /* mốc cho dd__panel */
+  z-index: 601;
+  overflow: visible;
+}
+
+/* Panel dropdown trong topbar */
+.dd__panel {
+  position: absolute;
+  top: calc(100% + 8px);  /* cách topbar 8px */
+  right: 0;
+  z-index: 9999;
+}
+
+/* =========================================================
+   CONTENT (CUỘN DƯỚI TOPBAR)
+   ========================================================= */
 .home__content {
-  margin-top: 12px;
-  background: transparent;
-  padding-bottom: 24px;
+  flex: 1;
+  padding: calc(var(--content-pad) + var(--tb-h))
+           var(--content-pad)
+           var(--content-pad);
+  background: var(--content-bg);
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-  .home__sidebar {
-    width: 230px;
-  }
+.home__content::-webkit-scrollbar {
+  width: 8px;
+}
+.home__content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+}
+.home__content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
 }
 
+/* =========================================================
+   EDGE BLEED (optional – block full width)
+   ========================================================= */
+.edge-bleed {
+  margin-inline: calc(var(--content-pad) * -1);
+  border-radius: 16px;
+  background: var(--header-bg);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+/* =========================================================
+   TOAST dưới topbar
+   ========================================================= */
+.toast-portal {
+  position: fixed;
+  z-index: 350;
+  top: calc(var(--tb-h) + 10px);
+  right: var(--content-pad);
+}
+
+.sb-collapsed .toast-portal {
+  right: var(--content-pad);
+}
+
+/* =========================================================
+   LAYER ƯU TIÊN NỘI DUNG
+   ========================================================= */
+.home__content,
+.home__main,
+main {
+  position: relative;
+  z-index: 1;
+}
+
+/* =========================================================
+   RESPONSIVE (TABLET / MOBILE)
+   ========================================================= */
 @media (max-width: 768px) {
-  .home__wrap {
-    padding: 12px;
+  /* padding nội dung nhỏ lại */
+  :root {
+    --content-pad: 12px;
   }
 
+  /* Sidebar mobile nhỏ hơn chút, vẫn push layout (không overlay) */
   .home__sidebar {
-    width: 78px; /* dùng rail width (collapsed) */
+    width: 220px;
+    height: 100vh;
+  }
+
+  /* Khi sidebar đang MỞ trên mobile */
+  .home__main {
+    margin-left: 220px;
+  }
+
+  .home__topbar {
+    left: 220px;
+    right: 0;
+    width: calc(100% - 220px);
+  }
+
+  /* Khi sidebar THU GỌN trên mobile */
+  body.sb-collapsed .home__sidebar {
+    width: var(--sb-wc);
+  }
+  body.sb-collapsed .home__main {
+    margin-left: var(--sb-wc);
+  }
+  body.sb-collapsed .home__topbar {
+    left: var(--sb-wc);
+    width: calc(100% - var(--sb-wc));
   }
 }

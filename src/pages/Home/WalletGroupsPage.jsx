@@ -6,7 +6,7 @@ import WalletGroupEditModal from "../../components/walletGroups/WalletGroupEditM
 import WalletGroupViewModal from "../../components/walletGroups/WalletGroupViewModal";
 import WalletGroupCard from "../../components/walletGroups/WalletGroupCard";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
-import SuccessToast from "../../components/common/Toast/SuccessToast";
+import Toast from "../../components/common/Toast/Toast";
 
 import "../../styles/home/WalletsPage.css";
 
@@ -17,7 +17,7 @@ export default function WalletGroupsPage() {
   const [viewing, setViewing] = useState(null);
   const [editing, setEditing] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
-  const [toast, setToast] = useState({ open: false, message: "" });
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
 
   const existingNames = useMemo(
     () => groups.map((g) => g.name.toLowerCase().trim()),
@@ -29,7 +29,7 @@ export default function WalletGroupsPage() {
       name: form.name, description: form.description, isDefault: !!form.isDefault
     });
     setShowCreate(false);
-    setToast({ open: true, message: `Tạo nhóm ví "${g.name}" thành công` });
+    setToast({ open: true, message: `Tạo nhóm ví "${g.name}" thành công`, type: "success" });
   };
 
   const handleView = (g) => setViewing(g);
@@ -38,14 +38,14 @@ export default function WalletGroupsPage() {
   const handleSubmitEdit = async (data) => {
     // TODO: gọi updateGroup nếu đã thêm trong Context
     setEditing(null);
-    setToast({ open: true, message: "Cập nhật nhóm ví thành công" });
+    setToast({ open: true, message: "Cập nhật nhóm ví thành công", type: "success" });
   };
 
   const handleDelete = (g) => setConfirmDel(g);
   const doDelete = async () => {
     // TODO: gọi deleteGroup nếu đã thêm trong Context
     setConfirmDel(null);
-    setToast({ open: true, message: "Đã xóa nhóm ví thành công" });
+    setToast({ open: true, message: "Đã xóa nhóm ví thành công", type: "success" });
   };
 
   const walletNameById = (id) => wallets.find(w => w.id === id)?.name || `#${id}`;
@@ -104,11 +104,12 @@ export default function WalletGroupsPage() {
         onClose={() => setConfirmDel(null)}
       />
 
-      <SuccessToast
+      <Toast
         open={toast.open}
         message={toast.message}
+        type={toast.type}
         duration={2400}
-        onClose={() => setToast({ open: false, message: "" })}
+        onClose={() => setToast({ open: false, message: "", type: "success" })}
       />
     </div>
   );

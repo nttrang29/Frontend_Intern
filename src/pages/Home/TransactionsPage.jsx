@@ -1,562 +1,24 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import "../../styles/home/TransactionsPage.css";
 import TransactionViewModal from "../../components/transactions/TransactionViewModal";
 import TransactionFormModal from "../../components/transactions/TransactionFormModal";
+import ScheduledTransactionModal from "../../components/transactions/ScheduledTransactionModal";
+import ScheduledTransactionDrawer from "../../components/transactions/ScheduledTransactionDrawer";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
-import SuccessToast from "../../components/common/Toast/SuccessToast";
-import { DataStore } from "../../store/DataStore";
+import Toast from "../../components/common/Toast/Toast";
+import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
+import { useBudgetData } from "../../home/store/BudgetDataContext";
+import { useCategoryData } from "../../home/store/CategoryDataContext";
+import { useWalletData } from "../../home/store/WalletDataContext";
+import { transactionAPI, walletAPI } from "../../services/api-client";
 
-// ===== GIAO DỊCH NGOÀI – 20 dữ liệu mẫu =====
-const MOCK_TRANSACTIONS = [
-  {
-    id: 1,
-    code: "TX-0001",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 50000,
-    currency: "VND",
-    date: "2023-10-20T12:00",
-    category: "Ăn uống",
-    note: "Bữa trưa với đồng nghiệp",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 2,
-    code: "TX-0002",
-    type: "income",
-    walletName: "Ngân hàng A",
-    amount: 1500000,
-    currency: "VND",
-    date: "2023-10-19T09:00",
-    category: "Lương",
-    note: "Lương tháng 10",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 3,
-    code: "TX-0003",
-    type: "expense",
-    walletName: "Momo",
-    amount: 120000,
-    currency: "VND",
-    date: "2023-10-18T18:30",
-    category: "Giải trí",
-    note: "Xem phim",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 4,
-    code: "TX-0004",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 80000,
-    currency: "VND",
-    date: "2023-10-18T07:45",
-    category: "Ăn uống",
-    note: "Ăn sáng",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 5,
-    code: "TX-0005",
-    type: "income",
-    walletName: "Ngân hàng B",
-    amount: 300000,
-    currency: "VND",
-    date: "2023-10-17T16:10",
-    category: "Thưởng",
-    note: "Thưởng dự án",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 6,
-    code: "TX-0006",
-    type: "expense",
-    walletName: "Techcombank",
-    amount: 450000,
-    currency: "VND",
-    date: "2023-10-17T20:05",
-    category: "Mua sắm",
-    note: "Mua áo khoác",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 7,
-    code: "TX-0007",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 30000,
-    currency: "VND",
-    date: "2023-10-16T10:20",
-    category: "Di chuyển",
-    note: "Gửi xe",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 8,
-    code: "TX-0008",
-    type: "income",
-    walletName: "Momo",
-    amount: 200000,
-    currency: "VND",
-    date: "2023-10-16T21:00",
-    category: "Bán đồ",
-    note: "Bán sách cũ",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 9,
-    code: "TX-0009",
-    type: "expense",
-    walletName: "Ngân hàng A",
-    amount: 900000,
-    currency: "VND",
-    date: "2023-10-15T08:30",
-    category: "Hóa đơn",
-    note: "Thanh toán tiền điện",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 10,
-    code: "TX-0010",
-    type: "expense",
-    walletName: "Ngân hàng B",
-    amount: 350000,
-    currency: "VND",
-    date: "2023-10-15T19:15",
-    category: "Ăn uống",
-    note: "Đi ăn với gia đình",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 11,
-    code: "TX-0011",
-    type: "income",
-    walletName: "Techcombank",
-    amount: 1200000,
-    currency: "VND",
-    date: "2023-10-14T09:05",
-    category: "Lãi tiết kiệm",
-    note: "Lãi tháng 10",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 12,
-    code: "TX-0012",
-    type: "expense",
-    walletName: "Momo",
-    amount: 60000,
-    currency: "VND",
-    date: "2023-10-14T13:25",
-    category: "Giải trí",
-    note: "Mua game",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 13,
-    code: "TX-0013",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 40000,
-    currency: "VND",
-    date: "2023-10-13T07:50",
-    category: "Ăn uống",
-    note: "Ăn sáng",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 14,
-    code: "TX-0014",
-    type: "income",
-    walletName: "Ngân hàng A",
-    amount: 250000,
-    currency: "VND",
-    date: "2023-10-13T18:40",
-    category: "Tiền thưởng",
-    note: "Thưởng KPI quý",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 15,
-    code: "TX-0015",
-    type: "expense",
-    walletName: "Techcombank",
-    amount: 150000,
-    currency: "VND",
-    date: "2023-10-12T20:10",
-    category: "Mua sắm",
-    note: "Mua giày",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 16,
-    code: "TX-0016",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 20000,
-    currency: "VND",
-    date: "2023-10-12T09:15",
-    category: "Di chuyển",
-    note: "Xe buýt",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 17,
-    code: "TX-0017",
-    type: "income",
-    walletName: "Momo",
-    amount: 500000,
-    currency: "VND",
-    date: "2023-10-11T14:00",
-    category: "Bán đồ",
-    note: "Bán tai nghe cũ",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 18,
-    code: "TX-0018",
-    type: "expense",
-    walletName: "Ngân hàng B",
-    amount: 700000,
-    currency: "VND",
-    date: "2023-10-11T19:30",
-    category: "Hóa đơn",
-    note: "Thanh toán tiền nước",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 19,
-    code: "TX-0019",
-    type: "expense",
-    walletName: "Tiền mặt",
-    amount: 100000,
-    currency: "VND",
-    date: "2023-10-10T11:45",
-    category: "Giải trí",
-    note: "Đi cafe",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 20,
-    code: "TX-0020",
-    type: "income",
-    walletName: "Ngân hàng A",
-    amount: 1000000,
-    currency: "VND",
-    date: "2023-10-10T08:00",
-    category: "Lương phụ",
-    note: "Làm thêm",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-];
-
-// ===== GIAO DỊCH GIỮA CÁC VÍ – 20 dữ liệu mẫu =====
-const MOCK_INTERNAL_TRANSFERS = [
-  {
-    id: 101,
-    code: "TR-0101",
-    type: "transfer",
-    sourceWallet: "Tiền mặt",
-    targetWallet: "Techcombank",
-    amount: 200000,
-    currency: "VND",
-    date: "2023-10-20T09:00",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chuyển tiền tiết kiệm",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 102,
-    code: "TR-0102",
-    type: "transfer",
-    sourceWallet: "Techcombank",
-    targetWallet: "Momo",
-    amount: 150000,
-    currency: "VND",
-    date: "2023-10-19T20:10",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chuyển tiền tiêu vặt",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 103,
-    code: "TR-0103",
-    type: "transfer",
-    sourceWallet: "Ngân hàng A",
-    targetWallet: "Tiền mặt",
-    amount: 300000,
-    currency: "VND",
-    date: "2023-10-19T08:30",
-    category: "Chuyển tiền giữa các ví",
-    note: "Rút tiền mặt",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 104,
-    code: "TR-0104",
-    type: "transfer",
-    sourceWallet: "Techcombank",
-    targetWallet: "Ngân hàng B",
-    amount: 500000,
-    currency: "VND",
-    date: "2023-10-18T15:00",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chuyển tiền trả nợ",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 105,
-    code: "TR-0105",
-    type: "transfer",
-    sourceWallet: "Momo",
-    targetWallet: "Tiền mặt",
-    amount: 100000,
-    currency: "VND",
-    date: "2023-10-18T11:20",
-    category: "Chuyển tiền giữa các ví",
-    note: "Rút tiền từ ví điện tử",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 106,
-    code: "TR-0106",
-    type: "transfer",
-    sourceWallet: "Ngân hàng B",
-    targetWallet: "Techcombank",
-    amount: 800000,
-    currency: "VND",
-    date: "2023-10-17T09:30",
-    category: "Chuyển tiền giữa các ví",
-    note: "Gộp tài khoản",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 107,
-    code: "TR-0107",
-    type: "transfer",
-    sourceWallet: "Tiền mặt",
-    targetWallet: "Momo",
-    amount: 50000,
-    currency: "VND",
-    date: "2023-10-17T18:45",
-    category: "Chuyển tiền giữa các ví",
-    note: "Nạp ví Momo",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 108,
-    code: "TR-0108",
-    type: "transfer",
-    sourceWallet: "Techcombank",
-    targetWallet: "Ngân hàng A",
-    amount: 2000000,
-    currency: "VND",
-    date: "2023-10-16T10:15",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chuyển về tài khoản chính",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 109,
-    code: "TR-0109",
-    type: "transfer",
-    sourceWallet: "Ngân hàng A",
-    targetWallet: "Techcombank",
-    amount: 400000,
-    currency: "VND",
-    date: "2023-10-16T21:05",
-    category: "Chuyển tiền giữa các ví",
-    note: "Đầu tư",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 110,
-    code: "TR-0110",
-    type: "transfer",
-    sourceWallet: "Ngân hàng B",
-    targetWallet: "Momo",
-    amount: 60000,
-    currency: "VND",
-    date: "2023-10-15T19:40",
-    category: "Chuyển tiền giữa các ví",
-    note: "Thanh toán hóa đơn online",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 111,
-    code: "TR-0111",
-    type: "transfer",
-    sourceWallet: "Tiền mặt",
-    targetWallet: "Ngân hàng A",
-    amount: 250000,
-    currency: "VND",
-    date: "2023-10-15T08:20",
-    category: "Chuyển tiền giữa các ví",
-    note: "Nộp vào ngân hàng",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 112,
-    code: "TR-0112",
-    type: "transfer",
-    sourceWallet: "Momo",
-    targetWallet: "Ngân hàng A",
-    amount: 90000,
-    currency: "VND",
-    date: "2023-10-14T13:00",
-    category: "Chuyển tiền giữa các ví",
-    note: "Rút tiền hoàn",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 113,
-    code: "TR-0113",
-    type: "transfer",
-    sourceWallet: "Ngân hàng A",
-    targetWallet: "Tiền mặt",
-    amount: 150000,
-    currency: "VND",
-    date: "2023-10-14T09:45",
-    category: "Chuyển tiền giữa các ví",
-    note: "Tiền đi chơi",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 114,
-    code: "TR-0114",
-    type: "transfer",
-    sourceWallet: "Techcombank",
-    targetWallet: "Tiền mặt",
-    amount: 100000,
-    currency: "VND",
-    date: "2023-10-13T18:15",
-    category: "Chuyển tiền giữa các ví",
-    note: "Rút tiền tiêu",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 115,
-    code: "TR-0115",
-    type: "transfer",
-    sourceWallet: "Ngân hàng B",
-    targetWallet: "Techcombank",
-    amount: 300000,
-    currency: "VND",
-    date: "2023-10-13T11:35",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chuyển khoản chung",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 116,
-    code: "TR-0116",
-    type: "transfer",
-    sourceWallet: "Momo",
-    targetWallet: "Ngân hàng B",
-    amount: 70000,
-    currency: "VND",
-    date: "2023-10-12T20:25",
-    category: "Chuyển tiền giữa các ví",
-    note: "Hoàn tiền về ngân hàng",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 117,
-    code: "TR-0117",
-    type: "transfer",
-    sourceWallet: "Tiền mặt",
-    targetWallet: "Momo",
-    amount: 40000,
-    currency: "VND",
-    date: "2023-10-12T09:55",
-    category: "Chuyển tiền giữa các ví",
-    note: "Nạp ví để thanh toán",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 118,
-    code: "TR-0118",
-    type: "transfer",
-    sourceWallet: "Ngân hàng A",
-    targetWallet: "Ngân hàng B",
-    amount: 1000000,
-    currency: "VND",
-    date: "2023-10-11T16:00",
-    category: "Chuyển tiền giữa các ví",
-    note: "Chia tiền tiết kiệm",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 119,
-    code: "TR-0119",
-    type: "transfer",
-    sourceWallet: "Techcombank",
-    targetWallet: "Ngân hàng A",
-    amount: 350000,
-    currency: "VND",
-    date: "2023-10-11T10:20",
-    category: "Chuyển tiền giữa các ví",
-    note: "Cân bằng tài khoản",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-  {
-    id: 120,
-    code: "TR-0120",
-    type: "transfer",
-    sourceWallet: "Tiền mặt",
-    targetWallet: "Ngân hàng B",
-    amount: 220000,
-    currency: "VND",
-    date: "2023-10-10T14:30",
-    category: "Chuyển tiền giữa các ví",
-    note: "Gửi tiết kiệm",
-    creatorCode: "USR001",
-    attachment: "",
-  },
-];
+// ===== REMOVED MOCK DATA - Now using API =====
 
 const TABS = {
   EXTERNAL: "external",
   INTERNAL: "internal",
+  SCHEDULE: "schedule",
 };
 
 const PAGE_SIZE = 10;
@@ -567,12 +29,110 @@ function toDateObj(str) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Format ngày theo múi giờ Việt Nam (UTC+7)
+ * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
+ * @returns {string} - Format: "DD/MM/YYYY"
+ */
+function formatVietnamDate(date) {
+  if (!date) return "";
+  
+  // Parse date string từ API (thường là ISO string ở UTC)
+  // Không dùng new Date() trực tiếp vì nó sẽ parse theo local timezone
+  // Thay vào đó, parse ISO string và convert sang VN timezone
+  let d;
+  if (date instanceof Date) {
+    d = date;
+  } else if (typeof date === 'string') {
+    // Nếu là ISO string, parse nó như UTC time
+    d = new Date(date);
+  } else {
+    return "";
+  }
+  
+  if (Number.isNaN(d.getTime())) return "";
+  
+  // Dùng toLocaleString với timezone VN để convert đúng
+  return d.toLocaleDateString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+/**
+ * Format giờ theo múi giờ Việt Nam (UTC+7)
+ * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
+ * @returns {string} - Format: "HH:mm"
+ */
+function formatVietnamTime(date) {
+  if (!date) return "";
+  
+  let d;
+  if (date instanceof Date) {
+    d = date;
+  } else if (typeof date === 'string') {
+    // Parse ISO string như UTC time
+    d = new Date(date);
+  } else {
+    return "";
+  }
+  
+  if (Number.isNaN(d.getTime())) return "";
+  
+  // Dùng toLocaleString với timezone VN để convert đúng
+  return d.toLocaleTimeString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+/**
+ * Format số tiền với độ chính xác cao (tối đa 8 chữ số thập phân)
+ * Để hiển thị chính xác số tiền nhỏ khi chuyển đổi tiền tệ
+ */
+function formatMoney(amount = 0, currency = "VND") {
+  const numAmount = Number(amount) || 0;
+  
+  // Custom format cho USD: hiển thị $ ở trước
+  // Sử dụng tối đa 8 chữ số thập phân để hiển thị chính xác số tiền nhỏ
+  if (currency === "USD") {
+    // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      const formatted = numAmount.toLocaleString("en-US", { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 8 
+      });
+      return `$${formatted}`;
+    }
+    const formatted = numAmount % 1 === 0 
+      ? numAmount.toLocaleString("en-US")
+      : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+    return `$${formatted}`;
+  }
+  
+  // Format cho VND và các currency khác
+  try {
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+  } catch {
+    return `${numAmount.toLocaleString("vi-VN")} ${currency}`;
+  }
+}
+
 export default function TransactionsPage() {
-  const [externalTransactions, setExternalTransactions] =
-    useState(MOCK_TRANSACTIONS);
-  const [internalTransactions, setInternalTransactions] = useState(
-    MOCK_INTERNAL_TRANSFERS
-  );
+  const [externalTransactions, setExternalTransactions] = useState([]);
+  const [internalTransactions, setInternalTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(TABS.EXTERNAL);
 
   const [searchText, setSearchText] = useState("");
@@ -586,37 +146,193 @@ export default function TransactionsPage() {
   const [editing, setEditing] = useState(null);
   const [creating, setCreating] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
-  const [toast, setToast] = useState({ open: false, message: "" });
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
 
   const [currentPage, setCurrentPage] = useState(1);
 
-  // ====== ĐỌC VÍ & DANH MỤC TỪ DataStore ĐỂ FORM DÙNG ======
-  const walletsFromStore = useMemo(() => DataStore.getWallets() || [], []);
-  const expenseCatsFromStore = useMemo(
-    () => DataStore.getExpenseCategories() || [],
-    []
-  );
-  const incomeCatsFromStore = useMemo(
-    () => DataStore.getIncomeCategories() || [],
-    []
-  );
-  const categoriesFromStore = useMemo(
-    () => ({
-      expense: expenseCatsFromStore,
-      income: incomeCatsFromStore,
-    }),
-    [expenseCatsFromStore, incomeCatsFromStore]
-  );
+  const [scheduledTransactions, setScheduledTransactions] = useState(MOCK_SCHEDULES);
+  const [scheduleFilter, setScheduleFilter] = useState("all");
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
 
-  const nextCode = () => {
-    const all = [...externalTransactions, ...internalTransactions];
-    const max = all.reduce((m, t) => {
-      const num = parseInt(String(t.code || "").replace(/\D/g, ""), 10);
-      return Number.isNaN(num) ? m : Math.max(m, num);
-    }, 0);
-    const n = max + 1;
-    return `TX-${String(n).padStart(4, "0")}`;
-  };
+  // Get shared data from contexts
+  const { budgets, getSpentAmount, getSpentForBudget, updateTransactionsByCategory, updateAllExternalTransactions } = useBudgetData();
+  const { expenseCategories, incomeCategories } = useCategoryData();
+  const { wallets, loadWallets } = useWalletData();
+  const location = useLocation();
+  const [appliedFocusParam, setAppliedFocusParam] = useState("");
+  
+  // Budget warning state
+  const [budgetWarning, setBudgetWarning] = useState(null);
+  const [pendingTransaction, setPendingTransaction] = useState(null);
+
+  // Helper function to map Transaction entity to frontend format
+  const mapTransactionToFrontend = useCallback((tx) => {
+    const walletName = wallets.find(w => w.walletId === tx.wallet?.walletId)?.walletName || tx.wallet?.walletName || "Unknown";
+    const categoryName = tx.category?.categoryName || "Unknown";
+    const typeName = tx.transactionType?.typeName || "";
+    const type = typeName === "Chi tiêu" ? "expense" : "income";
+    
+    // Dùng created_at từ database thay vì transaction_date
+    // Giữ nguyên date string từ API (ISO format), không convert
+    // Format sẽ được xử lý khi hiển thị bằng formatVietnamDate/Time
+    const dateValue = tx.createdAt || tx.transactionDate || new Date().toISOString();
+    
+    return {
+      id: tx.transactionId,
+      code: `TX-${String(tx.transactionId).padStart(4, "0")}`,
+      type: type,
+      walletName: walletName,
+      amount: parseFloat(tx.amount || 0),
+      currency: tx.wallet?.currencyCode || "VND",
+      date: dateValue,
+      category: categoryName,
+      note: tx.note || "",
+      creatorCode: `USR${String(tx.user?.userId || 0).padStart(3, "0")}`,
+      attachment: tx.imageUrl || "",
+    };
+  }, [wallets]);
+
+  // Helper function to map WalletTransfer entity to frontend format
+  const mapTransferToFrontend = useCallback((transfer) => {
+    const sourceWalletName = wallets.find(w => w.walletId === transfer.fromWallet?.walletId)?.walletName || transfer.fromWallet?.walletName || "Unknown";
+    const targetWalletName = wallets.find(w => w.walletId === transfer.toWallet?.walletId)?.walletName || transfer.toWallet?.walletName || "Unknown";
+    
+    // Dùng created_at từ database thay vì transfer_date
+    // Giữ nguyên date string từ API (ISO format), không convert
+    const dateValue = transfer.createdAt || transfer.transferDate || new Date().toISOString();
+    
+    return {
+      id: transfer.transferId,
+      code: `TR-${String(transfer.transferId).padStart(4, "0")}`,
+      type: "transfer",
+      sourceWallet: sourceWalletName,
+      targetWallet: targetWalletName,
+      amount: parseFloat(transfer.amount || 0),
+      currency: transfer.currencyCode || "VND",
+      date: dateValue,
+      category: "Chuyển tiền giữa các ví",
+      note: transfer.note || "",
+      creatorCode: `USR${String(transfer.user?.userId || 0).padStart(3, "0")}`,
+      attachment: "",
+    };
+  }, [wallets]);
+
+  const hasWallets = Array.isArray(wallets) && wallets.length > 0;
+
+  // Load transactions from API
+  useEffect(() => {
+    const loadTransactions = async () => {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        setExternalTransactions([]);
+        setInternalTransactions([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        // Load external transactions
+        const txResponse = await transactionAPI.getAllTransactions();
+        if (txResponse.transactions) {
+          const mapped = txResponse.transactions.map(mapTransactionToFrontend);
+          setExternalTransactions(mapped);
+        }
+
+        // Load internal transfers
+        const transferResponse = await walletAPI.getAllTransfers();
+        if (transferResponse.transfers) {
+          const mapped = transferResponse.transfers.map(mapTransferToFrontend);
+          setInternalTransactions(mapped);
+        }
+      } catch (error) {
+        console.error("Error loading transactions:", error);
+        setToast({ open: true, message: "Không thể tải danh sách giao dịch: " + (error.message || "Lỗi không xác định"), type: "error" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Load ngay khi mount hoặc khi có wallets
+    if (hasWallets) {
+      loadTransactions();
+    } else {
+      // Nếu chưa có wallets nhưng có token, vẫn thử load (có thể wallets đang load)
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        loadTransactions();
+      } else {
+        setExternalTransactions([]);
+        setInternalTransactions([]);
+        setLoading(false);
+      }
+    }
+
+    // Lắng nghe event khi user đăng nhập
+    const handleUserChange = () => {
+      loadTransactions();
+    };
+    window.addEventListener("userChanged", handleUserChange);
+
+    // Lắng nghe storage event
+    const handleStorageChange = (e) => {
+      if (e.key === "accessToken" || e.key === "user" || e.key === "auth_user") {
+        loadTransactions();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("userChanged", handleUserChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [hasWallets, mapTransactionToFrontend, mapTransferToFrontend]);
+
+  // Apply wallet filter when navigated with ?focus=<walletId|walletName>
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const focusParam = params.get("focus");
+
+    if (!focusParam) {
+      if (appliedFocusParam) {
+        setAppliedFocusParam("");
+      }
+      return;
+    }
+
+    if (!wallets || wallets.length === 0 || focusParam === appliedFocusParam) {
+      return;
+    }
+
+    const normalizedFocus = focusParam.trim();
+    const focusLower = normalizedFocus.toLowerCase();
+
+    let walletNameToApply = normalizedFocus;
+
+    const walletById = wallets.find(
+      (wallet) => String(wallet.id) === normalizedFocus || String(wallet.walletId) === normalizedFocus
+    );
+
+    if (walletById) {
+      walletNameToApply = walletById.name || walletById.walletName || walletNameToApply;
+    } else {
+      const walletByName = wallets.find(
+        (wallet) => (wallet.name || wallet.walletName || "").toLowerCase() === focusLower
+      );
+      if (walletByName) {
+        walletNameToApply = walletByName.name || walletByName.walletName || walletNameToApply;
+      }
+    }
+
+    if (activeTab !== TABS.EXTERNAL) {
+      setActiveTab(TABS.EXTERNAL);
+    }
+
+    setFilterWallet(walletNameToApply);
+    setCurrentPage(1);
+    setAppliedFocusParam(normalizedFocus);
+  }, [location.search, wallets, activeTab, appliedFocusParam]);
 
   const handleTabChange = (e) => {
     const value = e.target.value;
@@ -634,91 +350,373 @@ export default function TransactionsPage() {
     setCreating(false);
   };
 
-  const handleCreate = (payload) => {
-    if (activeTab === TABS.EXTERNAL) {
-      const tx = {
-        id: Date.now(),
-        code: nextCode(),
-        creatorCode: "USR001",
-        attachment: payload.attachment || "",
-        ...payload,
-      };
-      setExternalTransactions((list) => [tx, ...list]);
-    } else {
-      const tx = {
-        id: Date.now(),
-        code: nextCode(),
-        type: "transfer",
-        sourceWallet: payload.sourceWallet,
-        targetWallet: payload.targetWallet,
-        amount: payload.amount,
-        currency: payload.currency || "VND",
-        date: payload.date,
-        category: "Chuyển tiền giữa các ví",
-        note: payload.note || "",
-        creatorCode: "USR001",
-        attachment: payload.attachment || "",
-      };
-      setInternalTransactions((list) => [tx, ...list]);
+  const handleCreate = async (payload) => {
+    // Check for budget warning if this is an external expense transaction with a category
+    if (activeTab === TABS.EXTERNAL && payload.type === "expense") {
+      const categoryBudget = budgets.find((b) => b.categoryName === payload.category);
+      if (categoryBudget) {
+        // Match budget type:
+        // - If budget is for specific wallet, check only category:walletName transactions
+        // - If budget is for all wallets, check only category:all transactions
+        let shouldCheckBudget = false;
+        
+        if (categoryBudget.walletName === "Tất cả ví") {
+          // Budget applies to all wallets - will track category:all
+          shouldCheckBudget = true;
+        } else if (categoryBudget.walletName === payload.walletName) {
+          // Budget is for this specific wallet
+          shouldCheckBudget = true;
+        }
+
+        if (shouldCheckBudget) {
+          // Get spent amount using date-range-aware calculation
+          const spent = getSpentForBudget ? getSpentForBudget(categoryBudget) : getSpentAmount(payload.category, payload.walletName);
+          const totalAfterTx = spent + payload.amount;
+          const remaining = categoryBudget.limitAmount - spent;
+          const percentAfterTx = (totalAfterTx / categoryBudget.limitAmount) * 100;
+
+          // Show warning if: would exceed budget OR would reach 90% or more (sắp đạt hạn mức)
+          if (payload.amount > remaining || percentAfterTx >= 90) {
+            // Determine if this is an alert (approaching) or a warning (exceeding)
+            const isExceeding = payload.amount > remaining;
+            
+            setBudgetWarning({
+              categoryName: payload.category,
+              budgetLimit: categoryBudget.limitAmount,
+              spent,
+              transactionAmount: payload.amount,
+              totalAfterTx,
+              isExceeding,
+            });
+            setPendingTransaction(payload);
+            setCreating(false);
+            return;
+          }
+        }
+      }
     }
+
+    try {
+    if (activeTab === TABS.EXTERNAL) {
+        // Find walletId and categoryId
+        const wallet = wallets.find(w => w.walletName === payload.walletName || w.name === payload.walletName);
+        if (!wallet) {
+          setToast({ open: true, message: "Không tìm thấy ví: " + payload.walletName, type: "error" });
+          return;
+        }
+
+        // Tìm category trong đúng danh sách dựa trên loại giao dịch
+        // Tránh tìm nhầm category cùng tên nhưng khác loại
+        const categoryList = payload.type === "income" 
+          ? (incomeCategories || [])
+          : (expenseCategories || []);
+        
+        const category = categoryList.find(
+          c => c.name === payload.category || 
+               c.categoryName === payload.category ||
+               (c.name && c.name.trim() === payload.category?.trim()) ||
+               (c.categoryName && c.categoryName.trim() === payload.category?.trim())
+        );
+        
+        if (!category) {
+          setToast({ 
+            open: true, 
+            message: `Không tìm thấy danh mục "${payload.category}" trong loại ${payload.type === "income" ? "thu nhập" : "chi tiêu"}.`,
+            type: "error"
+          });
+          return;
+        }
+
+        const walletId = wallet.walletId || wallet.id;
+        const categoryId = category.categoryId || category.id;
+        
+        if (!categoryId) {
+          setToast({ open: true, message: "Không tìm thấy ID của danh mục. Vui lòng thử lại.", type: "error" });
+          return;
+        }
+        
+        const transactionDate = payload.date ? new Date(payload.date).toISOString() : new Date().toISOString();
+
+        // Call API
+        if (payload.type === "expense") {
+          await transactionAPI.addExpense(
+            payload.amount,
+            transactionDate,
+            walletId,
+            categoryId,
+            payload.note || "",
+            payload.attachment || null
+          );
+    } else {
+          await transactionAPI.addIncome(
+            payload.amount,
+            transactionDate,
+            walletId,
+            categoryId,
+            payload.note || "",
+            payload.attachment || null
+          );
+        }
+
+        setToast({ open: true, message: "Đã thêm giao dịch mới." });
+      } else {
+        // Internal transfer
+        const sourceWallet = wallets.find(w => w.walletName === payload.sourceWallet || w.name === payload.sourceWallet);
+        const targetWallet = wallets.find(w => w.walletName === payload.targetWallet || w.name === payload.targetWallet);
+        
+        if (!sourceWallet || !targetWallet) {
+          setToast({ open: true, message: "Không tìm thấy ví nguồn hoặc ví đích.", type: "error" });
+          return;
+        }
+
+        const fromWalletId = sourceWallet.walletId || sourceWallet.id;
+        const toWalletId = targetWallet.walletId || targetWallet.id;
+
+        await walletAPI.transferMoney(
+          fromWalletId,
+          toWalletId,
+          payload.amount,
+          payload.note || ""
+        );
+
+        setToast({ open: true, message: "Đã thêm giao dịch chuyển tiền mới." });
+      }
+
+      // Reload wallets để cập nhật số dư sau khi tạo giao dịch
+      // Điều này đảm bảo trang ví tiền tự động cập nhật mà không cần reload
+      await loadWallets();
+
+      // Reload all transaction data
+      const txResponse = await transactionAPI.getAllTransactions();
+      if (txResponse.transactions) {
+        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
+        setExternalTransactions(mapped);
+      }
+
+      const transferResponse = await walletAPI.getAllTransfers();
+      if (transferResponse.transfers) {
+        const mapped = transferResponse.transfers.map(mapTransferToFrontend);
+        setInternalTransactions(mapped);
+      }
 
     setCreating(false);
-    setToast({ open: true, message: "Đã thêm giao dịch mới." });
     setCurrentPage(1);
+    } catch (error) {
+      console.error("Error creating transaction:", error);
+      setToast({ open: true, message: "Lỗi khi tạo giao dịch: " + (error.message || "Lỗi không xác định"), type: "error" });
+    }
   };
 
-  const handleUpdate = (payload) => {
-    if (!editing) return;
-    const isTransfer = !!editing.sourceWallet && !!editing.targetWallet;
+  // Handle budget warning confirmation (user wants to continue)
+  const handleBudgetWarningConfirm = async () => {
+    if (!pendingTransaction) return;
 
-    if (isTransfer) {
-      setInternalTransactions((list) =>
-        list.map((t) =>
-          t.id === editing.id
-            ? {
-                ...t,
-                sourceWallet: payload.sourceWallet,
-                targetWallet: payload.targetWallet,
-                amount: payload.amount,
-                date: payload.date,
-                note: payload.note || "",
-                currency: payload.currency || t.currency,
-                attachment: payload.attachment || t.attachment,
-              }
-            : t
-        )
-      );
-    } else {
-      setExternalTransactions((list) =>
-        list.map((t) =>
-          t.id === editing.id
-            ? { ...t, ...payload, attachment: payload.attachment || t.attachment }
-            : t
-        )
-      );
+    // Create the transaction anyway by calling handleCreate
+    await handleCreate(pendingTransaction);
+
+    setBudgetWarning(null);
+    setPendingTransaction(null);
+  };
+
+  // Handle budget warning cancellation
+  const handleBudgetWarningCancel = () => {
+    setBudgetWarning(null);
+    setPendingTransaction(null);
+    setCreating(true); // Go back to create form
+  };
+
+  const handleUpdate = async (payload) => {
+    if (!editing) {
+      console.error("handleUpdate: editing is null");
+      return;
     }
 
-    setEditing(null);
-    setToast({ open: true, message: "Đã cập nhật giao dịch." });
+    if (!editing.id) {
+      console.error("handleUpdate: editing.id is missing", editing);
+      setToast({ open: true, message: "Không tìm thấy ID giao dịch.", type: "error" });
+      return;
+    }
+
+    try {
+      // Xử lý giao dịch chuyển tiền (transfer)
+      if (editing.type === "transfer") {
+        console.log("Updating transfer:", {
+          transferId: editing.id,
+          note: payload.note || "",
+        });
+        
+        const response = await walletAPI.updateTransfer(
+          editing.id,
+          payload.note || ""
+        );
+        
+        console.log("Update transfer response:", response);
+
+        // Reload transfers
+        const transferResponse = await walletAPI.getAllTransfers();
+        if (transferResponse.transfers) {
+          const mapped = transferResponse.transfers.map(mapTransferToFrontend);
+          setInternalTransactions(mapped);
+        }
+
+        setEditing(null);
+        setToast({ open: true, message: "Đã cập nhật giao dịch chuyển tiền thành công.", type: "success" });
+        return;
+      }
+
+      // Xử lý giao dịch thu nhập/chi tiêu (external transactions)
+      // Tìm categoryId từ category name
+      const categoryList = editing.type === "income" 
+        ? (incomeCategories || [])
+        : (expenseCategories || []);
+      
+      const category = categoryList.find(
+        c => c.name === payload.category || 
+             c.categoryName === payload.category ||
+             (c.name && c.name.trim() === payload.category?.trim()) ||
+             (c.categoryName && c.categoryName.trim() === payload.category?.trim())
+      );
+      
+      if (!category) {
+        setToast({ 
+          open: true, 
+          message: `Không tìm thấy danh mục "${payload.category}" trong loại ${editing.type === "income" ? "thu nhập" : "chi tiêu"}.`,
+          type: "error",
+        });
+        return;
+      }
+
+      const categoryId = category.categoryId || category.id;
+      if (!categoryId) {
+        setToast({ open: true, message: "Không tìm thấy ID của danh mục. Vui lòng thử lại.", type: "error" });
+        return;
+      }
+
+      // Gọi API update
+      console.log("Updating transaction:", {
+        transactionId: editing.id,
+        categoryId,
+        note: payload.note || "",
+        attachment: payload.attachment || null
+      });
+      
+      const response = await transactionAPI.updateTransaction(
+        editing.id,
+        categoryId,
+        payload.note || "",
+        payload.attachment || null
+      );
+      
+      console.log("Update transaction response:", response);
+
+      // Reload transactions
+      const txResponse = await transactionAPI.getAllTransactions();
+      if (txResponse.transactions) {
+        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
+        setExternalTransactions(mapped);
+      }
+
+      setEditing(null);
+      setToast({ open: true, message: "Đã cập nhật giao dịch thành công.", type: "success" });
+    } catch (error) {
+      console.error("Error updating transaction/transfer:", error);
+      const errorMessage = error.message || "Lỗi không xác định";
+      if (editing.type === "transfer") {
+        setToast({ open: true, message: "Lỗi khi cập nhật giao dịch chuyển tiền: " + errorMessage, type: "error" });
+      } else {
+        setToast({ open: true, message: "Lỗi khi cập nhật giao dịch: " + errorMessage, type: "error" });
+      }
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!confirmDel) return;
-    const isTransfer = !!confirmDel.sourceWallet && !!confirmDel.targetWallet;
 
-    if (isTransfer) {
-      setInternalTransactions((list) =>
-        list.filter((t) => t.id !== confirmDel.id)
-      );
-    } else {
-      setExternalTransactions((list) =>
-        list.filter((t) => t.id !== confirmDel.id)
-      );
+    const item = confirmDel;
+    setConfirmDel(null); // Đóng modal
+
+    try {
+      // Xử lý xóa giao dịch chuyển tiền
+      if (item.type === "transfer") {
+        // Gọi API xóa transfer
+        await walletAPI.deleteTransfer(item.id);
+
+        // Reload transfers
+        const transferResponse = await walletAPI.getAllTransfers();
+        if (transferResponse.transfers) {
+          const mapped = transferResponse.transfers.map(mapTransferToFrontend);
+          setInternalTransactions(mapped);
+        }
+
+        // Reload wallets để cập nhật số dư
+        await loadWallets();
+
+        setToast({ open: true, message: "Đã xóa giao dịch chuyển tiền thành công.", type: "success" });
+        return;
+      }
+
+      // Xử lý xóa giao dịch thu nhập/chi tiêu
+      // Gọi API xóa
+      await transactionAPI.deleteTransaction(item.id);
+
+      // Reload transactions
+      const txResponse = await transactionAPI.getAllTransactions();
+      if (txResponse.transactions) {
+        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
+        setExternalTransactions(mapped);
+      }
+
+      // Reload wallets để cập nhật số dư
+      await loadWallets();
+
+      setToast({ open: true, message: "Đã xóa giao dịch thành công.", type: "success" });
+    } catch (error) {
+      console.error("Error deleting transaction/transfer:", error);
+      // Kiểm tra nếu lỗi là về ví âm tiền
+      const errorMessage = error.message || "Lỗi không xác định";
+      if (errorMessage.includes("Không thể xóa giao dịch vì ví không được âm tiền") || 
+          errorMessage.includes("ví không được âm tiền") || 
+          errorMessage.includes("ví âm tiền") ||
+          errorMessage.includes("âm tiền")) {
+        setToast({ open: true, message: "Không thể xóa giao dịch vì ví âm tiền", type: "error" });
+      } else {
+        if (item.type === "transfer") {
+          setToast({ open: true, message: "Lỗi khi xóa giao dịch chuyển tiền: " + errorMessage, type: "error" });
+        } else {
+          setToast({ open: true, message: "Lỗi khi xóa giao dịch: " + errorMessage, type: "error" });
+        }
+      }
     }
-
-    setConfirmDel(null);
-    setToast({ open: true, message: "Đã xóa giao dịch." });
   };
+
+  // Update budget data when transactions change
+  useEffect(() => {
+    // Build transaction map keyed by category:wallet and category:all
+    // category:walletName = spent for transactions of that category in that specific wallet
+    // category:all = sum of all wallets for that category (for "apply to all wallets" budgets)
+    const categoryMap = {};
+    const categoryAllTotals = {}; // Temp to sum by category
+
+    externalTransactions.forEach((t) => {
+      if (t.type === "expense" && t.category && t.walletName) {
+        // Add to specific wallet key
+        const walletKey = `${t.category}:${t.walletName}`;
+        categoryMap[walletKey] = (categoryMap[walletKey] || 0) + t.amount;
+
+        // Track total for category:all calculation
+        categoryAllTotals[t.category] = (categoryAllTotals[t.category] || 0) + t.amount;
+      }
+    });
+
+    // Add category:all totals to map
+    Object.entries(categoryAllTotals).forEach(([category, total]) => {
+      categoryMap[`${category}:all`] = total;
+    });
+
+    updateTransactionsByCategory(categoryMap);
+    // also provide the full transactions list to budget context for period-based calculations
+    updateAllExternalTransactions(externalTransactions);
+  }, [externalTransactions, updateTransactionsByCategory, updateAllExternalTransactions]);
 
   const currentTransactions = useMemo(
     () =>
@@ -747,6 +745,29 @@ export default function TransactionsPage() {
     });
     return Array.from(s);
   }, [activeTab, externalTransactions, internalTransactions]);
+
+  const scheduleCounts = useMemo(() => {
+    const counts = { all: scheduledTransactions.length, pending: 0, recurring: 0 };
+    scheduledTransactions.forEach((item) => {
+      if (item.status === "PENDING" || item.status === "RUNNING") counts.pending += 1;
+      if (item.scheduleType !== "ONE_TIME") counts.recurring += 1;
+    });
+    return counts;
+  }, [scheduledTransactions]);
+
+  const filteredSchedules = useMemo(() => {
+    return scheduledTransactions.filter((item) => {
+      if (scheduleFilter === "pending") {
+        return item.status === "PENDING" || item.status === "RUNNING";
+      }
+      if (scheduleFilter === "recurring") {
+        return item.scheduleType !== "ONE_TIME";
+      }
+      return true;
+    });
+  }, [scheduledTransactions, scheduleFilter]);
+
+  const isScheduleView = activeTab === TABS.SCHEDULE;
 
   const filteredSorted = useMemo(() => {
     let list = currentTransactions.slice();
@@ -831,6 +852,28 @@ export default function TransactionsPage() {
 
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE));
 
+  const paginationRange = useMemo(() => {
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+    }
+
+    const pages = [];
+    const startPage = Math.max(2, currentPage - 1);
+    const endPage = Math.min(totalPages - 1, currentPage + 1);
+
+    pages.push(1);
+    if (startPage > 2) pages.push("left-ellipsis");
+
+    for (let p = startPage; p <= endPage; p += 1) {
+      pages.push(p);
+    }
+
+    if (endPage < totalPages - 1) pages.push("right-ellipsis");
+    pages.push(totalPages);
+    return pages;
+  }, [currentPage, totalPages]);
+
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
     return filteredSorted.slice(start, start + PAGE_SIZE);
@@ -859,6 +902,59 @@ export default function TransactionsPage() {
     setFromDateTime("");
     setToDateTime("");
     setCurrentPage(1);
+  };
+
+  const handleScheduleSubmit = (payload) => {
+    const scheduleId = Date.now();
+    const totalRuns = estimateScheduleRuns(payload.firstRun, payload.endDate, payload.scheduleType);
+    const newSchedule = {
+      id: scheduleId,
+      walletId: payload.walletId,
+      walletName: payload.walletName,
+      categoryName: payload.categoryName,
+      transactionType: payload.transactionType,
+      amount: payload.amount,
+      currency: "VND",
+      scheduleType: payload.scheduleType,
+      scheduleTypeLabel: SCHEDULE_TYPE_LABELS[payload.scheduleType] || payload.scheduleType,
+      status: "PENDING",
+      firstRun: payload.firstRun,
+      nextRun: payload.firstRun,
+      endDate: payload.endDate,
+      successRuns: 0,
+      totalRuns,
+      warning: null,
+      logs: [],
+    };
+
+    setScheduledTransactions((prev) => [newSchedule, ...prev]);
+    setScheduleModalOpen(false);
+    setToast({ open: true, message: "Đã tạo lịch giao dịch mới.", type: "success" });
+  };
+
+  const handleScheduleCancel = (scheduleId) => {
+    setScheduledTransactions((prev) =>
+      prev.map((item) => {
+        if (item.id !== scheduleId) return item;
+        return {
+          ...item,
+          status: "CANCELLED",
+          warning: null,
+          logs: [
+            {
+              id: Date.now(),
+              time: new Date().toISOString(),
+              status: "FAILED",
+              message: "Người dùng đã hủy lịch.",
+            },
+            ...item.logs,
+          ],
+        };
+      })
+    );
+
+    setSelectedSchedule((prev) => (prev?.id === scheduleId ? null : prev));
+    setToast({ open: true, message: "Đã hủy lịch giao dịch.", type: "success" });
   };
 
   return (
@@ -900,6 +996,7 @@ export default function TransactionsPage() {
             >
               <option value={TABS.EXTERNAL}>Giao dịch ngoài</option>
               <option value={TABS.INTERNAL}>Giao dịch giữa các ví</option>
+              <option value={TABS.SCHEDULE}>Lịch giao dịch định kỳ</option>
             </select>
 
             <button
@@ -914,300 +1011,431 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="tx-filters card border-0 mb-3">
-        <div className="card-body d-flex flex-column gap-2">
-          <div className="d-flex flex-wrap gap-2">
-            <div className="tx-filter-item flex-grow-1">
-              <div className="input-group">
-                <span className="input-group-text bg-white border-end-0">
-                  <i className="bi bi-search text-muted" />
-                </span>
-                <input
-                  className="form-control border-start-0"
-                  placeholder="Tìm kiếm giao dịch..."
-                  value={searchText}
-                  onChange={(e) => {
-                    setSearchText(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                />
-              </div>
-            </div>
 
-            {activeTab === TABS.EXTERNAL && (
+      {!isScheduleView && (
+        <div className="tx-filters card border-0 mb-3">
+          <div className="card-body d-flex flex-column gap-2">
+            <div className="d-flex flex-wrap gap-2">
+              <div className="tx-filter-item flex-grow-1">
+                <div className="input-group">
+                  <span className="input-group-text bg-white border-end-0">
+                    <i className="bi bi-search text-muted" />
+                  </span>
+                  <input
+                    className="form-control border-start-0"
+                    placeholder="Tìm kiếm giao dịch..."
+                    value={searchText}
+                    onChange={(e) => {
+                      setSearchText(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {activeTab === TABS.EXTERNAL && (
+                <div className="tx-filter-item">
+                  <select
+                    className="form-select"
+                    value={filterType}
+                    onChange={handleFilterChange(setFilterType)}
+                  >
+                    <option value="all">Loại giao dịch</option>
+                    <option value="income">Thu nhập</option>
+                    <option value="expense">Chi tiêu</option>
+                  </select>
+                </div>
+              )}
+
               <div className="tx-filter-item">
                 <select
                   className="form-select"
-                  value={filterType}
-                  onChange={handleFilterChange(setFilterType)}
+                  value={filterCategory}
+                  onChange={handleFilterChange(setFilterCategory)}
                 >
-                  <option value="all">Loại giao dịch</option>
-                  <option value="income">Thu nhập</option>
-                  <option value="expense">Chi tiêu</option>
+                  <option value="all">Danh mục</option>
+                  {allCategories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </div>
-            )}
+            </div>
 
-            <div className="tx-filter-item">
-              <select
-                className="form-select"
-                value={filterCategory}
-                onChange={handleFilterChange(setFilterCategory)}
-              >
-                <option value="all">Danh mục</option>
-                {allCategories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+            <div className="d-flex flex-wrap gap-2 align-items-center">
+              <div className="tx-filter-item">
+                <select
+                  className="form-select"
+                  value={filterWallet}
+                  onChange={handleFilterChange(setFilterWallet)}
+                >
+                  <option value="all">Ví</option>
+                  {allWallets.map((w) => (
+                    <option key={w} value={w}>
+                      {w}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="tx-filter-item d-flex align-items-center gap-1">
+                <input
+                  type="datetime-local"
+                  className="form-control"
+                  value={fromDateTime}
+                  onChange={handleDateChange(setFromDateTime)}
+                />
+                <span className="text-muted small px-1">đến</span>
+                <input
+                  type="datetime-local"
+                  className="form-control"
+                  value={toDateTime}
+                  onChange={handleDateChange(setToDateTime)}
+                />
+              </div>
+
+              <div className="ms-auto">
+                <button
+                  className="btn btn-outline-secondary btn-sm"
+                  type="button"
+                  onClick={clearFilters}
+                >
+                  <i className="bi bi-x-circle me-1" />
+                  Xóa lọc
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="d-flex flex-wrap gap-2 align-items-center">
-            <div className="tx-filter-item">
-              <select
-                className="form-select"
-                value={filterWallet}
-                onChange={handleFilterChange(setFilterWallet)}
-              >
-                <option value="all">Ví</option>
-                {allWallets.map((w) => (
-                  <option key={w} value={w}>
-                    {w}
-                  </option>
-                ))}
-              </select>
+      {isScheduleView ? (
+        <div className="scheduled-section card border-0 shadow-sm mb-4">
+          <div className="card-body">
+            <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+              <div>
+                <h5 className="mb-1">Lịch giao dịch định kỳ</h5>
+                <p className="text-muted mb-0">Quản lý các khoản thu chi được lập lịch tự động.</p>
+              </div>
+              <button className="btn btn-primary" type="button" onClick={() => setScheduleModalOpen(true)}>
+                <i className="bi bi-plus-lg me-2" />Tạo lịch giao dịch
+              </button>
             </div>
 
-            <div className="tx-filter-item d-flex align-items-center gap-1">
-              <input
-                type="datetime-local"
-                className="form-control"
-                value={fromDateTime}
-                onChange={handleDateChange(setFromDateTime)}
-              />
-              <span className="text-muted small px-1">đến</span>
-              <input
-                type="datetime-local"
-                className="form-control"
-                value={toDateTime}
-                onChange={handleDateChange(setToDateTime)}
-              />
+            <div className="schedule-tabs mb-3">
+              {SCHEDULE_TABS.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`schedule-tab ${scheduleFilter === tab.value ? "active" : ""}`}
+                  onClick={() => setScheduleFilter(tab.value)}
+                >
+                  {tab.label}
+                  <span className="badge rounded-pill bg-light text-dark ms-2">
+                    {scheduleCounts[tab.value] ?? 0}
+                  </span>
+                </button>
+              ))}
             </div>
 
-            <div className="ms-auto">
+            {filteredSchedules.length === 0 ? (
+              <div className="text-center text-muted py-4">
+                Chưa có lịch nào phù hợp.
+              </div>
+            ) : (
+              <div className="schedule-list">
+                {filteredSchedules.map((schedule) => {
+                  const meta = SCHEDULE_STATUS_META[schedule.status] || SCHEDULE_STATUS_META.PENDING;
+                  const progress = schedule.totalRuns > 0 ? Math.min(100, Math.round((schedule.successRuns / schedule.totalRuns) * 100)) : 0;
+                  return (
+                    <div className="scheduled-card" key={schedule.id}>
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <h6 className="mb-1">
+                            {schedule.walletName} • {schedule.transactionType === "income" ? "Thu nhập" : "Chi tiêu"}
+                          </h6>
+                          <p className="mb-1 text-muted">
+                            {schedule.categoryName} · {schedule.scheduleTypeLabel}
+                          </p>
+                        </div>
+                        <span className={meta.className}>{meta.label}</span>
+                      </div>
+                      <div className="d-flex flex-wrap gap-3 mb-2 small text-muted">
+                        <span>Số tiền: {formatMoney(schedule.amount, schedule.currency)}</span>
+                        <span>Tiếp theo: {formatVietnamDateTime(schedule.nextRun)}</span>
+                        <span>
+                          Lần hoàn thành: {schedule.successRuns}/{schedule.totalRuns || "∞"}
+                        </span>
+                      </div>
+                      <div className="progress schedule-progress">
+                        <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                      </div>
+                      {schedule.warning && (
+                        <div className="schedule-warning">
+                          <i className="bi bi-exclamation-triangle-fill me-1" />
+                          {schedule.warning}
+                        </div>
+                      )}
+                      <div className="scheduled-card-actions">
+                        <button type="button" className="btn btn-link px-0" onClick={() => setSelectedSchedule(schedule)}>
+                          Xem lịch sử
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-link px-0 text-danger"
+                          disabled={schedule.status === "CANCELLED"}
+                          onClick={() => handleScheduleCancel(schedule.id)}
+                        >
+                          Hủy lịch
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="card border-0 shadow-sm tx-table-card">
+          {loading ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Đang tải...</span>
+              </div>
+              <p className="mt-2 text-muted">Đang tải danh sách giao dịch...</p>
+            </div>
+          ) : (
+          <div className="table-responsive">
+            {activeTab === TABS.EXTERNAL ? (
+              <table className="table table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style={{ width: 60 }}>STT</th>
+                    <th>Ngày</th>
+                    <th>Thời gian</th>
+                    <th>Loại</th>
+                    <th>Ví</th>
+                    <th>Danh mục</th>
+                    <th className="tx-note-col">Mô tả</th>
+                    <th className="text-end">Số tiền</th>
+                    <th className="text-center">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="text-center text-muted py-4">
+                        Không có giao dịch nào.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginated.map((t, i) => {
+                      const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
+                      const d = toDateObj(t.date);
+                      const dateStr = formatVietnamDate(d);
+                      const timeStr = formatVietnamTime(d);
+
+                      return (
+                        <tr key={t.id}>
+                          <td>{serial}</td>
+                          <td>{dateStr}</td>
+                          <td>{timeStr}</td>
+                          <td>{t.type === "income" ? "Thu nhập" : "Chi tiêu"}</td>
+                          <td>{t.walletName}</td>
+                          <td>{t.category}</td>
+                          <td className="tx-note-cell" title={t.note || "-"}>
+                            {t.note || "-"}
+                          </td>
+                          <td className="text-end">
+                            <span
+                              className={
+                                t.type === "expense"
+                                  ? "tx-amount-expense"
+                                  : "tx-amount-income"
+                              }
+                            >
+                              {t.type === "expense" ? "-" : "+"}
+                              {formatMoney(t.amount, t.currency)}
+                            </span>
+                          </td>
+                          <td className="text-center">
+                            <button
+                              className="btn btn-link btn-sm text-muted me-1"
+                              title="Xem chi tiết"
+                              onClick={() => setViewing(t)}
+                            >
+                              <i className="bi bi-eye" />
+                            </button>
+                            <button
+                              className="btn btn-link btn-sm text-muted me-1"
+                              title="Chỉnh sửa"
+                              onClick={() => setEditing(t)}
+                            >
+                              <i className="bi bi-pencil-square" />
+                            </button>
+                            <button
+                              className="btn btn-link btn-sm text-danger"
+                              title="Xóa"
+                              onClick={() => setConfirmDel(t)}
+                            >
+                              <i className="bi bi-trash" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <table className="table table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style={{ width: 60 }}>STT</th>
+                    <th>Ngày</th>
+                    <th>Thời gian</th>
+                    <th>Ví gửi</th>
+                    <th>Ví nhận</th>
+                    <th className="tx-note-col">Ghi chú</th>
+                    <th className="text-end">Số tiền</th>
+                    <th className="text-center">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center text-muted py-4">
+                        Không có giao dịch nào.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginated.map((t, i) => {
+                      const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
+                      const d = toDateObj(t.date);
+                      const dateStr = formatVietnamDate(d);
+                      const timeStr = formatVietnamTime(d);
+
+                      return (
+                        <tr key={t.id}>
+                          <td>{serial}</td>
+                          <td>{dateStr}</td>
+                          <td>{timeStr}</td>
+                          <td>{t.sourceWallet}</td>
+                          <td>{t.targetWallet}</td>
+                          <td className="tx-note-cell" title={t.note || "-"}>
+                            {t.note || "-"}
+                          </td>
+                          <td className="text-end">
+                            <span className="tx-amount-transfer">
+                              {formatMoney(t.amount, t.currency)}
+                            </span>
+                          </td>
+                          <td className="text-center">
+                            <button
+                              className="btn btn-link btn-sm text-muted me-1"
+                              title="Xem chi tiết"
+                              onClick={() => setViewing(t)}
+                            >
+                              <i className="bi bi-eye" />
+                            </button>
+                            <button
+                              className="btn btn-link btn-sm text-muted me-1"
+                              title="Chỉnh sửa"
+                              onClick={() => setEditing(t)}
+                            >
+                              <i className="bi bi-pencil-square" />
+                            </button>
+                            <button
+                              className="btn btn-link btn-sm text-danger"
+                              title="Xóa"
+                              onClick={() => setConfirmDel(t)}
+                            >
+                              <i className="bi bi-trash" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+          )}
+
+          <div className="card-footer d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
+            <span className="text-muted small">
+              Trang {currentPage}/{totalPages}
+            </span>
+            <div className="tx-pagination">
               <button
-                className="btn btn-outline-secondary btn-sm"
                 type="button"
-                onClick={clearFilters}
+                className="page-arrow"
+                disabled={currentPage === 1}
+                onClick={() => handlePageChange(1)}
               >
-                <i className="bi bi-x-circle me-1" />
-                Xóa lọc
+                «
+              </button>
+              <button
+                type="button"
+                className="page-arrow"
+                disabled={currentPage === 1}
+                onClick={() => handlePageChange(currentPage - 1)}
+              >
+                ‹
+              </button>
+              {paginationRange.map((item, idx) =>
+                typeof item === "string" && item.includes("ellipsis") ? (
+                  <span key={`${item}-${idx}`} className="page-ellipsis">…</span>
+                ) : (
+                  <button
+                    key={`tx-page-${item}`}
+                    type="button"
+                    className={`page-number ${currentPage === item ? "active" : ""}`}
+                    onClick={() => handlePageChange(item)}
+                  >
+                    {item}
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                className="page-arrow"
+                disabled={currentPage === totalPages}
+                onClick={() => handlePageChange(currentPage + 1)}
+              >
+                ›
+              </button>
+              <button
+                type="button"
+                className="page-arrow"
+                disabled={currentPage === totalPages}
+                onClick={() => handlePageChange(totalPages)}
+              >
+                »
               </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Bảng danh sách */}
-      <div className="card border-0 shadow-sm tx-table-card">
-        <div className="table-responsive">
-          {activeTab === TABS.EXTERNAL ? (
-            <table className="table table-hover align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Ngày</th>
-                  <th>Thời gian</th>
-                  <th>Loại</th>
-                  <th>Ví</th>
-                  <th>Danh mục</th>
-                  <th className="tx-note-col">Mô tả</th>
-                  <th className="text-end">Số tiền</th>
-                  <th className="text-center">Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="text-center text-muted py-4">
-                      Không có giao dịch nào.
-                    </td>
-                  </tr>
-                ) : (
-                  paginated.map((t) => {
-                    const d = toDateObj(t.date);
-                    const dateStr = d
-                      ? d.toLocaleDateString("vi-VN", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })
-                      : "";
-                    const timeStr = d
-                      ? d.toLocaleTimeString("vi-VN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "";
+      <ScheduledTransactionModal
+        open={scheduleModalOpen}
+        wallets={wallets}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
+        onSubmit={handleScheduleSubmit}
+        onClose={() => setScheduleModalOpen(false)}
+      />
 
-                    return (
-                      <tr key={t.id}>
-                        <td>{dateStr}</td>
-                        <td>{timeStr}</td>
-                        <td>{t.type === "income" ? "Thu nhập" : "Chi tiêu"}</td>
-                        <td>{t.walletName}</td>
-                        <td>{t.category}</td>
-                        <td className="tx-note-cell" title={t.note || "-"}>
-                          {t.note || "-"}
-                        </td>
-                        <td className="text-end">
-                          <span
-                            className={
-                              t.type === "expense"
-                                ? "tx-amount-expense"
-                                : "tx-amount-income"
-                            }
-                          >
-                            {t.type === "expense" ? "-" : "+"}
-                            {t.amount.toLocaleString("vi-VN")} {t.currency}
-                          </span>
-                        </td>
-                        <td className="text-center">
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Xem chi tiết"
-                            onClick={() => setViewing(t)}
-                          >
-                            <i className="bi bi-eye" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Chỉnh sửa"
-                            onClick={() => setEditing(t)}
-                          >
-                            <i className="bi bi-pencil-square" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-danger"
-                            title="Xóa"
-                            onClick={() => setConfirmDel(t)}
-                          >
-                            <i className="bi bi-trash" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          ) : (
-            <table className="table table-hover align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Ngày</th>
-                  <th>Thời gian</th>
-                  <th>Ví gửi</th>
-                  <th>Ví nhận</th>
-                  <th className="tx-note-col">Ghi chú</th>
-                  <th className="text-end">Số tiền</th>
-                  <th className="text-center">Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center text-muted py-4">
-                      Không có giao dịch nào.
-                    </td>
-                  </tr>
-                ) : (
-                  paginated.map((t) => {
-                    const d = toDateObj(t.date);
-                    const dateStr = d
-                      ? d.toLocaleDateString("vi-VN", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })
-                      : "";
-                    const timeStr = d
-                      ? d.toLocaleTimeString("vi-VN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "";
-
-                    return (
-                      <tr key={t.id}>
-                        <td>{dateStr}</td>
-                        <td>{timeStr}</td>
-                        <td>{t.sourceWallet}</td>
-                        <td>{t.targetWallet}</td>
-                        <td className="tx-note-cell" title={t.note || "-"}>
-                          {t.note || "-"}
-                        </td>
-                        <td className="text-end">
-                          <span className="tx-amount-transfer">
-                            {t.amount.toLocaleString("vi-VN")} {t.currency}
-                          </span>
-                        </td>
-                        <td className="text-center">
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Xem chi tiết"
-                            onClick={() => setViewing(t)}
-                          >
-                            <i className="bi bi-eye" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Chỉnh sửa"
-                            onClick={() => setEditing(t)}
-                          >
-                            <i className="bi bi-pencil-square" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-danger"
-                            title="Xóa"
-                            onClick={() => setConfirmDel(t)}
-                          >
-                            <i className="bi bi-trash" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        <div className="card-footer d-flex justify-content-between align-items-center">
-          <span className="text-muted small">
-            Trang {currentPage}/{totalPages}
-          </span>
-          <div className="d-flex gap-2">
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              disabled={currentPage === 1}
-              onClick={() => handlePageChange(currentPage - 1)}
-            >
-              « Trước
-            </button>
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              disabled={currentPage === totalPages}
-              onClick={() => handlePageChange(currentPage + 1)}
-            >
-              Sau »
-            </button>
-          </div>
-        </div>
-      </div>
+      <ScheduledTransactionDrawer
+        open={!!selectedSchedule}
+        schedule={selectedSchedule}
+        onClose={() => setSelectedSchedule(null)}
+        onCancel={handleScheduleCancel}
+      />
 
       <TransactionViewModal
         open={!!viewing}
@@ -1215,19 +1443,14 @@ export default function TransactionsPage() {
         onClose={() => setViewing(null)}
       />
 
-      {/* Form tạo mới */}
       <TransactionFormModal
         open={creating}
         mode="create"
         variant={activeTab === TABS.EXTERNAL ? "external" : "internal"}
         onSubmit={handleCreate}
         onClose={() => setCreating(false)}
-        /* TRUYỀN DỮ LIỆU TỪ LOCALSTORAGE */
-        wallets={walletsFromStore}
-        categories={categoriesFromStore}
       />
 
-      {/* Form chỉnh sửa */}
       <TransactionFormModal
         open={!!editing}
         mode="edit"
@@ -1235,9 +1458,6 @@ export default function TransactionsPage() {
         initialData={editing}
         onSubmit={handleUpdate}
         onClose={() => setEditing(null)}
-        /* TRUYỀN DỮ LIỆU TỪ LOCALSTORAGE */
-        wallets={walletsFromStore}
-        categories={categoriesFromStore}
       />
 
       <ConfirmModal
@@ -1252,12 +1472,127 @@ export default function TransactionsPage() {
         onClose={() => setConfirmDel(null)}
       />
 
-      <SuccessToast
+      <BudgetWarningModal
+        open={!!budgetWarning}
+        categoryName={budgetWarning?.categoryName}
+        budgetLimit={budgetWarning?.budgetLimit || 0}
+        spent={budgetWarning?.spent || 0}
+        transactionAmount={budgetWarning?.transactionAmount || 0}
+        totalAfterTx={budgetWarning?.totalAfterTx || 0}
+        isExceeding={budgetWarning?.isExceeding || false}
+        onConfirm={handleBudgetWarningConfirm}
+        onCancel={handleBudgetWarningCancel}
+      />
+
+      <Toast
         open={toast.open}
         message={toast.message}
+        type={toast.type}
         duration={2200}
-        onClose={() => setToast({ open: false, message: "" })}
+        onClose={() => setToast({ open: false, message: "", type: "success" })}
       />
     </div>
   );
 }
+
+function formatVietnamDateTime(date) {
+  if (!date) return "";
+  let d;
+  if (date instanceof Date) {
+    d = date;
+  } else {
+    d = new Date(date);
+  }
+  if (Number.isNaN(d.getTime())) return "";
+  return `${formatVietnamDate(d)} ${formatVietnamTime(d)}`.trim();
+}
+
+function estimateScheduleRuns(startValue, endValue, scheduleType) {
+  if (scheduleType === "ONE_TIME") return 1;
+  if (!startValue || !endValue) return 0;
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
+  const diffDays = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+  switch (scheduleType) {
+    case "DAILY":
+      return diffDays + 1;
+    case "WEEKLY":
+      return Math.floor(diffDays / 7) + 1;
+    case "MONTHLY":
+      return Math.max(1, Math.round(diffDays / 30));
+    case "YEARLY":
+      return Math.max(1, Math.round(diffDays / 365));
+    default:
+      return 0;
+  }
+}
+
+const SCHEDULE_TYPE_LABELS = {
+  ONE_TIME: "Một lần",
+  DAILY: "Hằng ngày",
+  WEEKLY: "Hằng tuần",
+  MONTHLY: "Hằng tháng",
+  YEARLY: "Hằng năm",
+};
+
+const SCHEDULE_STATUS_META = {
+  PENDING: { label: "Chờ chạy", className: "schedule-status schedule-status--pending" },
+  RUNNING: { label: "Đang chạy", className: "schedule-status schedule-status--running" },
+  COMPLETED: { label: "Hoàn tất", className: "schedule-status schedule-status--success" },
+  FAILED: { label: "Thất bại", className: "schedule-status schedule-status--failed" },
+  CANCELLED: { label: "Đã hủy", className: "schedule-status schedule-status--muted" },
+};
+
+const SCHEDULE_TABS = [
+  { value: "all", label: "Tất cả" },
+  { value: "pending", label: "Chờ chạy" },
+  { value: "recurring", label: "Định kỳ" },
+];
+
+const MOCK_SCHEDULES = [
+  {
+    id: 101,
+    walletId: "wallet-main",
+    walletName: "Ví chính",
+    categoryName: "Hóa đơn",
+    transactionType: "expense",
+    amount: 2500000,
+    currency: "VND",
+    scheduleType: "MONTHLY",
+    scheduleTypeLabel: SCHEDULE_TYPE_LABELS.MONTHLY,
+    status: "PENDING",
+    firstRun: "2025-01-05T08:00",
+    nextRun: "2025-03-05T08:00",
+    endDate: "2025-12-31",
+    successRuns: 1,
+    totalRuns: 12,
+    warning: null,
+    logs: [
+      { id: 1, time: "2025-02-05T08:00", status: "FAILED", message: "Không đủ số dư" },
+      { id: 2, time: "2025-01-05T08:00", status: "COMPLETED", message: "Thành công" },
+    ],
+  },
+  {
+    id: 102,
+    walletId: "wallet-travel",
+    walletName: "Ví du lịch",
+    categoryName: "Tiền lãi",
+    transactionType: "income",
+    amount: 1000000,
+    currency: "VND",
+    scheduleType: "DAILY",
+    scheduleTypeLabel: SCHEDULE_TYPE_LABELS.DAILY,
+    status: "FAILED",
+    firstRun: "2025-02-01T09:00",
+    nextRun: "2025-02-22T09:00",
+    endDate: null,
+    successRuns: 3,
+    totalRuns: 5,
+    warning: "Không đủ số dư ở lần gần nhất",
+    logs: [
+      { id: 3, time: "2025-02-10T09:00", status: "FAILED", message: "Không đủ số dư ví du lịch" },
+      { id: 4, time: "2025-02-09T09:00", status: "COMPLETED", message: "Thành công" },
+    ],
+  },
+];

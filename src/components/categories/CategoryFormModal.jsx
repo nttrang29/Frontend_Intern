@@ -9,12 +9,31 @@ export default function CategoryFormModal({
   onSubmit,
   onClose,
 }) {
-  const [name, setName] = useState(initialValue);
+  // initialValue can be a string (name) or object { name, description }
+  const [name, setName] = useState(
+    initialValue && typeof initialValue === "object"
+      ? initialValue.name
+      : initialValue
+  );
+  const [description, setDescription] = useState(
+    initialValue && typeof initialValue === "object"
+      ? initialValue.description || ""
+      : ""
+  );
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
-      setName(initialValue || "");
+      setName(
+        initialValue && typeof initialValue === "object"
+          ? initialValue.name || ""
+          : initialValue || ""
+      );
+      setDescription(
+        initialValue && typeof initialValue === "object"
+          ? initialValue.description || ""
+          : ""
+      );
       setError("");
     }
   }, [open, initialValue]);
@@ -30,7 +49,7 @@ export default function CategoryFormModal({
       setError("Tên danh mục tối đa 40 ký tự");
       return;
     }
-    onSubmit && onSubmit(trimmed);
+    onSubmit && onSubmit({ name: trimmed, description: (description || "").trim() });
   };
 
   if (!open) return null;
@@ -63,12 +82,20 @@ export default function CategoryFormModal({
             {error && <div className="invalid-feedback">{error}</div>}
           </div>
 
+          <div className="mb-3">
+            <label className="form-label">Mô tả (tùy chọn)</label>
+            <textarea
+              className="form-control"
+              placeholder="Mô tả ngắn cho danh mục..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={120}
+              rows={3}
+            />
+          </div>
+
           <div className="d-flex justify-content-end gap-2 mt-3">
-            <button
-              type="button"
-              className="btn btn-light"
-              onClick={onClose}
-            >
+            <button type="button" className="btn btn-light" onClick={onClose}>
               Hủy
             </button>
             <button type="submit" className="btn btn-primary">

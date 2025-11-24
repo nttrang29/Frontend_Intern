@@ -1,173 +1,347 @@
 /* =========================================================
-   Sidebar – smooth collapse/expand
+   SIDEBAR — FLAT (NO GLASS) — Tokens & Items
    ========================================================= */
 
-/* Kích thước chuẩn/collapsed dùng biến để transition mượt */
-:root{
-  --sb-w: 260px;
-  --sb-wc: 78px;
+:root {
+  --sb-icon-size: 44px;
+  --sb-icon-font: 18px;
+
+  --sb-text: #0f172a;           /* theme sáng */
+  --sb-text-muted: #475569;
+
+  --sb-item-hover: #f3f4f6;
+  --sb-item-active: #eef2ff;
+  --sb-item-active-hi: #e5e7ff;
+  --sb-item-border: #e5e7eb;
 }
 
-/* Khung chứa (div.home__sidebar) nên đặt width theo biến */
-.home__sidebar{ 
-  width: var(--sb-w); 
-  transition: width .25s ease; 
-}
-.sb-collapsed .home__sidebar{ width: var(--sb-wc); }
-
-/* ===== CONTAINER ===== */
-.sb__container{
-  height:100%;
-  background: #2D3748;              /* 🔹 NỀN SIDEBAR MỚI */
-  border-radius: 22px;
-  color:#fff;                       /* 🔹 CHỮ TRẮNG */
-  padding: 18px 12px;
-  position:relative;
-  box-shadow: 0 8px 18px rgba(15,23,42,.45);
-  display:flex; 
-  flex-direction:column;
-  transition: padding .25s ease;
+/* =========================================================
+   BASE CONTAINER
+   ========================================================= */
+.sb__container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 18px 16px 16px;
+  gap: 12px;
+  box-sizing: border-box;
 }
 
-/* ===== HEADER / LOGO + HAMBURGER ===== */
-.sb__header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:16px;
+.sb-collapsed .sb__container {
+  align-items: center;
+  padding: 14px 10px;
 }
 
-.sb__brand{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-weight:700;
-  font-size:16px;
+/* =========================================================
+   BRAND / LOGO VIDEO
+   ========================================================= */
+
+.sb__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  background: #fff;
+  
+  transition: padding 0.25s, gap 0.25s, opacity 0.25s;
 }
 
-.sb__brand-icon{
-  width:32px;
-  height:32px;
-  border-radius:999px;
-  background:#BCFEFE;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:#001C44;
-  box-shadow:0 6px 14px rgba(0,0,0,.35);
+.sb__brand-video {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 50%; /* logo tròn */
+  flex-shrink: 0;
 }
 
-/* nút thu gọn */
-.sb__hamburger{
-  width:42px;
-  height:42px;
-  border-radius:999px;
-  border:1px solid rgba(188,254,254,.4);
-  background:rgba(15,23,42,.45);
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  color:#BCFEFE;
-  transition:background .2s ease, transform .12s ease;
-}
-.sb__hamburger:hover{
-  background:rgba(15,23,42,.8);
-  transform:translateY(-1px);
+.sb__brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-/* ===== MENU ===== */
-
-.sb__menu{
-  margin-top:6px;
-  display:flex;
-  flex-direction:column;
-  gap:4px;
+.sb__brand-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--sb-text);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
-/* Link chung */
-.sb__link{
-  position:relative;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:10px 12px;
-  border-radius:999px;
-  color:#E5E7EB;
-  text-decoration:none;
-  opacity:.95;
-  transition:background .18s ease, color .18s ease, padding .25s ease,
-             justify-content .25s ease;
-}
-.sb__link:hover{
-  background:rgba(188,254,254,.15);
-  opacity:1;
+.sb__brand-sub {
+  font-size: 12px;
+  color: var(--sb-text-muted);
+  opacity: 0.85;
 }
 
-/* Active */
-.sb__link.active{
-  background:#BCFEFE;
-  color:#001C44;
-  box-shadow:0 8px 18px rgba(0,0,0,.45);
+/* COLLAPSE MODE cho brand */
+.sb-collapsed .sb__brand {
+  padding: 8px;
+  flex-direction: column;
+  margin: 0 auto 12px;
+  width: 52px;
 }
 
-.sb__icon{
-  width:22px;
-  text-align:center;
-}
-.sb__icon .bi{
-  font-size:18px;
-  line-height:1;
+.sb-collapsed .sb__brand-video {
+  width: 42px;
+  height: 42px;
 }
 
-.sb__text{
-  font-weight:600;
-  white-space:nowrap;
-  max-width:160px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  transition:max-width .25s ease, opacity .18s ease;
-  opacity:1;
+.sb-collapsed .sb__brand-text {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
 }
 
-/* ===== COLLAPSE STATE (thêm class sb-collapsed lên body) ===== */
-.sb-collapsed .sb__container{ padding:18px 8px; }
-.sb-collapsed .sb__link{ justify-content:center; padding:10px; }
-.sb-collapsed .sb__text{ max-width:0; opacity:0; margin:0; }
-.sb-collapsed .sb__icon{ margin:0; }
+/* =========================================================
+   HEADER BUTTON (MENU)
+   ========================================================= */
 
-/* ===== FOOTER DECOR ===== */
-.sb__footer{
-  margin-top:auto;
-  position:relative;
-  height:120px;
-  border-bottom-left-radius:22px;
-  overflow:hidden;
+.sb__link--header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  color: var(--sb-text);
+  text-decoration: none;
+  opacity: 0.98;
+  border: 1px solid var(--border-color);
+  background: #ffffff;
+  transition: background 0.25s, border-color 0.25s, transform 0.15s,
+    box-shadow 0.25s;
+  cursor: pointer;
 }
-.sb__leaf{
-  position:absolute;
-  inset:auto -40px -40px -40px;
-  background:radial-gradient(circle at top, rgba(188,254,254,.6), transparent);
-  opacity:.75;
+
+.sb__link--header:hover {
+  background: var(--sb-item-hover);
+  border-color: var(--sb-item-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
-/* ===== RESPONSIVE nhỏ hơn 768px – auto-collapsed ===== */
-@media (max-width: 768px){
-  :root{
-    --sb-w: var(--sb-wc);
-  }
+.sb__link--header:active {
+  transform: scale(0.98);
+}
 
-  .home__sidebar{ 
-    width: var(--sb-wc); 
-    transition: width .25s ease; 
-    z-index:5;
-  }
+.sb__menu-title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-  .sb__container{ padding:16px 6px; }
-  .sb__hamburger{ width:40px; height:40px; }
+/* Divider */
+.sb__divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(2, 6, 23, 0.08) 15%,
+    rgba(2, 6, 23, 0.08) 85%,
+    transparent 100%
+  );
+  margin: 10px 6px 14px;
+  border-radius: 999px;
+}
 
-  .sb__link{ justify-content:center; padding:10px; }
-  .sb__text{ max-width:0; opacity:0; margin:0; }
-  .sb__icon{ margin:0; }
+/* =========================================================
+   NAV LIST
+   ========================================================= */
+
+.sb__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+/* vùng scroll riêng nếu sidebar cao */
+.sb__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.sb__scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sb__scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
+}
+
+/* =========================================================
+   ITEM CHUNG
+   ========================================================= */
+
+.sb__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: var(--sb-text);
+  text-decoration: none;
+  opacity: 0.95;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: background 0.25s, color 0.25s, padding 0.25s,
+    border-color 0.25s, box-shadow 0.25s, transform 0.12s, opacity 0.25s;
+}
+
+.sb__link:hover {
+  background: var(--sb-item-hover);
+  border-color: var(--sb-item-border);
+  opacity: 1;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.sb__link:active {
+  transform: translateY(1px);
+}
+
+/* Active pill */
+.sb__link.is-active {
+  background: linear-gradient(
+    180deg,
+    var(--sb-item-active-hi),
+    var(--sb-item-active)
+  );
+  border-color: var(--sb-item-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+/* Focus-visible */
+.sb__link:focus-visible,
+.sb__link--header:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+/* Icon block */
+.sb__icon {
+  width: var(--sb-icon-size);
+  height: var(--sb-icon-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.sb__icon .bi,
+.sb__icon svg {
+  font-size: var(--sb-icon-font);
+  line-height: 1;
+  width: 1em;
+  height: 1em;
+}
+
+/* Text */
+.sb__text {
+  font-weight: 600;
+  color: var(--sb-text);
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: max-width 0.25s, opacity 0.25s, margin 0.25s;
+  opacity: 1;
+}
+
+/* =========================================================
+   COLLAPSE MODE TOÀN ITEM
+   ========================================================= */
+
+.sb-collapsed .sb__link--header {
+  width: var(--sb-icon-size);
+  height: var(--sb-icon-size);
+  padding: 0;
+  border-radius: 50%;
+  margin: 2px auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.sb-collapsed .sb__menu-title {
+  max-width: 0;
+  opacity: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.sb-collapsed .sb__divider {
+  width: 60%;
+  margin: 8px auto 12px;
+  opacity: 0.75;
+}
+
+.sb-collapsed .sb__link {
+  width: var(--sb-icon-size);
+  height: var(--sb-icon-size);
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  gap: 0;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s,
+    box-shadow 0.25s;
+  margin: 0 auto;
+}
+
+.sb-collapsed .sb__icon {
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sb-collapsed .sb__text {
+  max-width: 0;
+  opacity: 0;
+  margin: 0;
+}
+
+/* Tooltip khi thu gọn (dùng data-title) */
+.sb-collapsed .sb__link[data-title]:hover::after,
+.sb-collapsed .sb__link--header[data-title]:hover::after {
+  content: attr(data-title);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.82);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Footer spacing */
+.sb__footer {
+  margin-top: auto;
+  height: 12px;
+  background: transparent;
 }

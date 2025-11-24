@@ -63,6 +63,7 @@
   border-radius: 999px;
 }
 
+
 /* Date time range */
 .filter-datetime-range {
   display: flex;
@@ -168,6 +169,45 @@
   background: #1d4ed8;
   color: #fff;
   border-color: #1d4ed8;
+}
+
+.tx-pagination {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tx-pagination .page-arrow,
+.tx-pagination .page-number {
+  border: 1px solid #dbe2ef;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+  transition: all 0.2s ease;
+}
+
+.tx-pagination .page-arrow:disabled,
+.tx-pagination .page-number:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tx-pagination .page-number.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+}
+
+.tx-pagination .page-ellipsis {
+  padding-inline: 4px;
+  color: #94a3b8;
+  font-weight: 600;
 }
 
 /* Modal – viền, khoảng cách đẹp hơn */
@@ -313,6 +353,29 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
+.tx-table-card .table-responsive {
+  max-height: 70vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.tx-table-card .table-responsive::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tx-table-card .table-responsive::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.8);
+  border-radius: 999px;
+}
+
+.tx-table-card thead th {
+  position: sticky;
+  top: 0;
+  background: #f1f5f9;
+  z-index: 2;
+}
+
 .tx-table-card table thead tr {
   background-color: #f1f5f9;
 }
@@ -335,4 +398,161 @@
 .tx-amount-transfer {
   color: #0ea5e9;
   font-weight: 600;
+}
+
+.tx-note-cell {
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Scheduled transactions */
+.scheduled-section {
+  border-radius: 18px;
+}
+
+.schedule-tabs {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.schedule-tab {
+  border: 1px solid #dee2e6;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.4rem 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+}
+
+.schedule-tab.active {
+  border-color: #0d6efd;
+  color: #0d6efd;
+  background: rgba(13, 110, 253, 0.08);
+}
+
+.schedule-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.scheduled-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.schedule-status {
+  border-radius: 999px;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.65rem;
+  font-weight: 600;
+}
+
+.schedule-status--pending {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+
+.schedule-status--running {
+  background: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
+}
+
+.schedule-status--success {
+  background: rgba(34, 197, 94, 0.16);
+  color: #15803d;
+}
+
+.schedule-status--failed {
+  background: rgba(248, 113, 113, 0.18);
+  color: #b91c1c;
+}
+
+.schedule-status--muted {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.schedule-progress {
+  height: 6px;
+  background-color: #f1f5f9;
+}
+
+.schedule-warning {
+  font-size: 0.85rem;
+  color: #b45309;
+  background: rgba(251, 191, 36, 0.12);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+}
+
+.scheduled-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.scheduled-card-actions .btn {
+  font-weight: 500;
+}
+
+/* Scheduled modal helpers */
+.schedule-type-grid {
+  --bs-gutter-x: 0.5rem;
+}
+
+.schedule-type-item {
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  font-weight: 600;
+  color: #475569;
+}
+
+.schedule-type-item.active {
+  border-color: #0d6efd;
+  color: #0d6efd;
+  background: rgba(13, 110, 253, 0.06);
+}
+
+.schedule-detail-box,
+.schedule-history-box {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.schedule-detail-list li,
+.schedule-log-list li {
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed #e5e7eb;
+  font-size: 0.9rem;
+}
+
+.schedule-detail-list li:last-child,
+.schedule-log-list li:last-child {
+  border-bottom: none;
+}
+
+.schedule-detail-list span {
+  color: #6b7280;
+  min-width: 110px;
+  display: inline-block;
+}
+
+.schedule-log-list strong {
+  font-size: 0.9rem;
 }

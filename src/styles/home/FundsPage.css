@@ -1,0 +1,720 @@
+/* =========================
+   TOKENS
+   ========================= */
+:root {
+  --funds-accent: #2d99ae;
+  --funds-accent-soft: rgba(45, 153, 174, 0.08);
+  --funds-accent-strong: rgba(45, 153, 174, 0.16);
+  --funds-text: #111827;
+  --funds-text-muted: #6b7280;
+  --funds-border: #e5e7eb;
+  --funds-bg-card: #ffffff;
+  --funds-radius-lg: 18px;
+  --funds-radius-md: 12px;
+  --funds-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --funds-shadow-subtle: 0 8px 18px rgba(15, 23, 42, 0.08);
+  --funds-transition-fast: 0.18s ease-out;
+  --funds-transition: 0.25s ease;
+}
+
+/* =========================
+   PAGE
+   ========================= */
+.funds-page {
+  color: var(--funds-text);
+}
+
+/* HEADER */
+.funds-header {
+  background: linear-gradient(
+    120deg,
+    rgba(45, 153, 174, 0.06),
+    rgba(255, 255, 255, 0.98)
+  );
+  border-radius: var(--funds-radius-lg);
+  border: 1px solid rgba(45, 153, 174, 0.22);
+  box-shadow: var(--funds-shadow-soft);
+}
+
+.funds-header h3 {
+  font-weight: 600;
+  color: var(--funds-text);
+}
+
+.funds-header p {
+  color: var(--funds-text-muted);
+}
+
+/* =========================
+   FIELDSET / FORM LAYOUT
+   ========================= */
+.funds-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
+  gap: 18px;
+}
+
+@media (max-width: 992px) {
+  .funds-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.funds-fieldset {
+  background: var(--funds-bg-card);
+  border-radius: var(--funds-radius-lg);
+  border: 1px solid var(--funds-border);
+  padding: 16px 18px 18px;
+  box-shadow: var(--funds-shadow-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+.funds-fieldset--full {
+  grid-column: 1 / -1;
+}
+
+.funds-fieldset__legend {
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--funds-text-muted);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+/* FIELDS */
+.funds-field {
+  margin-bottom: 12px;
+}
+
+.funds-field:last-child {
+  margin-bottom: 0;
+}
+
+.funds-field label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--funds-text);
+  margin-bottom: 4px;
+  display: inline-block;
+}
+
+.funds-field input,
+.funds-field select,
+.funds-field textarea {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--funds-border);
+  padding: 8px 10px;
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color var(--funds-transition-fast),
+    box-shadow var(--funds-transition-fast), background-color var(--funds-transition-fast);
+}
+
+.funds-field input:focus,
+.funds-field select:focus,
+.funds-field textarea:focus {
+  border-color: var(--funds-accent);
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.35);
+  background-color: #ffffff;
+}
+
+.funds-field textarea {
+  resize: vertical;
+}
+
+.funds-field input[disabled],
+.funds-field textarea[disabled] {
+  background: #f9fafb;
+  color: var(--funds-text-muted);
+}
+
+/* Hai ô trên cùng một hàng */
+.funds-field--inline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .funds-field--inline {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* HINT / ERROR */
+.funds-hint {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--funds-text-muted);
+}
+
+.funds-hint--strong {
+  margin-top: 6px;
+  font-weight: 500;
+  color: var(--funds-accent);
+}
+
+.funds-error {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #dc2626;
+}
+
+.req {
+  color: #dc2626;
+}
+
+/* =========================
+   TABS (CÁ NHÂN / NHÓM)
+   ========================= */
+.funds-tabs {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(45, 153, 174, 0.06);
+}
+
+.funds-tab {
+  border: none;
+  background: transparent;
+  padding: 6px 16px;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  color: var(--funds-text-muted);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--funds-transition-fast),
+    color var(--funds-transition-fast), box-shadow var(--funds-transition-fast);
+}
+
+.funds-tab--active {
+  background: #ffffff;
+  color: var(--funds-accent);
+  box-shadow: 0 4px 12px rgba(45, 153, 174, 0.25);
+}
+
+/* =========================
+   SWITCH (BẬT/TẮT)
+   ========================= */
+.funds-toggle-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.funds-toggle-line span {
+  color: var(--funds-text);
+}
+
+/* switch chung (giống các chỗ khác) */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch__slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #d1d5db;
+  border-radius: 999px;
+  transition: background-color var(--funds-transition-fast);
+}
+
+.switch__slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  border-radius: 999px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+  transition: transform var(--funds-transition-fast);
+}
+
+.switch input:checked + .switch__slider {
+  background-color: var(--funds-accent);
+}
+
+.switch input:checked + .switch__slider::before {
+  transform: translateX(20px);
+}
+
+/* =========================
+   PILL TOGGLE (NHẮC NHỞ / TỰ ĐỘNG NẠP)
+   ========================= */
+.funds-reminder-mode {
+  display: inline-flex;
+  gap: 6px;
+  margin: 6px 0 10px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(45, 153, 174, 0.05);
+}
+
+.funds-pill-toggle {
+  border: none;
+  background: transparent;
+  padding: 5px 14px;
+  font-size: 0.86rem;
+  border-radius: 999px;
+  color: var(--funds-text-muted);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--funds-transition-fast),
+    color var(--funds-transition-fast), box-shadow var(--funds-transition-fast);
+}
+
+.funds-pill-toggle--active {
+  background: #ffffff;
+  color: var(--funds-accent);
+  box-shadow: 0 4px 10px rgba(45, 153, 174, 0.25);
+}
+
+.funds-pill-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* =========================
+   WALLET SOURCE (CHỌN VÍ NGUỒN)
+   ========================= */
+.wallet-source {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wallet-source__search {
+  /* input đã được style chung ở funds-field */
+}
+
+.wallet-source__list {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+}
+
+/* thanh cuộn mảnh */
+.wallet-source__list::-webkit-scrollbar {
+  height: 6px;
+}
+.wallet-source__list::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
+}
+.wallet-source__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wallet-source__item {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  padding: 4px 10px;
+  background: #ffffff;
+  font-size: 0.84rem;
+  color: var(--funds-text);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--funds-transition-fast),
+    color var(--funds-transition-fast), border-color var(--funds-transition-fast),
+    transform var(--funds-transition-fast), box-shadow var(--funds-transition-fast);
+}
+
+.wallet-source__item:hover {
+  border-color: var(--funds-accent);
+  background: rgba(45, 153, 174, 0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.18);
+}
+
+.wallet-source__item.is-active {
+  background: var(--funds-accent);
+  color: #ffffff;
+  border-color: var(--funds-accent);
+  box-shadow: 0 3px 10px rgba(45, 153, 174, 0.4);
+}
+
+/* =========================
+   QUỸ – CARD OVERVIEW
+   ========================= */
+.fund-section {
+  background: var(--funds-bg-card);
+  border-radius: var(--funds-radius-lg);
+  border: 1px solid var(--funds-border);
+  box-shadow: var(--funds-shadow-subtle);
+  padding: 16px 18px 18px;
+}
+
+.fund-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.fund-section__header h5 {
+  font-weight: 600;
+  color: var(--funds-text);
+}
+
+.fund-section__header p {
+  font-size: 0.82rem;
+  color: var(--funds-text-muted);
+}
+
+.fund-section__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+/* CARD QUỸ */
+.fund-card {
+  background: linear-gradient(
+      135deg,
+      rgba(45, 153, 174, 0.08),
+      rgba(255, 255, 255, 0.96)
+    );
+  border-radius: var(--funds-radius-md);
+  border: 1px solid rgba(45, 153, 174, 0.25);
+  padding: 10px 12px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  transition: transform var(--funds-transition),
+    box-shadow var(--funds-transition), border-color var(--funds-transition);
+  cursor: pointer;
+}
+
+.fund-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.22);
+  border-color: rgba(45, 153, 174, 0.9);
+}
+
+.fund-card__top {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.fund-card__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--funds-text);
+}
+
+.fund-card__amount {
+  font-size: 0.9rem;
+  color: var(--funds-text);
+}
+
+.fund-card__target {
+  font-size: 0.82rem;
+  color: var(--funds-text-muted);
+}
+
+/* progress bar */
+.fund-card__progress {
+  margin-top: 4px;
+}
+
+.fund-card__progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.fund-card__progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    #2d99ae,
+    #38bdf8
+  );
+  transition: width 0.3s ease-out;
+}
+
+.fund-card__progress-text {
+  margin-top: 2px;
+  font-size: 0.76rem;
+  color: var(--funds-text-muted);
+}
+
+/* =========================
+   MEMBERS (QUỸ NHÓM)
+   ========================= */
+.funds-members {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.funds-member-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) 120px 32px;
+  gap: 6px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .funds-member-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "name email"
+      "role remove";
+  }
+  .funds-member-row input:nth-child(1) {
+    grid-area: name;
+  }
+  .funds-member-row input:nth-child(2) {
+    grid-area: email;
+  }
+}
+
+.btn-icon {
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: var(--funds-text-muted);
+  transition: background-color var(--funds-transition-fast),
+    color var(--funds-transition-fast), transform var(--funds-transition-fast);
+}
+
+.btn-icon:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: #ef4444;
+  transform: scale(1.05);
+}
+
+.btn-link {
+  border: none;
+  background: none;
+  padding: 0;
+  margin-top: 4px;
+  font-size: 0.86rem;
+  color: var(--funds-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+/* =========================
+   ACTIONS (SAVE / CANCEL)
+   ========================= */
+.funds-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Nút custom (nếu không muốn phụ thuộc bootstrap) */
+.btn-primary {
+  background: var(--funds-accent);
+  border-color: var(--funds-accent);
+  border-radius: 999px;
+  padding-inline: 18px;
+  font-weight: 500;
+}
+
+.btn-primary:hover {
+  background: #227f92;
+  border-color: #227f92;
+}
+
+.btn-secondary {
+  background: #f9fafb;
+  border-radius: 999px;
+  border: 1px solid var(--funds-border);
+  padding-inline: 16px;
+  color: var(--funds-text);
+  font-weight: 500;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+/* =========================
+   SMALL ANIMATIONS
+   ========================= */
+.funds-fieldset,
+.fund-section,
+.funds-grid {
+  animation: funds-fade-in 0.28s ease-out;
+}
+
+@keyframes funds-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* ================================================
+   Style CHUNG cho 3 nút: Tạo cá nhân, Tạo nhóm, Tham gia
+   ================================================ */
+.funds-page .funds-btn,
+.funds-page .btn-outline-primary,
+.funds-page .btn-outline-secondary {
+  border-color: #2D99AE !important;
+  color: #2D99AE !important;
+  background-color: #ffffff !important;
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-weight: 500;
+}
+
+.funds-page .funds-btn:hover,
+.funds-page .btn-outline-primary:hover,
+.funds-page .btn-outline-secondary:hover {
+  background-color: #2D99AE !important;
+  color: #ffffff !important;
+}
+/* ================================
+   2 CỘT SONG SONG
+================================ */
+.funds-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 992px) {
+  .funds-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ================================
+    KHUNG BỌC QUỸ
+================================ */
+.funds-box {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid var(--funds-border);
+  box-shadow: var(--funds-shadow-subtle);
+  overflow: hidden;
+}
+
+/* TIÊU ĐỀ CÓ NỀN */
+.funds-box__header {
+  background: var(--funds-accent);
+  color: white;
+  padding: 14px 18px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* NỘI DUNG BÊN TRONG */
+.funds-box__body {
+  padding: 18px 20px;
+}
+/* ===== CHI TIẾT QUỸ: BỐ CỤC 2 CỘT ===== */
+.fund-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.05fr);
+  gap: 20px;
+}
+
+@media (max-width: 992px) {
+  .fund-detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fund-detail-card,
+.fund-detail-form {
+  background: var(--funds-bg-card);
+  border-radius: var(--funds-radius-lg);
+  border: 1px solid var(--funds-border);
+  box-shadow: var(--funds-shadow-subtle);
+  padding: 18px 20px 20px;
+}
+
+.fund-detail-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--funds-text);
+}
+
+.fund-detail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--funds-accent-soft);
+  color: var(--funds-accent);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.fund-detail-label {
+  font-size: 0.86rem;
+  color: var(--funds-text-muted);
+}
+
+.fund-detail-amount {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--funds-text);
+}
+
+.fund-detail-currency {
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.fund-detail-text {
+  font-size: 0.9rem;
+  color: var(--funds-text);
+}
+
+.fund-detail-members li {
+  font-size: 0.88rem;
+  padding: 2px 0;
+}

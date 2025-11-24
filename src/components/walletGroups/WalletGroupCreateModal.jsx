@@ -8,7 +8,7 @@ export default function WalletGroupCreateModal({ open, onClose }) {
   const sharedWallets = useMemo(() => wallets.filter(w => w.isShared), [wallets]);
 
   const [quickOpen, setQuickOpen] = useState(false);
-  const [quick, setQuick] = useState({ name: "", currency: "VND", type: "BANK", openingBalance: 0 });
+  const [quick, setQuick] = useState({ name: "", currency: "VND", type: "BANK" });
 
   if (!open) return null;
 
@@ -20,7 +20,6 @@ export default function WalletGroupCreateModal({ open, onClose }) {
       name: quick.name.trim(),
       currency: quick.currency,
       type: quick.type,
-      balance: Number(quick.openingBalance || 0),
       note: "",
       isDefault: false,
       isShared: true,   // ví nhóm
@@ -93,7 +92,7 @@ export default function WalletGroupCreateModal({ open, onClose }) {
                   </div>
                   <div className="col-md-2">
                     <select className="form-select" value={quick.currency} onChange={e=>setQuick(p=>({ ...p, currency:e.target.value }))}>
-                      <option>VND</option><option>USD</option><option>EUR</option>
+                      <option>VND</option><option>USD</option>
                     </select>
                   </div>
                   <div className="col-md-2 d-grid">

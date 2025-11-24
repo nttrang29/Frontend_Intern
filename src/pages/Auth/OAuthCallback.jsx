@@ -1,73 +1,70 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
-const API_URL = "http://localhost:8080/auth";
-
-function getQueryParam(name) {
-  const url = new URL(window.location.href);
-  return url.searchParams.get(name);
-}
+// 1. ✅ IMPORT HÀM getProfile TỪ SERVICE CỦA BẠN
+// (Hãy đảm bảo đường dẫn này chính xác, ví dụ: ../../services/profile.service)
+import { getProfile } from "../../services/profile.service";
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
+  const location = useLocation(); // Dùng hook của React-Router
   const [message, setMessage] = useState("Đang xác thực...");
 
   useEffect(() => {
-    (async () => {
+    const processLogin = async () => {
       try {
-        // 1) Trường hợp BE trả token qua URL: ?token=xxx
-        const token = getQueryParam("token");
-        const error = getQueryParam("error");
+        // 2. Lấy token từ URL
+        const params = new URLSearchParams(location.search);
+        const token = params.get("token");
+        const error = params.get("error");
 
         if (error) {
-          setMessage("Đăng nhập Google thất bại. Vui lòng thử lại.");
-          setTimeout(() => navigate("/login", { replace: true }), 1500);
-          return;
+          throw new Error("Đăng nhập Google thất bại. Vui lòng thử lại.");
         }
 
-        if (token) {
-          // Lưu token -> lấy thông tin user
-          localStorage.setItem("accessToken", token);
-
-          try {
-            const meRes = await fetch(`${API_URL}/me`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (meRes.ok) {
-              const me = await meRes.json();
-              localStorage.setItem("user", JSON.stringify(me));
-            }
-          } catch (_) { /* bỏ qua lỗi, vẫn cho vào hệ thống vì đã có token */ }
-
-          setMessage("Đăng nhập Google thành công! Đang chuyển hướng...");
-          setTimeout(() => navigate("/home", { replace: true }), 800);
-          return;
+        if (!token) {
+          throw new Error("Không tìm thấy token xác thực.");
         }
 
-        // 2) Trường hợp BE dùng cookie HttpOnly (không trả token trên URL)
-        // -> Gọi /auth/me với credentials: 'include' để gửi cookie
-        const meRes = await fetch(`${API_URL}/me`, {
-          method: "GET",
-          credentials: "include",            // QUAN TRỌNG: gửi cookie cùng request
-        });
+        // 3. Lưu token vào localStorage
+        // (Interceptor trong profile.service.js sẽ tự động đọc token này)
+        localStorage.setItem("accessToken", token);
 
-        if (meRes.ok) {
-          const me = await meRes.json();
-          localStorage.setItem("user", JSON.stringify(me));
-          // Nếu BE còn trả kèm accessToken trong body thì bạn có thể lưu thêm:
-          // localStorage.setItem("accessToken", me.accessToken);
-          setMessage("Đăng nhập Google thành công! Đang chuyển hướng...");
-          setTimeout(() => navigate("/home", { replace: true }), 800);
-        } else {
-          setMessage("Không tìm thấy phiên đăng nhập. Vui lòng thử lại.");
-          setTimeout(() => navigate("/login", { replace: true }), 1200);
+        // 4. ✅ SỬA LỖI: Dùng getProfile() (axios) để gọi /profile
+        // Thay vì gọi /auth/me
+        const { response, data } = await getProfile();
+
+        if (!response.ok || !data.user) {
+          // Xóa token hỏng nếu không lấy được profile
+          localStorage.removeItem("accessToken");
+          throw new Error(data.error || "Không thể lấy thông tin profile.");
         }
+
+        // 5. ✅ SỬA LỖI: Lưu user object MỚI vào localStorage
+        // (HomeTopbar sẽ đọc được cái này)
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        // 6. Bắn tín hiệu cho HomeTopbar cập nhật ngay lập tức
+        window.dispatchEvent(new CustomEvent('storageUpdated'));
+        
+        // 7. ✅ Trigger event để CategoryDataContext reload categories
+        window.dispatchEvent(new CustomEvent('userChanged'));
+
+        // 7. Chuyển hướng
+        setMessage("Đăng nhập Google thành công! Đang chuyển hướng...");
+        setTimeout(() => navigate("/home", { replace: true }), 800);
+
       } catch (e) {
-        setMessage("Có lỗi khi xác thực. Vui lòng thử lại.");
-        setTimeout(() => navigate("/login", { replace: true }), 1200);
+        // Xử lý mọi lỗi
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("user");
+        setMessage(e.message || "Có lỗi khi xác thực. Vui lòng thử lại.");
+        setTimeout(() => navigate("/login", { replace: true }), 1500);
       }
-    })();
-  }, [navigate]);
+    };
+
+    processLogin();
+  }, [navigate, location]); // Thêm 'location' vào dependency
 
   return (
     <div className="container py-5 text-center">

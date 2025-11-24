@@ -1,7 +1,15 @@
 // src/components/common/Header.jsx
+import { useLocation } from "react-router-dom";
 import "../../styles/Header.css";
+import GlobalSearch from "./GlobalSearch";
 
 export default function Header() {
+  const location = useLocation();
+  const isAuthPage = location.pathname.startsWith("/login") || 
+                     location.pathname.startsWith("/register") || 
+                     location.pathname.startsWith("/forgot-password") ||
+                     location.pathname.startsWith("/oauth");
+
   return (
     <header className="app-header d-flex justify-content-between align-items-center p-3">
       <div className="app-header__brand d-flex align-items-center">
@@ -27,6 +35,9 @@ export default function Header() {
           </p>
         </div>
       </div>
+
+      {/* Global Search - Ẩn ở các trang auth */}
+      {!isAuthPage && <GlobalSearch />}
     </header>
   );
 }
