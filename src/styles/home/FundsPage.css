@@ -1,6 +1,6 @@
-/* =========================
-   TOKENS
-   ========================= */
+/* =========================================================
+   1) TOKENS
+========================================================= */
 :root {
   --funds-accent: #2d99ae;
   --funds-accent-soft: rgba(45, 153, 174, 0.08);
@@ -17,14 +17,13 @@
   --funds-transition: 0.25s ease;
 }
 
-/* =========================
-   PAGE
-   ========================= */
+/* =========================================================
+   2) PAGE + HEADER
+========================================================= */
 .funds-page {
   color: var(--funds-text);
 }
 
-/* HEADER */
 .funds-header {
   background: linear-gradient(
     120deg,
@@ -45,9 +44,9 @@
   color: var(--funds-text-muted);
 }
 
-/* =========================
-   FIELDSET / FORM LAYOUT
-   ========================= */
+/* =========================================================
+   3) FIELDSET / FORM LAYOUT
+========================================================= */
 .funds-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
@@ -83,7 +82,6 @@
   font-weight: 600;
 }
 
-/* FIELDS */
 .funds-field {
   margin-bottom: 12px;
 }
@@ -110,7 +108,8 @@
   font-size: 0.92rem;
   outline: none;
   transition: border-color var(--funds-transition-fast),
-    box-shadow var(--funds-transition-fast), background-color var(--funds-transition-fast);
+    box-shadow var(--funds-transition-fast),
+    background-color var(--funds-transition-fast);
 }
 
 .funds-field input:focus,
@@ -167,9 +166,9 @@
   color: #dc2626;
 }
 
-/* =========================
-   TABS (CÁ NHÂN / NHÓM)
-   ========================= */
+/* =========================================================
+   4) TABS
+========================================================= */
 .funds-tabs {
   display: inline-flex;
   padding: 3px;
@@ -187,7 +186,8 @@
   font-weight: 500;
   cursor: pointer;
   transition: background-color var(--funds-transition-fast),
-    color var(--funds-transition-fast), box-shadow var(--funds-transition-fast);
+    color var(--funds-transition-fast),
+    box-shadow var(--funds-transition-fast);
 }
 
 .funds-tab--active {
@@ -196,9 +196,9 @@
   box-shadow: 0 4px 12px rgba(45, 153, 174, 0.25);
 }
 
-/* =========================
-   SWITCH (BẬT/TẮT)
-   ========================= */
+/* =========================================================
+   5) SWITCH & PILL TOGGLE
+========================================================= */
 .funds-toggle-line {
   display: flex;
   align-items: center;
@@ -212,7 +212,6 @@
   color: var(--funds-text);
 }
 
-/* switch chung (giống các chỗ khác) */
 .switch {
   position: relative;
   display: inline-block;
@@ -256,9 +255,7 @@
   transform: translateX(20px);
 }
 
-/* =========================
-   PILL TOGGLE (NHẮC NHỞ / TỰ ĐỘNG NẠP)
-   ========================= */
+/* Pill toggle */
 .funds-reminder-mode {
   display: inline-flex;
   gap: 6px;
@@ -278,7 +275,8 @@
   font-weight: 500;
   cursor: pointer;
   transition: background-color var(--funds-transition-fast),
-    color var(--funds-transition-fast), box-shadow var(--funds-transition-fast);
+    color var(--funds-transition-fast),
+    box-shadow var(--funds-transition-fast);
 }
 
 .funds-pill-toggle--active {
@@ -292,17 +290,13 @@
   cursor: not-allowed;
 }
 
-/* =========================
-   WALLET SOURCE (CHỌN VÍ NGUỒN)
-   ========================= */
+/* =========================================================
+   6) WALLET SOURCE
+========================================================= */
 .wallet-source {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.wallet-source__search {
-  /* input đã được style chung ở funds-field */
 }
 
 .wallet-source__list {
@@ -314,7 +308,6 @@
   margin-bottom: 2px;
 }
 
-/* thanh cuộn mảnh */
 .wallet-source__list::-webkit-scrollbar {
   height: 6px;
 }
@@ -336,8 +329,10 @@
   white-space: nowrap;
   cursor: pointer;
   transition: background-color var(--funds-transition-fast),
-    color var(--funds-transition-fast), border-color var(--funds-transition-fast),
-    transform var(--funds-transition-fast), box-shadow var(--funds-transition-fast);
+    color var(--funds-transition-fast),
+    border-color var(--funds-transition-fast),
+    transform var(--funds-transition-fast),
+    box-shadow var(--funds-transition-fast);
 }
 
 .wallet-source__item:hover {
@@ -354,9 +349,9 @@
   box-shadow: 0 3px 10px rgba(45, 153, 174, 0.4);
 }
 
-/* =========================
-   QUỸ – CARD OVERVIEW
-   ========================= */
+/* =========================================================
+   7) FUND SECTION & CARDS
+========================================================= */
 .fund-section {
   background: var(--funds-bg-card);
   border-radius: var(--funds-radius-lg);
@@ -373,14 +368,20 @@
   margin-bottom: 10px;
 }
 
-.fund-section__header h5 {
-  font-weight: 600;
-  color: var(--funds-text);
-}
-
 .fund-section__header p {
   font-size: 0.82rem;
   color: var(--funds-text-muted);
+}
+
+/* title có nền */
+.fund-section__header-title {
+  display: inline-block;
+  background: rgba(45, 153, 174, 0.12);
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--funds-accent);
 }
 
 .fund-section__grid {
@@ -401,7 +402,8 @@
   padding: 10px 12px;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
   transition: transform var(--funds-transition),
-    box-shadow var(--funds-transition), border-color var(--funds-transition);
+    box-shadow var(--funds-transition),
+    border-color var(--funds-transition);
   cursor: pointer;
 }
 
@@ -452,11 +454,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    #2d99ae,
-    #38bdf8
-  );
+  background: linear-gradient(90deg, #2d99ae, #38bdf8);
   transition: width 0.3s ease-out;
 }
 
@@ -466,9 +464,9 @@
   color: var(--funds-text-muted);
 }
 
-/* =========================
-   MEMBERS (QUỸ NHÓM)
-   ========================= */
+/* =========================================================
+   8) MEMBERS (QUỸ NHÓM – để dành)
+========================================================= */
 .funds-members {
   margin-top: 6px;
   display: flex;
@@ -491,6 +489,7 @@
       "name email"
       "role remove";
   }
+
   .funds-member-row input:nth-child(1) {
     grid-area: name;
   }
@@ -510,7 +509,8 @@
   border-radius: 999px;
   color: var(--funds-text-muted);
   transition: background-color var(--funds-transition-fast),
-    color var(--funds-transition-fast), transform var(--funds-transition-fast);
+    color var(--funds-transition-fast),
+    transform var(--funds-transition-fast);
 }
 
 .btn-icon:hover {
@@ -536,9 +536,9 @@
   text-decoration: underline;
 }
 
-/* =========================
-   ACTIONS (SAVE / CANCEL)
-   ========================= */
+/* =========================================================
+   9) ACTIONS (SAVE / CANCEL)
+========================================================= */
 .funds-actions {
   margin-top: 10px;
   display: flex;
@@ -546,13 +546,13 @@
   gap: 10px;
 }
 
-/* Nút custom (nếu không muốn phụ thuộc bootstrap) */
 .btn-primary {
   background: var(--funds-accent);
   border-color: var(--funds-accent);
   border-radius: 999px;
   padding-inline: 18px;
   font-weight: 500;
+  color: #ffffff;
 }
 
 .btn-primary:hover {
@@ -573,33 +573,14 @@
   background: #e5e7eb;
 }
 
-/* =========================
-   SMALL ANIMATIONS
-   ========================= */
-.funds-fieldset,
-.fund-section,
-.funds-grid {
-  animation: funds-fade-in 0.28s ease-out;
-}
-
-@keyframes funds-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-/* ================================================
-   Style CHUNG cho 3 nút: Tạo cá nhân, Tạo nhóm, Tham gia
-   ================================================ */
+/* =========================================================
+   10) HEADER BUTTON STYLE
+========================================================= */
 .funds-page .funds-btn,
 .funds-page .btn-outline-primary,
 .funds-page .btn-outline-secondary {
-  border-color: #2D99AE !important;
-  color: #2D99AE !important;
+  border-color: #2d99ae !important;
+  color: #2d99ae !important;
   background-color: #ffffff !important;
   border-radius: 10px;
   padding: 8px 18px;
@@ -609,15 +590,106 @@
 .funds-page .funds-btn:hover,
 .funds-page .btn-outline-primary:hover,
 .funds-page .btn-outline-secondary:hover {
-  background-color: #2D99AE !important;
+  background-color: #2d99ae !important;
   color: #ffffff !important;
 }
-/* ================================
-   2 CỘT SONG SONG
-================================ */
+
+/* =========================================================
+   11) WRAPPER TỔNG – DANH SÁCH QUỸ
+========================================================= */
+.funds-wrapper {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid var(--funds-border);
+  padding: 18px 22px 22px;
+  box-shadow: var(--funds-shadow-subtle);
+}
+
+.funds-wrapper__title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--funds-text);
+}
+
+/* TOOLBAR: TÌM KIẾM + SẮP XẾP */
+.funds-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+}
+
+.funds-toolbar__search {
+  flex: 1 1 260px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--funds-border);
+  background: #ffffff;
+}
+
+.funds-toolbar__search i {
+  font-size: 0.9rem;
+  color: var(--funds-text-muted);
+}
+
+.funds-toolbar__search input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 0.9rem;
+  background: transparent;
+}
+
+/* nút X clear search */
+.funds-clear-search {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--funds-text-muted);
+  transition: color 0.2s ease;
+}
+
+.funds-clear-search i {
+  font-size: 0.85rem;
+}
+
+.funds-clear-search:hover {
+  color: #dc2626;
+}
+
+.funds-toolbar__sort {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--funds-text-muted);
+}
+
+.funds-toolbar__sort select {
+  border-radius: 999px;
+  border: 1px solid var(--funds-border);
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  background: #ffffff;
+  outline: none;
+}
+
+/* =========================================================
+   12) 2 CỘT QUỸ (song song)
+========================================================= */
 .funds-two-col {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -628,31 +700,34 @@
   }
 }
 
-/* ================================
-    KHUNG BỌC QUỸ
-================================ */
-.funds-box {
-  background: #ffffff;
-  border-radius: 18px;
+/* Box con bên trong – mỗi loại quỹ */
+.funds-subbox {
+  background: #fff;
+  border-radius: 14px;
   border: 1px solid var(--funds-border);
+  padding: 18px;
   box-shadow: var(--funds-shadow-subtle);
-  overflow: hidden;
 }
 
-/* TIÊU ĐỀ CÓ NỀN */
-.funds-box__header {
-  background: var(--funds-accent);
-  color: white;
-  padding: 14px 18px;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-/* NỘI DUNG BÊN TRONG */
-.funds-box__body {
+/* nền nhẹ bọc cả section quỹ (outer) */
+.fund-section-wrapper {
+  background: rgba(45, 153, 174, 0.06);
+  border: 1px solid rgba(45, 153, 174, 0.15);
+  border-radius: 16px;
   padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--funds-shadow-subtle);
+  transition: 0.25s ease;
 }
-/* ===== CHI TIẾT QUỸ: BỐ CỤC 2 CỘT ===== */
+
+.fund-section-wrapper:hover {
+  background: rgba(45, 153, 174, 0.11);
+  border-color: rgba(45, 153, 174, 0.28);
+}
+
+/* =========================================================
+   13) FUND DETAIL LAYOUT
+========================================================= */
 .fund-detail-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.05fr);
@@ -717,4 +792,76 @@
 .fund-detail-members li {
   font-size: 0.88rem;
   padding: 2px 0;
+}
+
+/* =========================================================
+   14) ANIMATIONS
+========================================================= */
+.funds-fieldset,
+.fund-section,
+.funds-grid {
+  animation: funds-fade-in 0.28s ease-out;
+}
+
+@keyframes funds-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   15) FULL-WIDTH CONTAINER CHO TRANG QUỸ
+========================================================= */
+.funds-page .container {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+/* HEADER DANH MỤC – ĐỒNG BỘ FUNDS */
+.category-header-funds {
+  background: linear-gradient(
+    120deg,
+    rgba(45, 153, 174, 0.06),
+    rgba(255, 255, 255, 0.98)
+  );
+  border-radius: var(--funds-radius-lg);
+  border: 1px solid rgba(45, 153, 174, 0.22);
+  box-shadow: var(--funds-shadow-soft);
+
+  padding: 16px 24px;
+  color: var(--funds-text);
+}
+
+/* tiêu đề */
+.category-header-funds h2 {
+  font-weight: 600;
+  color: var(--funds-text);
+}
+
+/* mô tả */
+.category-header-funds p {
+  color: var(--funds-text-muted);
+}
+
+/* icon nền */
+.category-header-funds .cat-header-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(45, 153, 174, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* icon */
+.category-header-funds .cat-header-icon {
+  font-size: 1.4rem;
+  color: var(--funds-accent);
 }

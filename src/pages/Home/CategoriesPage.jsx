@@ -1,3 +1,4 @@
+// src/pages/Home/CategoriesPage.jsx
 import React, { useRef, useState } from "react";
 import "../../styles/home/CategoriesPage.css";
 import Toast from "../../components/common/Toast/Toast";
@@ -6,6 +7,8 @@ import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import useOnClickOutside from "../../hooks/useOnClickOutside";
 import { useAuth } from "../../home/store/AuthContext";
+
+const PAGE_SIZE = 9; // ✅ giới hạn 9 thẻ mỗi trang
 
 export default function CategoriesPage() {
   const {
@@ -20,50 +23,185 @@ export default function CategoriesPage() {
   } = useCategoryData();
 
   const { currentUser } = useAuth();
-  // Kiểm tra role an toàn
   const isAdmin =
     currentUser?.role === "ADMIN" || currentUser?.role === "ROLE_ADMIN";
 
-  const [activeTab, setActiveTab] = useState("expense"); // expense | income
-  const [selectedCategoryId, setSelectedCategoryId] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  // "expense" | "income" | "system"
+  const [activeTab, setActiveTab] = useState("expense");
+
+  // ===============================
+  // TÌM KIẾM
+  // ===============================
+  const [searchQuery, setSearchQuery] = useState("");      // đang gõ
+  const [searchKeyword, setSearchKeyword] = useState("");  // đã áp dụng
+  const [selectedCategoryId, setSelectedCategoryId] = useState(""); // id đã áp dụng
+  const [pendingCategoryId, setPendingCategoryId] = useState("");   // id đang chọn
+
   const [selectMenuOpen, setSelectMenuOpen] = useState(false);
 
-  // modal for create/edit
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create"); // 'create' | 'edit'
   const [modalInitial, setModalInitial] = useState("");
   const [modalEditingId, setModalEditingId] = useState(null);
-  // pagination
+  const [modalEditingKind, setModalEditingKind] = useState(null); // 'expense' | 'income'
+
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+
+  // sortMode:
+  // - Chi phí / Thu nhập: default | nameAsc | nameDesc | newest | oldest
+  // - Mặc định: sysExpense | sysIncome
+  const [sortMode, setSortMode] = useState("default");
+
   const [toast, setToast] = useState({
     open: false,
     message: "",
     type: "success",
   });
-  const [confirmDel, setConfirmDel] = useState(null); // Danh mục cần xóa
+  const [confirmDel, setConfirmDel] = useState(null);
 
-  const currentList =
-    activeTab === "expense" ? expenseCategories : incomeCategories;
+  // ===============================
+  // HELPER: check system category
+  // ===============================
+  const getIsSystemCategory = (cat) => {
+    const value =
+      cat?.isSystem !== undefined
+        ? cat.isSystem
+        : cat?.system !== undefined
+        ? cat.system
+        : false;
+
+    return (
+      value === true ||
+      value === "true" ||
+      String(value).toLowerCase() === "true"
+    );
+  };
+
+  // ===============================
+  // LISTS THEO TAB
+  // ===============================
+  const systemList = React.useMemo(() => {
+    const ex =
+      expenseCategories
+        ?.filter((c) => getIsSystemCategory(c))
+        .map((c) => ({ ...c, __type: "expense" })) || [];
+    const inc =
+      incomeCategories
+        ?.filter((c) => getIsSystemCategory(c))
+        .map((c) => ({ ...c, __type: "income" })) || [];
+    return [...ex, ...inc];
+  }, [expenseCategories, incomeCategories]);
+
+  const rawList = React.useMemo(() => {
+    if (activeTab === "expense") {
+      return expenseCategories?.filter((c) => !getIsSystemCategory(c)) || [];
+    }
+    if (activeTab === "income") {
+      return incomeCategories?.filter((c) => !getIsSystemCategory(c)) || [];
+    }
+    if (activeTab === "system") {
+      return systemList;
+    }
+    return [];
+  }, [activeTab, expenseCategories, incomeCategories, systemList]);
+
+  // ===============================
+  // SẮP XẾP
+  // ===============================
+  const currentList = React.useMemo(() => {
+    if (!rawList) return [];
+    const list = [...rawList];
+
+    list.sort((a, b) => {
+      const aId = Number(a.id) || 0;
+      const bId = Number(b.id) || 0;
+      const aName = (a.name || "").toLowerCase();
+      const bName = (b.name || "").toLowerCase();
+
+      if (activeTab === "system") {
+        if (sortMode === "sysExpense") {
+          if (a.__type !== b.__type) {
+            return a.__type === "expense" ? -1 : 1;
+          }
+          return aName.localeCompare(bName, "vi", { sensitivity: "base" });
+        }
+        if (sortMode === "sysIncome") {
+          if (a.__type !== b.__type) {
+            return a.__type === "income" ? -1 : 1;
+          }
+          return aName.localeCompare(bName, "vi", { sensitivity: "base" });
+        }
+        return aName.localeCompare(bName, "vi", { sensitivity: "base" });
+      }
+
+      switch (sortMode) {
+        case "default":
+        case "newest":
+          return bId - aId; // mới nhất trước
+        case "oldest":
+          return aId - bId;
+        case "nameDesc":
+          return bName.localeCompare(aName, "vi", { sensitivity: "base" });
+        case "nameAsc":
+        default:
+          return aName.localeCompare(bName, "vi", { sensitivity: "base" });
+      }
+    });
+
+    return list;
+  }, [rawList, sortMode, activeTab]);
+
   const selectRef = useRef(null);
   useOnClickOutside(selectRef, () => setSelectMenuOpen(false));
 
+  // ===============================
+  // GỢI Ý DROPDOWN (searchQuery) + loại bỏ trùng tên
+  // ===============================
   const filteredOptions = React.useMemo(() => {
     const keyword = (searchQuery || "").trim().toLowerCase();
-    if (!keyword) return currentList;
-    return currentList.filter((c) =>
-      (c.name || "").toLowerCase().includes(keyword)
-    );
+    const source = currentList || [];
+
+    const matched = keyword
+      ? source.filter((c) =>
+          (c.name || "").toLowerCase().includes(keyword)
+        )
+      : source;
+
+    const seen = new Set();
+    return matched.filter((c) => {
+      const normalized = (c.name || "").trim().toLowerCase();
+      if (!normalized) return false;
+      if (seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
   }, [currentList, searchQuery]);
-  const displayedList = currentList.filter((c) => {
-    if (!selectedCategoryId) return true;
-    return String(c.id) === selectedCategoryId;
-  });
-  const totalPages = Math.max(1, Math.ceil(displayedList.length / pageSize));
+
+  // ===============================
+  // FILTER HIỂN THỊ (searchKeyword + selectedCategoryId)
+  // ===============================
+  const displayedList = React.useMemo(() => {
+    const keyword = (searchKeyword || "").trim().toLowerCase();
+    let list = [...currentList];
+
+    if (keyword) {
+      list = list.filter((c) =>
+        (c.name || "").toLowerCase().includes(keyword)
+      );
+    }
+
+    if (selectedCategoryId) {
+      list = list.filter((c) => String(c.id) === selectedCategoryId);
+    }
+
+    return list;
+  }, [currentList, searchKeyword, selectedCategoryId]);
+
+  const totalPages = Math.max(1, Math.ceil(displayedList.length / PAGE_SIZE));
+
   const paginatedList = displayedList.slice(
-    (page - 1) * pageSize,
-    page * pageSize
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
   );
 
   const paginationRange = React.useMemo(() => {
@@ -88,22 +226,28 @@ export default function CategoriesPage() {
     return pages;
   }, [page, totalPages]);
 
-  // adjust page if current page is out of bounds after filters/changes
   React.useEffect(() => {
     if (page > totalPages) setPage(totalPages);
     if (page < 1) setPage(1);
   }, [page, totalPages, displayedList.length]);
 
+  // ===============================
+  // ACTIONS
+  // ===============================
   const resetSearch = () => {
     setSelectedCategoryId("");
+    setPendingCategoryId("");
     setSearchQuery("");
+    setSearchKeyword("");
     setSelectMenuOpen(false);
     setPage(1);
   };
 
-  // inline form becomes search; add/edit handled by modal
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    setSearchKeyword(searchQuery.trim());
+    setSelectedCategoryId(pendingCategoryId || "");
+    setSelectMenuOpen(false);
     setPage(1);
   };
 
@@ -111,21 +255,19 @@ export default function CategoriesPage() {
     setModalMode("create");
     setModalInitial("");
     setModalEditingId(null);
+    setModalEditingKind(activeTab === "income" ? "income" : "expense");
     setModalOpen(true);
   };
 
   const openEditModal = (cat) => {
-    const isSystemValue =
-      cat.isSystem !== undefined
-        ? cat.isSystem
-        : cat.system !== undefined
-        ? cat.system
-        : false;
-    const isSystemCategory =
-      String(isSystemValue) === "true" || isSystemValue === true;
-    if (isSystemCategory && !isAdmin) {
-      return;
-    }
+    const isSystemCategory = getIsSystemCategory(cat);
+    if (isSystemCategory && !isAdmin) return;
+
+    const kind = cat.__type
+      ? cat.__type
+      : activeTab === "income"
+      ? "income"
+      : "expense";
 
     setModalMode("edit");
     setModalInitial({
@@ -133,18 +275,54 @@ export default function CategoriesPage() {
       description: cat.description || "",
     });
     setModalEditingId(cat.id);
+    setModalEditingKind(kind);
     setModalOpen(true);
   };
 
+  // ===============================
+  // VALIDATE DUPLICATE & SUBMIT MODAL
+  // ===============================
   const handleModalSubmit = (payload) => {
-    // payload = { name, description }
+    const rawName = (payload.name || "").trim();
+    if (!rawName) return;
+    const normalized = rawName.toLowerCase();
+
     if (modalMode === "create") {
-      if (activeTab === "expense") {
-        createExpenseCategory(payload);
-      } else {
-        createIncomeCategory(payload);
+      const createKind =
+        activeTab === "income" || modalEditingKind === "income"
+          ? "income"
+          : "expense";
+
+      const listInKind =
+        createKind === "expense"
+          ? expenseCategories || []
+          : incomeCategories || [];
+
+      const isDuplicate = listInKind.some((c) => {
+        if (getIsSystemCategory(c)) return false;
+        const existingName = (c.name || "").trim().toLowerCase();
+        if (!existingName) return false;
+        return existingName === normalized;
+      });
+
+      if (isDuplicate) {
+        setToast({
+          open: true,
+          message:
+            createKind === "expense"
+              ? "Bạn đã có danh mục chi phí cá nhân này rồi."
+              : "Bạn đã có danh mục thu nhập cá nhân này rồi.",
+          type: "error",
+        });
+        return;
       }
-      // go to first page to show the new item
+
+      if (createKind === "expense") {
+        createExpenseCategory({ ...payload, name: rawName });
+      } else {
+        createIncomeCategory({ ...payload, name: rawName });
+      }
+
       setPage(1);
       setToast({
         open: true,
@@ -152,39 +330,52 @@ export default function CategoriesPage() {
         type: "success",
       });
     } else if (modalMode === "edit") {
-      if (activeTab === "expense") {
-        updateExpenseCategory(modalEditingId, payload);
-      } else {
-        updateIncomeCategory(modalEditingId, payload);
+      const listInKind =
+        modalEditingKind === "income"
+          ? incomeCategories || []
+          : expenseCategories || [];
+
+      const isDuplicate = listInKind.some((c) => {
+        if (c.id === modalEditingId) return false;
+        if (getIsSystemCategory(c)) return false;
+        const existingName = (c.name || "").trim().toLowerCase();
+        if (!existingName) return false;
+        return existingName === normalized;
+      });
+
+      if (isDuplicate) {
+        setToast({
+          open: true,
+          message:
+            modalEditingKind === "income"
+              ? "Đã tồn tại danh mục thu nhập cá nhân này."
+              : "Đã tồn tại danh mục chi phí cá nhân này.",
+          type: "error",
+        });
+        return;
       }
+
+      if (modalEditingKind === "expense") {
+        updateExpenseCategory(modalEditingId, { ...payload, name: rawName });
+      } else {
+        updateIncomeCategory(modalEditingId, { ...payload, name: rawName });
+      }
+
       setToast({
         open: true,
         message: "Đã cập nhật danh mục.",
         type: "success",
       });
     }
+
     setModalOpen(false);
     setModalEditingId(null);
-  };
-
-  const handleEdit = (cat) => {
-    openEditModal(cat);
+    setModalEditingKind(null);
   };
 
   const handleDelete = (cat) => {
-    const isSystemValue =
-      cat.isSystem !== undefined
-        ? cat.isSystem
-        : cat.system !== undefined
-        ? cat.system
-        : false;
-
-    const isSystemCategory =
-      String(isSystemValue) === "true" || isSystemValue === true;
-    if (isSystemCategory && !isAdmin) {
-      return;
-    }
-
+    const isSystemCategory = getIsSystemCategory(cat);
+    if (isSystemCategory && !isAdmin) return;
     setConfirmDel(cat);
   };
 
@@ -192,10 +383,16 @@ export default function CategoriesPage() {
     if (!confirmDel) return;
 
     const cat = confirmDel;
-    setConfirmDel(null); // Đóng modal
+    setConfirmDel(null);
 
     try {
-      if (activeTab === "expense") {
+      const kind = cat.__type
+        ? cat.__type
+        : activeTab === "income"
+        ? "income"
+        : "expense";
+
+      if (kind === "expense") {
         await deleteExpenseCategory(cat.id);
       } else {
         await deleteIncomeCategory(cat.id);
@@ -207,7 +404,6 @@ export default function CategoriesPage() {
         type: "success",
       });
 
-      // Đóng modal edit nếu đang edit danh mục này
       if (modalEditingId === cat.id) {
         setModalEditingId(null);
         setModalOpen(false);
@@ -222,84 +418,80 @@ export default function CategoriesPage() {
     }
   };
 
+  // ===============================
+  // RENDER
+  // ===============================
   return (
     <div className="cat-page container py-4">
-      {/* HEADER – màu giống trang Danh sách ví */}
-      <div
-        className="cat-header card border-0 mb-3"
-        style={{
-          borderRadius: 18,
-          background:
-            "linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%)",
-          color: "#ffffff",
-        }}
-      >
+      {/* HEADER */}
+      <div className="cat-header card border-0 mb-3 category-header-funds">
         <div className="card-body d-flex justify-content-between align-items-center">
-          {/* BÊN TRÁI: ICON + TEXT */}
           <div className="d-flex align-items-center gap-2">
             <div className="cat-header-icon-wrap">
-              {/* icon giống ở sidebar: Danh mục = bi-tags */}
               <i className="bi bi-tags cat-header-icon" />
             </div>
             <div>
-              <h2 className="mb-1" style={{ color: "#ffffff" }}>
-                Danh Mục
-              </h2>
-              <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
+              <h2 className="mb-1">Danh Mục</h2>
+              <p className="mb-0">
                 Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ
                 đây.
               </p>
             </div>
           </div>
 
-          {/* BÊN PHẢI: NÚT TAB */}
           <div className="d-flex align-items-center gap-3">
-            <div
-              className="btn-group rounded-pill bg-white p-1"
-              role="group"
-              style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.4)" }}
-            >
+            <div className="funds-tabs">
               <button
                 type="button"
                 className={
-                  "btn btn-sm rounded-pill fw-semibold px-3 " +
-                  (activeTab === "expense"
-                    ? "text-white bg-success"
-                    : "text-dark bg-white")
+                  "funds-tab" +
+                  (activeTab === "expense" ? " funds-tab--active" : "")
                 }
                 onClick={() => {
                   setActiveTab("expense");
+                  setSortMode("default");
                   resetSearch();
-                  setPage(1);
                 }}
               >
                 Chi phí
               </button>
-
               <button
                 type="button"
                 className={
-                  "btn btn-sm rounded-pill fw-semibold px-3 " +
-                  (activeTab === "income"
-                    ? "text-white bg-success"
-                    : "text-dark bg-white")
+                  "funds-tab" +
+                  (activeTab === "income" ? " funds-tab--active" : "")
                 }
                 onClick={() => {
                   setActiveTab("income");
+                  setSortMode("default");
                   resetSearch();
-                  setPage(1);
                 }}
               >
                 Thu nhập
               </button>
+              <button
+                type="button"
+                className={
+                  "funds-tab" +
+                  (activeTab === "system" ? " funds-tab--active" : "")
+                }
+                onClick={() => {
+                  setActiveTab("system");
+                  setSortMode("sysExpense");
+                  resetSearch();
+                }}
+              >
+                Mặc định
+              </button>
             </div>
+
             <div className="ms-3">
               <button
                 type="button"
-                className="btn btn-sm btn-success rounded-pill category-add-header-btn"
+                className="btn btn-outline-primary category-add-header-btn"
                 onClick={openAddModal}
-                style={{ padding: "6px 14px" }}
               >
+                <i className="bi bi-plus-circle me-1" />
                 Thêm danh mục
               </button>
             </div>
@@ -307,8 +499,8 @@ export default function CategoriesPage() {
         </div>
       </div>
 
-      {/* FORM THÊM / SỬA */}
-      <div className="card border-0 shadow-sm mb-3">
+      {/* FORM TÌM KIẾM */}
+      <div className="card border-0 shadow-sm mb-3" style={{ borderRadius: 18 }}>
         <div className="card-body">
           <form className="g-3" onSubmit={handleSearchSubmit}>
             <label className="form-label fw-semibold">Tìm danh mục</label>
@@ -327,26 +519,41 @@ export default function CategoriesPage() {
                   onFocus={() => setSelectMenuOpen(true)}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    setSelectedCategoryId("");
+                    setPendingCategoryId("");
                     setSelectMenuOpen(true);
                   }}
                 />
+
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="category-search-clear-btn"
+                    onClick={resetSearch}
+                  >
+                    <i className="bi bi-x-lg" />
+                  </button>
+                )}
+
                 {selectMenuOpen && (
                   <div className="searchable-select-menu">
                     <button
                       type="button"
                       className={`searchable-option ${
-                        selectedCategoryId === "" ? "active" : ""
+                        !pendingCategoryId ? "active" : ""
                       }`}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
+                        setPendingCategoryId("");
                         setSelectedCategoryId("");
+                        setSearchKeyword("");
                         setSearchQuery("");
                         setSelectMenuOpen(false);
+                        setPage(1);
                       }}
                     >
                       Tất cả danh mục
                     </button>
+
                     {filteredOptions.length === 0 ? (
                       <div className="px-3 py-2 text-muted small">
                         Không tìm thấy danh mục
@@ -357,14 +564,17 @@ export default function CategoriesPage() {
                           key={cat.id}
                           type="button"
                           className={`searchable-option ${
-                            selectedCategoryId === String(cat.id)
+                            pendingCategoryId === String(cat.id)
                               ? "active"
                               : ""
                           }`}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
-                            setSelectedCategoryId(String(cat.id));
+                            const idStr = String(cat.id);
+                            setPendingCategoryId(idStr);
+                            setSelectedCategoryId(idStr);
                             setSearchQuery(cat.name || "");
+                            setSearchKeyword(""); // lọc theo id
                             setSelectMenuOpen(false);
                             setPage(1);
                           }}
@@ -376,102 +586,150 @@ export default function CategoriesPage() {
                   </div>
                 )}
               </div>
+
+              {/* NÚT TÌM KIẾM + SẮP XẾP */}
               <div className="category-search-actions">
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm category-search-submit"
+                >
                   Tìm kiếm
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary"
-                  onClick={resetSearch}
-                >
-                  Xóa lọc
-                </button>
+
+                <div className="category-sort">
+                  <span>
+                    {activeTab === "system" ? "Ưu tiên:" : "Sắp xếp:"}
+                  </span>
+                  {activeTab === "system" ? (
+                    <select
+                      value={sortMode}
+                      onChange={(e) => setSortMode(e.target.value)}
+                    >
+                      <option value="sysExpense">Chi phí mặc định</option>
+                      <option value="sysIncome">Thu nhập mặc định</option>
+                    </select>
+                  ) : (
+                    <select
+                      value={sortMode}
+                      onChange={(e) => setSortMode(e.target.value)}
+                    >
+                      <option value="default">Mặc định</option>
+                      <option value="nameAsc">Tên (A → Z)</option>
+                      <option value="nameDesc">Tên (Z → A)</option>
+                      <option value="newest">Mới → Cũ</option>
+                      <option value="oldest">Cũ → Mới</option>
+                    </select>
+                  )}
+                </div>
               </div>
             </div>
           </form>
         </div>
       </div>
 
-      {/* BẢNG DANH MỤC */}
-      <div className="card border-0 shadow-sm cat-table-card">
-        <div className="card-body p-0">
-          <div className="table-responsive category-table-scroll">
-            <table className="table table-hover align-middle mb-0">
-              <thead>
-                <tr>
-                  <th style={{ width: "5%" }}>STT</th>
-                  <th style={{ width: "25%" }}>Tên danh mục</th>
-                  <th>Mô tả</th>
-                  <th className="text-center" style={{ width: "15%" }}>
-                    Hành động
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayedList.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="text-center text-muted py-4">
-                      Chưa có danh mục nào.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedList.map((c, idx) => {
-                    // Kiểm tra isSystem - hỗ trợ cả boolean và string
-                    // Jackson có thể serialize thành "system" thay vì "isSystem" (đã fix ở backend với @JsonProperty)
-                    const isSystemValue =
-                      c.isSystem !== undefined
-                        ? c.isSystem
-                        : c.system !== undefined
-                        ? c.system
-                        : false;
-                    const isSystemCategory =
-                      isSystemValue === true ||
-                      isSystemValue === "true" ||
-                      String(isSystemValue).toLowerCase() === "true";
+      {/* DANH MỤC DẠNG THẺ */}
+      <div
+        className="card border-0 shadow-sm cat-table-card"
+        style={{ borderRadius: 18, overflow: "hidden" }}
+      >
+        <div className="card-body category-cards-wrapper">
+          {displayedList.length === 0 ? (
+            <div className="py-5 text-center text-muted">
+              <i className="bi bi-inboxes fs-1 d-block mb-2" />
+              <div className="fw-semibold mb-1">
+                Không còn danh mục phù hợp với tìm kiếm
+              </div>
+              <div className="small mb-3">
+                Hãy thêm danh mục để quản lý chi tiết thu chi của bạn.
+              </div>
+            </div>
+          ) : (
+            <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+              {paginatedList.map((c, idx) => {
+                const isSystemCategory = getIsSystemCategory(c);
+                const stt = (page - 1) * PAGE_SIZE + idx + 1;
 
-                    return (
-                      <tr key={c.id}>
-                        <td>{(page - 1) * pageSize + idx + 1}</td>
-                        <td className="fw-semibold">{c.name}</td>
-                        <td
-                          className="category-note-cell"
+                const isExpense =
+                  activeTab === "system"
+                    ? c.__type === "expense"
+                    : activeTab === "expense";
+
+                return (
+                  <div className="col" key={c.id}>
+                    <div className="category-card h-100 card border-0 shadow-sm">
+                      <div className="card-body d-flex flex-column">
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <span className="badge bg-light text-muted cat-index-badge">
+                            #{stt.toString().padStart(2, "0")}
+                          </span>
+                          {isSystemCategory && (
+                            <span className="badge bg-soft-info text-info small">
+                              Mặc định hệ thống
+                            </span>
+                          )}
+                        </div>
+
+                        <h5 className="category-card-title mb-1">{c.name}</h5>
+
+                        <p
+                          className="category-card-desc text-muted small mb-3 flex-grow-1"
                           title={c.description || "-"}
                         >
-                          {c.description || "-"}
-                        </td>
-                        <td className="text-center">
-                          {!isSystemCategory || isAdmin ? (
-                            <>
-                              <button
-                                className="btn btn-link btn-sm text-muted me-2"
-                                type="button"
-                                onClick={() => openEditModal(c)}
-                                title="Sửa"
-                              >
-                                <i className="bi bi-pencil-square" />
-                              </button>
-                              <button
-                                className="btn btn-link btn-sm text-danger"
-                                type="button"
-                                onClick={() => handleDelete(c)}
-                                title="Xóa"
-                              >
-                                <i className="bi bi-trash" />
-                              </button>
-                            </>
-                          ) : (
-                            <span className="text-muted small">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                          {c.description || "Không có mô tả."}
+                        </p>
+
+                        <div className="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+                          <div className="text-muted small">
+                            {isExpense ? (
+                              <span className="badge bg-soft-danger text-danger">
+                                Chi phí
+                              </span>
+                            ) : (
+                              <span className="badge bg-soft-success text-success">
+                                Thu nhập
+                              </span>
+                            )}
+                          </div>
+                          <div className="d-flex align-items-center">
+                            {!isSystemCategory || isAdmin ? (
+                              <>
+                                <button
+                                  className="btn btn-link btn-sm text-muted me-2 p-0 category-action-btn"
+                                  type="button"
+                                  onClick={() => openEditModal(c)}
+                                  title="Sửa danh mục"
+                                >
+                                  <i className="bi bi-pencil-square" />
+                                  <span className="ms-1 d-none d-sm-inline">
+                                    Sửa
+                                  </span>
+                                </button>
+                                <button
+                                  className="btn btn-link btn-sm text-danger p-0 category-action-btn"
+                                  type="button"
+                                  onClick={() => handleDelete(c)}
+                                  title="Xóa danh mục"
+                                >
+                                  <i className="bi bi-trash" />
+                                  <span className="ms-1 d-none d-sm-inline">
+                                    Xóa
+                                  </span>
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-muted small">-</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
+
         {/* PAGINATION */}
         <div className="card-footer category-pagination-bar">
           <span className="text-muted small">
@@ -534,7 +792,11 @@ export default function CategoriesPage() {
         open={modalOpen}
         mode={modalMode}
         initialValue={modalInitial}
-        typeLabel={activeTab === "expense" ? "chi phí" : "thu nhập"}
+        typeLabel={
+          modalEditingKind === "income" || activeTab === "income"
+            ? "thu nhập"
+            : "chi phí"
+        }
         onSubmit={handleModalSubmit}
         onClose={() => setModalOpen(false)}
         isAdmin={isAdmin}
@@ -555,7 +817,9 @@ export default function CategoriesPage() {
         message={toast.message}
         type={toast.type}
         duration={2200}
-        onClose={() => setToast({ open: false, message: "", type: "success" })}
+        onClose={() =>
+          setToast({ open: false, message: "", type: "success" })
+        }
       />
     </div>
   );

@@ -1,5 +1,4 @@
 // src/components/funds/PersonalTermForm.jsx
-// src/components/funds/PersonalTermForm.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
@@ -23,7 +22,7 @@ export default function PersonalTermForm({ wallets }) {
   const [targetAmount, setTargetAmount] = useState("");
   const [targetError, setTargetError] = useState("");
 
-  const [freq, setFreq] = useState("month"); // day | week | month | year
+  const [freq, setFreq] = useState("month");
   const [periodAmount, setPeriodAmount] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -32,6 +31,7 @@ export default function PersonalTermForm({ wallets }) {
   const [reminderOn, setReminderOn] = useState(false);
   const [autoTopupOn, setAutoTopupOn] = useState(false);
 
+  // Validate target money
   useEffect(() => {
     if (!selectedWallet || !targetAmount) {
       setTargetError("");
@@ -56,6 +56,7 @@ export default function PersonalTermForm({ wallets }) {
     setTargetError("");
   }, [targetAmount, selectedWallet, currentBalance, currency]);
 
+  // Tính ngày dự kiến hoàn thành
   useEffect(() => {
     if (!selectedWallet) {
       setEstimateText("");
@@ -95,23 +96,15 @@ export default function PersonalTermForm({ wallets }) {
     }
 
     const dateStr = doneDate.toLocaleDateString("vi-VN");
-    let unitText = "";
-    switch (freq) {
-      case "day":
-        unitText = `${periods} ngày`;
-        break;
-      case "week":
-        unitText = `${periods} tuần`;
-        break;
-      case "month":
-        unitText = `${periods} tháng`;
-        break;
-      case "year":
-        unitText = `${periods} năm`;
-        break;
-      default:
-        break;
-    }
+
+    const unitText =
+      freq === "day"
+        ? `${periods} ngày`
+        : freq === "week"
+        ? `${periods} tuần`
+        : freq === "month"
+        ? `${periods} tháng`
+        : `${periods} năm`;
 
     setEstimateText(
       `Dự kiến hoàn thành sau khoảng ${unitText}, vào khoảng ngày ${dateStr}.`
@@ -132,7 +125,7 @@ export default function PersonalTermForm({ wallets }) {
       return;
     }
 
-    console.log("Lưu quỹ cá nhân có thời hạn", {
+    console.log("Lưu quỹ có thời hạn", {
       srcWalletId,
       targetAmount,
       freq,
@@ -144,6 +137,7 @@ export default function PersonalTermForm({ wallets }) {
 
   return (
     <div className="funds-grid">
+      {/* THÔNG TIN QUỸ */}
       <div className="funds-fieldset">
         <div className="funds-fieldset__legend">Thông tin quỹ</div>
 
@@ -187,12 +181,13 @@ export default function PersonalTermForm({ wallets }) {
         </div>
       </div>
 
+      {/* MỤC TIÊU + TẦN SUẤT */}
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">Mục tiêu & tần suất</div>
+        <div className="funds-fieldset__legend">Mục tiêu & tần suất gửi</div>
 
         <div className="funds-field">
           <label>
-            Số tiền mục tiêu quỹ{" "}
+            Số tiền mục tiêu{" "}
             {currency && <span>({currency})</span>} <span className="req">*</span>
           </label>
           <input
@@ -203,15 +198,14 @@ export default function PersonalTermForm({ wallets }) {
             onChange={(e) => setTargetAmount(e.target.value)}
           />
           <div className="funds-hint">
-            Phải lớn hơn số dư ví nguồn. Đơn vị tiền tệ của quỹ sẽ dùng chung
-            với ví nguồn.
+            Phải lớn hơn số dư ví nguồn. Đơn vị tiền tệ của quỹ sẽ giống ví nguồn.
           </div>
           {targetError && <div className="funds-error">{targetError}</div>}
         </div>
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>Tần suất gửi quỹ</label>
+            <label>Tần suất gửi</label>
             <select value={freq} onChange={(e) => setFreq(e.target.value)}>
               <option value="day">Theo ngày</option>
               <option value="week">Theo tuần</option>
@@ -229,7 +223,7 @@ export default function PersonalTermForm({ wallets }) {
               onChange={(e) => setPeriodAmount(e.target.value)}
             />
             <div className="funds-hint">
-              Dùng để gợi ý thời gian hoàn thành theo tần suất đã chọn.
+              Dùng để gợi ý thời gian hoàn thành.
             </div>
             {estimateText && (
               <div className="funds-hint funds-hint--strong">
@@ -249,7 +243,7 @@ export default function PersonalTermForm({ wallets }) {
             />
           </div>
           <div>
-            <label>Ngày kết thúc (có thể tự điều chỉnh)</label>
+            <label>Ngày kết thúc (tùy chọn)</label>
             <input
               type="date"
               value={endDate}
@@ -259,6 +253,7 @@ export default function PersonalTermForm({ wallets }) {
         </div>
       </div>
 
+      {/* NHẮC NHỞ & TỰ ĐỘNG NẠP */}
       <ReminderBlock
         reminderOn={reminderOn}
         setReminderOn={setReminderOn}
@@ -272,22 +267,18 @@ export default function PersonalTermForm({ wallets }) {
         reminderFreq={freq}
       />
 
+      {/* GHI CHÚ + ACTION */}
       <div className="funds-fieldset funds-fieldset--full">
         <div className="funds-field">
           <label>Ghi chú</label>
-          <textarea
-            rows={3}
-            placeholder="Ghi chú riêng cho quỹ này (không bắt buộc)"
-          />
+          <textarea rows={3} placeholder="Ghi chú cho quỹ này (không bắt buộc)" />
         </div>
 
         <div className="funds-actions">
           <button
             type="button"
             className="btn-secondary"
-            onClick={() =>
-              console.log("Hủy tạo quỹ cá nhân có thời hạn")
-            }
+            onClick={() => console.log("Hủy tạo quỹ")}
           >
             Hủy
           </button>
@@ -296,7 +287,7 @@ export default function PersonalTermForm({ wallets }) {
             className="btn-primary"
             onClick={handleSave}
           >
-            Lưu quỹ cá nhân
+            Lưu quỹ
           </button>
         </div>
       </div>

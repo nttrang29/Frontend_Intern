@@ -27,7 +27,7 @@ export default function PersonalNoTermForm({ wallets }) {
       alert("Vui lòng chọn ví nguồn trước khi lưu quỹ.");
       return;
     }
-    console.log("Lưu quỹ cá nhân không thời hạn", {
+    console.log("Lưu quỹ không thời hạn", {
       srcWalletId,
       freq,
     });
@@ -35,6 +35,7 @@ export default function PersonalNoTermForm({ wallets }) {
 
   return (
     <div className="funds-grid">
+      {/* THÔNG TIN QUỸ */}
       <div className="funds-fieldset">
         <div className="funds-fieldset__legend">Thông tin quỹ</div>
 
@@ -73,6 +74,7 @@ export default function PersonalNoTermForm({ wallets }) {
         </div>
       </div>
 
+      {/* TẦN SUẤT GỬI (TÙY CHỌN) */}
       <div className="funds-fieldset">
         <div className="funds-fieldset__legend">Tần suất gửi (tuỳ chọn)</div>
 
@@ -93,6 +95,7 @@ export default function PersonalNoTermForm({ wallets }) {
         </div>
       </div>
 
+      {/* NHẮC NHỞ & TỰ ĐỘNG NẠP */}
       <ReminderBlock
         reminderOn={reminderOn}
         setReminderOn={setReminderOn}
@@ -106,6 +109,7 @@ export default function PersonalNoTermForm({ wallets }) {
         reminderFreq={freq}
       />
 
+      {/* GHI CHÚ + ACTIONS */}
       <div className="funds-fieldset funds-fieldset--full">
         <div className="funds-field">
           <label>Ghi chú</label>
@@ -116,9 +120,7 @@ export default function PersonalNoTermForm({ wallets }) {
           <button
             type="button"
             className="btn-secondary"
-            onClick={() =>
-              console.log("Hủy tạo quỹ cá nhân không thời hạn")
-            }
+            onClick={() => console.log("Hủy tạo quỹ không thời hạn")}
           >
             Hủy
           </button>
@@ -127,7 +129,7 @@ export default function PersonalNoTermForm({ wallets }) {
             className="btn-primary"
             onClick={handleSave}
           >
-            Lưu quỹ cá nhân
+            Lưu quỹ
           </button>
         </div>
       </div>

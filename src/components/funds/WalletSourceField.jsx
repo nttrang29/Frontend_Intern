@@ -1,7 +1,12 @@
 // src/components/funds/WalletSourceField.jsx
 import React, { useMemo, useState } from "react";
 
-export default function WalletSourceField({ required, wallets = [], value, onChange }) {
+export default function WalletSourceField({
+  required,
+  wallets = [],
+  value,
+  onChange,
+}) {
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(
@@ -54,8 +59,7 @@ export default function WalletSourceField({ required, wallets = [], value, onCha
         </div>
 
         <div className="funds-hint">
-          Hiển thị các ví phù hợp với loại quỹ hiện tại (cá nhân / nhóm). Kéo
-          ngang nếu danh sách dài.
+          Hiển thị các ví của bạn. Kéo ngang nếu danh sách dài.
         </div>
       </div>
     </div>
