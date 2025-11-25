@@ -10,31 +10,27 @@ export default function CategoryFormModal({
   onClose,
   isAdmin,
 }) {
-  // initialValue can be a string (name) or object { name, description }
-  const [name, setName] = useState(
-    initialValue && typeof initialValue === "object"
-      ? initialValue.name
-      : initialValue
-  );
-  const [description, setDescription] = useState(
-    initialValue && typeof initialValue === "object"
-      ? initialValue.description || ""
-      : ""
-  );
+  // initialValue can be a string (name) or object { name, description, isSystem }
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [error, setError] = useState("");
+  
+  // State quản lý checkbox System
+  const [isSystemState, setIsSystemState] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setName(
-        initialValue && typeof initialValue === "object"
-          ? initialValue.name || ""
-          : initialValue || ""
-      );
-      setDescription(
-        initialValue && typeof initialValue === "object"
-          ? initialValue.description || ""
-          : ""
-      );
+      if (initialValue && typeof initialValue === "object") {
+        setName(initialValue.name || "");
+        setDescription(initialValue.description || "");
+        // Nếu đang edit, lấy trạng thái cũ. Nếu tạo mới, mặc định là false
+        setIsSystemState(initialValue.isSystem || false);
+      } else {
+        // Trường hợp initialValue là string (legacy) hoặc rỗng
+        setName(typeof initialValue === "string" ? initialValue : "");
+        setDescription("");
+        setIsSystemState(false);
+      }
       setError("");
     }
   }, [open, initialValue]);
@@ -50,11 +46,13 @@ export default function CategoryFormModal({
       setError("Tên danh mục tối đa 40 ký tự");
       return;
     }
+    
     onSubmit &&
       onSubmit({
         name: trimmed,
         description: (description || "").trim(),
-        isSystem: !!isAdmin,
+        // Logic mới: Nếu là Admin thì lấy theo checkbox, User thường thì luôn là false
+        isSystem: isAdmin ? isSystemState : false,
       });
   };
 
@@ -100,13 +98,34 @@ export default function CategoryFormModal({
             />
           </div>
 
+          {/* Thay thế Alert bằng Checkbox */}
           {isAdmin && (
-            <div className="alert alert-info py-2 small mb-3">
-              <i className="bi bi-info-circle me-1"></i>
-              Danh mục này sẽ là <strong>Danh mục hệ thống</strong> (hiển thị
-              cho tất cả user).
+            <div className="mb-3 form-check">
+              <input
+                type="checkbox"
+                className="form-check-input"
+                id="isSystemCheck"
+                checked={isSystemState}
+                onChange={(e) => setIsSystemState(e.target.checked)}
+                style={{ cursor: "pointer" }}
+              />
+              <label 
+                className="form-check-label user-select-none" 
+                htmlFor="isSystemCheck"
+                style={{ cursor: "pointer" }}
+              >
+                Đặt làm <strong>Danh mục hệ thống</strong> (hiển thị cho tất cả user)
+              </label>
+              
+              {!isSystemState && (
+                <div className="form-text text-muted small mt-1">
+                  <i className="bi bi-person me-1"></i>
+                  Danh mục này sẽ chỉ hiển thị cho riêng bạn.
+                </div>
+              )}
             </div>
           )}
+
           <div className="d-flex justify-content-end gap-2 mt-3">
             <button type="button" className="btn btn-light" onClick={onClose}>
               Hủy
