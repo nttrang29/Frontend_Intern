@@ -43,6 +43,104 @@
   background-color: #f8f9fa;
 }
 
+/* Make page fluid with centered inner wrapper like Wallets */
+.tx-page {
+  padding-top: 24px;
+  padding-bottom: 32px;
+  background: transparent;
+}
+
+.tx-page-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Wallet-style header (copied from WalletsPage.css) */
+.wallet-header {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 22px rgba(15, 23, 42, 0.08);
+  margin-bottom: 22px;
+}
+
+.wallet-header-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.wallet-header-icon {
+  width: 54px;
+  height: 54px;
+  background: rgba(45, 153, 174, 0.15);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wallet-header-icon i {
+  font-size: 1.9rem;
+  color: #2d99ae;
+}
+
+.wallet-header-title {
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.wallet-header-subtitle {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.wallet-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wallet-header-btn {
+  border-radius: 999px;
+  padding: 8px 22px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: 1px solid #2d99ae;
+  color: #2d99ae;
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(45, 153, 174, 0.15);
+  transition: 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.wallet-header-btn:hover {
+  background: #2d99ae;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(45, 153, 174, 0.25);
+}
+
+@media (max-width: 768px) {
+  .wallet-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .wallet-header-left { gap: 12px; }
+  .wallet-header-right { width: 100%; justify-content: flex-end; }
+}
+
 /* ================= HEADER ================= */
 
 .budget-header {

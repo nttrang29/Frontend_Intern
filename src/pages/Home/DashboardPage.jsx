@@ -434,11 +434,15 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-page__header-box">
-        <div className="dashboard-page__header">
-          <div>
-            <h2 className="dashboard-page__title">{t("dashboard.title")}</h2>
-            <p className="dashboard-page__subtitle">{t("dashboard.subtitle")}</p>
+      <div className="wallet-header">
+          <div className="wallet-header-left">
+            <div className="wallet-header-icon">
+              <i className="bi bi-speedometer2" />
+            </div>
+            <div>
+              <h2 className="wallet-header-title">{t("dashboard.title")}</h2>
+              <p className="wallet-header-subtitle">{t("dashboard.subtitle")}</p>
+            </div>
           </div>
           <div className="dashboard-page__period">
             <button
@@ -461,7 +465,6 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
-      </div>
 
       <div className="dashboard-grid">
         <section className="dashboard-main">

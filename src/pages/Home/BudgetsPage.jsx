@@ -328,27 +328,23 @@ export default function BudgetsPage() {
   }, [confirmDel, deleteBudget]);
 
   return (
-    <div className="budget-page container py-4">
-      {/* HEADER – bố cục giống trang Giao dịch: trái = icon + text, phải = nút */}
-      <div className="budget-header card border-0 mb-3">
-        <div className="card-body budget-header-inner">
-          {/* BÊN TRÁI: ICON + TIÊU ĐỀ + MÔ TẢ */}
-          <div className="budget-header-left">
-            <div className="budget-header-icon-wrap">
-              {/* icon tương ứng chức năng: hạn mức = bi-graph-up-arrow */}
-              <i className="bi bi-graph-up-arrow budget-header-icon" />
+    <div className="budget-page container-fluid py-4">
+      <div className="tx-page-inner">
+        {/* HEADER now uses wallet-style single container */}
+        <div className="wallet-header">
+          <div className="wallet-header-left">
+            <div className="wallet-header-icon">
+              <i className="bi bi-graph-up-arrow" />
             </div>
             <div>
-              <h2 className="budget-title mb-1">{t("budgets.page.title")}</h2>
-              <p className="mb-0 budget-subtitle">{t("budgets.page.subtitle")}</p>
+              <h2 className="wallet-header-title">{t("budgets.page.title")}</h2>
+              <p className="wallet-header-subtitle">{t("budgets.page.subtitle")}</p>
             </div>
           </div>
 
-          {/* BÊN PHẢI: NÚT THÊM HẠN MỨC */}
-          <div className="budget-header-right">
+          <div className="wallet-header-right">
             <button
-              className="btn btn-primary budget-add-btn d-flex align-items-center"
-              style={{ whiteSpace: "nowrap" }}
+              className="wallet-header-btn d-flex align-items-center"
               onClick={handleAddBudget}
             >
               <i className="bi bi-plus-lg me-2" />
@@ -356,7 +352,6 @@ export default function BudgetsPage() {
             </button>
           </div>
         </div>
-      </div>
 
       {/* Overview metrics */}
       <div className="row g-3 mb-4">
@@ -687,6 +682,7 @@ export default function BudgetsPage() {
         duration={2200}
         onClose={() => setToast({ open: false, message: "", type: "success" })}
       />
+      </div>
     </div>
   );
 }

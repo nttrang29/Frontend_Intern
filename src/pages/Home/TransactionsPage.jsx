@@ -852,56 +852,40 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="tx-page container py-4">
-      {/* HEADER – dùng màu giống trang Danh sách ví */}
-      <div
-        className="tx-header card border-0 mb-3"
-        style={{
-          borderRadius: 18,
-          background:
-            "linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%)",
-          color: "#ffffff",
-        }}
-      >
-        <div className="card-body d-flex justify-content-between align-items-center">
-          {/* BÊN TRÁI: ICON + TEXT */}
-          <div className="d-flex align-items-center gap-2">
-            <div className="tx-header-icon-wrap">
-              {/* icon giống sidebar: Giao dịch = bi-cash-stack */}
-              <i className="bi bi-cash-stack tx-header-icon" />
-            </div>
-            <div>
-              <h2 className="tx-title mb-1" style={{ color: "#ffffff" }}>
-                {t("transactions.page.title")}
-              </h2>
-              <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
-                {t("transactions.page.subtitle")}
-              </p>
-            </div>
+    <div className="tx-page container-fluid py-4">
+      <div className="tx-page-inner">
+      <div className="wallet-header">
+        <div className="wallet-header-left">
+          <div className="wallet-header-icon">
+            <i className="bi bi-cash-stack" />
           </div>
-
-          {/* BÊN PHẢI: CHỌN LOẠI TRANG + THÊM GIAO DỊCH */}
-          <div className="d-flex align-items-center gap-2">
-              <select
-              className="form-select form-select-sm"
-              style={{ minWidth: 220 }}
-              value={activeTab}
-              onChange={handleTabChange}
-            >
-              <option value={TABS.EXTERNAL}>{t("transactions.tab.external")}</option>
-              <option value={TABS.INTERNAL}>{t("transactions.tab.internal")}</option>
-              <option value={TABS.SCHEDULE}>{t("transactions.tab.schedule")}</option>
-            </select>
-
-            <button
-              className="btn btn-primary tx-add-btn d-flex align-items-center"
-              style={{ whiteSpace: "nowrap" }}
-              onClick={() => setCreating(true)}
-            >
-              <i className="bi bi-plus-lg me-2" />
-              {t("transactions.btn.add")}
-            </button>
+          <div>
+            <h2 className="wallet-header-title">{t("transactions.page.title")}</h2>
+            <p className="wallet-header-subtitle">{t("transactions.page.subtitle")}</p>
           </div>
+        </div>
+
+        <div className="wallet-header-center d-flex justify-content-center">
+          <select
+            className="form-select form-select-sm"
+            style={{ minWidth: 220, maxWidth: 360 }}
+            value={activeTab}
+            onChange={handleTabChange}
+          >
+            <option value={TABS.EXTERNAL}>{t("transactions.tab.external")}</option>
+            <option value={TABS.INTERNAL}>{t("transactions.tab.internal")}</option>
+            <option value={TABS.SCHEDULE}>{t("transactions.tab.schedule")}</option>
+          </select>
+        </div>
+
+        <div className="wallet-header-right d-flex align-items-center justify-content-end">
+          <button
+            className="wallet-header-btn d-flex align-items-center"
+            onClick={() => setCreating(true)}
+          >
+            <i className="bi bi-plus-lg me-2" />
+            {t("transactions.btn.add")}
+          </button>
         </div>
       </div>
 
@@ -1348,6 +1332,7 @@ export default function TransactionsPage() {
         duration={2200}
         onClose={() => setToast({ open: false, message: "", type: "success" })}
       />
+      </div>
     </div>
   );
 }

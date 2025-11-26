@@ -173,6 +173,7 @@ const translations = {
     // Dashboard
     "dashboard.title": "Tổng quan tài chính",
     "dashboard.subtitle": "Xem nhanh tình hình thu chi, biến động số dư và giao dịch gần đây.",
+    "dashboard.title_icon_alt": "Biểu tượng trang tổng quan",
     "dashboard.period.week": "Tuần này",
     "dashboard.period.month": "Tháng này",
     "dashboard.period.year": "Năm nay",
@@ -289,6 +290,8 @@ const translations = {
 
     // Wallet Inspector
     "wallets.inspector.tab.details": "Chi tiết ví",
+    "wallets.inspector.tab.topup": "Nạp ví",
+    "wallets.inspector.tab.edit": "Sửa ví",
     "wallets.inspector.tab.withdraw": "Rút ví",
     "wallets.inspector.tab.transfer": "Chuyển tiền",
     "wallets.inspector.tab.merge": "Gộp ví",
@@ -1132,6 +1135,7 @@ const translations = {
     // Dashboard
     "dashboard.title": "Financial Overview",
     "dashboard.subtitle": "Quick view of income, expenses, balance fluctuations, and recent transactions.",
+    "dashboard.title_icon_alt": "Dashboard icon",
     "dashboard.period.week": "This Week",
     "dashboard.period.month": "This Month",
     "dashboard.period.year": "This Year",
@@ -1248,6 +1252,8 @@ const translations = {
 
     // Wallet Inspector
     "wallets.inspector.tab.details": "Details",
+    "wallets.inspector.tab.topup": "Top up",
+    "wallets.inspector.tab.edit": "Edit",
     "wallets.inspector.tab.withdraw": "Withdraw",
     "wallets.inspector.tab.transfer": "Transfer",
     "wallets.inspector.tab.merge": "Merge",
@@ -1938,8 +1944,16 @@ export function LanguageProvider({ children }) {
     }
   };
 
-  const t = (key) => {
-    return translations[language][key] || key;
+  const t = (key, params) => {
+    const dict = translations[language] || {};
+    let val = dict[key] || key;
+    if (params && typeof params === "object") {
+      Object.keys(params).forEach((p) => {
+        const re = new RegExp("\\{" + p + "\\}", "g");
+        val = String(val).replace(re, params[p]);
+      });
+    }
+    return val;
   };
 
   return (

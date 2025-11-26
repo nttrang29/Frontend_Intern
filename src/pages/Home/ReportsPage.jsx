@@ -237,214 +237,210 @@ export default function ReportsPage() {
   }, [navigate, selectedWalletId]);
 
   return (
-    <div className="reports-page container py-4">
-      <div
-        className="reports-header card border-0 mb-4"
-        style={{
-          borderRadius: 18,
-          background: "linear-gradient(90deg, #0b5aa5 0%, #0c7fb0 60%, #0ab5c0 100%)",
-          color: "#ffffff",
-        }}
-      >
-        <div className="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
-          <div>
-            <h2 className="mb-1" style={{ color: "#fff" }}>
-              {t("reports.title")}
-            </h2>
-            <p className="mb-0" style={{ color: "rgba(255,255,255,0.85)" }}>
-              {t("reports.subtitle")}
-            </p>
+    <div className="reports-page container-fluid tx-page py-4">
+      <div className="tx-page-inner">
+        <div className="wallet-header">
+          <div className="wallet-header-left">
+            <div className="wallet-header-icon">
+              <i className="bi bi-graph-up" />
+            </div>
+            <div>
+              <h2 className="wallet-header-title">{t("reports.title")}</h2>
+              <p className="wallet-header-subtitle">{t("reports.subtitle")}</p>
+            </div>
           </div>
+          <div className="wallet-header-right">
             <div className="reports-header-pill">
-            <i className="bi bi-graph-up" /> {t("reports.overview_realtime")}
-          </div>
-        </div>
-      </div>
-
-      <div className="reports-layout">
-        <div className="reports-wallet-card card border-0 shadow-sm">
-          <div className="card-body">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <div>
-                <h5 className="mb-1">{t("reports.wallets.title")}</h5>
-                <p className="text-muted mb-0 small">{t("reports.wallets.desc")}</p>
-              </div>
-              <span className="badge rounded-pill text-bg-light">{wallets.length} {t("wallets.count_unit")}</span>
-            </div>
-            <div className="reports-wallet-search mb-3">
-              <i className="bi bi-search" />
-              <input
-                type="text"
-                className="form-control"
-                placeholder={t("wallets.search_placeholder")}
-                value={walletSearch}
-                onChange={(e) => setWalletSearch(e.target.value)}
-              />
-            </div>
-            <div className="reports-wallet-list">
-              {walletsLoading ? (
-                <div className="text-center py-4 text-muted small">{t("common.loading")}</div>
-              ) : filteredWallets.length === 0 ? (
-                <div className="text-center py-4 text-muted small">{t("reports.wallets.not_found")}</div>
-              ) : (
-                filteredWallets.map((wallet) => (
-                  <button
-                    key={wallet.id}
-                    type="button"
-                    className={`reports-wallet-item ${selectedWalletId === wallet.id ? "active" : ""}`}
-                    onClick={() => setSelectedWalletId(wallet.id)}
-                  >
-                    <div>
-                      <p className="wallet-name mb-1">{wallet.name}</p>
-                      <div className="wallet-tags">
-                        {wallet.isDefault && <span className="badge rounded-pill text-bg-primary">Mặc định</span>}
-                        {wallet.isShared && <span className="badge rounded-pill text-bg-info">Ví nhóm</span>}
-                      </div>
-                    </div>
-                    <div className="wallet-balance text-end">
-                      <p className="mb-0 fw-semibold">{formatCurrency(Number(wallet.balance) || 0)}</p>
-                      <small className="text-muted">{wallet.currency || "VND"}</small>
-                    </div>
-                  </button>
-                ))
-              )}
+              <i className="bi bi-graph-up" /> {t("reports.overview_realtime")}
             </div>
           </div>
         </div>
 
-        <div className="reports-chart-card card border-0 shadow-sm">
-          <div className="card-body">
-            <div className="reports-chart-header-card">
-              <div className="reports-chart-header">
+        <div className="reports-layout">
+          <div className="reports-wallet-card card border-0 shadow-sm">
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-3">
                 <div>
-                  <p className="text-muted mb-1">{t("reports.selected_wallet_label")}</p>
-                  <h4 className="mb-1">{selectedWallet?.name || t("reports.no_wallet")}</h4>
-                  <div className="reports-summary-row">
-                    <div>
-                      <span className="summary-dot" style={{ background: INCOME_COLOR }} />
-                      {t("dashboard.income")}: <strong>{formatCurrency(summary.income)}</strong>
-                    </div>
-                    <div>
-                      <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
-                      {t("dashboard.expense")}: <strong>{formatCurrency(summary.expense)}</strong>
-                    </div>
-                    <div>
-                      <span className="summary-dot" style={{ background: net >= 0 ? "#16a34a" : "#dc2626" }} />
-                      {t("reports.remaining")}: <strong>{formatCurrency(net)}</strong>
-                    </div>
-                  </div>
+                  <h5 className="mb-1">{t("reports.wallets.title")}</h5>
+                  <p className="text-muted mb-0 small">{t("reports.wallets.desc")}</p>
                 </div>
-                <div className="reports-header-actions">
-                  <div className="reports-range-toggle">
-                    {RANGE_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={`reports-range-btn ${range === option.value ? "active" : ""}`}
-                        onClick={() => setRange(option.value)}
-                        >
-                        {t(`reports.range.${option.value}`)}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    className="reports-history-btn"
-                    onClick={handleViewHistory}
-                    disabled={!selectedWalletId}
-                  >
-                    <i className="bi bi-clock-history" /> {t("reports.view_history")}
-                  </button>
-                </div>
+                <span className="badge rounded-pill text-bg-light">{wallets.length} {t("wallets.count_unit")}</span>
+              </div>
+              <div className="reports-wallet-search mb-3">
+                <i className="bi bi-search" />
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder={t("wallets.search_placeholder")}
+                  value={walletSearch}
+                  onChange={(e) => setWalletSearch(e.target.value)}
+                />
+              </div>
+              <div className="reports-wallet-list">
+                {walletsLoading ? (
+                  <div className="text-center py-4 text-muted small">{t("common.loading")}</div>
+                ) : filteredWallets.length === 0 ? (
+                  <div className="text-center py-4 text-muted small">{t("reports.wallets.not_found")}</div>
+                ) : (
+                  filteredWallets.map((wallet) => (
+                    <button
+                      key={wallet.id}
+                      type="button"
+                      className={`reports-wallet-item ${selectedWalletId === wallet.id ? "active" : ""}`}
+                      onClick={() => setSelectedWalletId(wallet.id)}
+                    >
+                      <div>
+                        <p className="wallet-name mb-1">{wallet.name}</p>
+                        <div className="wallet-tags">
+                          {wallet.isDefault && <span className="badge rounded-pill text-bg-primary">Mặc định</span>}
+                          {wallet.isShared && <span className="badge rounded-pill text-bg-info">Ví nhóm</span>}
+                        </div>
+                      </div>
+                      <div className="wallet-balance text-end">
+                        <p className="mb-0 fw-semibold">{formatCurrency(Number(wallet.balance) || 0)}</p>
+                        <small className="text-muted">{wallet.currency || "VND"}</small>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
+          </div>
 
-            <div className="reports-chart-area">
-              {loadingTransactions ? (
-                <div className="reports-chart-empty text-center text-muted py-5">
-                  <div className="spinner-border text-primary mb-3" role="status" />
-                  <p className="mb-0">{t("transactions.loading.list")}</p>
-                </div>
-              ) : !selectedWallet ? (
-                <div className="reports-chart-empty text-center text-muted py-5">
-                  {t("reports.select_wallet_prompt")}
-                </div>
-              ) : error ? (
-                <div className="reports-chart-empty text-center text-danger py-5">
-                  {error}
-                </div>
-              ) : chartData.length === 0 ? (
-                <div className="reports-chart-empty text-center text-muted py-5">
-                  {t("reports.no_transactions_in_period")}
-                </div>
-              ) : (
-                <div className="reports-chart-viewport">
-                  <div className="reports-chart-axis">
-                    {yAxisTicks.map((value) => (
-                      <div key={`tick-${value}`} className="axis-row">
-                        <span className="axis-value">{formatCompactNumber(value)}</span>
-                        <span className="axis-guide" />
+          <div className="reports-chart-card card border-0 shadow-sm">
+            <div className="card-body">
+              <div className="reports-chart-header-card">
+                <div className="reports-chart-header">
+                  <div>
+                    <p className="text-muted mb-1">{t("reports.selected_wallet_label")}</p>
+                    <h4 className="mb-1">{selectedWallet?.name || t("reports.no_wallet")}</h4>
+                    <div className="reports-summary-row">
+                      <div>
+                        <span className="summary-dot" style={{ background: INCOME_COLOR }} />
+                        {t("dashboard.income")}: <strong>{formatCurrency(summary.income)}</strong>
                       </div>
-                    ))}
+                      <div>
+                        <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
+                        {t("dashboard.expense")}: <strong>{formatCurrency(summary.expense)}</strong>
+                      </div>
+                      <div>
+                        <span className="summary-dot" style={{ background: net >= 0 ? "#16a34a" : "#dc2626" }} />
+                        {t("reports.remaining")}: <strong>{formatCurrency(net)}</strong>
+                      </div>
+                    </div>
                   </div>
-                  <div
-                    className="reports-chart-grid"
-                    style={{
-                      gridTemplateColumns:
-                        range === "week"
-                          ? `repeat(${chartData.length}, minmax(48px, 1fr))`
-                          : range === "month"
-                            ? `repeat(${chartData.length}, minmax(60px, 1fr))`
-                            : `repeat(${chartData.length}, minmax(36px, 1fr))`,
-                    }}
-                  >
-                    {chartData.map((period, index) => {
-                      const scale = chartMaxValue || 1;
-                      const incomeHeight = Math.round((period.income / scale) * 100);
-                      const expenseHeight = Math.round((period.expense / scale) * 100);
-                      return (
-                        <div
-                          key={period.label}
-                          className="reports-chart-column"
-                          onMouseEnter={() => setHoveredColumnIndex(index)}
-                          onMouseLeave={() => setHoveredColumnIndex(null)}
-                          onFocus={() => setHoveredColumnIndex(index)}
-                          onBlur={() => setHoveredColumnIndex(null)}
-                          tabIndex={0}
+                  <div className="reports-header-actions">
+                    <div className="reports-range-toggle">
+                      {RANGE_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`reports-range-btn ${range === option.value ? "active" : ""}`}
+                          onClick={() => setRange(option.value)}
                         >
-                          {hoveredColumnIndex === index && (
-                            <div className="reports-chart-tooltip">
-                              <div>
-                                <span className="summary-dot" style={{ background: INCOME_COLOR }} />
-                                {formatCompactNumber(period.income)}
-                              </div>
-                              <div>
-                                <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
-                                {formatCompactNumber(period.expense)}
-                              </div>
-                            </div>
-                          )}
-                          <div className="reports-chart-bars">
-                            <div className="reports-chart-bar-wrapper">
-                              <div
-                                className="reports-chart-bar income"
-                                style={{ height: `${incomeHeight}%`, background: INCOME_COLOR }}
-                              />
-                            </div>
-                            <div className="reports-chart-bar-wrapper">
-                              <div
-                                className="reports-chart-bar expense"
-                                style={{ height: `${expenseHeight}%`, background: EXPENSE_COLOR }}
-                              />
-                            </div>
-                          </div>
-                          <p className="reports-chart-label">{period.label}</p>
-                        </div>
-                      );
-                    })}
+                          {t(`reports.range.${option.value}`)}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="reports-history-btn"
+                      onClick={handleViewHistory}
+                      disabled={!selectedWalletId}
+                    >
+                      <i className="bi bi-clock-history" /> {t("reports.view_history")}
+                    </button>
                   </div>
                 </div>
-              )}
+              </div>
+
+              <div className="reports-chart-area">
+                {loadingTransactions ? (
+                  <div className="reports-chart-empty text-center text-muted py-5">
+                    <div className="spinner-border text-primary mb-3" role="status" />
+                    <p className="mb-0">{t("transactions.loading.list")}</p>
+                  </div>
+                ) : !selectedWallet ? (
+                  <div className="reports-chart-empty text-center text-muted py-5">
+                    {t("reports.select_wallet_prompt")}
+                  </div>
+                ) : error ? (
+                  <div className="reports-chart-empty text-center text-danger py-5">
+                    {error}
+                  </div>
+                ) : chartData.length === 0 ? (
+                  <div className="reports-chart-empty text-center text-muted py-5">
+                    {t("reports.no_transactions_in_period")}
+                  </div>
+                ) : (
+                  <div className="reports-chart-viewport">
+                    <div className="reports-chart-axis">
+                      {yAxisTicks.map((value) => (
+                        <div key={`tick-${value}`} className="axis-row">
+                          <span className="axis-value">{formatCompactNumber(value)}</span>
+                          <span className="axis-guide" />
+                        </div>
+                      ))}
+                    </div>
+                    <div
+                      className="reports-chart-grid"
+                      style={{
+                        gridTemplateColumns:
+                          range === "week"
+                            ? `repeat(${chartData.length}, minmax(48px, 1fr))`
+                            : range === "month"
+                              ? `repeat(${chartData.length}, minmax(60px, 1fr))`
+                              : `repeat(${chartData.length}, minmax(36px, 1fr))`,
+                      }}
+                    >
+                      {chartData.map((period, index) => {
+                        const scale = chartMaxValue || 1;
+                        const incomeHeight = Math.round((period.income / scale) * 100);
+                        const expenseHeight = Math.round((period.expense / scale) * 100);
+                        return (
+                          <div
+                            key={period.label}
+                            className="reports-chart-column"
+                            onMouseEnter={() => setHoveredColumnIndex(index)}
+                            onMouseLeave={() => setHoveredColumnIndex(null)}
+                            onFocus={() => setHoveredColumnIndex(index)}
+                            onBlur={() => setHoveredColumnIndex(null)}
+                            tabIndex={0}
+                          >
+                            {hoveredColumnIndex === index && (
+                              <div className="reports-chart-tooltip">
+                                <div>
+                                  <span className="summary-dot" style={{ background: INCOME_COLOR }} />
+                                  {formatCompactNumber(period.income)}
+                                </div>
+                                <div>
+                                  <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
+                                  {formatCompactNumber(period.expense)}
+                                </div>
+                              </div>
+                            )}
+                            <div className="reports-chart-bars">
+                              <div className="reports-chart-bar-wrapper">
+                                <div
+                                  className="reports-chart-bar income"
+                                  style={{ height: `${incomeHeight}%`, background: INCOME_COLOR }}
+                                />
+                              </div>
+                              <div className="reports-chart-bar-wrapper">
+                                <div
+                                  className="reports-chart-bar expense"
+                                  style={{ height: `${expenseHeight}%`, background: EXPENSE_COLOR }}
+                                />
+                              </div>
+                            </div>
+                            <p className="reports-chart-label">{period.label}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
