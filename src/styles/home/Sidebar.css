@@ -3,10 +3,10 @@
    ========================================================= */
 
 :root {
-  --sb-icon-size: 44px;
+  --sb-icon-size: 36px;
   --sb-icon-font: 18px;
 
-  --sb-text: #0f172a;           /* theme sáng */
+  --sb-text: #0f172a;
   --sb-text-muted: #475569;
 
   --sb-item-hover: #f3f4f6;
@@ -26,7 +26,6 @@
   padding: 12px 14px;
   margin-bottom: 8px;
   background: #fff;
-  
   transition: padding 0.25s, gap 0.25s, opacity 0.25s;
 }
 
@@ -34,7 +33,7 @@
   width: 42px;
   height: 42px;
   object-fit: cover;
-  border-radius: 50%; /* logo tròn */
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
@@ -140,7 +139,7 @@
 .sb__nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   margin-top: 2px;
 }
 
@@ -149,7 +148,15 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 2px;
+
+  /* Ẩn scrollbar nhưng vẫn cho cuộn */
+  scrollbar-width: none;
+}
+.sb__scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 /* =========================================================
@@ -162,7 +169,7 @@
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 6px 12px;
   border-radius: 999px;
   color: var(--sb-text);
   text-decoration: none;
@@ -288,29 +295,9 @@
   justify-content: center;
 }
 
+/* ❗ Khi thu gọn: ẩn hẳn text (chỉ icon thôi) */
 .sb-collapsed .sb__text {
-  max-width: 0;
-  opacity: 0;
-  margin: 0;
-}
-
-/* Tooltip khi thu gọn (dùng data-title) */
-.sb-collapsed .sb__link[data-title]:hover::after,
-.sb-collapsed .sb__link--header[data-title]:hover::after {
-  content: attr(data-title);
-  position: absolute;
-  left: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.82);
-  color: #fff;
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 9999;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  display: none !important;
 }
 
 /* Footer spacing */
@@ -318,15 +305,4 @@
   margin-top: auto;
   height: 12px;
   background: transparent;
-}
-:root {
-  --sb-icon-size: 36px;
-}
-
-.sb__nav {
-  gap: 4px !important;
-}
-
-.sb__link {
-  padding: 6px 12px !important;
 }

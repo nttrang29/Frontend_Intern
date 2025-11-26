@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import "../../../styles/home/Sidebar.css";
 import { useAuth, ROLES } from "../../../home/store/AuthContext";
@@ -19,40 +19,30 @@ export default function HomeSidebar() {
   );
   const { currentUser } = useAuth();
 
-  // =============================
-  // Build menu - thêm menu admin nếu user là ADMIN
-  // =============================
-  const MENU = [...BASE_MENU];
-  
-  // Debug: log để kiểm tra role
-  useEffect(() => {
-    console.log("HomeSidebar - currentUser:", currentUser);
-    console.log("HomeSidebar - currentUser?.role:", currentUser?.role);
-    console.log("HomeSidebar - ROLES.ADMIN:", ROLES.ADMIN);
-    console.log("HomeSidebar - Is admin?", currentUser?.role === ROLES.ADMIN || (currentUser?.role && currentUser.role.toUpperCase() === "ADMIN"));
-  }, [currentUser]);
-  
-  // Kiểm tra role ADMIN (hỗ trợ cả "ADMIN" và "ROLE_ADMIN")
-  const isAdmin = currentUser?.role && (
-    currentUser.role === ROLES.ADMIN ||
-    currentUser.role.toUpperCase() === "ADMIN" ||
-    currentUser.role.toUpperCase().includes("ADMIN")
-  );
-  
-  if (isAdmin) {
-    MENU.push(
-      {
-        to: "/admin/users",
-        label: "Quản lý người dùng",
-        icon: "bi-people-fill",
-      },
-       {
-      to: "/admin/reviews",
-      label: "Đánh giá & bình luận",
-      icon: "bi-chat-dots",
+  const isAdmin =
+    !!currentUser?.role &&
+    (currentUser.role === ROLES.ADMIN ||
+      String(currentUser.role).toUpperCase() === "ADMIN" ||
+      String(currentUser.role).toUpperCase().includes("ADMIN"));
+
+  const MENU = useMemo(() => {
+    const base = [...BASE_MENU];
+    if (isAdmin) {
+      base.push(
+        {
+          to: "/admin/users",
+          label: "Quản lý người dùng",
+          icon: "bi-people-fill",
+        },
+        {
+          to: "/admin/reviews",
+          label: "Đánh giá & bình luận",
+          icon: "bi-chat-dots",
+        }
+      );
     }
-    );
-  }
+    return base;
+  }, [isAdmin]);
 
   useEffect(() => {
     document.body.classList.toggle("sb-collapsed", collapsed);
@@ -61,13 +51,10 @@ export default function HomeSidebar() {
 
   return (
     <div className={`sb__container ${collapsed ? "is-collapsed" : ""}`}>
-      {/* ============================
-          BRAND / LOGO VIDEO
-         ============================ */}
       <div className="sb__brand">
         <video
           className="sb__brand-video"
-          src="/videos/logo.mp4" // đổi đường dẫn video của bạn ở đây
+          src="/videos/logo.mp4"
           autoPlay
           loop
           muted
@@ -80,15 +67,11 @@ export default function HomeSidebar() {
         </div>
       </div>
 
-      {/* ============================
-          HEADER BUTTON (MENU)
-         ============================ */}
       <button
         type="button"
         className="sb__link sb__link--header"
         onClick={() => setCollapsed((v) => !v)}
         aria-label="Thu gọn / Mở rộng Sidebar"
-        data-title={collapsed ? "Mở rộng" : undefined}
       >
         <span className="sb__icon" aria-hidden="true">
           <i className="bi bi-list" />
@@ -98,9 +81,6 @@ export default function HomeSidebar() {
 
       <div className="sb__divider" />
 
-      {/* ============================
-          NAVIGATION
-         ============================ */}
       <nav className="sb__nav sb__scroll" aria-label="Sidebar">
         {MENU.map((m) => (
           <NavLink
@@ -110,9 +90,7 @@ export default function HomeSidebar() {
             className={({ isActive }) =>
               "sb__link" + (isActive ? " is-active" : "")
             }
-            // dùng data-title để tooltip CSS, tránh title mặc định
-            data-title={collapsed ? m.label : undefined}
-            aria-label={collapsed ? m.label : undefined}
+            aria-label={collapsed ? m.label : undefined} // chỉ cho screen reader
           >
             <span className="sb__icon" aria-hidden="true">
               <i className={`bi ${m.icon}`} />
@@ -122,7 +100,6 @@ export default function HomeSidebar() {
         ))}
       </nav>
 
-      {/* Footer (đệm dưới) */}
       <div className="sb__footer" />
     </div>
   );

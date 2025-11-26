@@ -59,7 +59,6 @@
 .home-page__overlay {
   display: none;
 }
-
 /* =========================================================
    SIDEBAR — FLUSH
    ========================================================= */
@@ -76,25 +75,31 @@
   border-radius: 0;
   box-shadow: none;
   padding: 0;
+
+  /* ✅ vẫn cuộn dọc, nhưng cho phép tooltip tràn ngang */
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(15, 23, 42, 0.25) transparent;
+  overflow-x: visible;
+
+  /* ✅ Ẩn scrollbar, nhưng vẫn cuộn được */
+  scrollbar-width: none;          /* Firefox */
+  scrollbar-color: transparent transparent;
 
   transition: width var(--sb-anim);
 }
 
-/* fallback nếu JS chưa apply biến (có cũng được, không có cũng ok) */
+/* fallback nếu JS chưa apply biến */
 .sb-collapsed .home__sidebar {
   width: var(--sb-wc);
 }
 
+/* Chrome / Edge / Safari: ẩn scrollbar */
 .home__sidebar::-webkit-scrollbar {
-  width: 6px;
+  width: 0;
+  height: 0;
 }
 
 .home__sidebar::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 42, 0.25);
-  border-radius: 999px;
+  background: transparent;
 }
 
 /* =========================================================
@@ -178,18 +183,21 @@
   overflow-y: auto;
   position: relative;
   z-index: 1;
+
+  /* ✅ Ẩn scrollbar nhưng vẫn cho cuộn */
+  scrollbar-width: none;          /* Firefox */
 }
 
+/* Chrome / Edge / Safari */
 .home__content::-webkit-scrollbar {
-  width: 8px;
+  width: 0;
+  height: 0;
 }
+
 .home__content::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 8px;
+  background: transparent;
 }
-.home__content::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.35);
-}
+
 
 /* =========================================================
    EDGE BLEED (optional – block full width)
