@@ -129,44 +129,46 @@ export default function FundsPage() {
   return (
     <div className="funds-page py-4">
       {/* HEADER */}
-      <div className="funds-header card border-0 shadow-sm mb-3 p-3 p-lg-4">
-        <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
-          <div>
-            <h3 className="mb-1">
-              <i className="bi bi-piggy-bank me-2" />
-              Danh sách quỹ của bạn
-            </h3>
-            <p className="mb-0 text-muted">
-              Theo dõi và quản lý các quỹ tiết kiệm cá nhân của bạn.
-            </p>
-          </div>
+      {/* HEADER QUỸ – CHUẨN LAYOUT GIỐNG VÍ */}
+<div className="funds-header-unique mb-3">
+  {/* TRÁI: ICON + TEXT */}
+  <div className="funds-header-left">
+    <div className="funds-header-icon">
+      <i className="bi bi-piggy-bank" />
+    </div>
 
-          <div className="d-flex gap-2">
-            {viewMode === "overview" ? (
-              <button
-                type="button"
-                className="btn btn-outline-primary"
-                onClick={() => setViewMode("create")}
-              >
-                <i className="bi bi-plus-circle me-1" />
-                Tạo quỹ
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-outline-secondary"
-                onClick={() => {
-                  setViewMode("overview");
-                  setActiveFund(null);
-                }}
-              >
-                <i className="bi bi-arrow-left me-1" />
-                Quay lại danh sách quỹ
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="funds-header-text">
+      <h2 className="mb-1">Quản lý quỹ</h2>
+      <p className="mb-0 text-muted">
+        Theo dõi và quản lý các quỹ tiết kiệm cá nhân của bạn.
+      </p>
+    </div>
+  </div>
+
+  {/* PHẢI: NÚT */}
+  {viewMode === "overview" ? (
+    <button
+      type="button"
+      className="btn btn-outline-primary funds-header-btn"
+      onClick={() => setViewMode("create")}
+    >
+      <i className="bi bi-plus-circle me-1" />
+      Tạo quỹ
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="btn btn-outline-secondary funds-header-btn"
+      onClick={() => {
+        setViewMode("overview");
+        setActiveFund(null);
+      }}
+    >
+      <i className="bi bi-arrow-left me-1" />
+      Quay lại danh sách quỹ
+    </button>
+  )}
+</div>
 
       {/* OVERVIEW */}
       {viewMode === "overview" && (

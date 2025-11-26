@@ -7,8 +7,9 @@ const BASE_MENU = [
   { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
   { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" },
   { to: "/home/funds", label: "Quỹ", icon: "bi-piggy-bank" },
-  { to: "/home/transactions", label: "Giao dịch", icon: "bi-cash-stack" },
   { to: "/home/categories", label: "Danh mục", icon: "bi-tags" },
+  { to: "/home/transactions", label: "Giao dịch", icon: "bi-cash-stack" },
+  
   { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
   { to: "/home/reports", label: "Báo cáo", icon: "bi-bar-chart-line" },
 ];

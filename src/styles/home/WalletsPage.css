@@ -5,32 +5,48 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px 20px;
+  
+
+  /* ❗ Không set padding/background ở đây
+     để .cat-page (gradient giống Danh Mục) lo phần này */
+  padding: 0;
+  background: transparent;
   color: #000000;
-  background: #ffffff;
 }
 
+/* =============================
+   HEADER – GIỐNG DANH MỤC
+   ============================= */
 
-/* HEADER */
+/* Thẻ card header đã dùng class:
+   card cat-header category-header-funds
+   → lấy radius, shadow, icon… từ CategoriesPage.css rồi
+*/
 .wallets-page__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+
+  /* không override màu nền/border để cat-header xử lý */
+  background: transparent;
+  border: none;
 }
 
+/* Title / subtitle trong header ví */
 .wallets-page__title {
-  font-size: 22px;
+  font-size: 1.35rem;
   font-weight: 700;
-  margin: 0;
+  margin: 0 0 2px;
   color: #000000;
 }
 
 .wallets-page__subtitle {
-  margin: 4px 0 0;
-  font-size: 13px;
+  margin: 0;
+  font-size: 0.88rem;
   color: #555555;
 }
+
 
 /* STATS */
 .wallets-page__stats {
@@ -1707,4 +1723,88 @@
   border: 1px solid #2D99AE;
   background: #fff;
   color: #2D99AE;
+}
+/* ============================================
+   HEADER VÍ — KÍCH THƯỚC TO GIỐNG DANH MỤC
+=============================================== */
+
+/* Khối header tổng */
+.wallet-header {
+  background: #ffffff;
+  border-radius: 18px;                /* bo góc như danh mục */
+  padding: 24px 28px;                 /* TO đúng chuẩn header danh mục */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 22px rgba(15, 23, 42, 0.08);  /* bóng giống danh mục */
+  margin-bottom: 22px;
+}
+
+/* Cột trái chứa icon + title */
+.wallet-header-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Icon nền tròn (giống danh mục) */
+.wallet-header-icon {
+  width: 54px;
+  height: 54px;
+  background: rgba(45, 153, 174, 0.15);   /* tông xanh nhẹ */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Icon */
+.wallet-header-icon i {
+  font-size: 1.9rem;            /* icon to hơn */
+  color: #2d99ae;
+}
+
+/* Title chính */
+.wallet-header-title {
+  font-size: 1.55rem;           /* TO tương đương Danh mục */
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+/* Dòng mô tả */
+.wallet-header-subtitle {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Nút tạo ví giống "Thêm danh mục" */
+.wallet-header-btn {
+  border-radius: 999px;
+  padding: 8px 22px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: 1px solid #2d99ae;
+  color: #2d99ae;
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(45, 153, 174, 0.15);
+  transition: 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wallet-header-btn:hover {
+  background: #2d99ae;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(45, 153, 174, 0.25);
+}
+
+.wallet-header-btn i {
+  font-size: 1rem;
+}
+/* ĐẨY TOÀN BỘ NỘI DUNG TRANG VÍ XUỐNG THẤP KHỎI TOPBAR */
+.wallets-page {
+  padding-top: 32px !important;   /* 32px = khoảng giống Danh Mục / Quỹ */
 }

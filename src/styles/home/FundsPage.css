@@ -865,3 +865,60 @@
   font-size: 1.4rem;
   color: var(--funds-accent);
 }
+/* ===========================
+   HEADER QUỸ (RIÊNG)
+=========================== */
+.funds-header-unique {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 22px rgba(15, 23, 42, 0.08);
+  padding: 24px 28px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+/* ICON TRONG VÒNG TRÒN */
+.funds-header-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(45, 153, 174, 0.15);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #2d99ae;
+  font-size: 1.9rem;
+}
+
+/* NHÓM ICON + TEXT */
+.funds-header-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* STYLE TITLE */
+.funds-header-text h2 {
+  font-weight: 600;
+  font-size: 1.3rem;
+  margin: 0 0 4px;
+  color: #111827;
+}
+
+.funds-header-text p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+/* BUTTON */
+.funds-header-btn {
+  border-radius: 999px;
+  padding: 8px 20px;
+  font-weight: 500;
+}

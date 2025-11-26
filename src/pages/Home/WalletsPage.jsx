@@ -1332,30 +1332,31 @@ export default function WalletsPage() {
   };
 
   return (
-    <div className="wallets-page cat-page">
-      {/* HEADER – ĐỒNG BỘ VỚI CATEGORY / FUNDS */}
-      <div className="wallets-page__header card cat-header category-header-funds mb-3 d-flex justify-content-between align-items-center gap-3">
-        <div className="d-flex align-items-center gap-3">
-          <div className="cat-header-icon-wrap">
-            <i className="bi bi-wallet2 cat-header-icon" />
-          </div>
-          <div>
-            <h2 className="mb-1">Quản lý ví</h2>
-            <p className="mb-0">
-              Tạo ví cá nhân, nạp – rút – chuyển, gộp và chia sẻ… tất cả trên
-              một màn hình.
-            </p>
-          </div>
+  <div className="wallets-page">
+    {/* HEADER RIÊNG CỦA VÍ */}
+    <div className="wallet-header mb-3">
+      <div className="wallet-header-left">
+        <div className="wallet-header-icon">
+          <i className="bi bi-wallet2" />
         </div>
-
-        <button
-          className="category-add-header-btn"
-          onClick={() => setShowCreate((v) => !v)}
-        >
-          <i className="bi bi-plus-lg" />
-          <span>{showCreate ? "Đóng tạo ví" : "Tạo ví cá nhân"}</span>
-        </button>
+        <div>
+          <h2 className="wallet-header-title">Quản lý ví</h2>
+          <p className="wallet-header-subtitle">
+            Tạo ví cá nhân, nạp – rút – chuyển, gộp và chia sẻ… tất cả trên một màn hình.
+          </p>
+        </div>
       </div>
+
+      <button
+        className="wallet-header-btn"
+        onClick={() => setShowCreate((v) => !v)}
+      >
+        <i className="bi bi-plus-lg" />
+        <span>{showCreate ? "Đóng tạo ví" : "Tạo ví cá nhân"}</span>
+      </button>
+    </div>
+    
+
 
       {/* STATS */}
       <div className="wallets-page__stats">
