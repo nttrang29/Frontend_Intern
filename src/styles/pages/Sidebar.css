@@ -13,6 +13,18 @@
   --sb-item-active: #eef2ff;
   --sb-item-active-hi: #e5e7ff;
   --sb-item-border: #e5e7eb;
+
+  /* Smooth animation timing - đồng bộ với HomeLayout */
+  --sb-transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --sb-transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --sb-transition-smooth: 0.36s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Container - tối ưu performance */
+.sb__container {
+  will-change: contents;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 /* =========================================================
@@ -26,7 +38,15 @@
   padding: 12px 14px;
   margin-bottom: 8px;
   background: #fff;
-  transition: padding 0.25s, gap 0.25s, opacity 0.25s;
+  transition: padding var(--sb-transition-smooth), 
+              gap var(--sb-transition-smooth), 
+              width var(--sb-transition-smooth),
+              flex-direction var(--sb-transition-smooth),
+              margin var(--sb-transition-smooth);
+  overflow: hidden;
+  will-change: padding, gap, width, flex-direction, margin;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .sb__brand-video {
@@ -35,6 +55,8 @@
   object-fit: cover;
   border-radius: 50%;
   flex-shrink: 0;
+  transition: width var(--sb-transition-smooth), 
+              height var(--sb-transition-smooth);
 }
 
 .sb__brand-text {
@@ -42,6 +64,14 @@
   flex-direction: column;
   line-height: 1.2;
   white-space: nowrap;
+  transition: max-width var(--sb-transition-smooth), 
+              opacity var(--sb-transition-smooth),
+              margin var(--sb-transition-smooth),
+              transform var(--sb-transition-smooth);
+  transform: translateX(0) translateZ(0);
+  opacity: 1;
+  will-change: max-width, opacity, transform;
+  backface-visibility: hidden;
 }
 
 .sb__brand-title {
@@ -75,6 +105,8 @@
   max-width: 0;
   opacity: 0;
   overflow: hidden;
+  transform: translateX(-10px) translateZ(0);
+  margin: 0;
 }
 
 /* =========================================================
@@ -93,9 +125,20 @@
   opacity: 0.98;
   border: 1px solid var(--border-color);
   background: #ffffff;
-  transition: background 0.25s, border-color 0.25s, transform 0.15s,
-    box-shadow 0.25s;
+  transition: background var(--sb-transition-base), 
+              border-color var(--sb-transition-base), 
+              transform var(--sb-transition-fast),
+              box-shadow var(--sb-transition-base),
+              width var(--sb-transition-smooth),
+              height var(--sb-transition-smooth),
+              padding var(--sb-transition-smooth),
+              border-radius var(--sb-transition-smooth),
+              gap var(--sb-transition-smooth),
+              margin var(--sb-transition-smooth);
   cursor: pointer;
+  will-change: width, height, padding, border-radius, gap, margin;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .sb__link--header:hover {
@@ -116,6 +159,14 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: max-width var(--sb-transition-smooth), 
+              opacity var(--sb-transition-smooth),
+              margin var(--sb-transition-smooth),
+              transform var(--sb-transition-smooth);
+  transform: translateX(0) translateZ(0);
+  opacity: 1;
+  will-change: max-width, opacity, transform;
+  backface-visibility: hidden;
 }
 
 /* Divider */
@@ -130,6 +181,9 @@
   );
   margin: 10px 6px 14px;
   border-radius: 999px;
+  transition: width var(--sb-transition-smooth), 
+              margin var(--sb-transition-smooth),
+              opacity var(--sb-transition-smooth);
 }
 
 /* =========================================================
@@ -176,8 +230,21 @@
   opacity: 0.95;
   border: 1px solid transparent;
   background: transparent;
-  transition: background 0.25s, color 0.25s, padding 0.25s,
-    border-color 0.25s, box-shadow 0.25s, transform 0.12s, opacity 0.25s;
+  transition: background var(--sb-transition-base), 
+              color var(--sb-transition-base), 
+              padding var(--sb-transition-smooth),
+              border-color var(--sb-transition-base), 
+              box-shadow var(--sb-transition-base), 
+              transform var(--sb-transition-fast), 
+              opacity var(--sb-transition-base),
+              width var(--sb-transition-smooth),
+              height var(--sb-transition-smooth),
+              border-radius var(--sb-transition-smooth),
+              gap var(--sb-transition-smooth),
+              margin var(--sb-transition-smooth);
+  will-change: width, height, padding, border-radius, gap, margin;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .sb__link:hover {
@@ -219,6 +286,9 @@
   justify-content: center;
   flex-shrink: 0;
   margin: 0;
+  transition: width var(--sb-transition-smooth), 
+              height var(--sb-transition-smooth),
+              transform var(--sb-transition-fast);
 }
 
 .sb__icon .bi,
@@ -237,8 +307,15 @@
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: max-width 0.25s, opacity 0.25s, margin 0.25s;
+  transition: max-width var(--sb-transition-smooth), 
+              opacity var(--sb-transition-smooth), 
+              margin var(--sb-transition-smooth),
+              transform var(--sb-transition-smooth),
+              width var(--sb-transition-smooth);
   opacity: 1;
+  transform: translateX(0) translateZ(0);
+  will-change: max-width, opacity, transform, width;
+  backface-visibility: hidden;
 }
 
 /* =========================================================
@@ -262,6 +339,7 @@
   opacity: 0;
   margin: 0;
   overflow: hidden;
+  transform: translateX(-10px) translateZ(0);
 }
 
 .sb-collapsed .sb__divider {
@@ -281,8 +359,16 @@
   box-sizing: border-box;
   border: 1px solid transparent;
   gap: 0;
-  transition: background 0.2s, border-color 0.2s, transform 0.15s,
-    box-shadow 0.25s;
+  transition: background var(--sb-transition-base), 
+              border-color var(--sb-transition-base), 
+              transform var(--sb-transition-fast),
+              box-shadow var(--sb-transition-base),
+              width var(--sb-transition-smooth),
+              height var(--sb-transition-smooth),
+              padding var(--sb-transition-smooth),
+              border-radius var(--sb-transition-smooth),
+              gap var(--sb-transition-smooth),
+              margin var(--sb-transition-smooth);
   margin: 0 auto;
 }
 
@@ -297,7 +383,13 @@
 
 /* ❗ Khi thu gọn: ẩn hẳn text (chỉ icon thôi) */
 .sb-collapsed .sb__text {
-  display: none !important;
+  max-width: 0;
+  opacity: 0;
+  margin: 0;
+  overflow: hidden;
+  transform: translateX(-10px) translateZ(0);
+  width: 0;
+  display: block !important; /* Giữ display để animation hoạt động */
 }
 
 /* Footer spacing */
@@ -305,4 +397,68 @@
   margin-top: auto;
   height: 12px;
   background: transparent;
+}
+
+/* =========================================================
+   DARK MODE
+   ========================================================= */
+
+.dark .sb__brand {
+  background: #1a1a1a !important;
+}
+
+.dark .sb__brand-title {
+  color: #ffffff !important;
+}
+
+.dark .sb__brand-sub {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.dark .sb__link--header {
+  background: #1a1a1a !important;
+  border-color: #404040 !important;
+  color: #ffffff !important;
+}
+
+.dark .sb__link--header:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #ffffff !important;
+}
+
+.dark .sb__link {
+  color: #ffffff !important;
+}
+
+.dark .sb__link:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #404040 !important;
+}
+
+.dark .sb__link.is-active {
+  background: linear-gradient(
+    180deg,
+    rgba(45, 153, 174, 0.3),
+    rgba(45, 153, 174, 0.2)
+  ) !important;
+  border-color: rgba(45, 153, 174, 0.4) !important;
+  color: #ffffff !important;
+}
+
+.dark .sb__divider {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 15%,
+    rgba(255, 255, 255, 0.1) 85%,
+    transparent 100%
+  ) !important;
+}
+
+.dark .sb__icon .bi {
+  color: #ffffff !important;
+}
+
+.dark .sb__text {
+  color: #ffffff !important;
 }

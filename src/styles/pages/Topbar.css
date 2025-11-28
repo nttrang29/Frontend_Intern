@@ -593,27 +593,39 @@
    DARK MODE
    ========================================================= */
 .dark .home__topbar .tb__wrap {
-  background: #1a1a1a;
+  background: #1a1a1a !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .dark .tb__welcome {
   color: #f9fafb;
 }
 
-.dark .tb__search-input {
-  background-color: var(--color-bg-tertiary) !important;
-  border-color: var(--color-border) !important;
-  color: var(--color-text) !important;
+/* Dark mode cho search pill - màu trắng đen */
+.dark .tb__search--pill {
+  background: #1a1a1a !important;
+  border-color: #ffffff !important;
 }
 
-.dark .tb__search-input::placeholder {
-  color: var(--color-text-muted) !important;
+.dark .tb__search--pill input {
+  color: #ffffff !important;
 }
 
-.dark .tb__search-input:focus {
-  background-color: var(--color-bg-tertiary) !important;
-  border-color: var(--color-primary) !important;
-  color: var(--color-text) !important;
+.dark .tb__search--pill input::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.dark .tb__search-btn {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #1a1a1a !important;
+}
+
+.dark .tb__search-btn:hover {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #1a1a1a !important;
 }
 
 .dark .tb__icon,

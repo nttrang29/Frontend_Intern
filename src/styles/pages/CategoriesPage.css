@@ -460,11 +460,19 @@
   color: #ffffff !important;
 }
 
+.dark .category-header-funds h2 {
+  color: #ffffff !important;
+}
+
 /* DESCRIPTION */
 .category-header-funds p {
   font-size: 0.88rem;
   color: #ffffff !important;
   opacity: 0.9;
+}
+
+.dark .category-header-funds p {
+  color: rgba(255, 255, 255, 0.9) !important;
 }
 
 /* ==========================

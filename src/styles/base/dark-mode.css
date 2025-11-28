@@ -37,11 +37,35 @@
 .dark input[type="password"],
 .dark input[type="number"],
 .dark input[type="date"],
+.dark input[type="datetime-local"],
 .dark textarea,
 .dark select {
   background-color: var(--color-bg-tertiary) !important;
   border-color: var(--color-border) !important;
   color: var(--color-text) !important;
+}
+
+/* File Input */
+.dark input[type="file"] {
+  background-color: #1a1a1a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dark input[type="file"]::file-selector-button {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin-right: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.dark input[type="file"]::file-selector-button:hover {
+  background: rgba(255, 255, 255, 0.9) !important;
 }
 
 .dark .form-control:focus,
@@ -440,20 +464,114 @@
   transition: all 0.2s ease;
 }
 
-/* Headers với gradient */
+/* Headers với nền đen trong dark mode */
 .dark .wallet-header,
 .dark .funds-header-unique,
 .dark .category-header-funds,
 .dark .feedback-summary-card {
-  background: linear-gradient(90deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 60%, rgb(10, 181, 192) 100%) !important;
+  background: #1a1a1a !important;
+  color: #ffffff !important;
 }
 
-/* Search Inputs */
+/* Text trong headers phải màu trắng */
+.dark .wallet-header *,
+.dark .funds-header-unique *,
+.dark .category-header-funds *,
+.dark .feedback-summary-card * {
+  color: #ffffff !important;
+}
+
+/* Tabs trong headers */
+.dark .wallet-header .funds-tabs,
+.dark .category-header-funds .funds-tabs {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .wallet-header .funds-tab,
+.dark .category-header-funds .funds-tab {
+  color: #ffffff !important;
+}
+
+.dark .wallet-header .funds-tab--active,
+.dark .category-header-funds .funds-tab--active {
+  background: #ffffff !important;
+  color: #2d99ae !important;
+}
+
+/* Search Inputs - Đồng bộ tất cả search inputs với màu trắng đen */
 .dark .form-control[type="search"],
-.dark input[type="search"] {
-  background-color: var(--color-bg-tertiary) !important;
-  border-color: var(--color-border) !important;
-  color: var(--color-text) !important;
+.dark input[type="search"],
+.dark .search-input,
+.dark .category-search-select .form-control,
+.dark .wallets-list-panel__search input,
+.dark .funds-toolbar__search input,
+.dark .tx-search-input-wrapper input,
+.dark .global-search-input,
+.dark .tb__search--pill input,
+.dark .filter-search .form-control,
+.dark .budget-search-input {
+  background-color: #1a1a1a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dark .form-control[type="search"]::placeholder,
+.dark input[type="search"]::placeholder,
+.dark .search-input::placeholder,
+.dark .category-search-select .form-control::placeholder,
+.dark .wallets-list-panel__search input::placeholder,
+.dark .funds-toolbar__search input::placeholder,
+.dark .tx-search-input-wrapper input::placeholder,
+.dark .global-search-input::placeholder,
+.dark .tb__search--pill input::placeholder,
+.dark .filter-search .form-control::placeholder,
+.dark .budget-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Search buttons - Đồng bộ tất cả search buttons với màu trắng đen */
+.dark .search-btn,
+.dark .tb__search-btn,
+.dark .category-search-submit,
+.dark .funds-clear-search,
+.dark .category-search-clear-btn,
+.dark .tx-search-clear-btn {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #1a1a1a !important;
+}
+
+.dark .search-btn:hover,
+.dark .tb__search-btn:hover,
+.dark .category-search-submit:hover {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #1a1a1a !important;
+}
+
+.dark .funds-clear-search:hover,
+.dark .category-search-clear-btn:hover,
+.dark .tx-search-clear-btn:hover {
+  color: #dc2626 !important;
+  background: transparent !important;
+}
+
+/* Search containers/wrappers */
+.dark .tb__search--pill,
+.dark .global-search-box,
+.dark .funds-toolbar__search,
+.dark .category-search-select,
+.dark .wallets-list-panel__search,
+.dark .tx-search-input-wrapper {
+  background: #1a1a1a !important;
+  border-color: #ffffff !important;
+}
+
+.dark .tb__search--pill:focus-within,
+.dark .global-search-box:focus-within,
+.dark .funds-toolbar__search:focus-within,
+.dark .category-search-select:focus-within {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2) !important;
 }
 
 /* Select Dropdowns */

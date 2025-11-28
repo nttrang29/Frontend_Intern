@@ -1976,6 +1976,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
 }
 
 .wallet-header-btn:hover {
@@ -1987,6 +1988,20 @@
 
 .wallet-header-btn i {
   font-size: 1rem;
+}
+
+/* Dark mode cho nút tạo ví */
+.dark .wallet-header-btn {
+  border: 1px solid #ffffff !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .wallet-header-btn:hover {
+  background: #ffffff !important;
+  color: #2d99ae !important;
+  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2) !important;
 }
 /* ĐẨY TOÀN BỘ NỘI DUNG TRANG VÍ XUỐNG THẤP KHỎI TOPBAR */
 .wallets-page {

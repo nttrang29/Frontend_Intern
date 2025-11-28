@@ -285,7 +285,7 @@ export default function CategoriesPage() {
   // ===============================
   // VALIDATE DUPLICATE & SUBMIT MODAL
   // ===============================
-  const handleModalSubmit = (payload) => {
+  const handleModalSubmit = async (payload) => {
     const rawName = (payload.name || "").trim();
     if (!rawName) return;
     const normalized = rawName.toLowerCase();
@@ -320,18 +320,28 @@ export default function CategoriesPage() {
         return;
       }
 
-      if (createKind === "expense") {
-        createExpenseCategory({ ...payload, name: rawName });
-      } else {
-        createIncomeCategory({ ...payload, name: rawName });
-      }
+      try {
+        if (createKind === "expense") {
+          await createExpenseCategory({ ...payload, name: rawName });
+        } else {
+          await createIncomeCategory({ ...payload, name: rawName });
+        }
 
-      setPage(1);
-      setToast({
-        open: true,
-        message: t("categories.toast.add_success"),
-        type: "success",
-      });
+        setPage(1);
+        setToast({
+          open: true,
+          message: t("categories.toast.add_success"),
+          type: "success",
+        });
+      } catch (error) {
+        console.error("Error creating category:", error);
+        setToast({
+          open: true,
+          message: error.message || t("categories.error.create_failed"),
+          type: "error",
+        });
+        return;
+      }
     } else if (modalMode === "edit") {
       const listInKind =
         modalEditingKind === "income"
@@ -358,19 +368,30 @@ export default function CategoriesPage() {
         return;
       }
 
-      if (modalEditingKind === "expense") {
-        updateExpenseCategory(modalEditingId, { ...payload, name: rawName });
-      } else {
-        updateIncomeCategory(modalEditingId, { ...payload, name: rawName });
-      }
+      try {
+        if (modalEditingKind === "expense") {
+          await updateExpenseCategory(modalEditingId, { ...payload, name: rawName });
+        } else {
+          await updateIncomeCategory(modalEditingId, { ...payload, name: rawName });
+        }
 
-      setToast({
-        open: true,
-        message: t("categories.toast.update_success"),
-        type: "success",
-      });
+        setToast({
+          open: true,
+          message: t("categories.toast.update_success"),
+          type: "success",
+        });
+      } catch (error) {
+        console.error("Error updating category:", error);
+        setToast({
+          open: true,
+          message: error.message || t("categories.error.update_failed"),
+          type: "error",
+        });
+        return;
+      }
     }
 
+    // Đóng modal sau khi tất cả operations hoàn thành
     setModalOpen(false);
     setModalEditingId(null);
     setModalEditingKind(null);

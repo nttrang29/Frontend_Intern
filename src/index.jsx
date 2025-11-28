@@ -6,7 +6,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "./styles/base/variables.css";
 import "./styles/base/dark-mode.css";
-
 // Providers
 import { WalletDataProvider } from "./contexts/WalletDataContext";
 import { BudgetDataProvider } from "./contexts/BudgetDataContext";
@@ -16,6 +15,32 @@ import { ToastProvider } from "./components/common/Toast/ToastContext";
 import { FeedbackProvider } from "./contexts/FeedbackDataContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
+
+// Load và áp dụng theme ngay khi app khởi động
+const loadTheme = () => {
+  const savedTheme = localStorage.getItem("theme") || "light";
+  
+  if (savedTheme === "dark") {
+    document.documentElement.classList.add("dark");
+    document.body.classList.add("dark");
+  } else if (savedTheme === "light") {
+    document.documentElement.classList.remove("dark");
+    document.body.classList.remove("dark");
+  } else if (savedTheme === "system") {
+    // System: theo preference của OS
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (prefersDark) {
+      document.documentElement.classList.add("dark");
+      document.body.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.body.classList.remove("dark");
+    }
+  }
+};
+
+// Áp dụng theme ngay lập tức
+loadTheme();
 
 // Global error handlers
 window.addEventListener("unhandledrejection", (event) => {

@@ -5,6 +5,8 @@ import { useLocation } from "react-router-dom";
 import "../../styles/pages/TransactionsPage.css";
 import TransactionViewModal from "../../components/transactions/TransactionViewModal";
 import TransactionFormModal from "../../components/transactions/TransactionFormModal";
+import TransactionForm from "../../components/transactions/TransactionForm";
+import TransactionList from "../../components/transactions/TransactionList";
 import ScheduledTransactionModal from "../../components/transactions/ScheduledTransactionModal";
 import ScheduledTransactionDrawer from "../../components/transactions/ScheduledTransactionDrawer";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
@@ -114,12 +116,13 @@ export default function TransactionsPage() {
   const [filterWallet, setFilterWallet] = useState("all");
   const [fromDateTime, setFromDateTime] = useState("");
   const [toDateTime, setToDateTime] = useState("");
+  const [currencyFilter, setCurrencyFilter] = useState("all"); // "all" | "VND" | "USD"
 
   const [viewing, setViewing] = useState(null);
   const [editing, setEditing] = useState(null);
-  const [creating, setCreating] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
   const [toast, setToast] = useState({ open: false, message: "", type: "success" });
+  const [expandedPanel, setExpandedPanel] = useState(null); // "form" | "history" | null
 
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -393,8 +396,7 @@ export default function TransactionsPage() {
         setInternalTransactions(mapped);
       }
 
-    setCreating(false);
-    setCurrentPage(1);
+      setCurrentPage(1);
     } catch (error) {
       console.error("Error creating transaction:", error);
       setToast({ open: true, message: t("transactions.error.create_failed") + (error?.message ? `: ${error.message}` : ""), type: "error" });
@@ -416,7 +418,7 @@ export default function TransactionsPage() {
   const handleBudgetWarningCancel = () => {
     setBudgetWarning(null);
     setPendingTransaction(null);
-    setCreating(true); // Go back to create form
+    // Form luôn hiển thị, không cần set lại
   };
 
   const handleUpdate = async (payload) => {
@@ -667,6 +669,8 @@ export default function TransactionsPage() {
     let list = currentTransactions.slice();
 
     list = list.filter((t) => {
+      // Filter theo loại giao dịch (chỉ áp dụng cho external transactions)
+      // "all" = hiển thị tổng hợp cả thu nhập và chi tiêu
       if (activeTab === TABS.EXTERNAL) {
         if (filterType !== "all" && t.type !== filterType) return false;
       }
@@ -692,9 +696,14 @@ export default function TransactionsPage() {
         const from = toDateObj(fromDateTime);
         if (from && d < from) return false;
       }
+
       if (toDateTime) {
         const to = toDateObj(toDateTime);
         if (to && d > to) return false;
+      }
+
+      if (currencyFilter !== "all") {
+        if (t.currency !== currencyFilter) return false;
       }
 
       if (searchText) {
@@ -741,6 +750,7 @@ export default function TransactionsPage() {
     filterWallet,
     fromDateTime,
     toDateTime,
+    currencyFilter,
     searchText,
   ]);
 
@@ -793,7 +803,6 @@ export default function TransactionsPage() {
     setFilterType("all");
     setFilterCategory("all");
     setFilterWallet("all");
-    setFromDateTime("");
     setToDateTime("");
     setCurrentPage(1);
   };
@@ -865,128 +874,37 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        <div className="wallet-header-center d-flex justify-content-center">
-          <select
-            className="form-select form-select-sm"
-            style={{ minWidth: 220, maxWidth: 360 }}
-            value={activeTab}
-            onChange={handleTabChange}
-          >
-            <option value={TABS.EXTERNAL}>{t("transactions.tab.external")}</option>
-            <option value={TABS.INTERNAL}>{t("transactions.tab.internal")}</option>
-            <option value={TABS.SCHEDULE}>{t("transactions.tab.schedule")}</option>
-          </select>
+        <div className="wallet-header-center d-flex justify-content-end">
+          <div className="funds-tabs">
+            <button
+              type="button"
+              className={`funds-tab ${activeTab === TABS.EXTERNAL ? "funds-tab--active" : ""}`}
+              onClick={() => handleTabChange({ target: { value: TABS.EXTERNAL } })}
+            >
+              {t("transactions.tab.external")}
+            </button>
+            <button
+              type="button"
+              className={`funds-tab ${activeTab === TABS.INTERNAL ? "funds-tab--active" : ""}`}
+              onClick={() => handleTabChange({ target: { value: TABS.INTERNAL } })}
+            >
+              {t("transactions.tab.internal")}
+            </button>
+            <button
+              type="button"
+              className={`funds-tab ${activeTab === TABS.SCHEDULE ? "funds-tab--active" : ""}`}
+              onClick={() => handleTabChange({ target: { value: TABS.SCHEDULE } })}
+            >
+              {t("transactions.tab.schedule")}
+            </button>
+          </div>
         </div>
 
-        <div className="wallet-header-right d-flex align-items-center justify-content-end">
-          <button
-            className="wallet-header-btn d-flex align-items-center"
-            onClick={() => setCreating(true)}
-          >
-            <i className="bi bi-plus-lg me-2" />
-            {t("transactions.btn.add")}
-          </button>
+        <div className="wallet-header-right d-flex align-items-center justify-content-end gap-2">
+          {/* Không cần nút toggle form nữa vì form luôn hiển thị */}
         </div>
       </div>
 
-
-      {!isScheduleView && (
-        <div className="tx-filters card border-0 mb-3">
-          <div className="card-body d-flex flex-column gap-2">
-            <div className="d-flex flex-wrap gap-2">
-              <div className="tx-filter-item flex-grow-1">
-                <div className="input-group">
-                  <span className="input-group-text bg-white border-end-0">
-                    <i className="bi bi-search text-muted" />
-                  </span>
-                  <input
-                    className="form-control border-start-0"
-                    placeholder={t("transactions.filter.search_placeholder")}
-                    value={searchText}
-                    onChange={(e) => {
-                      setSearchText(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  />
-                </div>
-              </div>
-
-              {activeTab === TABS.EXTERNAL && (
-                <div className="tx-filter-item">
-                  <select
-                    className="form-select"
-                    value={filterType}
-                    onChange={handleFilterChange(setFilterType)}
-                  >
-                    <option value="all">{t("transactions.filter.type_all")}</option>
-                    <option value="income">{t("transactions.type.income")}</option>
-                    <option value="expense">{t("transactions.type.expense")}</option>
-                  </select>
-                </div>
-              )}
-
-              <div className="tx-filter-item">
-                  <select
-                  className="form-select"
-                  value={filterCategory}
-                  onChange={handleFilterChange(setFilterCategory)}
-                >
-                    <option value="all">{t("transactions.filter.category_all")}</option>
-                  {allCategories.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="d-flex flex-wrap gap-2 align-items-center">
-              <div className="tx-filter-item">
-                <select
-                  className="form-select"
-                  value={filterWallet}
-                  onChange={handleFilterChange(setFilterWallet)}
-                >
-                  <option value="all">{t("transactions.filter.wallet_all")}</option>
-                  {allWallets.map((w) => (
-                    <option key={w} value={w}>
-                      {w}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="tx-filter-item d-flex align-items-center gap-1">
-                <input
-                  type="datetime-local"
-                  className="form-control"
-                  value={fromDateTime}
-                  onChange={handleDateChange(setFromDateTime)}
-                />
-                <span className="text-muted small px-1">{t("transactions.filter.to")}</span>
-                <input
-                  type="datetime-local"
-                  className="form-control"
-                  value={toDateTime}
-                  onChange={handleDateChange(setToDateTime)}
-                />
-              </div>
-
-              <div className="ms-auto">
-                <button
-                  className="btn btn-outline-secondary btn-sm"
-                  type="button"
-                  onClick={clearFilters}
-                >
-                  <i className="bi bi-x-circle me-1" />
-                  {t("transactions.btn.clear")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isScheduleView ? (
         <div className="scheduled-section card border-0 shadow-sm mb-4">
@@ -1076,189 +994,67 @@ export default function TransactionsPage() {
           </div>
         </div>
       ) : (
-        <div className="card border-0 shadow-sm tx-table-card">
-          {loading ? (
-            <div className="text-center py-5">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Đang tải...</span>
-              </div>
-              <p className="mt-2 text-muted">{t("transactions.loading.list")}</p>
+        <div className={`transactions-layout ${expandedPanel ? "transactions-layout--expanded" : "transactions-layout--with-history"}`}>
+          {/* LEFT: Create Transaction Form */}
+          {(!expandedPanel || expandedPanel === "form") && (
+            <div className={`transactions-form-panel ${expandedPanel === "form" ? "expanded" : ""}`}>
+              <TransactionForm
+                mode="create"
+                variant={activeTab === TABS.INTERNAL ? "internal" : "external"}
+                onSubmit={handleCreate}
+                onReset={() => {
+                  // Reset form sau khi submit
+                }}
+                expanded={expandedPanel === "form"}
+                onToggleExpand={() => setExpandedPanel(expandedPanel === "form" ? null : "form")}
+              />
             </div>
-          ) : (
-          <div className="table-responsive">
-            {activeTab === TABS.EXTERNAL ? (
-              <table className="table table-hover align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th style={{ width: 60 }}>{t("transactions.table.no")}</th>
-                    <th>{t("transactions.table.date")}</th>
-                    <th>{t("transactions.table.time")}</th>
-                    <th>{t("transactions.table.type")}</th>
-                    <th>{t("transactions.table.wallet")}</th>
-                    <th>{t("transactions.table.category")}</th>
-                    <th className="tx-note-col">{t("transactions.table.note")}</th>
-                    <th className="text-end">{t("transactions.table.amount")}</th>
-                    <th className="text-center">{t("transactions.table.action")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginated.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center text-muted py-4">
-                        {t("transactions.table.empty")}
-                      </td>
-                    </tr>
-                  ) : (
-                    paginated.map((tx, i) => {
-                      const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-                      const d = toDateObj(tx.date);
-                      const dateStr = formatVietnamDate(d);
-                      const timeStr = formatVietnamTime(d);
-
-                      return (
-                        <tr key={tx.id}>
-                          <td>{serial}</td>
-                          <td>{dateStr}</td>
-                          <td>{timeStr}</td>
-                          <td>{tx.type === "income" ? t("transactions.type.income") : t("transactions.type.expense")}</td>
-                          <td>{tx.walletName}</td>
-                          <td>{tx.category}</td>
-                          <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
-                          <td className="text-end">
-                            <span className={tx.type === "expense" ? "tx-amount-expense" : "tx-amount-income"}>
-                              {tx.type === "expense" ? "-" : "+"}{formatCurrency(tx.amount)}
-                            </span>
-                          </td>
-                          <td className="text-center">
-                            <button className="btn btn-link btn-sm text-muted me-1" title={t("transactions.action.view")} onClick={() => setViewing(tx)}>
-                              <i className="bi bi-eye" />
-                            </button>
-                            <button className="btn btn-link btn-sm text-muted me-1" title={t("transactions.action.edit")} onClick={() => setEditing(tx)}>
-                              <i className="bi bi-pencil-square" />
-                            </button>
-                            <button className="btn btn-link btn-sm text-danger" title={t("transactions.action.delete")} onClick={() => setConfirmDel(tx)}>
-                              <i className="bi bi-trash" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              <table className="table table-hover align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th style={{ width: 60 }}>{t("transactions.table.no")}</th>
-                    <th>{t("transactions.table.date")}</th>
-                    <th>{t("transactions.table.time")}</th>
-                    <th>{t("transactions.table.source_wallet")}</th>
-                    <th>{t("transactions.table.target_wallet")}</th>
-                    <th className="tx-note-col">{t("transactions.table.note")}</th>
-                    <th className="text-end">{t("transactions.table.amount")}</th>
-                    <th className="text-center">{t("transactions.table.action")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginated.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="text-center text-muted py-4">
-                        {t("transactions.table.empty")}
-                      </td>
-                    </tr>
-                  ) : (
-                    paginated.map((tx, i) => {
-                      const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-                      const d = toDateObj(tx.date);
-                      const dateStr = formatVietnamDate(d);
-                      const timeStr = formatVietnamTime(d);
-
-                      return (
-                        <tr key={tx.id}>
-                          <td>{serial}</td>
-                          <td>{dateStr}</td>
-                          <td>{timeStr}</td>
-                          <td>{tx.sourceWallet}</td>
-                          <td>{tx.targetWallet}</td>
-                          <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
-                          <td className="text-end">
-                            <span className="tx-amount-transfer">{formatCurrency(tx.amount)}</span>
-                          </td>
-                          <td className="text-center">
-                            <button className="btn btn-link btn-sm text-muted me-1" title={t("transactions.action.view")} onClick={() => setViewing(tx)}>
-                              <i className="bi bi-eye" />
-                            </button>
-                            <button className="btn btn-link btn-sm text-muted me-1" title={t("transactions.action.edit")} onClick={() => setEditing(tx)}>
-                              <i className="bi bi-pencil-square" />
-                            </button>
-                            <button className="btn btn-link btn-sm text-danger" title={t("transactions.action.delete")} onClick={() => setConfirmDel(tx)}>
-                              <i className="bi bi-trash" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
           )}
 
-          <div className="card-footer d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
-            <span className="text-muted small">
-              Trang {currentPage}/{totalPages}
-            </span>
-            <div className="tx-pagination">
-              <button
-                type="button"
-                className="page-arrow"
-                disabled={currentPage === 1}
-                onClick={() => handlePageChange(1)}
-              >
-                «
-              </button>
-              <button
-                type="button"
-                className="page-arrow"
-                disabled={currentPage === 1}
-                onClick={() => handlePageChange(currentPage - 1)}
-              >
-                ‹
-              </button>
-              {paginationRange.map((item, idx) =>
-                typeof item === "string" && item.includes("ellipsis") ? (
-                  <span key={`${item}-${idx}`} className="page-ellipsis">…</span>
-                ) : (
-                  <button
-                    key={`tx-page-${item}`}
-                    type="button"
-                    className={`page-number ${currentPage === item ? "active" : ""}`}
-                    onClick={() => handlePageChange(item)}
-                  >
-                    {item}
-                  </button>
-                )
-              )}
-              <button
-                type="button"
-                className="page-arrow"
-                disabled={currentPage === totalPages}
-                onClick={() => handlePageChange(currentPage + 1)}
-              >
-                ›
-              </button>
-              <button
-                type="button"
-                className="page-arrow"
-                disabled={currentPage === totalPages}
-                onClick={() => handlePageChange(totalPages)}
-              >
-                »
-              </button>
+          {/* RIGHT: Transaction History */}
+          {(!expandedPanel || expandedPanel === "history") && (
+            <div className={`transactions-history-panel ${expandedPanel === "history" ? "expanded" : ""}`}>
+              <TransactionList
+                transactions={filteredSorted}
+                activeTab={activeTab}
+                loading={loading}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                paginationRange={paginationRange}
+                onPageChange={handlePageChange}
+                onView={setViewing}
+                onEdit={setEditing}
+                onDelete={setConfirmDel}
+                filterType={filterType}
+                onFilterTypeChange={(value) => {
+                  setFilterType(value);
+                  setCurrentPage(1);
+                }}
+                searchText={searchText}
+                onSearchChange={(value) => {
+                  setSearchText(value);
+                  setCurrentPage(1);
+                }}
+                fromDateTime={fromDateTime}
+                onFromDateTimeChange={(value) => {
+                  setFromDateTime(value);
+                  setCurrentPage(1);
+                }}
+                toDateTime={toDateTime}
+                onToDateTimeChange={(value) => {
+                  setToDateTime(value);
+                  setCurrentPage(1);
+                }}
+                currencyFilter={currencyFilter}
+                onCurrencyFilterChange={(value) => {
+                  setCurrencyFilter(value);
+                  setCurrentPage(1);
+                }}
+                expanded={expandedPanel === "history"}
+                onToggleExpand={() => setExpandedPanel(expandedPanel === "history" ? null : "history")}
+              />
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -1282,14 +1078,6 @@ export default function TransactionsPage() {
         open={!!viewing}
         tx={viewing}
         onClose={() => setViewing(null)}
-      />
-
-      <TransactionFormModal
-        open={creating}
-        mode="create"
-        variant={activeTab === TABS.EXTERNAL ? "external" : "internal"}
-        onSubmit={handleCreate}
-        onClose={() => setCreating(false)}
       />
 
       <TransactionFormModal

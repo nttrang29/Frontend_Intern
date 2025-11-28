@@ -32,6 +32,469 @@
   width: 100%;
 }
 
+/* Layout 2 cột giống WalletsPage - luôn hiển thị 2 cột */
+.transactions-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: flex-start;
+  transition: grid-template-columns 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transactions-layout--with-history {
+  grid-template-columns: 1fr;
+}
+
+.transactions-layout--expanded {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 992px) {
+  .transactions-layout--with-history {
+    grid-template-columns: 0.85fr 1.15fr;
+  }
+  
+  .transactions-layout--expanded {
+    grid-template-columns: 1fr;
+  }
+  
+  .transactions-layout--expanded .transactions-form-panel.expanded,
+  .transactions-layout--expanded .transactions-history-panel.expanded {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Transaction Tabs - Sử dụng style giống CategoriesPage */
+.transaction-tabs,
+.funds-tabs {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(45, 153, 174, 0.06);
+}
+
+.transaction-tab,
+.funds-tab {
+  border: none;
+  background: transparent;
+  padding: 6px 16px;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  color: #6b7280;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.18s ease-out, color 0.18s ease-out, box-shadow 0.18s ease-out;
+  white-space: nowrap;
+}
+
+.transaction-tab:hover,
+.funds-tab:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.transaction-tab.active,
+.funds-tab--active {
+  background: #ffffff;
+  color: #2d99ae;
+  box-shadow: 0 4px 12px rgba(45, 153, 174, 0.25);
+}
+
+/* Tabs trong wallet-header có chữ màu trắng */
+.wallet-header .funds-tabs {
+  background: transparent !important;
+}
+
+.wallet-header .funds-tab {
+  color: #ffffff !important;
+}
+
+.wallet-header .funds-tab--active {
+  background: #ffffff !important;
+  color: #2d99ae !important;
+}
+
+/* Dark mode cho buttons */
+.dark .transaction-form-card .card-body .btn-primary {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #1a1a1a !important;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.dark .transaction-form-card .card-body .btn-primary:hover {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
+  color: #1a1a1a !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2) !important;
+}
+
+.dark .transaction-form-card .card-body .btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Transaction Type Tabs trong Form */
+.transaction-type-tabs-form {
+  display: flex;
+  gap: 4px;
+  background: #e5f2f5;
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.transaction-type-tab-form {
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0a4350;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.transaction-type-tab-form:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.transaction-type-tab-form.active {
+  background: #ffffff;
+  color: #0a4350;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.transactions-history-panel {
+  min-width: 0; /* Cho phép shrink */
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  transform: scale(1);
+}
+
+.transactions-history-panel.expanded {
+  animation: expandPanel 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.transactions-form-panel {
+  min-width: 0; /* Cho phép shrink */
+  position: sticky;
+  top: 20px;
+  align-self: flex-start;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  transform: scale(1);
+}
+
+.transactions-form-panel.expanded {
+  position: relative;
+  top: 0;
+  animation: expandPanel 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes expandPanel {
+  from {
+    opacity: 0.8;
+    transform: scale(0.98) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.transactions-layout--expanded .transactions-form-panel:not(.expanded),
+.transactions-layout--expanded .transactions-history-panel:not(.expanded) {
+  opacity: 0;
+  transform: scale(0.95) translateY(-10px);
+  max-height: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  animation: collapsePanel 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes collapsePanel {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    max-height: 2000px;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+    max-height: 0;
+  }
+}
+
+/* Transaction Form Card */
+.transaction-form-card {
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.transaction-form-card .card-header {
+  background: linear-gradient(90deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 60%, rgb(10, 181, 192) 100%);
+  color: white;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 18px 18px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Dark mode cho transaction form */
+.dark .transaction-form-card {
+  background: #1a1a1a !important;
+  border-color: #404040 !important;
+}
+
+.dark .transaction-form-card .card-header {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+.dark .transaction-form-card .card-body {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+/* Dark mode cho form labels */
+.dark .transaction-form-card .card-body .form-label {
+  color: #ffffff !important;
+}
+
+/* Dark mode cho form controls */
+.dark .transaction-form-card .card-body .form-control,
+.dark .transaction-form-card .card-body .form-select,
+.dark .transaction-form-card .card-body input,
+.dark .transaction-form-card .card-body select,
+.dark .transaction-form-card .card-body textarea {
+  background-color: #1a1a1a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dark .transaction-form-card .card-body .form-control:focus,
+.dark .transaction-form-card .card-body .form-select:focus,
+.dark .transaction-form-card .card-body input:focus,
+.dark .transaction-form-card .card-body select:focus,
+.dark .transaction-form-card .card-body textarea:focus {
+  background-color: #1a1a1a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.2) !important;
+}
+
+.dark .transaction-form-card .card-body .form-control::placeholder,
+.dark .transaction-form-card .card-body input::placeholder,
+.dark .transaction-form-card .card-body textarea::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Dark mode cho current balance display */
+.dark .transaction-form-card .card-body .form-control-plaintext {
+  background-color: #1a1a1a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* Dark mode cho transaction type tabs */
+.dark .transaction-type-tabs-form {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .transaction-type-tab-form {
+  color: #ffffff !important;
+}
+
+.dark .transaction-type-tab-form.active {
+  background: #ffffff !important;
+  color: #2d99ae !important;
+}
+
+/* Dark mode cho category dropdown */
+.dark .searchable-select-menu,
+.dark .category-select .searchable-select-menu {
+  background: #1a1a1a !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark .searchable-option,
+.dark .category-select .searchable-option {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+.dark .searchable-option:hover,
+.dark .category-select .searchable-option:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+.dark .searchable-option.active,
+.dark .category-select .searchable-option.active {
+  background: rgba(45, 153, 174, 0.2) !important;
+  color: #2d99ae !important;
+}
+
+/* Dark mode cho input group text trong category select */
+.dark .category-select .input-group-text {
+  background: #1a1a1a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* Dark mode cho input group text nói chung */
+.dark .transaction-form-card .card-body .input-group-text {
+  background: #1a1a1a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* Dark mode cho checkbox và label */
+.dark .transaction-form-card .card-body .form-check-label {
+  color: #ffffff !important;
+}
+
+.dark .transaction-form-card .card-body .form-check-input {
+  background-color: #1a1a1a !important;
+  border-color: #ffffff !important;
+}
+
+.dark .transaction-form-card .card-body .form-check-input:checked {
+  background-color: #2d99ae !important;
+  border-color: #2d99ae !important;
+}
+
+/* Dark mode cho small text */
+.dark .transaction-form-card .card-body .small,
+.dark .transaction-form-card .card-body small {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Dark mode cho invalid feedback */
+.dark .transaction-form-card .card-body .invalid-feedback {
+  color: #fca5a5 !important;
+}
+
+/* Dark mode cho file input */
+.dark .transaction-form-card .card-body input[type="file"] {
+  background-color: #1a1a1a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dark .transaction-form-card .card-body input[type="file"]::file-selector-button {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin-right: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.dark .transaction-form-card .card-body input[type="file"]::file-selector-button:hover {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Dark mode cho file input text */
+.dark .transaction-form-card .card-body input[type="file"]::before {
+  color: #ffffff !important;
+}
+
+/* Dark mode cho preview image */
+.dark .transaction-form-card .card-body img {
+  border-color: #ffffff !important;
+}
+
+.transaction-form-card .card-header h5 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.btn-expand-header {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-expand-header:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-expand-header i {
+  font-size: 16px;
+}
+
+/* Transaction History Header - đồng bộ với form header */
+.transaction-history-header {
+  background: linear-gradient(90deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 60%, rgb(10, 181, 192) 100%);
+  color: white;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 18px 18px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Dark mode cho transaction history header */
+.dark .transaction-history-header {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+.transaction-history-header h5 {
+  margin: 0;
+  font-weight: 600;
+  color: white;
+}
+
+.transaction-form-card .card-body {
+  padding: 18px 20px;
+}
+
+/* Giảm spacing trong form để compact hơn */
+.transaction-form-card .card-body .mb-3 {
+  margin-bottom: 0.75rem !important;
+}
+
+.transaction-form-card .card-body .form-label {
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+}
+
+.transaction-form-card .card-body .form-control,
+.transaction-form-card .card-body .form-select {
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.transaction-form-card .card-body .btn {
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+}
+
 /* Header */
 .page-header-card {
   display: flex;
@@ -311,6 +774,12 @@
 .searchable-option.active {
   background: #1d4ed8;
   color: #ffffff;
+}
+
+/* Override cho category select trong transaction form */
+.category-select .searchable-option.active {
+  background: #eff6ff !important;
+  color: #1e40af !important;
 }
 
 /* Attachment preview */
@@ -642,11 +1111,19 @@
   justify-content: center;
 }
 
+.dark .wallet-header-icon {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
 .wallet-header-icon i {
   font-size: 1.9rem;
   color: #ffffff;
   animation: iconPulse 2s ease-in-out infinite;
   transition: transform 0.3s ease;
+}
+
+.dark .wallet-header-icon i {
+  color: #ffffff !important;
 }
 
 .wallet-header:hover .wallet-header-icon i {
@@ -678,11 +1155,19 @@
   color: #ffffff;
 }
 
+.dark .wallet-header-title {
+  color: #ffffff !important;
+}
+
 .wallet-header-subtitle {
   font-size: 0.95rem;
   color: #ffffff;
   margin: 0;
   opacity: 0.9;
+}
+
+.dark .wallet-header-subtitle {
+  color: rgba(255, 255, 255, 0.9) !important;
 }
 
 .wallet-header-btn {

@@ -95,13 +95,13 @@ export default function CategoryFormModal({
             to   { opacity: 1; transform: translateY(0); }
           }
 
-          /* NỀN MỜ – dùng chung cho mọi Modal dùng Modal.jsx */
+          /* NỀN MỜ – giống modal Thêm hạn mức */
           .modal__backdrop {
             position: fixed;
             inset: 0;
-            background: rgba(15, 23, 42, 0.45);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
             display: flex;
             align-items: center;
             justify-content: center;

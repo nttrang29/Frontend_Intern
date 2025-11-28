@@ -209,6 +209,48 @@
   color: var(--color-text-muted);
 }
 
+.wallets-list-item__members {
+  margin-top: var(--spacing-xs);
+  padding-top: var(--spacing-xs);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.wallets-list-item__members-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  font-weight: var(--font-weight-medium);
+}
+
+.wallets-list-item__members-emails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.wallets-list-item__member-email {
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  background: var(--color-bg-secondary);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-light);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.wallets-list-item__member-more {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 /* =============================
    SHARED OWNERS
    ============================= */

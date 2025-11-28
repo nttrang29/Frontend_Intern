@@ -207,6 +207,18 @@ export default function WalletList({
           {wallets.map((w) => {
             const isActive = selectedId && String(selectedId) === String(w.id);
             const balance = Number(w.balance ?? w.current ?? 0) || 0;
+            const isGroupWallet = !!w.isShared;
+            // Lấy sharedEmails từ wallet object, có thể từ sharedEmails hoặc từ members
+            const sharedEmailsFromWallet = Array.isArray(w.sharedEmails) 
+              ? w.sharedEmails.filter(email => email && typeof email === 'string' && email.trim())
+              : [];
+            const memberEmails = Array.isArray(w.members)
+              ? w.members.map(m => m.email || m.userEmail || m.memberEmail).filter(Boolean)
+              : [];
+            // Nếu có membersCount > 1 nhưng chưa có email, vẫn hiển thị phần members (có thể load sau)
+            const hasMembers = (w.membersCount > 1) || (w.hasSharedMembers === true);
+            const allEmails = [...new Set([...sharedEmailsFromWallet, ...memberEmails])].filter(Boolean);
+            const shouldShowMembers = isGroupWallet && (allEmails.length > 0 || hasMembers);
 
             return (
               <button
@@ -236,6 +248,34 @@ export default function WalletList({
                 </div>
                 {w.note && (
                   <div className="wallets-list-item__desc">{w.note}</div>
+                )}
+                {shouldShowMembers && (
+                  <div className="wallets-list-item__members">
+                    <div className="wallets-list-item__members-label">
+                      <i className="bi bi-people" style={{ marginRight: "4px" }} />
+                      {t('wallets.members') || 'Thành viên'}:
+                    </div>
+                    {allEmails.length > 0 ? (
+                      <div className="wallets-list-item__members-emails">
+                        {allEmails.slice(0, 3).map((email, idx) => (
+                          <span key={idx} className="wallets-list-item__member-email" title={email}>
+                            {String(email).trim()}
+                          </span>
+                        ))}
+                        {allEmails.length > 3 && (
+                          <span className="wallets-list-item__member-more">
+                            +{allEmails.length - 3} {t('wallets.more') || 'khác'}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="wallets-list-item__members-emails">
+                        <span className="wallets-list-item__member-more" style={{ fontStyle: "normal" }}>
+                          {w.membersCount > 1 ? `${w.membersCount} thành viên` : "Chưa có thành viên"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </button>
             );

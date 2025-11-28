@@ -27,6 +27,13 @@
   --sb-anim: 0.36s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
+/* Tối ưu performance cho sidebar */
+.home__sidebar {
+  will-change: width;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
 /* =========================================================
    PAGE WRAPPER
    ========================================================= */
@@ -86,6 +93,13 @@
   scrollbar-color: transparent transparent;
 
   transition: width var(--sb-anim);
+  
+  /* Tối ưu performance */
+  will-change: width;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* fallback nếu JS chưa apply biến */
@@ -298,9 +312,12 @@ main {
 }
 
 .dark .home__topbar {
-  background: var(--header-bg);
+  background: var(--header-bg) !important;
   border-bottom-color: var(--border-color);
   color: var(--text);
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .dark .home__content {

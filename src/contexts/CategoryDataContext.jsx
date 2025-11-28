@@ -292,11 +292,25 @@ export function CategoryDataProvider({ children }) {
     try {
       const response = await categoryAPI.getCategories();
 
-      if (response && Array.isArray(response)) {
+      // Xử lý response có thể là array trực tiếp hoặc wrap trong object
+      let categories = [];
+      if (Array.isArray(response)) {
+        categories = response;
+      } else if (response && Array.isArray(response.data)) {
+        categories = response.data;
+      } else if (
+        response &&
+        response.categories &&
+        Array.isArray(response.categories)
+      ) {
+        categories = response.categories;
+      }
+
+      if (categories.length > 0) {
         const expenseList = [];
         const incomeList = [];
 
-        response.forEach((category) => {
+        categories.forEach((category) => {
           const typeName = category.transactionType?.typeName || "";
           // Jackson có thể serialize isSystem() thành "system" thay vì "isSystem"
           const isSystemValue =
@@ -310,13 +324,27 @@ export function CategoryDataProvider({ children }) {
             isSystemValue === "true" ||
             String(isSystemValue).toLowerCase() === "true";
 
+          // Parse icon từ description với format "icon:bi-name|description:text"
+          let categoryIcon = "bi-tags"; // default
+          let categoryDescription = category.description || "";
+          
+          // Nếu description bắt đầu với "icon:", tách icon ra
+          if (categoryDescription && categoryDescription.startsWith("icon:")) {
+            const parts = categoryDescription.split("|");
+            categoryIcon = parts[0].replace("icon:", "") || "bi-tags";
+            categoryDescription = parts[1] || "";
+          } else if (category.icon) {
+            // Nếu có field icon riêng
+            categoryIcon = category.icon;
+          }
+
           const mappedCategory = {
             id: category.categoryId,
             categoryId: category.categoryId,
             name: category.categoryName,
             categoryName: category.categoryName,
-            description: category.description || "",
-            icon: category.description || "default",
+            description: categoryDescription,
+            icon: categoryIcon,
             transactionTypeId: category.transactionType?.typeId,
             isSystem: isSystemBool,
           };
@@ -336,9 +364,14 @@ export function CategoryDataProvider({ children }) {
 
         setExpenseCategories(expenseList);
         setIncomeCategories(incomeList);
+      } else {
+        // Nếu không có categories, vẫn set empty arrays để clear state
+        setExpenseCategories([]);
+        setIncomeCategories([]);
       }
     } catch (error) {
       console.error("Error reloading categories:", error);
+      // Nếu có lỗi, không thay đổi state để giữ nguyên dữ liệu hiện tại
     }
   }, []);
 

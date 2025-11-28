@@ -135,24 +135,92 @@ const normalizeOwnerEmail = (wallet) =>
 const sortWalletsByMode = (walletList = [], sortMode = "default") => {
   const arr = [...walletList];
   arr.sort((a, b) => {
-    if (a?.isDefault && !b?.isDefault && sortMode === "default") return -1;
-    if (!a?.isDefault && b?.isDefault && sortMode === "default") return 1;
+    // Nếu không phải default sort, dùng logic cũ
+    if (sortMode !== "default") {
+      const nameA = (a?.name || "").toLowerCase();
+      const nameB = (b?.name || "").toLowerCase();
+      const balA = Number(a?.balance ?? a?.current ?? 0) || 0;
+      const balB = Number(b?.balance ?? b?.current ?? 0) || 0;
 
-    const nameA = (a?.name || "").toLowerCase();
-    const nameB = (b?.name || "").toLowerCase();
-    const balA = Number(a?.balance ?? a?.current ?? 0) || 0;
-    const balB = Number(b?.balance ?? b?.current ?? 0) || 0;
-
-    switch (sortMode) {
-      case "name_asc":
-        return nameA.localeCompare(nameB);
-      case "balance_desc":
-        return balB - balA;
-      case "balance_asc":
-        return balA - balB;
-      default:
-        return 0;
+      switch (sortMode) {
+        case "name_asc":
+          return nameA.localeCompare(nameB);
+        case "balance_desc":
+          return balB - balA;
+        case "balance_asc":
+          return balA - balB;
+        default:
+          return 0;
+      }
     }
+
+    // Default sort: Sắp xếp theo thứ tự ưu tiên
+    // 1. Ví mặc định cá nhân (isDefault = true, không phải shared)
+    // 2. Ví cá nhân khác (isDefault = false, không phải shared)
+    // 3. Ví nhóm (isShared = true, owner)
+    // 4. Ví tham gia - Sử dụng (shared, role = USE/MEMBER)
+    // 5. Ví tham gia - Xem (shared, role = VIEW/VIEWER)
+
+    const aIsDefault = !!a?.isDefault;
+    const bIsDefault = !!b?.isDefault;
+    const aIsShared = !!a?.isShared || !!(a?.walletRole || a?.sharedRole || a?.role);
+    const bIsShared = !!b?.isShared || !!(b?.walletRole || b?.sharedRole || b?.role);
+    
+    // Lấy role của ví
+    const getWalletRole = (wallet) => {
+      if (!wallet) return "";
+      const role = (wallet?.walletRole || wallet?.sharedRole || wallet?.role || "").toUpperCase();
+      return role;
+    };
+    
+    const aRole = getWalletRole(a);
+    const bRole = getWalletRole(b);
+    
+    // Kiểm tra xem có phải owner không (ví nhóm)
+    const isOwner = (wallet) => {
+      if (!wallet) return false;
+      const role = getWalletRole(wallet);
+      return ["OWNER", "MASTER", "ADMIN"].includes(role);
+    };
+    
+    const aIsOwner = isOwner(a);
+    const bIsOwner = isOwner(b);
+    
+    // Lấy priority để so sánh (số nhỏ hơn = ưu tiên cao hơn)
+    const getPriority = (wallet) => {
+      const isDefault = !!wallet?.isDefault;
+      const isShared = !!wallet?.isShared || !!(wallet?.walletRole || wallet?.sharedRole || wallet?.role);
+      const role = getWalletRole(wallet);
+      const isOwnerRole = isOwner(wallet);
+      
+      // 1. Ví mặc định cá nhân
+      if (isDefault && !isShared) return 1;
+      
+      // 2. Ví cá nhân khác
+      if (!isShared) return 2;
+      
+      // 3. Ví nhóm (owner)
+      if (isShared && isOwnerRole) return 3;
+      
+      // 4. Ví tham gia - Sử dụng
+      if (["MEMBER", "USER", "USE"].includes(role)) return 4;
+      
+      // 5. Ví tham gia - Xem
+      if (["VIEW", "VIEWER"].includes(role)) return 5;
+      
+      // Mặc định
+      return 6;
+    };
+    
+    const priorityA = getPriority(a);
+    const priorityB = getPriority(b);
+    
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    
+    // Nếu cùng priority, giữ nguyên thứ tự
+    return 0;
   });
   return arr;
 };
@@ -918,8 +986,10 @@ export default function WalletsPage() {
       let shareResult = { success: 0, failed: [] };
       if (shareEmails.length) {
         shareResult = await shareWalletWithEmails(created.id, shareEmails);
-        await loadWallets();
       }
+      
+      // Reload wallets để cập nhật danh sách ví sau khi tạo
+      await loadWallets();
 
       const hasSuccessfulShare = shareResult.success > 0;
       const hasFailedShare = shareResult.failed.length > 0;
@@ -992,6 +1062,8 @@ export default function WalletsPage() {
         currency: editForm.currency,
         isDefault: !!editForm.isDefault,
       });
+      // Reload wallets để cập nhật danh sách ví sau khi cập nhật
+      await loadWallets();
       showToast(t('wallets.toast.updated'));
     } catch (error) {
       showToast(error.message || t('wallets.toast.update_error'), "error");
@@ -1364,7 +1436,17 @@ export default function WalletsPage() {
           onSearchChange={setSearch}
           sortBy={sortBy}
           onSortChange={setSortBy}
-          wallets={sortedWallets}
+          wallets={sortedWallets.map(w => ({
+            ...w,
+            // Merge sharedEmails từ localSharedMap nếu có
+            sharedEmails: [
+              ...(Array.isArray(w.sharedEmails) ? w.sharedEmails : []),
+              ...(Array.isArray(localSharedMap[w.id]) ? localSharedMap[w.id] : [])
+            ].filter((email, index, self) => 
+              email && typeof email === 'string' && email.trim() && 
+              self.indexOf(email) === index
+            )
+          }))}
           selectedId={selectedId}
           onSelectWallet={handleSelectWallet}
           sharedWithMeOwners={sharedWithMeOwnerGroups}

@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import HomeSidebar from "../components/home/Sidebar/HomeSidebar";
 import HomeTopbar from "../components/home/Topbar/HomeTopbar";
+import ChatWidget from "../components/common/ChatWidget/ChatWidget";
 import "../styles/pages/HomeLayout.css";
 
 export default function HomeLayout() {
@@ -35,6 +36,9 @@ export default function HomeLayout() {
           </div>
         </main>
       </div>
+
+      {/* Chat Widget */}
+      <ChatWidget />
     </div>
   );
 }

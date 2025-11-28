@@ -1,11 +1,12 @@
 // src/components/transactions/TransactionFormModal.jsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../utils/formatMoneyInput";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { getVietnamDateTime, convertToVietnamDateTime, formatMoney } from "./utils/transactionUtils";
+import useOnClickOutside from "../../hooks/useOnClickOutside";
 
 /* ================== CẤU HÌNH MẶC ĐỊNH ================== */
 const EMPTY_FORM = {
@@ -77,7 +78,12 @@ export default function TransactionFormModal({
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [attachmentPreview, setAttachmentPreview] = useState("");
+  const [categorySearchText, setCategorySearchText] = useState("");
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const categorySelectRef = useRef(null);
   const { t } = useLanguage();
+  
+  useOnClickOutside(categorySelectRef, () => setCategoryDropdownOpen(false));
 
   /* ========== ESC để đóng ========== */
   useEffect(() => {
@@ -171,14 +177,55 @@ export default function TransactionFormModal({
     }
   }, [open, mode, initialData, variant, defaultWallet]);
 
-  // Map categories - hỗ trợ cả name và categoryName
-  const categoryOptions = useMemo(() => {
-    const source =
-      form.type === "income" ? incomeCategories : expenseCategories;
+  // Category options với icon và sắp xếp (mới tạo lên đầu)
+  const categoryOptionsWithIcon = useMemo(() => {
+    const source = form.type === "income" ? incomeCategories : expenseCategories;
     if (!source || source.length === 0) return [];
-    return source.map((c) => c.name || c.categoryName || "").filter(Boolean);
+    
+    // Sắp xếp: danh mục mới tạo (id lớn hơn) lên đầu
+    const sorted = [...source].sort((a, b) => {
+      const aId = a.id || a.categoryId || 0;
+      const bId = b.id || b.categoryId || 0;
+      return bId - aId; // Mới nhất lên đầu
+    });
+    
+    return sorted.map((c) => ({
+      name: c.name || c.categoryName || "",
+      icon: c.icon || "bi-tags",
+      id: c.id || c.categoryId,
+    })).filter(c => c.name);
   }, [form.type, expenseCategories, incomeCategories]);
+
+  const categoryOptions = useMemo(() => {
+    return categoryOptionsWithIcon.map(c => c.name);
+  }, [categoryOptionsWithIcon]);
+
+  // Filtered categories dựa trên search text
+  const filteredCategories = useMemo(() => {
+    if (!categorySearchText.trim()) {
+      return categoryOptionsWithIcon;
+    }
+    const keyword = categorySearchText.toLowerCase();
+    return categoryOptionsWithIcon.filter(cat => 
+      cat.name.toLowerCase().includes(keyword)
+    );
+  }, [categoryOptionsWithIcon, categorySearchText]);
+
+  // Lấy icon của category đã chọn
+  const selectedCategoryIcon = useMemo(() => {
+    if (!form.category) return null;
+    const found = categoryOptionsWithIcon.find(c => c.name === form.category);
+    return found?.icon || "bi-tags";
+  }, [form.category, categoryOptionsWithIcon]);
+
   const hasCategories = categoryOptions.length > 0;
+
+  // Reset category search khi đóng dropdown
+  useEffect(() => {
+    if (!categoryDropdownOpen) {
+      setCategorySearchText("");
+    }
+  }, [categoryDropdownOpen]);
 
   // Danh sách ví cho ví gửi (tất cả ví)
   const walletOptions = useMemo(() => {
@@ -284,6 +331,14 @@ export default function TransactionFormModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.type, expenseCategories, incomeCategories]);
+
+  // Reset category dropdown khi mở/đóng modal
+  useEffect(() => {
+    if (!open) {
+      setCategoryDropdownOpen(false);
+      setCategorySearchText("");
+    }
+  }, [open]);
 
   // Tự động cập nhật currency khi chọn ví (chỉ cho variant external)
   useEffect(() => {
@@ -425,12 +480,12 @@ export default function TransactionFormModal({
 
         .transaction-modal-overlay {
           position: fixed; inset: 0;
-          background: rgba(15,23,42,0.45);
-          backdrop-filter: blur(6px);
-          -webkit-backdrop-filter: blur(6px);
+          background: rgba(0, 0, 0, 0.45);
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
           display: flex; align-items: center; justify-content: center;
           z-index: 2147483647;
-          animation: tfmFadeIn .2s ease-out;
+          animation: tfmFadeIn .15s ease-out;
         }
 
         .transaction-modal-content {
@@ -585,15 +640,166 @@ export default function TransactionFormModal({
                     </div>
 
                     <div className="col-md-6">
-                      <SelectInput
-                        label={t("transactions.form.category")}
-                        value={form.category}
-                        onChange={(v) => setForm((f) => ({ ...f, category: v }))}
-                        options={categoryOptions}
-                        required={hasCategories}
-                        disabled={!hasCategories}
-                        emptyMessage={t("categories.search_none")}
-                      />
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">{t("transactions.form.category")}</label>
+                        <div 
+                          className={`searchable-select category-select ${categoryDropdownOpen ? "is-open" : ""}`}
+                          ref={categorySelectRef}
+                          style={{ position: "relative" }}
+                        >
+                          <div className="input-group" style={{ position: "relative" }}>
+                            {form.category && selectedCategoryIcon && !categoryDropdownOpen && (
+                              <span className="input-group-text bg-white border-end-0" style={{ borderRight: "none" }}>
+                                <i className={`bi ${selectedCategoryIcon}`} style={{ color: "rgb(11, 90, 165)", fontSize: "1.1rem" }} />
+                              </span>
+                            )}
+                            <input
+                              type="text"
+                              className="form-control"
+                              placeholder={categoryDropdownOpen ? (t("transactions.form.category_placeholder") || "Chọn hoặc tìm kiếm danh mục...") : (form.category || (t("transactions.form.category_placeholder") || "Chọn hoặc tìm kiếm danh mục..."))}
+                              value={categoryDropdownOpen ? categorySearchText : (form.category || "")}
+                              onFocus={() => {
+                                setCategoryDropdownOpen(true);
+                                setCategorySearchText("");
+                              }}
+                              onChange={(e) => {
+                                setCategorySearchText(e.target.value);
+                                setCategoryDropdownOpen(true);
+                              }}
+                              disabled={!hasCategories}
+                              style={{ 
+                                borderLeft: form.category && selectedCategoryIcon && !categoryDropdownOpen ? "none" : undefined,
+                                paddingLeft: form.category && selectedCategoryIcon && !categoryDropdownOpen ? "8px" : undefined,
+                                paddingRight: categorySearchText ? "34px" : "12px"
+                              }}
+                            />
+                            {categorySearchText && (
+                              <button
+                                type="button"
+                                className="category-search-clear-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCategorySearchText("");
+                                }}
+                                style={{
+                                  position: "absolute",
+                                  right: "10px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  border: "none",
+                                  background: "transparent",
+                                  padding: "0",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  cursor: "pointer",
+                                  color: "#6c757d",
+                                  fontSize: "0.8rem",
+                                  zIndex: 10,
+                                }}
+                              >
+                                <i className="bi bi-x-lg" />
+                              </button>
+                            )}
+                          </div>
+
+                          {categoryDropdownOpen && hasCategories && (
+                            <div 
+                              className="searchable-select-menu"
+                              style={{
+                                position: "absolute",
+                                top: "100%",
+                                left: 0,
+                                right: 0,
+                                marginTop: "4px",
+                                background: "#ffffff",
+                                borderRadius: "12px",
+                                border: "1px solid #e5e7eb",
+                                boxShadow: "0 12px 24px rgba(15, 23, 42, 0.18)",
+                                maxHeight: "200px",
+                                overflowY: "auto",
+                                zIndex: 1000,
+                              }}
+                            >
+                              {filteredCategories.length === 0 ? (
+                                <div className="px-3 py-2 text-muted small">
+                                  {t("categories.search_none") || "Không tìm thấy danh mục"}
+                                </div>
+                              ) : (
+                                filteredCategories.slice(0, 5).map((cat) => (
+                                  <button
+                                    key={cat.id}
+                                    type="button"
+                                    className={`searchable-option ${form.category === cat.name ? "active" : ""}`}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => {
+                                      setForm(f => ({ ...f, category: cat.name }));
+                                      setCategorySearchText("");
+                                      setCategoryDropdownOpen(false);
+                                    }}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "10px",
+                                      width: "100%",
+                                      textAlign: "left",
+                                      padding: "10px 12px",
+                                      border: "none",
+                                      background: form.category === cat.name ? "#eff6ff" : "transparent",
+                                      color: form.category === cat.name ? "#1e40af" : "#111827",
+                                      fontSize: "0.9rem",
+                                      cursor: "pointer",
+                                      transition: "background-color 0.2s, color 0.2s",
+                                      minWidth: 0,
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (form.category !== cat.name) {
+                                        e.target.style.backgroundColor = "#f1f5f9";
+                                      }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (form.category !== cat.name) {
+                                        e.target.style.backgroundColor = "transparent";
+                                      }
+                                    }}
+                                  >
+                                    <div 
+                                      style={{
+                                        width: "28px",
+                                        height: "28px",
+                                        borderRadius: "6px",
+                                        background: "linear-gradient(135deg, rgba(11, 90, 165, 0.1) 0%, rgba(10, 181, 192, 0.1) 100%)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        color: "rgb(11, 90, 165)",
+                                        fontSize: "1rem",
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      <i className={`bi ${cat.icon}`} />
+                                    </div>
+                                    <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word", overflowWrap: "break-word", color: "inherit" }}>{cat.name}</span>
+                                    {form.category === cat.name && (
+                                      <i className="bi bi-check-circle-fill" style={{ color: "rgb(11, 90, 165)", fontSize: "1rem" }} />
+                                    )}
+                                  </button>
+                                ))
+                              )}
+                              {filteredCategories.length > 5 && (
+                                <div className="px-3 py-2 text-muted small text-center border-top">
+                                  Và {filteredCategories.length - 5} danh mục khác...
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {!hasCategories && (
+                            <div className="text-muted small mt-1">
+                              {t("categories.search_none") || "Không có danh mục"}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="col-12">

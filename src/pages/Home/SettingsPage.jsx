@@ -45,6 +45,7 @@ export default function SettingsPage() {
     loadProfile();
     // Load và áp dụng theme khi component mount
     const savedTheme = localStorage.getItem("theme") || "light";
+    setSelectedTheme(savedTheme);
     applyTheme(savedTheme);
   }, []);
 
@@ -68,6 +69,42 @@ export default function SettingsPage() {
       }
     }
   };
+
+  // Lắng nghe thay đổi system preference khi theme là "system"
+  useEffect(() => {
+    if (selectedTheme === "system") {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      
+      const handleSystemThemeChange = (e) => {
+        if (selectedTheme === "system") {
+          if (e.matches) {
+            document.documentElement.classList.add("dark");
+            document.body.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+            document.body.classList.remove("dark");
+          }
+        }
+      };
+
+      // Lắng nghe thay đổi
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener("change", handleSystemThemeChange);
+      } else {
+        // Fallback cho trình duyệt cũ
+        mediaQuery.addListener(handleSystemThemeChange);
+      }
+
+      // Cleanup
+      return () => {
+        if (mediaQuery.removeEventListener) {
+          mediaQuery.removeEventListener("change", handleSystemThemeChange);
+        } else {
+          mediaQuery.removeListener(handleSystemThemeChange);
+        }
+      };
+    }
+  }, [selectedTheme]);
 
   const loadProfile = async () => {
     try {
