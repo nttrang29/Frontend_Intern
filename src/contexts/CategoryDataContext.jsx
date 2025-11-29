@@ -6,7 +6,7 @@ import React, {
   useCallback,
   useEffect,
 } from "react";
-import { categoryAPI } from "../services/api-client";
+import { categoryAPI } from "../services/category.service";
 
 const CategoryDataContext = createContext(null);
 

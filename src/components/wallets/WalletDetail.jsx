@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
 import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 import { formatMoney } from "../../utils/formatMoney";
-import { walletAPI } from "../../services/api-client";
+import { walletAPI } from "../../services/wallet.service";
 import { useLanguage } from "../../contexts/LanguageContext";
 import DetailViewTab from "./tabs/DetailViewTab";
 import ManageMembersTab from "./tabs/ManageMembersTab";

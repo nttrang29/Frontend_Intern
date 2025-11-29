@@ -4,7 +4,8 @@ import { useDateFormat } from "../../hooks/useDateFormat";
 
 import "../../styles/pages/ReportsPage.css";
 import { useWalletData } from "../../contexts/WalletDataContext";
-import { transactionAPI, walletAPI } from "../../services/api-client";
+import { transactionAPI } from "../../services/transaction.service";
+import { walletAPI } from "../../services/wallet.service";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
 

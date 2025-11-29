@@ -16,7 +16,8 @@ import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useLanguage } from "../../contexts/LanguageContext";
-import { transactionAPI, walletAPI } from "../../services/api-client";
+import { transactionAPI } from "../../services/transaction.service";
+import { walletAPI } from "../../services/wallet.service";
 
 // ===== REMOVED MOCK DATA - Now using API =====
 

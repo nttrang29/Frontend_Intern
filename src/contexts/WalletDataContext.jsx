@@ -8,7 +8,7 @@ import {
   mergeWallets as mergeWalletsAPI,
   setDefaultWallet as setDefaultWalletAPI,
 } from "../services/wallet.service";
-import { walletAPI } from "../services/api-client";
+import { walletAPI } from "../services/wallet.service";
 
 const WalletDataContext = createContext(null);
 
@@ -429,7 +429,7 @@ export function WalletDataProvider({ children }) {
       console.log("convertToGroup - current wallet:", currentWallet);
       console.log("convertToGroup - walletName:", walletName);
       
-      // Gọi API convert từ api-client
+      // Gọi API convert từ wallet.service
       // API sử dụng PUT /wallets/{walletId} với walletName và walletType: "GROUP"
       // Theo API documentation (dòng 384-390), cần cả walletName và walletType
       const data = await walletAPI.convertToGroupWallet(walletIdNum, walletName.trim());
