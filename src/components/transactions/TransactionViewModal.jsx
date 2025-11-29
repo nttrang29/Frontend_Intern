@@ -169,6 +169,21 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                       <div className="tx-detail-value">{tx.targetWallet}</div>
                     </div>
                   </div>
+                  <div className="col-12">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Số tiền</div>
+                      <div 
+                        className="tx-detail-value"
+                        style={{
+                          color: "#0ea5e9",
+                          fontWeight: "600",
+                          fontSize: "1.1rem"
+                        }}
+                      >
+                        {formatMoney(tx.amount, tx.currency)}
+                      </div>
+                    </div>
+                  </div>
                 </>
               ) : (
                 <>

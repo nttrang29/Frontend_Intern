@@ -46,6 +46,7 @@ export default function CategoriesPage() {
   const [modalInitial, setModalInitial] = useState("");
   const [modalEditingId, setModalEditingId] = useState(null);
   const [modalEditingKind, setModalEditingKind] = useState(null); // 'expense' | 'income'
+  const [systemCategoryType, setSystemCategoryType] = useState("expense"); // 'expense' | 'income' - chỉ dùng khi ở tab system
 
   const [page, setPage] = useState(1);
 
@@ -254,10 +255,21 @@ export default function CategoriesPage() {
   };
 
   const openAddModal = () => {
+    // Chỉ admin mới được thêm danh mục hệ thống
+    if (activeTab === "system" && !isAdmin) {
+      return;
+    }
+    
     setModalMode("create");
     setModalInitial("");
     setModalEditingId(null);
-    setModalEditingKind(activeTab === "income" ? "income" : "expense");
+    if (activeTab === "system") {
+      // Ở tab system, để user chọn loại
+      setModalEditingKind(null);
+      setSystemCategoryType("expense"); // Mặc định là chi phí
+    } else {
+      setModalEditingKind(activeTab === "income" ? "income" : "expense");
+    }
     setModalOpen(true);
   };
 
@@ -292,16 +304,24 @@ export default function CategoriesPage() {
 
     if (modalMode === "create") {
       const createKind =
-        activeTab === "income" || modalEditingKind === "income"
+        activeTab === "system"
+          ? systemCategoryType || "expense"
+          : activeTab === "income" || modalEditingKind === "income"
           ? "income"
           : "expense";
+
+      // Nếu đang tạo danh mục system, không cần check duplicate với danh mục cá nhân
+      const isSystemCategory = activeTab === "system" || payload.isSystem;
 
       const listInKind =
         createKind === "expense"
           ? expenseCategories || []
           : incomeCategories || [];
 
-      const isDuplicate = listInKind.some((c) => {
+      // Chỉ check duplicate với danh mục cá nhân nếu không phải system category
+      // Khi ở tab system, không check duplicate với danh mục cá nhân (vì có thể trùng tên)
+      const isDuplicate = !isSystemCategory && listInKind.some((c) => {
+        // Bỏ qua danh mục system khi check duplicate
         if (getIsSystemCategory(c)) return false;
         const existingName = (c.name || "").trim().toLowerCase();
         if (!existingName) return false;
@@ -321,7 +341,10 @@ export default function CategoriesPage() {
       }
 
       try {
-        if (createKind === "expense") {
+        // Nếu có transactionType từ payload (tab system), dùng nó
+        const finalKind = payload.transactionType || createKind;
+        
+        if (finalKind === "expense") {
           await createExpenseCategory({ ...payload, name: rawName });
         } else {
           await createIncomeCategory({ ...payload, name: rawName });
@@ -506,16 +529,19 @@ export default function CategoriesPage() {
               </button>
             </div>
 
-            <div className="ms-3">
-              <button
-                type="button"
-                className="btn btn-outline-primary category-add-header-btn"
-                onClick={openAddModal}
-              >
-                <i className="bi bi-plus-circle me-1" />
-                {t("categories.btn.add")}
-              </button>
-            </div>
+            {/* Chỉ hiển thị nút thêm khi không phải tab system hoặc là admin */}
+            {(activeTab !== "system" || isAdmin) && (
+              <div className="ms-3">
+                <button
+                  type="button"
+                  className="btn btn-outline-primary category-add-header-btn"
+                  onClick={openAddModal}
+                >
+                  <i className="bi bi-plus-circle me-1" />
+                  {t("categories.btn.add")}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -826,6 +852,9 @@ export default function CategoriesPage() {
         onSubmit={handleModalSubmit}
         onClose={() => setModalOpen(false)}
         isAdmin={isAdmin}
+        activeTab={activeTab}
+        selectedType={systemCategoryType}
+        onTypeChange={(type) => setSystemCategoryType(type)}
       />
 
       <ConfirmModal

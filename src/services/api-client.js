@@ -27,8 +27,8 @@ async function apiCall(endpoint, options = {}) {
     defaultHeaders["Authorization"] = `Bearer ${token}`;
   }
 
-  // Timeout mặc định: 30 giây
-  const timeout = options.timeout || 30000;
+  // Timeout mặc định: 60 giây (tăng lên để tránh timeout với các query phức tạp)
+  const timeout = options.timeout || 60000;
 
   // Tạo AbortController để có thể cancel request
   const controller = new AbortController();

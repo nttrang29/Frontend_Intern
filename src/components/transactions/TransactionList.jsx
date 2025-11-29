@@ -104,12 +104,42 @@ export default function TransactionList({
   const { formatCurrency } = useCurrency();
 
   // Format số tiền chỉ hiển thị số (không có ký hiệu tiền tệ)
-  const formatAmountOnly = (amount) => {
+  // Hiển thị với độ chính xác cao (tối đa 8 chữ số thập phân) để khớp với formatMoney trong modal
+  const formatAmountOnly = (amount, currency = "VND") => {
     const numAmount = Number(amount) || 0;
-    return numAmount.toLocaleString("vi-VN", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    });
+    
+    // Format tương tự formatMoney nhưng không có ký hiệu tiền tệ
+    if (currency === "USD") {
+      // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        return numAmount.toLocaleString("en-US", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 8 
+        });
+      }
+      return numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+    }
+    
+    // Format cho VND và các currency khác
+    if (currency === "VND") {
+      // VND: hiển thị số thập phân nếu có (khi chuyển đổi từ currency khác)
+      const hasDecimal = numAmount % 1 !== 0;
+      if (hasDecimal) {
+        return numAmount.toLocaleString("vi-VN", { 
+          minimumFractionDigits: 0, 
+          maximumFractionDigits: 8 
+        });
+      }
+      return numAmount.toLocaleString("vi-VN");
+    }
+    
+    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+    }
+    return numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
   };
 
   const paginated = React.useMemo(() => {
@@ -263,6 +293,7 @@ export default function TransactionList({
             <thead>
               <tr>
                 <th style={{ width: 60 }}>{t("transactions.table.no")}</th>
+                <th>{t("transactions.table.wallet") || "Ví"}</th>
                 <th>{t("transactions.table.time")}</th>
                 <th>{t("transactions.table.type")}</th>
                 <th className="tx-note-col">{t("transactions.table.note")}</th>
@@ -274,7 +305,7 @@ export default function TransactionList({
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-muted py-4">
+                  <td colSpan={8} className="text-center text-muted py-4">
                     {t("transactions.table.empty")}
                   </td>
                 </tr>
@@ -291,6 +322,7 @@ export default function TransactionList({
                       style={{ cursor: "pointer" }}
                     >
                       <td className="text-muted">{serial}</td>
+                      <td className="fw-medium">{tx.walletName || "-"}</td>
                       <td className="fw-medium">{dateTimeStr}</td>
                       <td>
                         <span 
@@ -316,7 +348,7 @@ export default function TransactionList({
                             fontSize: "0.95rem"
                           }}
                         >
-                          {tx.type === "expense" ? "-" : "+"}{formatAmountOnly(tx.amount)}
+                          {tx.type === "expense" ? "-" : "+"}{formatAmountOnly(tx.amount, tx.currency)}
                         </span>
                       </td>
                       <td>
@@ -387,7 +419,7 @@ export default function TransactionList({
                             fontSize: "0.95rem"
                           }}
                         >
-                          {formatAmountOnly(tx.amount)}
+                          {formatAmountOnly(tx.amount, tx.currency)}
                         </span>
                       </td>
                       <td>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
 import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
+import { formatMoney } from "../../utils/formatMoney";
 import { walletAPI } from "../../services/api-client";
 import { useLanguage } from "../../contexts/LanguageContext";
 import DetailViewTab from "./tabs/DetailViewTab";
@@ -119,6 +120,11 @@ export default function WalletDetail(props) {
 
   const balance = useMemo(() => {
     return Number(wallet?.balance ?? wallet?.current ?? 0) || 0;
+  }, [wallet]);
+
+  // Lấy currency từ wallet, fallback về "VND" nếu không có
+  const walletCurrency = useMemo(() => {
+    return wallet?.currency || wallet?.currencyCode || "VND";
   }, [wallet]);
 
   // ======= SHARED WITH ME MODE =======
@@ -412,7 +418,10 @@ export default function WalletDetail(props) {
                           )}
                         </div>
                         <span className="wallets-shared-owner-wallet__balance">
-                          {formatCurrency(sharedWallet.balance)}
+                          {formatMoney(
+                            Number(sharedWallet.balance ?? sharedWallet.current ?? 0) || 0,
+                            sharedWallet.currency || sharedWallet.currencyCode || "VND"
+                          )}
                         </span>
                       </div>
                       {sharedWallet.note && (
@@ -514,7 +523,7 @@ export default function WalletDetail(props) {
         <div className="wallets-detail__balance">
           <div className="wallets-detail__balance-label">{t("wallets.card.balance")}</div>
           <div className="wallets-detail__balance-value">
-            {formatCurrency(balance)}
+            {formatMoney(balance, walletCurrency)}
           </div>
         </div>
       </div>

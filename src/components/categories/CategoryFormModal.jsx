@@ -24,6 +24,9 @@ export default function CategoryFormModal({
   onSubmit,
   onClose,
   isAdmin,
+  activeTab = "expense", // "expense" | "income" | "system"
+  selectedType, // "expense" | "income" - chỉ dùng khi activeTab === "system"
+  onTypeChange, // callback khi chọn type ở tab system
 }) {
   // initialValue: string (name) hoặc object { name, description, isSystem, icon }
   const [name, setName] = useState("");
@@ -34,6 +37,9 @@ export default function CategoryFormModal({
 
   // trạng thái "danh mục hệ thống"
   const [isSystemState, setIsSystemState] = useState(false);
+  
+  // Khi ở tab system, luôn set isSystem = true
+  const isSystemTab = activeTab === "system";
 
   // Khi mở modal → fill form
   useEffect(() => {
@@ -43,16 +49,16 @@ export default function CategoryFormModal({
       setName(initialValue.name || "");
       setDescription(initialValue.description || "");
       setSelectedIcon(initialValue.icon || "bi-tags");
-      setIsSystemState(!!initialValue.isSystem);
+      setIsSystemState(isSystemTab || !!initialValue.isSystem);
     } else {
       setName(typeof initialValue === "string" ? initialValue : "");
       setDescription("");
       setSelectedIcon("bi-tags");
-      setIsSystemState(false);
+      setIsSystemState(isSystemTab);
     }
     setShowIconPicker(false);
     setError("");
-  }, [open, initialValue]);
+  }, [open, initialValue, isSystemTab]);
 
   // submit
   const handleSubmit = (e) => {
@@ -68,22 +74,29 @@ export default function CategoryFormModal({
       return;
     }
 
+    // Nếu ở tab system, luôn set isSystem = true
+    const finalIsSystem = isSystemTab ? true : (isAdmin ? isSystemState : false);
+    
     onSubmit &&
       onSubmit({
         name: trimmed,
         description: (description || "").trim(),
         icon: selectedIcon,
-        // Admin được phép bật/tắt, user thường luôn false
-        isSystem: isAdmin ? isSystemState : false,
+        isSystem: finalIsSystem,
+        // Thêm transactionType nếu ở tab system
+        transactionType: isSystemTab && selectedType ? selectedType : null,
       });
   };
 
   if (!open) return null;
 
-  const title =
-    mode === "edit"
-      ? `Sửa danh mục ${typeLabel}`
-      : `Thêm danh mục ${typeLabel}`;
+  const title = isSystemTab
+    ? mode === "edit"
+      ? `Sửa danh mục hệ thống`
+      : `Thêm danh mục hệ thống`
+    : mode === "edit"
+    ? `Sửa danh mục ${typeLabel}`
+    : `Thêm danh mục ${typeLabel}`;
 
   return (
     <Modal open={open} onClose={onClose} width={460}>
@@ -277,6 +290,27 @@ export default function CategoryFormModal({
                 )}
               </div>
 
+              {/* Chọn loại danh mục khi ở tab system */}
+              {isSystemTab && mode === "create" && (
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">
+                    Loại danh mục <span className="text-danger">*</span>
+                  </label>
+                  <select
+                    className="form-select"
+                    value={selectedType || "expense"}
+                    onChange={(e) => onTypeChange && onTypeChange(e.target.value)}
+                    required
+                  >
+                    <option value="expense">Chi phí</option>
+                    <option value="income">Thu nhập</option>
+                  </select>
+                  <div className="form-text text-muted small">
+                    Chọn loại danh mục bạn muốn tạo.
+                  </div>
+                </div>
+              )}
+
               <div className="mb-3">
                 <label className="form-label fw-semibold">
                   Tên danh mục <span className="text-danger">*</span>
@@ -313,8 +347,8 @@ export default function CategoryFormModal({
                 </div>
               </div>
 
-              {/* Checkbox danh mục hệ thống – chỉ Admin thấy */}
-              {isAdmin && (
+              {/* Checkbox danh mục hệ thống – chỉ Admin thấy, không ở tab system, và chỉ khi tạo mới */}
+              {isAdmin && !isSystemTab && mode === "create" && (
                 <>
                   <div className="mb-1 form-check">
                     <input
