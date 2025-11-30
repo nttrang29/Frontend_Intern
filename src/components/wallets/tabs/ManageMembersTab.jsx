@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function ManageMembersTab({
   wallet,
@@ -7,7 +7,34 @@ export default function ManageMembersTab({
   sharedMembersError = "",
   onRemoveSharedMember,
   removingMemberId,
+  onQuickShareEmail,
+  quickShareLoading = false,
+  onUpdateMemberRole,
+  updatingMemberId,
 }) {
+  const [showQuickShareForm, setShowQuickShareForm] = useState(false);
+  const [quickShareEmail, setQuickShareEmail] = useState("");
+  const [quickShareMessage, setQuickShareMessage] = useState("");
+
+  const toggleQuickShareForm = () => {
+    setShowQuickShareForm((s) => !s);
+    setQuickShareMessage("");
+    if (!showQuickShareForm) setQuickShareEmail("");
+  };
+
+  const handleQuickShareSubmit = async (e) => {
+    e?.preventDefault?.();
+    if (!onQuickShareEmail) return;
+    setQuickShareMessage("");
+    const res = await onQuickShareEmail(quickShareEmail);
+    if (res?.success) {
+      setQuickShareEmail("");
+      setShowQuickShareForm(false);
+      setQuickShareMessage("");
+    } else if (res?.message) {
+      setQuickShareMessage(res.message);
+    }
+  };
   const ownerBadge = (role = "") => {
     const upper = role.toUpperCase();
     if (upper === "OWNER" || upper === "MASTER" || upper === "ADMIN") {
@@ -28,6 +55,39 @@ export default function ManageMembersTab({
       </div>
 
       <div className="wallets-manage-list">
+        <div style={{ marginBottom: 10 }}>
+          {onQuickShareEmail && (
+            <button
+              type="button"
+              className="wallets-btn wallets-btn--ghost"
+              onClick={toggleQuickShareForm}
+            >
+              {showQuickShareForm ? "- Thêm" : "+ Thêm người chia sẻ"}
+            </button>
+          )}
+          {showQuickShareForm && (
+            <form
+              className="wallet-share-quick-form"
+              onSubmit={handleQuickShareSubmit}
+              style={{ marginTop: 8 }}
+            >
+              <input
+                type="email"
+                value={quickShareEmail}
+                onChange={(e) => setQuickShareEmail(e.target.value)}
+                placeholder="example@gmail.com"
+              />
+              <button type="submit" disabled={!quickShareEmail.trim() || quickShareLoading}>
+                {quickShareLoading ? "Đang thêm..." : "Thêm"}
+              </button>
+            </form>
+          )}
+          {quickShareMessage && (
+            <div className="wallets-manage__state wallets-manage__state--error" style={{ marginTop: 8 }}>
+              {quickShareMessage}
+            </div>
+          )}
+        </div>
         {sharedMembersLoading && (
           <div className="wallets-manage__state">Đang tải danh sách...</div>
         )}
@@ -46,8 +106,9 @@ export default function ManageMembersTab({
           <ul>
             {safeMembers.map((member) => {
               const memberId = member.userId ?? member.memberUserId ?? member.memberId;
-              const role = member.role || "";
-              const isOwner = ["OWNER", "MASTER", "ADMIN"].includes(role.toUpperCase());
+              const role = (member.role || "").toUpperCase();
+              const isOwner = ["OWNER", "MASTER", "ADMIN"].includes(role);
+              const isUpdating = updatingMemberId && String(updatingMemberId) === String(memberId);
               return (
                 <li key={memberId || member.email || role}>
                   <div>
@@ -57,13 +118,35 @@ export default function ManageMembersTab({
                       {role && <span>{ownerBadge(role)}</span>}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveSharedMember?.(member)}
-                    disabled={isOwner || removingMemberId === memberId}
-                  >
-                    {removingMemberId === memberId ? "Đang xóa..." : "Xóa"}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {/* Role selector for owner to change */}
+                    {!isOwner && onUpdateMemberRole ? (
+                      <select
+                        className="wallet-role-select"
+                        value={role || 'MEMBER'}
+                        onChange={async (e) => {
+                          const newRole = (e.target.value || '').toUpperCase();
+                          if (!memberId) return;
+                          // Server now supports VIEW/VIEWER — send the selected role as-is
+                          await onUpdateMemberRole(member, newRole);
+                        }}
+                        disabled={isUpdating}
+                        aria-label="Phân quyền thành viên"
+                      >
+                        <option value="MEMBER">Member</option>
+                        <option value="VIEW">Viewer</option>
+                      </select>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      className="wallets-btn wallets-btn--danger-outline"
+                      onClick={() => onRemoveSharedMember?.(member)}
+                      disabled={isOwner || removingMemberId === memberId}
+                    >
+                      {removingMemberId === memberId ? "Đang xóa..." : "Xóa"}
+                    </button>
+                  </div>
                 </li>
               );
             })}
@@ -73,4 +156,3 @@ export default function ManageMembersTab({
     </div>
   );
 }
-

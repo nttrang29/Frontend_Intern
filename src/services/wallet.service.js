@@ -317,6 +317,41 @@ export const removeMember = async (walletId, memberUserId) => {
 };
 
 /**
+ * 🔧 CẬP NHẬT ROLE THÀNH VIÊN
+ * @param {number} walletId
+ * @param {number} memberUserId
+ * @param {string} role
+ * @returns {Promise<Object>} - { message, member } hoặc { error }
+ */
+export const updateMemberRole = async (walletId, memberUserId, role) => {
+  try {
+    const response = await apiClient.patch(`/${walletId}/members/${memberUserId}`, { role });
+    return handleAxiosResponse(response);
+  } catch (error) {
+    if (error.response) {
+      return {
+        data: error.response.data || { error: "Đã xảy ra lỗi" },
+        response: {
+          ok: false,
+          status: error.response.status,
+          statusText: error.response.statusText,
+        },
+      };
+    } else if (error.request) {
+      return {
+        response: { ok: false, status: 0 },
+        data: { error: "Lỗi kết nối đến máy chủ khi cập nhật quyền thành viên." },
+      };
+    } else {
+      return {
+        response: { ok: false, status: 0 },
+        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
+      };
+    }
+  }
+};
+
+/**
  * 🚪 RỜI KHỎI VÍ (nếu không phải chủ ví)
  * @param {number} walletId - ID của ví
  * @returns {Promise<Object>} - { message: string } hoặc { error: string }
@@ -853,6 +888,7 @@ const checkAccessFn = checkAccess;
 const getMergeCandidatesFn = getMergeCandidates;
 const previewMergeFn = previewMerge;
 const mergeWalletsFn = mergeWallets;
+const updateMemberRoleFn = updateMemberRole;
 const getTransferTargetsFn = getTransferTargets;
 const transferMoneyFn = transferMoney;
 const getAllTransfersFn = getAllTransfers;
@@ -904,6 +940,10 @@ export const walletAPI = {
   // Alias cho getSharedMembers (tương thích với code cũ)
   getSharedMembers: async (walletId) => {
     const result = await getWalletMembersFn(walletId);
+    return result.data || result;
+  },
+  updateMemberRole: async (walletId, memberUserId, role) => {
+    const result = await updateMemberRoleFn(walletId, memberUserId, role);
     return result.data || result;
   },
   removeMember: async (walletId, memberUserId) => {

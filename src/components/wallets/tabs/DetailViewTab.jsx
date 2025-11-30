@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 export default function DetailViewTab({
   wallet,
@@ -16,31 +16,7 @@ export default function DetailViewTab({
   demoTransactions,
   isLoadingTransactions = false,
 }) {
-  const [showQuickShareForm, setShowQuickShareForm] = useState(false);
-  const [quickShareEmail, setQuickShareEmail] = useState("");
-  const [quickShareMessage, setQuickShareMessage] = useState("");
-
-  const toggleQuickShareForm = () => {
-    setShowQuickShareForm((prev) => !prev);
-    setQuickShareMessage("");
-    if (!showQuickShareForm) {
-      setQuickShareEmail("");
-    }
-  };
-
-  const handleQuickShareSubmit = async (event) => {
-    event?.preventDefault?.();
-    if (!onQuickShareEmail) return;
-    setQuickShareMessage("");
-    const result = await onQuickShareEmail(quickShareEmail);
-    if (result?.success) {
-      setQuickShareEmail("");
-      setShowQuickShareForm(false);
-      setQuickShareMessage("");
-    } else if (result?.message) {
-      setQuickShareMessage(result.message);
-    }
-  };
+  // Quick-share UI removed: we only display existing shared members.
 
   const fallbackEmails = Array.isArray(sharedEmails) ? sharedEmails : [];
   const displayMembers = sharedMembers.length
@@ -75,16 +51,22 @@ export default function DetailViewTab({
         {displayMembers.map((member) => {
           const key = member.memberId || member.userId || member.email || member.fullName;
           const name = member.fullName || member.name || member.email || "Không rõ tên";
-          const detail = member.email && member.email !== name
-            ? member.email
-            : member.role && member.role !== "OWNER"
-              ? member.role
-              : "";
+          const memberRoleRaw = (member.role || member.userRole || member.accessRole || member.permission || member.roleName || "").toString();
+          const roleUpper = memberRoleRaw ? memberRoleRaw.toUpperCase() : "";
+          const getRoleLabel = (r) => {
+            if (!r) return "";
+            if (["OWNER","MASTER","ADMIN"].includes(r)) return "Chủ ví";
+            if (["MEMBER","USER"].includes(r)) return "Thành viên";
+            if (["VIEW","VIEWER"].includes(r)) return "Người xem";
+            return r;
+          };
+          const roleLabel = getRoleLabel(roleUpper);
+          const emailDisplay = member.email && member.email !== name ? member.email : "";
           const memberId = member.userId ?? member.memberUserId ?? member.memberId;
           const allowRemove =
             canManageSharedMembers &&
             memberId &&
-            (member.role || "").toUpperCase() !== "OWNER";
+            (roleUpper || "") !== "OWNER";
           const pillClass = allowRemove
             ? "wallet-share-pill"
             : "wallet-share-pill wallet-share-pill--readonly";
@@ -93,7 +75,8 @@ export default function DetailViewTab({
             <span key={key || name} className={pillClass}>
               <span className="wallet-share-pill__info">
                 {name}
-                {detail && <small>{detail}</small>}
+                {emailDisplay && <small>{emailDisplay}</small>}
+                {roleLabel && <small>{roleLabel}</small>}
               </span>
               {allowRemove && (
                 <button
@@ -158,35 +141,8 @@ export default function DetailViewTab({
             <div className="wallets-detail__share">
               <div className="wallets-detail__share-header">
                 <h4>Chia sẻ ví</h4>
-                {canInviteMembers && (
-                  <button
-                    type="button"
-                    className="wallet-share-add-btn"
-                    onClick={toggleQuickShareForm}
-                  >
-                    {showQuickShareForm ? "-" : "+"}
-                  </button>
-                )}
               </div>
-              {canInviteMembers && showQuickShareForm && (
-                <form className="wallet-share-quick-form" onSubmit={handleQuickShareSubmit}>
-                  <input
-                    type="email"
-                    value={quickShareEmail}
-                    onChange={(e) => setQuickShareEmail(e.target.value)}
-                    placeholder="example@gmail.com"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!quickShareEmail.trim() || quickShareLoading}
-                  >
-                    {quickShareLoading ? "Đang chia sẻ..." : "Chia sẻ"}
-                  </button>
-                </form>
-              )}
-              {quickShareMessage && (
-                <p className="wallet-share-quick-message">{quickShareMessage}</p>
-              )}
+              {/* quick share form removed; only display existing shared members */}
               {renderShareSection()}
             </div>
           </div>
@@ -260,6 +216,9 @@ export default function DetailViewTab({
                           <span className="wallets-detail__history-category">
                             {tx.categoryName || "Danh mục khác"}
                           </span>
+                          {tx.creatorName ? (
+                            <span className="wallets-detail__history-actor">{tx.creatorName}</span>
+                          ) : null}
                           <span>{tx.timeLabel}</span>
                         </div>
                       </li>
@@ -274,4 +233,3 @@ export default function DetailViewTab({
     </div>
   );
 }
-

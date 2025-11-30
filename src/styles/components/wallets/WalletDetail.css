@@ -10,8 +10,9 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light);
   background: var(--color-bg-primary);
-  padding: var(--spacing-md) var(--spacing-md) var(--spacing-md);
+  padding: var(--spacing-lg);
   min-height: 320px;
+  box-sizing: border-box;
 }
 
 .wallets-detail-panel--shared-with-me {
@@ -111,22 +112,46 @@
 /* =============================
    EMPTY STATE
    ============================= */
-.wallets-detail__empty {
+
+/* styles for the empty-state panel (used when no wallet is selected) */
+.wallets-detail-empty {
   padding: var(--spacing-2xl) 10px;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  align-items: center; /* center content horizontally */
+  justify-content: center; /* center vertically */
+  text-align: center; /* center text inside */
+  min-height: 260px;
 }
 
-.wallets-detail__empty h3 {
-  margin: 0 0 var(--spacing-xs);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
+.wallets-detail-empty__title {
+  margin: 0;
+  font-size: 18px; /* smaller title for empty state */
+  line-height: 1.2;
+  font-weight: 300; /* reduce boldness */
   color: var(--color-text);
 }
 
-.wallets-detail__empty p {
+.wallets-detail-empty__text,
+.wallets-detail-empty__hint {
   margin: 0;
-  font-size: var(--font-size-base);
+  font-size: 13px;
   color: var(--color-text-muted);
+  line-height: 1.6;
+  max-width: 640px; /* limit line length for readability */
+  word-break: break-word;
+  margin-top: 8px;
+}
+
+/* Make the empty-state copy a bit more readable on narrow panels */
+@media (max-width: 900px) {
+  .wallets-detail__empty {
+    align-items: stretch;
+  }
+  .wallets-detail__empty h3 {
+    font-size: var(--font-size-lg);
+  }
 }
 
 /* =============================
@@ -303,6 +328,45 @@
 .wallet-share-pill__info small {
   font-size: 10px;
   opacity: 0.8;
+}
+
+/* Style for role selector in Manage Members to match page look */
+.wallets-manage-list select.wallet-role-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: #fff;
+  border: 1px solid var(--color-border-light);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--color-text);
+  min-width: 100px;
+}
+
+.wallets-manage-list select.wallet-role-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Align small controls inside the member row */
+.wallets-manage-list ul li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.wallets-manage__meta span {
+  margin-right: 10px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.wallets-manage-list .wallets-btn.wallets-btn--danger-outline {
+  padding: 6px 10px;
+  border-radius: 8px;
 }
 
 .wallet-share-pill button {
@@ -663,4 +727,3 @@
     grid-template-columns: 1fr;
   }
 }
-

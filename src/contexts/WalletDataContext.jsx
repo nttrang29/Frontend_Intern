@@ -373,6 +373,40 @@ export function WalletDataProvider({ children }) {
         previewCurrency: preview?.currency,
       });
 
+      // BEFORE calling the merge endpoint: fetch members of both wallets so we can
+      // ensure the merged wallet contains the union of shared users.
+      // Note: backend may already handle members. We attempt to add any missing
+      // members to the final wallet after merge by calling shareWallet for missing emails.
+      const safeGetMembers = async (walletId) => {
+        try {
+          const resp = await walletAPI.getWalletMembers(walletId);
+          if (!resp) return [];
+          if (Array.isArray(resp)) return resp;
+          if (Array.isArray(resp.data)) return resp.data;
+          if (Array.isArray(resp.members)) return resp.members;
+          if (resp.result && Array.isArray(resp.result.data)) return resp.result.data;
+          return [];
+        } catch (e) {
+          console.warn("mergeWallets: failed to load members for wallet", walletId, e.message || e);
+          return [];
+        }
+      };
+
+      const sourceMembers = await safeGetMembers(sourceIdNum);
+      const targetMembers = await safeGetMembers(targetIdNum);
+
+      const extractEmail = (m) => {
+        if (!m) return null;
+        if (m.email) return String(m.email).toLowerCase();
+        if (m.userEmail) return String(m.userEmail).toLowerCase();
+        if (m.user && m.user.email) return String(m.user.email).toLowerCase();
+        return null;
+      };
+
+      const targetEmailsSet = new Set(targetMembers.map(extractEmail).filter(Boolean));
+      const sourceEmails = sourceMembers.map(extractEmail).filter(Boolean);
+      const missingEmails = Array.from(new Set(sourceEmails.filter(e => e && !targetEmailsSet.has(e))));
+
       const { response, data } = await mergeWalletsAPI(targetIdNum, {
         sourceWalletId: sourceIdNum,
         targetCurrency: targetCurrency,
@@ -385,15 +419,47 @@ export function WalletDataProvider({ children }) {
       });
 
       if (response.ok) {
-        // Reload wallets sau khi gộp để lấy dữ liệu mới nhất
+        // If there are missing shared emails from the source wallet, try to share them
+        // to the target wallet so the merged wallet contains the union of users.
+        if (missingEmails.length > 0) {
+          console.log("mergeWallets - Adding missing members to target wallet:", missingEmails);
+          for (const email of missingEmails) {
+            try {
+              // We call shareWallet with the email. Backend controls assigned role.
+              await walletAPI.shareWallet(targetIdNum, email);
+            } catch (err) {
+              console.warn("mergeWallets - failed to share", email, "to wallet", targetIdNum, err?.message || err);
+            }
+          }
+        }
+
+        // Reload wallets sau khi gộp và sau khi cố gắng cập nhật thành viên
         const updatedWallets = await loadWallets();
-        
+
         // Tìm wallet đích sau khi gộp (ví nguồn đã bị xóa)
         const finalWallet = updatedWallets.find(w => w.id === targetIdNum);
-        
+
+        // Also attempt to fetch final wallet members to return for caller convenience
+        let finalMembers = [];
+        try {
+          finalMembers = await safeGetMembers(targetIdNum);
+        } catch (e) {
+          finalMembers = [];
+        }
+
+        // Dispatch a global event so UI components can update without a full reload.
+        try {
+          const evtDetail = { targetId: targetIdNum, finalMembers };
+          window.dispatchEvent(new CustomEvent("walletMerged", { detail: evtDetail }));
+        } catch (e) {
+          // ignore if CustomEvent not supported in environment
+          console.debug("walletMerged event dispatch failed", e);
+        }
+
         return {
           ...data,
           finalWallet,
+          finalMembers,
         };
       } else {
         const errorMessage = data?.error || data?.message || `HTTP ${response.status}: Không thể gộp ví`;
