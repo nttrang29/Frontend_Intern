@@ -23,12 +23,23 @@ export function useCurrency() {
   }, []);
 
   // Quy đổi và format số tiền
-  const formatCurrency = useCallback((amount) => {
+  // Accepts optional `targetCurrency` to format for a specific currency (e.g., wallet currency)
+  const formatCurrency = useCallback((amount, targetCurrency) => {
     const { thousand, decimal, decimalDigits } = getMoneyFormatSettings();
+    // If caller passes a targetCurrency, we assume `amount` is already in that
+    // currency and should NOT be converted. Only when no targetCurrency is
+    // provided do we treat `amount` as stored in VND and convert to the app
+    // display currency.
+    const hasTarget = typeof targetCurrency === "string" && targetCurrency.trim() !== "";
+    const cur = (hasTarget ? targetCurrency : currency || "").toString().toUpperCase();
     let value = Number(amount);
     let formatted = "";
-    if (currency === "USD") {
-      value = value / USD_TO_VND;
+    if (!hasTarget) {
+      // Legacy behavior: when no targetCurrency provided, assume incoming
+      // `amount` is in VND and convert to the app display currency if needed.
+      if (cur === "USD") {
+        value = value / USD_TO_VND;
+      }
     }
     // Format number with custom thousand/decimal separators
     formatted = value
@@ -42,8 +53,9 @@ export function useCurrency() {
       }
     }
     // Add currency symbol
-    if (currency === "USD") {
-      return formatted + " $";
+    if (cur === "USD") {
+      // Place symbol in front for USD (common format)
+      return "$" + formatted;
     }
     return formatted + " ₫";
   }, [currency, moneyFormatVersion]);

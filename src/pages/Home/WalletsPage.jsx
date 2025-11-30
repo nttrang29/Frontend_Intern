@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+import { logActivity } from "../../utils/activityLogger";
 import { useLocation } from "react-router-dom";
 import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
@@ -940,22 +941,160 @@ export default function WalletsPage() {
   }, [wallets]);
 
 
-  // Tổng số dư: chuyển đổi tất cả về VND, sau đó quy đổi sang displayCurrency
-  const totalBalance = useMemo(
-    () => {
-      const totalInVND = wallets
-        .filter((w) => w.includeOverall !== false)
-        .reduce((sum, w) => {
-          const balanceInVND = convertToVND(
-            w.balance ?? w.current ?? 0,
-            w.currency || "VND"
-          );
-          return sum + balanceInVND;
-        }, 0);
-      return convertFromVND(totalInVND, displayCurrency);
-    },
-    [wallets, displayCurrency]
-  );
+  // Tổng số dư: we'll compute the total in VND (used by the total card toggle)
+  // Helper: normalized role string
+  const getWalletRole = useCallback((wallet) => {
+    if (!wallet) return "";
+    return (
+      (wallet.walletRole || wallet.sharedRole || wallet.role || "") + ""
+    ).toUpperCase();
+  }, []);
+
+  const isViewerRole = useCallback((wallet) => {
+    const role = getWalletRole(wallet);
+    return ["VIEW", "VIEWER"].includes(role);
+  }, [getWalletRole]);
+
+  const isOwnerRole = useCallback((wallet) => {
+    const role = getWalletRole(wallet);
+    return ["OWNER", "MASTER", "ADMIN"].includes(role);
+  }, [getWalletRole]);
+
+  // Tổng số dư (theo quy tắc mới): mọi ví của mình (cá nhân + ví nhóm mình sở hữu + ví chia sẻ mà mình có quyền edit/member).
+  // Loại trừ các ví mà mình chỉ có quyền VIEW/VIEWER.
+  const totalInVND = useMemo(() => {
+    return wallets
+      .filter((w) => w.includeOverall !== false)
+      .filter((w) => {
+        const shared = !!w.isShared || !!(w.walletRole || w.sharedRole || w.role) || w.hasSharedMembers;
+        if (!shared) return true;
+        if (isOwnerRole(w)) return true;
+        const role = getWalletRole(w);
+        if (["MEMBER", "USER", "USE"].includes(role)) return true;
+        return false;
+      })
+      .reduce((sum, w) => {
+        const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
+        return sum + balanceInVND;
+      }, 0);
+  }, [wallets, getWalletRole, isOwnerRole]);
+
+  // Toggle for the total card only: remember choice in localStorage
+  const [totalCurrency, setTotalCurrency] = useState(() => localStorage.getItem("wallets_total_currency") || "VND");
+  useEffect(() => {
+    localStorage.setItem("wallets_total_currency", totalCurrency);
+  }, [totalCurrency]);
+  const toggleTotalCurrency = () => setTotalCurrency((c) => (c === "VND" ? "USD" : "VND"));
+
+  // Value to display on the total card (uses cached dashboard rate if USD selected)
+  const totalDisplayedValue = useMemo(() => {
+    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
+    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
+    if (totalCurrency === "USD") {
+      return totalInVND / vndToUsd;
+    }
+    return totalInVND;
+  }, [totalInVND, totalCurrency]);
+
+  // Keep legacy totalBalance for other parts (uses displayCurrency)
+  const totalBalance = useMemo(() => {
+    return convertFromVND(totalInVND, displayCurrency);
+  }, [totalInVND, displayCurrency]);
+
+  // All metric cards follow the `totalCurrency` toggle now.
+
+  // Số dư ví cá nhân: tổng số dư các ví cá nhân của mình (không tính ví được chia sẻ và ví nhóm)
+  const personalBalance = useMemo(() => {
+    const totalInVND = personalWallets.reduce((sum, w) => {
+      const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
+      return sum + balanceInVND;
+    }, 0);
+    return convertFromVND(totalInVND, displayCurrency);
+  }, [personalWallets, displayCurrency]);
+
+  // Per-card displayed values (based on selected per-card currency)
+  const personalInVND = useMemo(() => {
+    return personalWallets.reduce((sum, w) => {
+      const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
+      return sum + balanceInVND;
+    }, 0);
+  }, [personalWallets]);
+
+  const personalDisplayedValue = useMemo(() => {
+    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
+    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
+    return totalCurrency === "USD" ? personalInVND / vndToUsd : personalInVND;
+  }, [personalInVND, totalCurrency]);
+
+  // Số dư ví nhóm: tổng số dư các ví nhóm mà bản thân sở hữu (bao gồm ví nhóm đã chia sẻ đi)
+  const groupBalance = useMemo(() => {
+    const totalInVND = groupWallets.reduce((sum, w) => {
+      const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
+      return sum + balanceInVND;
+    }, 0);
+    return convertFromVND(totalInVND, displayCurrency);
+  }, [groupWallets, displayCurrency]);
+
+  const groupInVND = useMemo(() => {
+    return groupWallets.reduce((sum, w) => {
+      const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
+      return sum + balanceInVND;
+    }, 0);
+  }, [groupWallets]);
+
+  const groupDisplayedValue = useMemo(() => {
+    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
+    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
+    return totalCurrency === "USD" ? groupInVND / vndToUsd : groupInVND;
+  }, [groupInVND, totalCurrency]);
+
+  // Số dư các ví được chia sẻ với tôi (sharedWithMe): bao gồm các ví sharedWithMe nhưng KHÔNG tính những ví nơi tôi chỉ ở quyền VIEW/VIEWER
+  const sharedWithMeBalance = useMemo(() => {
+    const totalInVND = sharedWithMeDisplayWallets
+      .filter((w) => !isViewerRole(w))
+      .reduce((sum, w) => {
+        const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
+        return sum + balanceInVND;
+      }, 0);
+    return convertFromVND(totalInVND, displayCurrency);
+  }, [sharedWithMeDisplayWallets, displayCurrency, isViewerRole]);
+
+  const sharedWithMeInVND = useMemo(() => {
+    return sharedWithMeDisplayWallets
+      .filter((w) => !isViewerRole(w))
+      .reduce((sum, w) => {
+        const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
+        return sum + balanceInVND;
+      }, 0);
+  }, [sharedWithMeDisplayWallets, isViewerRole]);
+
+  const sharedWithMeDisplayedValue = useMemo(() => {
+    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
+    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
+    return totalCurrency === "USD" ? sharedWithMeInVND / vndToUsd : sharedWithMeInVND;
+  }, [sharedWithMeInVND, totalCurrency]);
+
+  // Số dư các ví tôi đã chia sẻ cho người khác (sharedByMe)
+  const sharedByMeBalance = useMemo(() => {
+    const totalInVND = sharedByMeWallets.reduce((sum, w) => {
+      const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
+      return sum + balanceInVND;
+    }, 0);
+    return convertFromVND(totalInVND, displayCurrency);
+  }, [sharedByMeWallets, displayCurrency]);
+
+  const sharedByMeInVND = useMemo(() => {
+    return sharedByMeWallets.reduce((sum, w) => {
+      const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
+      return sum + balanceInVND;
+    }, 0);
+  }, [sharedByMeWallets]);
+
+  const sharedByMeDisplayedValue = useMemo(() => {
+    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
+    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
+    return totalCurrency === "USD" ? sharedByMeInVND / vndToUsd : sharedByMeInVND;
+  }, [sharedByMeInVND, totalCurrency]);
 
   const handleSelectWallet = (id) => {
     setSelectedId(id);
@@ -1325,6 +1464,15 @@ export default function WalletsPage() {
       refreshTransactions();
 
       showToast(t('wallets.toast.merged'));
+      try {
+        logActivity({
+          type: "wallet.merge",
+          message: `Gộp ví ${sourceWallet?.name || sourceWallet?.id} vào ${targetWallet?.name || targetWallet?.id}`,
+          data: { sourceId, targetId },
+        });
+      } catch (e) {
+        // ignore logging errors
+      }
       setSelectedId(targetId);
       setActiveDetailTab("view");
     } catch (error) {
@@ -1554,30 +1702,60 @@ export default function WalletsPage() {
 
       {/* STATS */}
       <div className="wallets-page__stats">
-        <div className="budget-metric-card">
-          <div className="budget-metric-label">{t('wallets.total_balance')}</div>
-          <div className="budget-metric-value">{formatMoney(totalBalance, displayCurrency || "VND")}</div>
+        <div className="budget-metric-card" tabIndex={0} aria-describedby="tooltip-total">
+          <div className="budget-metric-label">
+            {t('wallets.total_balance')}
+            <button
+              type="button"
+              className="budget-metric-toggle"
+              title={totalCurrency === 'VND' ? 'Hiển thị USD' : 'Hiển thị VND'}
+              onClick={(e) => { e.stopPropagation(); toggleTotalCurrency(); }}
+              aria-pressed={totalCurrency === 'USD'}
+            >
+              {totalCurrency}
+            </button>
+          </div>
+          <div className="budget-metric-value">{formatMoney(totalDisplayedValue, totalCurrency || "VND")}</div>
+          <div id="tooltip-total" role="tooltip" className="budget-metric-tooltip">
+            <strong>Tổng số dư</strong>
+            <div className="budget-metric-tooltip__body">
+              Tổng số dư của tất cả ví của bạn (không bao gồm các ví bạn chỉ có quyền xem). Giá trị đã được quy đổi về tiền hiển thị để dễ so sánh.
+            </div>
+            <div className="budget-metric-tooltip__meta">Ví tính: {wallets.length} • Cập nhật gần nhất: ngay bây giờ</div>
+          </div>
         </div>
 
-        <div className="budget-metric-card">
-          <div className="budget-metric-label">{t('wallets.tab.personal')}</div>
-          <div className="budget-metric-value">{personalWallets.length}</div>
+        <div className="budget-metric-card budget-metric-card--personal" tabIndex={0} aria-describedby="tooltip-personal">
+          <div className="budget-metric-label">{t('wallets.metric.personal_balance')}</div>
+          <div className="budget-metric-value">{formatMoney(personalDisplayedValue, totalCurrency || "VND")}</div>
+          <div id="tooltip-personal" role="tooltip" className="budget-metric-tooltip">
+            <strong>Ví cá nhân</strong>
+            <div className="budget-metric-tooltip__body">Tổng số dư của các ví cá nhân (ví thuộc sở hữu và quản lý trực tiếp bởi bạn).</div>
+            <div className="budget-metric-tooltip__meta">Số ví: {personalWallets.length}</div>
+          </div>
         </div>
 
-        <div className="budget-metric-card">
-          <div className="budget-metric-label">{t('wallets.tab.group')}</div>
-          <div className="budget-metric-value">{groupWallets.length}</div>
+        <div className="budget-metric-card budget-metric-card--group" tabIndex={0} aria-describedby="tooltip-group">
+          <div className="budget-metric-label">{t('wallets.metric.group_balance')}</div>
+          <div className="budget-metric-value">{formatMoney(groupDisplayedValue, totalCurrency || "VND")}</div>
+          <div id="tooltip-group" role="tooltip" className="budget-metric-tooltip">
+            <strong>Ví nhóm</strong>
+            <div className="budget-metric-tooltip__body">Tổng số dư của các ví nhóm mà bạn sở hữu hoặc tham gia quản lý. Bao gồm các ví bạn đã chia sẻ cho nhóm.</div>
+            <div className="budget-metric-tooltip__meta">Số ví nhóm: {groupWallets.length}</div>
+          </div>
         </div>
 
-        <div className="budget-metric-card">
-          <div className="budget-metric-label">{t('wallets.metric.shared_with_me')}</div>
-          <div className="budget-metric-value">{sharedWithMeDisplayWallets.length}</div>
+        <div className="budget-metric-card budget-metric-card--shared-with-me" tabIndex={0} aria-describedby="tooltip-shared-with-me">
+          <div className="budget-metric-label">{t('wallets.metric.shared_with_me_balance')}</div>
+          <div className="budget-metric-value">{formatMoney(sharedWithMeDisplayedValue, totalCurrency || "VND")}</div>
+          <div id="tooltip-shared-with-me" role="tooltip" className="budget-metric-tooltip">
+            <strong>Được chia sẻ cho tôi</strong>
+            <div className="budget-metric-tooltip__body">Tổng số dư các ví mà người khác chia sẻ cho bạn — bạn có thể xem hoặc thao tác theo quyền được cấp.</div>
+            <div className="budget-metric-tooltip__meta">Số ví: {sharedWithMeDisplayWallets.length}</div>
+          </div>
         </div>
 
-        <div className="budget-metric-card">
-          <div className="budget-metric-label">{t('wallets.metric.shared_by_me')}</div>
-          <div className="budget-metric-value">{sharedByMeWallets.length}</div>
-        </div>
+        {/* Removed 'Số dư các ví đã chia sẻ' metric per request */}
       </div>
 
       {/* MAIN LAYOUT */}

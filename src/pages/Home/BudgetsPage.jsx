@@ -31,7 +31,6 @@ export default function BudgetsPage() {
   const [confirmDel, setConfirmDel] = useState(null);
   const [toast, setToast] = useState({ open: false, message: "", type: "success" });
   const [searchName, setSearchName] = useState("");
-  const [searchDesc, setSearchDesc] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [transactionFilter, setTransactionFilter] = useState("all");
   const [detailBudget, setDetailBudget] = useState(null);
@@ -227,17 +226,15 @@ export default function BudgetsPage() {
   const visibleBudgets = useMemo(() => {
     if (!Array.isArray(budgets)) return [];
     const normalizedName = searchName.trim().toLowerCase();
-    const normalizedDesc = searchDesc.trim().toLowerCase();
 
     return budgets.filter((budget) => {
       const matchesName = !normalizedName || budget.categoryName?.toLowerCase().includes(normalizedName);
-      const matchesDesc = !normalizedDesc || (budget.note || "").toLowerCase().includes(normalizedDesc);
-      if (!matchesName || !matchesDesc) return false;
+      if (!matchesName) return false;
       if (statusFilter === "all") return true;
       const usage = budgetUsageMap.get(budget.id);
       return usage?.status === statusFilter;
     });
-  }, [budgets, searchName, searchDesc, statusFilter, budgetUsageMap]);
+  }, [budgets, searchName, statusFilter, budgetUsageMap]);
 
   const latestTransactions = useMemo(() => {
     const list = Array.isArray(externalTransactionsList) ? externalTransactionsList : [];
@@ -254,7 +251,6 @@ export default function BudgetsPage() {
 
   const handleSearchReset = useCallback(() => {
     setSearchName("");
-    setSearchDesc("");
   }, []);
 
   const handleOpenDetail = useCallback((budget) => {
@@ -421,49 +417,38 @@ export default function BudgetsPage() {
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">
           <form className="budget-filter-form row g-3 align-items-end" onSubmit={(e) => e.preventDefault()}>
-            <div className="col-md-4">
+            <div className="col-md-7">
               <label className="form-label fw-semibold">{t("budgets.filter.category")}</label>
-              <input
-                className="form-control"
-                placeholder={t("budgets.filter.category_placeholder")}
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-              />
+              <div className="input-with-btn d-flex align-items-center">
+                <input
+                  className="form-control"
+                  placeholder={t("budgets.filter.category_placeholder")}
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="col-md-5">
-              <label className="form-label fw-semibold">{t("budgets.filter.desc")}</label>
-              <input
-                className="form-control"
-                placeholder={t("budgets.filter.desc_placeholder")}
-                value={searchDesc}
-                onChange={(e) => setSearchDesc(e.target.value)}
-              />
-            </div>
-            <div className="col-md-3 d-flex gap-2">
-              <button type="submit" className="btn btn-primary flex-grow-1">
-                {t("budgets.btn.search")}
-              </button>
-              <button type="button" className="btn btn-outline-secondary" onClick={handleSearchReset}>
-                {t("budgets.btn.clear")}
-              </button>
+            <div className="col-md-5 d-flex align-items-center justify-content-end">
+              <div className="d-flex gap-2 flex-wrap w-100 justify-content-end budget-status-group">
+                <button type="button" className={`btn btn-sm ${statusFilter === 'all' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setStatusFilter('all')}>
+                  {t('budgets.tab.all')} <span className="badge bg-white text-primary ms-2">{statusCounts.all ?? 0}</span>
+                </button>
+                <button type="button" className={`btn btn-sm ${statusFilter === 'healthy' ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setStatusFilter('healthy')}>
+                  {t('budgets.tab.healthy')} <span className="badge bg-white text-dark ms-2">{statusCounts.healthy ?? 0}</span>
+                </button>
+                <button type="button" className={`btn btn-sm ${statusFilter === 'warning' ? 'btn-warning' : 'btn-outline-warning'}`} onClick={() => setStatusFilter('warning')}>
+                  {t('budgets.tab.warning')} <span className="badge bg-white text-warning ms-2">{statusCounts.warning ?? 0}</span>
+                </button>
+                <button type="button" className={`btn btn-sm ${statusFilter === 'over' ? 'btn-danger' : 'btn-outline-danger'}`} onClick={() => setStatusFilter('over')}>
+                  {t('budgets.tab.over')} <span className="badge bg-white text-danger ms-2">{statusCounts.over ?? 0}</span>
+                </button>
+              </div>
             </div>
           </form>
         </div>
       </div>
 
-      <div className="budget-status-tabs mb-4">
-        {statusTabs.map((tab) => (
-          <button
-            key={tab.value}
-            className={`budget-status-tab ${statusFilter === tab.value ? "active" : ""}`}
-            type="button"
-            onClick={() => setStatusFilter(tab.value)}
-          >
-            {t(`budgets.tab.${tab.label}`)}
-            <span className="badge-count">{statusCounts[tab.value] ?? 0}</span>
-          </button>
-        ))}
-      </div>
+      {/* Status buttons have been moved into the search form */}
 
       <div className="budget-content-layout">
         <div className="budget-main-column">

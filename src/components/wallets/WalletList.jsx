@@ -65,6 +65,9 @@ export default function WalletList({
     const isActive = selectedId && String(selectedId) === String(w.id);
     const balance = Number(w.balance ?? w.current ?? 0) || 0;
     const isGroupWallet = !!w.isShared;
+    const roleRaw = (w.walletRole || w.sharedRole || w.role || "").toString().toUpperCase();
+    const isViewerRole = ["VIEW", "VIEWER"].includes(roleRaw);
+    const isEditableRole = ["MEMBER", "USER", "USE", "OWNER", "MASTER", "ADMIN"].includes(roleRaw);
     const sharedEmailsFromWallet = Array.isArray(w.sharedEmails)
       ? w.sharedEmails.filter((email) => email && typeof email === "string" && email.trim())
       : [];
@@ -73,7 +76,8 @@ export default function WalletList({
       : [];
     const hasMembers = (w.membersCount > 1) || (w.hasSharedMembers === true);
     const allEmails = [...new Set([...sharedEmailsFromWallet, ...memberEmails])].filter(Boolean);
-    const shouldShowMembers = isGroupWallet && (allEmails.length > 0 || hasMembers);
+    // Show members block for any wallet (personal or group) when we have member info
+    const shouldShowMembers = (allEmails.length > 0 || hasMembers);
 
     return (
       <button
@@ -89,14 +93,26 @@ export default function WalletList({
           <span className="wallets-list-item__name">
             {w.name || t('wallets.no_name')}
           </span>
-          <div className="wallets-list-item__pill-row">
-            <span className="wallets-list-item__type">
-              {w.isShared ? t('wallets.type.group') : t('wallets.type.personal')}
-            </span>
-            {w.isDefault && (
-              <span className="wallets-list-item__default-pill">{t('wallets.card.default') || 'Mặc định'}</span>
-            )}
-          </div>
+            <div className="wallets-list-item__pill-row">
+              {/* Wallet type with member count inline (matches group wallet display) */}
+              <span className="wallets-list-item__type-pill">
+                {w.isShared ? t('wallets.type.group', 'Nhóm') : t('wallets.type.personal', 'Cá nhân')}
+              </span>
+
+              {/* Role for shared wallets (viewer / member) */}
+              {w.isShared && (
+                <span className="wallets-list-item__role-pill">
+                  {isViewerRole
+                    ? t('wallets.role.viewer', 'viewer')
+                    : t('wallets.role.member', 'member')}
+                </span>
+              )}
+
+              {/* Default badge */}
+              {w.isDefault && (
+                <span className="wallets-list-item__default-pill">{t('wallets.card.default') || 'Mặc định'}</span>
+              )}
+            </div>
         </div>
         <div className="wallets-list-item__balance">
           {formatWalletBalance(balance, w.currency || "VND")}
@@ -301,27 +317,39 @@ export default function WalletList({
                   if (!owner) return (
                     <div className="wallets-list__empty">{t('wallets.no_shared_with_me')}</div>
                   );
-                  const ownerPersonal = (owner.wallets || []).filter((w) => !w.isShared);
-                  const ownerGroup = (owner.wallets || []).filter((w) => w.isShared);
+                  // Split owner's wallets into ones where the current user has edit/member rights
+                  // and ones where the current user only has view rights.
+                  const memberRoles = ["OWNER", "MASTER", "ADMIN", "MEMBER", "USER", "USE"];
+                  const viewerRoles = ["VIEW", "VIEWER"];
+                  const ownerMember = (owner.wallets || []).filter((w) => {
+                    const role = (w.walletRole || w.sharedRole || w.role || "").toString().toUpperCase();
+                    return memberRoles.includes(role);
+                  });
+                  const ownerViewer = (owner.wallets || []).filter((w) => {
+                    const role = (w.walletRole || w.sharedRole || w.role || "").toString().toUpperCase();
+                    // Treat explicit viewer roles or unknown/empty role as viewer-only
+                    return viewerRoles.includes(role) || !role;
+                  });
+
                   return (
                     <div className="wallets-shared-split wallets-shared-split--owner">
                       <div className="wallets-shared-column wallets-shared-column--personal">
-                        <div className="wallets-shared-column__title">{t('wallets.type.personal')}</div>
-                        {ownerPersonal.length === 0 ? (
+                        <div className="wallets-shared-column__title">{t('wallets.role.member','member')}</div>
+                        {ownerMember.length === 0 ? (
                           <div className="wallets-list__empty">{t('wallets.empty_list')}</div>
                         ) : (
-                          ownerPersonal.map((w) => renderWalletCard(w))
+                          ownerMember.map((w) => renderWalletCard(w))
                         )}
                       </div>
 
                       <div className="wallets-shared-divider" aria-hidden="true" />
 
                       <div className="wallets-shared-column wallets-shared-column--group">
-                        <div className="wallets-shared-column__title">{t('wallets.type.group')}</div>
-                        {ownerGroup.length === 0 ? (
+                        <div className="wallets-shared-column__title">{t('wallets.role.viewer','viewer')}</div>
+                        {ownerViewer.length === 0 ? (
                           <div className="wallets-list__empty">{t('wallets.empty_list')}</div>
                         ) : (
-                          ownerGroup.map((w) => renderWalletCard(w))
+                          ownerViewer.map((w) => renderWalletCard(w))
                         )}
                       </div>
                     </div>

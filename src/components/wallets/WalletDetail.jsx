@@ -676,7 +676,7 @@ export default function WalletDetail(props) {
                           )}
                         </div>
                         <span className="wallets-shared-owner-wallet__balance">
-                          {formatCurrency(sharedWallet.balance)}
+                          {formatCurrency(sharedWallet.balance, sharedWallet.currency)}
                         </span>
                       </div>
                       {sharedWallet.note && (
@@ -788,7 +788,7 @@ export default function WalletDetail(props) {
         <div className="wallets-detail__balance">
           <div className="wallets-detail__balance-label">{t("wallets.card.balance")}</div>
           <div className="wallets-detail__balance-value">
-            {formatCurrency(balance)}
+            {formatCurrency(balance, wallet?.currency)}
           </div>
         </div>
       </div>

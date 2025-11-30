@@ -13,9 +13,9 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
   };
 
   const statusLabel = {
-    healthy: "Đang ổn",
+    healthy: "Đang hoạt động",
     warning: "Sắp đạt ngưỡng",
-    over: "Đã vượt hạn mức",
+    over: "Vượt hạn mức",
   };
 
   const statusTone = {

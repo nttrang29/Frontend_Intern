@@ -388,6 +388,20 @@
   transition: all 0.2s ease;
 }
 
+/* New: force the inline status buttons in the search row to stay on one line */
+.budget-status-group {
+  display: flex !important;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  justify-content: flex-end;
+}
+.budget-status-group .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .budget-status-tab .badge-count {
   background: #f1f3f5;
   border-radius: 999px;
@@ -796,6 +810,150 @@
 .budget-form-modal {
   padding-top: 1rem !important;
   position: relative;
+}
+
+/* ===== Custom Budgets Filter Controls (pills + gradient search) ===== */
+.budget-filter-form .d-flex.gap-2 .btn {
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: none;
+}
+
+.budget-filter-form .d-flex.gap-2 .btn.btn-sm {
+  padding: 0.28rem 0.7rem;
+}
+
+/* Active pill colors - keep using bootstrap outline/filled classes but make them pill-like */
+.budget-filter-form .d-flex.gap-2 .btn-primary,
+.budget-filter-form .d-flex.gap-2 .btn-outline-primary {
+  border: 1px solid rgba(13,110,253,0.15);
+}
+
+.budget-filter-form .d-flex.gap-2 .btn-outline-primary {
+  background: transparent;
+  color: #0d6efd;
+}
+
+.budget-filter-form .d-flex.gap-2 .btn-primary {
+  background: linear-gradient(90deg, #0d6efd 0%, #0069d9 100%);
+  color: #fff;
+}
+
+.budget-filter-form .d-flex.gap-2 .btn-outline-secondary {
+  background: transparent;
+  color: #495057;
+  border-color: rgba(108,117,125,0.15);
+}
+
+.budget-filter-form .d-flex.gap-2 .btn-warning,
+.budget-filter-form .d-flex.gap-2 .btn-outline-warning {
+  border-color: rgba(255,193,7,0.15);
+}
+
+.budget-filter-form .d-flex.gap-2 .btn-danger,
+.budget-filter-form .d-flex.gap-2 .btn-outline-danger {
+  border-color: rgba(220,53,69,0.12);
+}
+
+/* Badge inside pill: small white circle with colored text */
+.budget-filter-form .d-flex.gap-2 .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.03) inset;
+}
+
+/* Search button: rounded gradient and slightly larger */
+.budget-filter-form .col-md-3 .btn.btn-primary {
+  background-color: var(--funds-accent);
+  border: 1px solid var(--funds-accent);
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  font-weight: 700;
+}
+
+/* Hide the clear button in the search form as requested */
+.budget-filter-form .col-md-3 .btn.btn-outline-secondary {
+  display: none;
+}
+
+/* hover/focus for the primary search button */
+.budget-filter-form .col-md-3 .btn.btn-primary:hover,
+.budget-filter-form .col-md-3 .btn.btn-primary:focus {
+  background-color: #23879a;
+  border-color: #23879a;
+  box-shadow: 0 6px 14px rgba(45,153,174,0.25);
+  color: #ffffff;
+}
+
+/* Responsive tweaks: allow pills to wrap nicely */
+.budget-filter-form .d-flex.gap-2 {
+  flex-wrap: wrap;
+}
+
+/* Small spacing tweak between search and pills on narrow screens */
+@media (max-width: 768px) {
+  .budget-filter-form .col-md-5,
+  .budget-filter-form .col-md-4,
+  .budget-filter-form .col-md-3 {
+    width: 100%;
+  }
+  .budget-filter-form .col-md-3 { display: flex; }
+}
+
+/* Ensure pills block is right-aligned on larger screens */
+.budget-filter-form .col-md-5.justify-content-end .d-flex {
+  justify-content: flex-end;
+}
+
+/* Rounded search input to match pill controls */
+.budget-filter-form .form-control {
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  height: calc(2.25rem + 10px);
+  box-shadow: none;
+  border: 1px solid rgba(33,37,41,0.08);
+}
+
+/* Input-with-btn layout: keep input flexible and button tight */
+.budget-filter-form .input-with-btn {
+  gap: 0.5rem;
+}
+
+.budget-filter-form .input-with-btn .form-control {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+/* If search button removed, ensure input uses full width */
+.budget-filter-form .input-with-btn {
+  width: 100%;
+}
+
+/* Ensure the select and the primary search button align height-wise */
+.budget-filter-form .col-md-3 .btn,
+.budget-filter-form .col-md-5 .form-select,
+.budget-filter-form .col-md-5 .btn {
+  height: calc(2.25rem + 10px);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Slightly increase placeholder opacity for visual parity with mock */
+.budget-filter-form .form-control::placeholder {
+  color: rgba(33,37,41,0.45);
 }
 
 .budget-form-close {

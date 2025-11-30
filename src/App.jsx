@@ -20,6 +20,7 @@ import FeedbackPage from "./pages/Home/FeedbackPage";
 
 import FundsPage from "./pages/Home/FundsPage"; 
 import CategoriesPage from "./pages/Home/CategoriesPage";
+import ActivityHistoryPage from "./pages/Home/ActivityHistoryPage";
 import AdminUsersPage from "./pages/Admin/AdminUsersPage";
 import AdminReviewsPage from "./pages/Admin/AdminReviewsPage"; // hoặc tên file bạn đang dùng
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
   <Route path="/home/*" element={<HomeLayout />}>  {/* thêm /* ở đây */}
     <Route index element={<DashboardPage />} />
     <Route path="wallets" element={<WalletsPage />} />
+    <Route path="activity" element={<ActivityHistoryPage />} />
  
     <Route path="transactions" element={<TransactionsPage />} />
   <Route path="categories" element={<CategoriesPage />} />

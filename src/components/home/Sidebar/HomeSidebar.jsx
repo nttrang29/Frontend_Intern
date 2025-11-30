@@ -12,6 +12,7 @@ const BASE_MENU = [
   { to: "/home/categories", labelKey: "sidebar.categories", icon: "bi-tags" },
   { to: "/home/transactions", labelKey: "sidebar.transactions", icon: "bi-cash-stack" },
   { to: "/home/budgets", labelKey: "sidebar.budgets", icon: "bi-graph-up-arrow" },
+  { to: "/home/activity", labelKey: "sidebar.activity", icon: "bi-clock-history" },
   { to: "/home/reports", labelKey: "sidebar.reports", icon: "bi-bar-chart-line" },
 ];
 
