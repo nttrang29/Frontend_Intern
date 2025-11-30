@@ -68,37 +68,114 @@
 
 /* STATS */
 .wallets-page__stats {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+  width: 100%;
+  margin-top: 8px;
+  margin-bottom: 20px; /* space below stats so they don't touch the content below */
 }
 
 .wallets-stat {
-  flex: 0 0 auto;
-  min-width: 160px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid #e3e3e3;
-  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-width: 0;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #ffffff, #f6fbfc);
+  box-shadow: 0 6px 18px rgba(13, 71, 84, 0.04);
   animation: cardFadeIn 0.6s ease-out backwards;
 }
 
-.wallets-stat:nth-child(1) { animation-delay: 0.1s; }
-.wallets-stat:nth-child(2) { animation-delay: 0.15s; }
-.wallets-stat:nth-child(3) { animation-delay: 0.2s; }
-.wallets-stat:nth-child(4) { animation-delay: 0.25s; }
+/* Hover effect for stat cards */
+.wallets-stat {
+  transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms ease;
+}
+.wallets-stat:hover, .wallets-stat:focus-within {
+  transform: translateY(-8px);
+  box-shadow: 0 18px 40px rgba(13,71,84,0.12);
+}
+
+/* Budget metric cards (used in header stats) */
+.budget-metric-card {
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff, #f6fbfc);
+  box-shadow: 0 6px 18px rgba(13,71,84,0.04);
+  transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms ease;
+}
+.budget-metric-card:hover, .budget-metric-card:focus-within {
+  transform: translateY(-8px);
+  box-shadow: 0 18px 40px rgba(13,71,84,0.12);
+}
+
+/* Wallets: larger metric value, no subtext (we removed descriptive line) */
+.budget-metric-value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #0b2b2f;
+  line-height: 1;
+}
+
+.budget-metric-sub {
+  display: none; /* removed descriptions — keep hidden in case other pages reuse this class */
+}
+
+.wallets-stat:nth-child(1) { animation-delay: 0.08s; }
+.wallets-stat:nth-child(2) { animation-delay: 0.12s; }
+.wallets-stat:nth-child(3) { animation-delay: 0.16s; }
+.wallets-stat:nth-child(4) { animation-delay: 0.20s; }
+.wallets-stat:nth-child(5) { animation-delay: 0.24s; }
 
 .wallets-stat__label {
   display: block;
-  font-size: 11px;
-  color: #666666;
-  margin-bottom: 4px;
+  font-size: 13px;
+  color: #556b6f;
+  margin-bottom: 6px;
 }
 
 .wallets-stat__value {
-  font-size: 15px;
-  font-weight: 600;
-  color: #000000;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0b2b2f;
+}
+
+/* Responsive: collapse columns on smaller screens */
+@media (max-width: 1100px) {
+  .wallets-page__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .budget-metric-value { font-size: 1.7rem; }
+}
+
+@media (max-width: 720px) {
+  .wallets-page__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wallets-stat__value { font-size: 16px; }
+  .budget-metric-value { font-size: 1.5rem; }
+}
+
+@media (max-width: 420px) {
+  .wallets-page__stats {
+    grid-template-columns: 1fr;
+  }
+  .wallets-stat { padding: 14px 12px; }
+  .wallets-stat__label { font-size: 12px; }
+  .wallets-stat__value { font-size: 15px; }
+  .budget-metric-value { font-size: 1.3rem; }
+}
+
+/* Small helper to match budgets metric subtext */
+.budget-metric-sub {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  color: #6c757d;
 }
 
 /* MAIN LAYOUT */
@@ -189,7 +266,7 @@
 .wallets-list-panel__controls {
   display: flex;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 10px; /* give more breathing room under the tabs/search area */
 }
 
 .wallets-list-panel__search {
@@ -263,8 +340,17 @@
 
 .wallets-list-item:hover {
   border-color: #2d99ae;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-  transform: translateY(-1px);
+  box-shadow: 0 10px 30px rgba(13,71,84,0.08);
+  transform: translateY(-6px);
+}
+
+/* Detail panel lift on hover to match other containers */
+.wallets-detail-panel {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.wallets-detail-panel:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 14px 40px rgba(13,71,84,0.08);
 }
 
 .wallets-list-item--active {

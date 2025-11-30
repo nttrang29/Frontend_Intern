@@ -61,6 +61,81 @@ export default function WalletList({
   const showSharedWithMeOwners =
     activeTab === "shared" && sharedFilter === "sharedWithMe";
 
+  const renderWalletCard = (w) => {
+    const isActive = selectedId && String(selectedId) === String(w.id);
+    const balance = Number(w.balance ?? w.current ?? 0) || 0;
+    const isGroupWallet = !!w.isShared;
+    const sharedEmailsFromWallet = Array.isArray(w.sharedEmails)
+      ? w.sharedEmails.filter((email) => email && typeof email === "string" && email.trim())
+      : [];
+    const memberEmails = Array.isArray(w.members)
+      ? w.members.map((m) => m.email || m.userEmail || m.memberEmail).filter(Boolean)
+      : [];
+    const hasMembers = (w.membersCount > 1) || (w.hasSharedMembers === true);
+    const allEmails = [...new Set([...sharedEmailsFromWallet, ...memberEmails])].filter(Boolean);
+    const shouldShowMembers = isGroupWallet && (allEmails.length > 0 || hasMembers);
+
+    return (
+      <button
+        key={w.id}
+        className={
+          isActive
+            ? "wallets-list-item wallets-list-item--active"
+            : "wallets-list-item"
+        }
+        onClick={() => onSelectWallet(w.id)}
+      >
+        <div className="wallets-list-item__header">
+          <span className="wallets-list-item__name">
+            {w.name || t('wallets.no_name')}
+          </span>
+          <div className="wallets-list-item__pill-row">
+            <span className="wallets-list-item__type">
+              {w.isShared ? t('wallets.type.group') : t('wallets.type.personal')}
+            </span>
+            {w.isDefault && (
+              <span className="wallets-list-item__default-pill">{t('wallets.card.default') || 'Mặc định'}</span>
+            )}
+          </div>
+        </div>
+        <div className="wallets-list-item__balance">
+          {formatWalletBalance(balance, w.currency || "VND")}
+        </div>
+        {w.note && (
+          <div className="wallets-list-item__desc">{w.note}</div>
+        )}
+        {shouldShowMembers && (
+          <div className="wallets-list-item__members">
+            <div className="wallets-list-item__members-label">
+              <i className="bi bi-people" style={{ marginRight: "4px" }} />
+              {t('wallets.members') || 'Thành viên'}:
+            </div>
+            {allEmails.length > 0 ? (
+              <div className="wallets-list-item__members-emails">
+                {allEmails.slice(0, 3).map((email, idx) => (
+                  <span key={idx} className="wallets-list-item__member-email" title={email}>
+                    {String(email).trim()}
+                  </span>
+                ))}
+                {allEmails.length > 3 && (
+                  <span className="wallets-list-item__member-more">
+                    +{allEmails.length - 3} {t('wallets.more') || 'khác'}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="wallets-list-item__members-emails">
+                <span className="wallets-list-item__member-more" style={{ fontStyle: "normal" }}>
+                  {w.membersCount > 1 ? `${w.membersCount} thành viên` : "Chưa có thành viên"}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </button>
+    );
+  };
+
   return (
     <div className="wallets-list-panel">
       {/* Tabs */}
@@ -165,7 +240,29 @@ export default function WalletList({
       )}
 
       {/* List */}
-      {showSharedWithMeOwners ? (
+      {activeTab === 'shared' && sharedFilter === 'sharedByMe' ? (
+        /* Shared - "Ví đã chia sẻ": two-column split (left personal, right group) */
+        <div className="wallets-shared-split">
+            {/* Debug panel removed */}
+          <div className="wallets-shared-column wallets-shared-column--personal">
+            <div className="wallets-shared-column__title">{t('wallets.type.personal')}</div>
+            {wallets.filter((w) => !w.isShared).length === 0 && (
+              <div className="wallets-list__empty">{t('wallets.empty_list')}</div>
+            )}
+            {wallets.filter((w) => !w.isShared).map((w) => renderWalletCard(w))}
+          </div>
+
+          <div className="wallets-shared-divider" aria-hidden="true" />
+
+          <div className="wallets-shared-column wallets-shared-column--group">
+            <div className="wallets-shared-column__title">{t('wallets.type.group')}</div>
+            {wallets.filter((w) => w.isShared).length === 0 && (
+              <div className="wallets-list__empty">{t('wallets.empty_list')}</div>
+            )}
+            {wallets.filter((w) => w.isShared).map((w) => renderWalletCard(w))}
+          </div>
+        </div>
+      ) : showSharedWithMeOwners ? (
         <div className="wallets-shared-owner-wrapper">
           {sharedWithMeOwners.length === 0 ? (
             <div className="wallets-list__empty">{t('wallets.no_shared_with_me')}</div>
@@ -194,95 +291,56 @@ export default function WalletList({
                   </button>
                 ))}
               </div>
+
               <p className="wallets-shared-owner-hint">{t('wallets.shared_owner_hint')}</p>
+
+              {/* If an owner is selected, show their wallets split into personal/group */}
+              {selectedSharedOwnerId ? (
+                (() => {
+                  const owner = sharedWithMeOwners.find((o) => o.id === selectedSharedOwnerId);
+                  if (!owner) return (
+                    <div className="wallets-list__empty">{t('wallets.no_shared_with_me')}</div>
+                  );
+                  const ownerPersonal = (owner.wallets || []).filter((w) => !w.isShared);
+                  const ownerGroup = (owner.wallets || []).filter((w) => w.isShared);
+                  return (
+                    <div className="wallets-shared-split wallets-shared-split--owner">
+                      <div className="wallets-shared-column wallets-shared-column--personal">
+                        <div className="wallets-shared-column__title">{t('wallets.type.personal')}</div>
+                        {ownerPersonal.length === 0 ? (
+                          <div className="wallets-list__empty">{t('wallets.empty_list')}</div>
+                        ) : (
+                          ownerPersonal.map((w) => renderWalletCard(w))
+                        )}
+                      </div>
+
+                      <div className="wallets-shared-divider" aria-hidden="true" />
+
+                      <div className="wallets-shared-column wallets-shared-column--group">
+                        <div className="wallets-shared-column__title">{t('wallets.type.group')}</div>
+                        {ownerGroup.length === 0 ? (
+                          <div className="wallets-list__empty">{t('wallets.empty_list')}</div>
+                        ) : (
+                          ownerGroup.map((w) => renderWalletCard(w))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : null}
             </>
           )}
         </div>
       ) : (
+        /* Default single-column list for personal/group or other views */
         <div className="wallets-list-panel__list">
           {wallets.length === 0 && (
             <div className="wallets-list__empty">{t('wallets.empty_list')}</div>
           )}
 
-          {wallets.map((w) => {
-            const isActive = selectedId && String(selectedId) === String(w.id);
-            const balance = Number(w.balance ?? w.current ?? 0) || 0;
-            const isGroupWallet = !!w.isShared;
-            // Lấy sharedEmails từ wallet object, có thể từ sharedEmails hoặc từ members
-            const sharedEmailsFromWallet = Array.isArray(w.sharedEmails) 
-              ? w.sharedEmails.filter(email => email && typeof email === 'string' && email.trim())
-              : [];
-            const memberEmails = Array.isArray(w.members)
-              ? w.members.map(m => m.email || m.userEmail || m.memberEmail).filter(Boolean)
-              : [];
-            // Nếu có membersCount > 1 nhưng chưa có email, vẫn hiển thị phần members (có thể load sau)
-            const hasMembers = (w.membersCount > 1) || (w.hasSharedMembers === true);
-            const allEmails = [...new Set([...sharedEmailsFromWallet, ...memberEmails])].filter(Boolean);
-            const shouldShowMembers = isGroupWallet && (allEmails.length > 0 || hasMembers);
-
-            return (
-              <button
-                key={w.id}
-                className={
-                  isActive
-                    ? "wallets-list-item wallets-list-item--active"
-                    : "wallets-list-item"
-                }
-                onClick={() => onSelectWallet(w.id)}
-              >
-                <div className="wallets-list-item__header">
-                  <span className="wallets-list-item__name">
-                    {w.name || t('wallets.no_name')}
-                  </span>
-                  <div className="wallets-list-item__pill-row">
-                    <span className="wallets-list-item__type">
-                      {w.isShared ? t('wallets.type.group') : t('wallets.type.personal')}
-                    </span>
-                    {w.isDefault && (
-                      <span className="wallets-list-item__default-pill">{t('wallets.card.default') || 'Mặc định'}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="wallets-list-item__balance">
-                  {formatWalletBalance(balance, w.currency || "VND")}
-                </div>
-                {w.note && (
-                  <div className="wallets-list-item__desc">{w.note}</div>
-                )}
-                {shouldShowMembers && (
-                  <div className="wallets-list-item__members">
-                    <div className="wallets-list-item__members-label">
-                      <i className="bi bi-people" style={{ marginRight: "4px" }} />
-                      {t('wallets.members') || 'Thành viên'}:
-                    </div>
-                    {allEmails.length > 0 ? (
-                      <div className="wallets-list-item__members-emails">
-                        {allEmails.slice(0, 3).map((email, idx) => (
-                          <span key={idx} className="wallets-list-item__member-email" title={email}>
-                            {String(email).trim()}
-                          </span>
-                        ))}
-                        {allEmails.length > 3 && (
-                          <span className="wallets-list-item__member-more">
-                            +{allEmails.length - 3} {t('wallets.more') || 'khác'}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="wallets-list-item__members-emails">
-                        <span className="wallets-list-item__member-more" style={{ fontStyle: "normal" }}>
-                          {w.membersCount > 1 ? `${w.membersCount} thành viên` : "Chưa có thành viên"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </button>
-            );
-          })}
+          {wallets.map((w) => renderWalletCard(w))}
         </div>
       )}
     </div>
   );
 }
-

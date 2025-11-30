@@ -5,7 +5,7 @@ import { useDateFormat } from "../../hooks/useDateFormat";
 import "../../styles/pages/ReportsPage.css";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { transactionAPI } from "../../services/transaction.service";
-import { walletAPI } from "../../services/wallet.service";
+import { walletAPI } from "../../services";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
 

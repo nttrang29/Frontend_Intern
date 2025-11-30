@@ -53,66 +53,7 @@ const buildWalletForm = (wallet) => ({
 });
 
 const DEMO_SHARED_WITH_ME = [
-  {
-    id: "demo-shared-wallet-1",
-    name: "Quỹ du lịch Hội An",
-    currency: "VND",
-    balance: 3250000,
-    note: "Lan Phạm chia sẻ quỹ chuyến đi.",
-    isShared: true,
-    ownerUserId: "demo-owner-lan",
-    ownerName: "Lan Phạm",
-    ownerEmail: "lan.pham@example.com",
-    walletRole: "MEMBER",
-    sharedRole: "USE",
-    membersCount: 3,
-    hasSharedMembers: true,
-    includeOverall: false,
-    includePersonal: false,
-    includeGroup: true,
-    color: "#E7F4F2",
-    isDemoShared: true,
-  },
-  {
-    id: "demo-shared-wallet-2",
-    name: "Quỹ từ thiện Noel",
-    currency: "VND",
-    balance: 1500000,
-    note: "Lan Phạm thêm bạn vào ví chung.",
-    isShared: true,
-    ownerUserId: "demo-owner-lan",
-    ownerName: "Lan Phạm",
-    ownerEmail: "lan.pham@example.com",
-    walletRole: "MEMBER",
-    sharedRole: "VIEW",
-    membersCount: 4,
-    hasSharedMembers: true,
-    includeOverall: false,
-    includePersonal: false,
-    includeGroup: true,
-    color: "#FDECEF",
-    isDemoShared: true,
-  },
-  {
-    id: "demo-shared-wallet-3",
-    name: "Ví tiền học nhóm",
-    currency: "USD",
-    balance: 220,
-    note: "Quốc Bảo chia sẻ phí workshop.",
-    isShared: true,
-    ownerUserId: "demo-owner-bao",
-    ownerName: "Quốc Bảo",
-    ownerEmail: "quoc.bao@example.com",
-    walletRole: "MEMBER",
-    sharedRole: "USE",
-    membersCount: 5,
-    hasSharedMembers: true,
-    includeOverall: false,
-    includePersonal: false,
-    includeGroup: true,
-    color: "#EEF2FF",
-    isDemoShared: true,
-  },
+
 ];
 
 const buildOwnerId = (wallet) => {
@@ -370,44 +311,50 @@ export default function WalletsPage() {
     },
     [localSharedMap]
   );
+    // Determine if the current user is the owner/administrator for a shared wallet
+    const isWalletOwnedByMe = useCallback(
+      (wallet) => {
+        if (!wallet) return false;
+        if (!(wallet.isShared || walletHasSharedMembers(wallet))) return false;
+        const role = (
+          wallet.walletRole ||
+          wallet.sharedRole ||
+          wallet.role ||
+          ""
+        ).toUpperCase();
+        if (role) {
+          if (["OWNER", "MASTER", "ADMIN"].includes(role)) return true;
+          if (["MEMBER", "VIEW", "VIEWER", "USER", "USE"].includes(role))
+            return false;
+        }
+        if (wallet.ownerUserId && currentUserId) {
+          return String(wallet.ownerUserId) === String(currentUserId);
+        }
+        return true;
+      },
+      [currentUserId, walletHasSharedMembers]
+    );
 
-  const personalWallets = useMemo(
-    () => wallets.filter((w) => !w.isShared),
-    [wallets]
-  );
-  const groupWallets = useMemo(
-    () => wallets.filter((w) => w.isShared),
-    [wallets]
-  );
+    // Personal wallets: include non-group wallets; if a personal wallet has shares,
+    // include it here only when the current user is the owner (so recipients don't see it in Personal)
+    const personalWallets = useMemo(() => {
+      return wallets.filter((w) => {
+        if (w.isShared) return false;
+        if (walletHasSharedMembers(w)) return isWalletOwnedByMe(w);
+        return true;
+      });
+    }, [wallets, walletHasSharedMembers, isWalletOwnedByMe]);
+
+    // Group wallets: show group wallets that the current user owns
+    const groupWallets = useMemo(
+      () => wallets.filter((w) => w.isShared && isWalletOwnedByMe(w)),
+      [wallets, isWalletOwnedByMe]
+    );
 
   const sharedCandidates = useMemo(
     () => wallets.filter((w) => walletHasSharedMembers(w) || w.isShared),
     [wallets, walletHasSharedMembers]
   );
-
-  const isWalletOwnedByMe = useCallback(
-    (wallet) => {
-      if (!wallet) return false;
-      if (!(wallet.isShared || walletHasSharedMembers(wallet))) return false;
-      const role = (
-        wallet.walletRole ||
-        wallet.sharedRole ||
-        wallet.role ||
-        ""
-      ).toUpperCase();
-      if (role) {
-        if (["OWNER", "MASTER", "ADMIN"].includes(role)) return true;
-        if (["MEMBER", "VIEW", "VIEWER", "USER", "USE"].includes(role))
-          return false;
-      }
-      if (wallet.ownerUserId && currentUserId) {
-        return String(wallet.ownerUserId) === String(currentUserId);
-      }
-      return true;
-    },
-    [currentUserId, walletHasSharedMembers]
-  );
-
   const sharedByMeWallets = useMemo(
     () => sharedCandidates.filter((w) => isWalletOwnedByMe(w)),
     [sharedCandidates, isWalletOwnedByMe]
@@ -618,29 +565,139 @@ export default function WalletsPage() {
   }, []);
 
   const shareEmailForSelectedWallet = useCallback(
-    async (rawEmail) => {
+    async (rawEmail, overrideWalletId = null) => {
       const email = rawEmail?.trim();
       if (!email) {
         const message = t('wallets.error.email_invalid');
         showToast(message, "error");
         return { success: false, message };
       }
-      if (!selectedWallet?.id) {
+
+      const walletIdToUse = overrideWalletId ?? selectedWallet?.id;
+      if (!walletIdToUse) {
         const message = t('wallets.error.select_wallet_first');
         showToast(message, "error");
         return { success: false, message };
       }
+
       const normalized = email.toLowerCase();
-      if (selectedWalletEmailSet.has(normalized)) {
+      // Prevent sharing to current user
+      let currentUserEmail = null;
+      try {
+        const stored = localStorage.getItem("user");
+        if (stored) {
+          const u = JSON.parse(stored);
+          currentUserEmail = (u.email || u.userEmail || u.username || null)?.toLowerCase?.();
+        }
+      } catch (e) {
+        // ignore
+      }
+      if (currentUserEmail && normalized === (currentUserEmail || "").toLowerCase()) {
+        const key = 'wallets.error.cannot_share_self';
+        const translated = t(key);
+        const message = translated && translated !== key ? translated : "Không thể chia sẻ cho chính mình.";
+        showToast(message, "error");
+        return { success: false, message };
+      }
+
+      // Check local aggregated email set first (fast path) - only when operating on the currently selected wallet
+      if (!overrideWalletId && selectedWalletEmailSet.has(normalized)) {
         const message = t('wallets.error.email_already_shared');
         showToast(message, "error");
         return { success: false, message };
       }
 
+      // As a fallback, fetch actual wallet members from server and ensure the email isn't already a member
+      try {
+        if (walletAPI.getWalletMembers) {
+          const resp = await walletAPI.getWalletMembers(walletIdToUse);
+          let members = [];
+          if (!resp) members = [];
+          else if (Array.isArray(resp)) members = resp;
+          else if (Array.isArray(resp.data)) members = resp.data;
+          else if (Array.isArray(resp.members)) members = resp.members;
+          else if (resp.result && Array.isArray(resp.result.data)) members = resp.result.data;
+
+          const memberEmails = new Set();
+          for (const m of members) {
+            if (!m) continue;
+            const e = (m.email || m.userEmail || (m.user && (m.user.email || m.userEmail)) || m.memberEmail || "")
+              .toString()
+              .trim()
+              .toLowerCase();
+            if (e) memberEmails.add(e);
+          }
+          if (memberEmails.has(normalized)) {
+            const message = t('wallets.error.email_already_shared');
+            showToast(message, "error");
+            return { success: false, message };
+          }
+        }
+      } catch (err) {
+        // If member fetch fails, continue and rely on server response for duplicate handling
+        // eslint-disable-next-line no-console
+        console.debug("Could not verify existing members before share:", err);
+      }
+
       try {
         setShareWalletLoading(true);
-        await walletAPI.shareWallet(selectedWallet.id, email);
-        markLocalShared(selectedWallet.id, [email]);
+        await walletAPI.shareWallet(walletIdToUse, email);
+
+        // Verify whether the email corresponds to an existing user linked to the wallet
+        let verifiedAsExistingUser = false;
+        try {
+          if (walletAPI.getWalletMembers) {
+            const resp2 = await walletAPI.getWalletMembers(walletIdToUse);
+            let members2 = [];
+            if (!resp2) members2 = [];
+            else if (Array.isArray(resp2)) members2 = resp2;
+            else if (Array.isArray(resp2.data)) members2 = resp2.data;
+            else if (Array.isArray(resp2.members)) members2 = resp2.members;
+            else if (resp2.result && Array.isArray(resp2.result.data)) members2 = resp2.result.data;
+
+            const newMember = members2.find((m) => {
+              if (!m) return false;
+              const e = (m.email || m.userEmail || (m.user && (m.user.email || m.userEmail)) || m.memberEmail || "").toString().trim().toLowerCase();
+              return e === normalized;
+            });
+
+            if (newMember) {
+              // Consider existing user if member has a linked user id
+              const memberUserId = newMember.userId ?? newMember.memberUserId ?? newMember.memberId ?? (newMember.user && (newMember.user.id || newMember.user.userId)) ?? null;
+              if (memberUserId) {
+                verifiedAsExistingUser = true;
+              } else {
+                // No user id => likely an invitation / non-existing account. Try to revert the share.
+                try {
+                  const memberIdToRemove = newMember.memberId ?? newMember.id ?? memberUserId ?? null;
+                  if (memberIdToRemove && walletAPI.removeMember) {
+                    await walletAPI.removeMember(walletIdToUse, memberIdToRemove);
+                  }
+                } catch (remErr) {
+                  // ignore removal errors
+                  // eslint-disable-next-line no-console
+                  console.debug("Could not revert share for non-existing user:", remErr);
+                }
+              }
+            }
+          }
+        } catch (verErr) {
+          // If verification call failed, we'll rely on backend behavior and not block the share
+          // eslint-disable-next-line no-console
+          console.debug("Could not verify member after share:", verErr);
+        }
+
+        if (!verifiedAsExistingUser) {
+          // Inform user that the email isn't a registered account and was not shared
+          const key = 'wallets.error.user_not_found';
+          const translated = t(key);
+          const message = translated && translated !== key ? translated : "Tài khoản này chưa tồn tại trong hệ thống.";
+          showToast(message, "error");
+          return { success: false, message };
+        }
+
+        // If verified, update local state and reload wallets
+        markLocalShared(walletIdToUse, [email]);
         setEditForm((prev) => {
           const list = prev.sharedEmails || [];
           if (list.includes(email)) return prev;
@@ -776,6 +833,9 @@ export default function WalletsPage() {
     () => sortWalletsByMode(filteredWallets, sortBy),
     [filteredWallets, sortBy]
   );
+
+  // Debug: log counts to help diagnose empty shared list (placed after sortedWallets)
+  // (debug logging removed)
 
   useEffect(() => {
     setEditForm(buildWalletForm(selectedWallet));
@@ -914,9 +974,37 @@ export default function WalletsPage() {
   const handleAddCreateShareEmail = () => {
     const email = createShareEmail.trim();
     if (!email) return;
+    const normalized = email.toLowerCase();
+
+    // Prevent adding current user's email
+    let currentUserEmail = null;
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const u = JSON.parse(stored);
+        currentUserEmail = (u.email || u.userEmail || u.username || null)?.toLowerCase?.();
+      }
+    } catch (e) {
+      // ignore
+    }
+    if (currentUserEmail && normalized === (currentUserEmail || "").toLowerCase()) {
+      const key = 'wallets.error.cannot_share_self';
+      const translated = t(key);
+      const message = translated && translated !== key ? translated : "Không thể chia sẻ cho chính mình.";
+      showToast(message, "error");
+      return;
+    }
+
     setCreateForm((prev) => {
-      if (prev.sharedEmails.includes(email)) return prev;
-      return { ...prev, sharedEmails: [...prev.sharedEmails, email] };
+      const exists = (prev.sharedEmails || []).some((e) => (e || "").toLowerCase() === normalized);
+      if (exists) {
+        const key = 'wallets.error.email_already_shared';
+        const translated = t(key);
+        const message = translated && translated !== key ? translated : "Email đã được chia sẻ";
+        showToast(message, "error");
+        return prev;
+      }
+      return { ...prev, sharedEmails: [...(prev.sharedEmails || []), email] };
     });
     setCreateShareEmail("");
   };
@@ -939,9 +1027,20 @@ export default function WalletsPage() {
         const email = rawEmail?.trim();
         if (!email) continue;
         try {
-          await walletAPI.shareWallet(walletId, email);
-          results.success += 1;
-          results.successEmails.push(email);
+          // Use central shareEmailForSelectedWallet validation flow when available
+          if (typeof shareEmailForSelectedWallet === "function") {
+            const res = await shareEmailForSelectedWallet(email, walletId);
+            if (res?.success) {
+              results.success += 1;
+              results.successEmails.push(email);
+            } else {
+              results.failed.push({ email, message: res?.message || "Không thể chia sẻ ví" });
+            }
+          } else {
+            await walletAPI.shareWallet(walletId, email);
+            results.success += 1;
+            results.successEmails.push(email);
+          }
         } catch (error) {
           results.failed.push({
             email,
@@ -1063,9 +1162,12 @@ export default function WalletsPage() {
         currency: editForm.currency,
         isDefault: !!editForm.isDefault,
       });
-      // Reload wallets để cập nhật danh sách ví sau khi cập nhật
-      await loadWallets();
+      // Immediately notify user and switch to detail view for this wallet
       showToast(t('wallets.toast.updated'));
+      setSelectedId(selectedWallet.id);
+      setActiveDetailTab("view");
+      // Reload wallets in background to update data
+      loadWallets().catch((err) => console.debug("loadWallets failed after edit:", err));
     } catch (error) {
       showToast(error.message || t('wallets.toast.update_error'), "error");
     }
@@ -1279,6 +1381,8 @@ export default function WalletsPage() {
       tx.createdAt || tx.transactionDate || new Date().toISOString();
     const timeLabel = formatTimeLabel(dateValue);
 
+    const creatorName = tx.user?.fullName || tx.user?.name || tx.user?.email || tx.createdByName || tx.creatorName || (tx.user && (tx.user.username || tx.user.displayName)) || "";
+
     return {
       id: tx.transactionId,
       title: title,
@@ -1287,6 +1391,7 @@ export default function WalletsPage() {
       categoryName: categoryName,
       currency: tx.wallet?.currencyCode || "VND",
       date: dateValue,
+      creatorName,
     };
   }, []);
 
@@ -1307,6 +1412,8 @@ export default function WalletsPage() {
       transfer.createdAt || transfer.transferDate || new Date().toISOString();
     const timeLabel = formatTimeLabel(dateValue);
 
+    const actorName = transfer.user?.fullName || transfer.user?.name || transfer.user?.email || transfer.createdByName || transfer.creatorName || "";
+
     return {
       id: `transfer-${transfer.transferId}`,
       title: title,
@@ -1315,6 +1422,7 @@ export default function WalletsPage() {
       categoryName: "Chuyển tiền giữa các ví",
       currency: transfer.currencyCode || "VND",
       date: dateValue,
+      creatorName: actorName,
     };
   }, []);
 
@@ -1328,20 +1436,66 @@ export default function WalletsPage() {
 
       setLoadingTransactions(true);
       try {
+        // Support multiple possible wallet id fields from API responses
         const walletId = selectedWallet.id;
+        const walletAltId = selectedWallet.walletId || selectedWallet.id;
 
-        const txResponse = await transactionAPI.getAllTransactions();
-        const externalTxs = (txResponse.transactions || [])
-          .filter((tx) => tx.wallet?.walletId === walletId)
+        // Try multiple wallet-scoped endpoints (some backends restrict /transactions to current user)
+        let txResponse = null;
+        try {
+          if (transactionAPI.getWalletTransactions) {
+            txResponse = await transactionAPI.getWalletTransactions(walletId);
+          }
+        } catch (err) {
+          txResponse = null;
+        }
+
+        if (!txResponse) {
+          try {
+            if (transactionAPI.getTransactionsByWallet) {
+              txResponse = await transactionAPI.getTransactionsByWallet(walletId);
+            }
+          } catch (err) {
+            txResponse = null;
+          }
+        }
+
+        if (!txResponse) {
+          txResponse = await transactionAPI.getAllTransactions();
+        }
+
+        // DEBUG: log which response shape we received to help troubleshoot when only
+        // the current user's transactions are returned by the backend.
+        // Remove these logs in production.
+        try {
+          // eslint-disable-next-line no-console
+          console.debug("Loaded transactions response for wallet", walletId, txResponse);
+        } catch (e) {
+          // ignore
+        }
+
+        // Normalize possible response shapes
+        const txListRaw = txResponse?.transactions || txResponse?.data || txResponse || [];
+        const externalTxs = (Array.isArray(txListRaw) ? txListRaw : [])
+          .filter((tx) => {
+            const w = tx.wallet || {};
+            const wid = w.walletId ?? w.id ?? w.wallet_id ?? null;
+            return String(wid) === String(walletId) || String(wid) === String(walletAltId);
+          })
           .map((tx) => mapTransactionForWallet(tx, walletId));
 
         const transferResponse = await walletAPI.getAllTransfers();
         const transfers = (transferResponse.transfers || [])
-          .filter(
-            (transfer) =>
-              transfer.fromWallet?.walletId === walletId ||
-              transfer.toWallet?.walletId === walletId
-          )
+          .filter((transfer) => {
+            const fromWid = transfer.fromWallet?.walletId ?? transfer.fromWallet?.id ?? null;
+            const toWid = transfer.toWallet?.walletId ?? transfer.toWallet?.id ?? null;
+            return (
+              String(fromWid) === String(walletId) ||
+              String(fromWid) === String(walletAltId) ||
+              String(toWid) === String(walletId) ||
+              String(toWid) === String(walletAltId)
+            );
+          })
           .map((transfer) => mapTransferForWallet(transfer, walletId));
 
         const allTransactions = [...externalTxs, ...transfers].sort((a, b) => {
@@ -1365,6 +1519,7 @@ export default function WalletsPage() {
     transactionsRefreshKey,
     mapTransactionForWallet,
     mapTransferForWallet,
+    currentUserId, // reload when switching account
   ]);
 
   const refreshTransactions = () => {
@@ -1399,23 +1554,29 @@ export default function WalletsPage() {
 
       {/* STATS */}
       <div className="wallets-page__stats">
-        <div className="wallets-stat">
-          <span className="wallets-stat__label">{t('wallets.total_balance')}</span>
-          <span className="wallets-stat__value">
-            {formatMoney(totalBalance, displayCurrency || "VND")}
-          </span>
+        <div className="budget-metric-card">
+          <div className="budget-metric-label">{t('wallets.total_balance')}</div>
+          <div className="budget-metric-value">{formatMoney(totalBalance, displayCurrency || "VND")}</div>
         </div>
-        <div className="wallets-stat">
-          <span className="wallets-stat__label">{t('wallets.tab.personal')}</span>
-          <span className="wallets-stat__value">
-            {personalWallets.length}
-          </span>
+
+        <div className="budget-metric-card">
+          <div className="budget-metric-label">{t('wallets.tab.personal')}</div>
+          <div className="budget-metric-value">{personalWallets.length}</div>
         </div>
-        <div className="wallets-stat">
-          <span className="wallets-stat__label">{t('wallets.tab.group')}</span>
-          <span className="wallets-stat__value">
-            {groupWallets.length}
-          </span>
+
+        <div className="budget-metric-card">
+          <div className="budget-metric-label">{t('wallets.tab.group')}</div>
+          <div className="budget-metric-value">{groupWallets.length}</div>
+        </div>
+
+        <div className="budget-metric-card">
+          <div className="budget-metric-label">{t('wallets.metric.shared_with_me')}</div>
+          <div className="budget-metric-value">{sharedWithMeDisplayWallets.length}</div>
+        </div>
+
+        <div className="budget-metric-card">
+          <div className="budget-metric-label">{t('wallets.metric.shared_by_me')}</div>
+          <div className="budget-metric-value">{sharedByMeWallets.length}</div>
         </div>
       </div>
 

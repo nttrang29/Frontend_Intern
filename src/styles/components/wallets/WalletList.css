@@ -413,3 +413,41 @@
   color: var(--color-text-inverse);
 }
 
+/* Two-column split for shared wallets: left = personal, right = group */
+.wallets-shared-split {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: var(--spacing-sm);
+}
+.wallets-shared-column {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wallets-shared-column {
+  /* limit height and make column scrollable independently */
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 8px; /* space for scrollbar */
+}
+.wallets-shared-column__title {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
+  padding: 4px 8px;
+}
+.wallets-shared-divider {
+  width: 1px;
+  background: var(--color-border-light);
+  border-radius: 2px;
+  align-self: stretch;
+}
+
+/* When viewport is narrow, stack columns and hide divider */
+@media (max-width: 820px) {
+  .wallets-shared-split { flex-direction: column; }
+  .wallets-shared-divider { display: none; }
+  .wallets-shared-column { max-height: none; overflow: visible; padding-right: 0; }
+}
