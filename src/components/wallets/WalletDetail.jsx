@@ -502,6 +502,23 @@ export default function WalletDetail(props) {
 
             </div>
 
+            {/* Currency selection (was hidden) */}
+            <div className="wallet-form__row">
+              <label>
+                Đơn vị tiền tệ
+                <select
+                  value={createForm.currency || "VND"}
+                  onChange={(e) => onCreateFieldChange("currency", e.target.value)}
+                >
+                  {(Array.isArray(currencies) ? currencies : ["VND"]).map((c) => (
+                    <option key={c} value={c}>
+                      {c === "VND" ? "VND" : c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
             {/* bật/tắt chia sẻ */}
             <div className="wallet-form__row">
               <label className="wallet-form__checkbox">
