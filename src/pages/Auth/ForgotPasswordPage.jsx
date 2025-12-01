@@ -414,7 +414,7 @@ return (
             <div className="otp-card__badge-wrapper">
               {otpCountdown > 0 ? (
                 <span className="otp-card__badge is-active">
-                  Mã sẽ hết hạn sau <b>{otpCountdown}s</b>
+                  Mã sẽ hết hạn sau <b>: {otpCountdown}s</b>
                 </span>
               ) : (
                 <span className="otp-card__badge is-expired">
