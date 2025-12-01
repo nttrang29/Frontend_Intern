@@ -55,7 +55,15 @@ export default function MergeTab({
 
   const selectableWallets = useMemo(() => {
     if (!currentWallet) return [];
-    return (allWallets || []).filter((w) => w.id !== currentWallet.id);
+    // Only allow merging wallets of the same type:
+    // - personal wallets can only merge into other personal wallets
+    // - group wallets can only merge into other group wallets
+    const isCurrentGroup = !!currentWallet?.isShared;
+    return (allWallets || []).filter((w) => {
+      if (w.id === currentWallet.id) return false;
+      const isGroup = !!w?.isShared;
+      return isGroup === isCurrentGroup;
+    });
   }, [allWallets, currentWallet]);
 
   const filteredWallets = useMemo(() => {
@@ -388,7 +396,7 @@ export default function MergeTab({
                     : "Chọn ví cần gộp vào ví này"}
                 </div>
                 <p className="wallet-merge__hint">
-                  Chỉ những ví khác với ví hiện tại mới được hiển thị.
+                  Chỉ những ví cùng loại (ví cá nhân) khác với ví hiện tại mới được hiển thị.Không hỗ trợ gộp ví cá nhân với nhóm hay ngược lại.
                 </p>
 
                 <div className="wallet-merge__search">

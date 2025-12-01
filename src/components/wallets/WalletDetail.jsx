@@ -324,7 +324,7 @@ export default function WalletDetail(props) {
         userId: null,
         email,
         name: email,
-        role: "MEMBER",
+        role: wallet && !wallet.isShared ? "VIEW" : "MEMBER",
       }));
       setSharedMembers(normalizeMembersList(derived));
       setSharedMembersError("");
@@ -347,7 +347,7 @@ export default function WalletDetail(props) {
       userId: null,
       email,
       name: email,
-      role: "MEMBER",
+      role: wallet && !wallet.isShared ? "VIEW" : "MEMBER",
     }));
 
     // Show optimistic derived members immediately
@@ -434,6 +434,14 @@ export default function WalletDetail(props) {
 
   const handleUpdateMemberRole = async (member, newRole) => {
     if (!wallet || !member) return { success: false };
+    // Do not allow changing roles for personal wallets here — owner can only manage group wallets.
+    if (!wallet.isShared) {
+      const key = "wallets.error.cannot_change_role_personal";
+      const translated = t(key);
+      const message = translated && translated !== key ? translated : "Không thể thay đổi quyền trên ví cá nhân. Thành viên mặc định là Viewer.";
+      setToast({ open: true, message, type: "error" });
+      return { success: false, message };
+    }
     const memberId = member.userId ?? member.memberUserId ?? member.memberId;
     if (!memberId) return { success: false };
     setUpdatingMemberId(memberId);

@@ -254,7 +254,8 @@
 .wallets-layout {
   display: grid;
   /* Make the left (list) column wider so containers stretch across the page */
-  grid-template-columns: 1.6fr 1fr;
+  /* Keep left and right panels equal width */
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   align-items: flex-start;
 }

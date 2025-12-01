@@ -161,9 +161,23 @@ const sortWalletsByMode = (walletList = [], sortMode = "default") => {
     if (priorityA !== priorityB) {
       return priorityA - priorityB;
     }
-    
-    // Nếu cùng priority, giữ nguyên thứ tự
-    return 0;
+    // Nếu cùng priority, ưu tiên ví mới hơn lên trước (createdAt desc)
+    const getCreatedTime = (w) => {
+      if (!w) return 0;
+      const raw = w.createdAt || w.created_at || w.created || w.timestamp || 0;
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return 0;
+      return d.getTime();
+    };
+
+    const ta = getCreatedTime(a);
+    const tb = getCreatedTime(b);
+    if (ta !== tb) return tb - ta; // newer first
+
+    // Fallback: sort by name
+    const nameA = (a?.name || "").toLowerCase();
+    const nameB = (b?.name || "").toLowerCase();
+    return nameA.localeCompare(nameB);
   });
   return arr;
 };
@@ -244,6 +258,78 @@ const getVietnamDateTime = () => {
   );
   return vietnamTime.toISOString();
 };
+
+  const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+  // Retry helper: enforce VIEW role for new member by email
+  const enforceViewerRoleForEmail = async (walletId, email, attempts = 6, intervalMs = 500) => {
+    if (!walletAPI.getWalletMembers || !walletAPI.updateMemberRole) return false;
+    const normalized = (email || "").toString().trim().toLowerCase();
+
+    const extractMemberList = (resp) => {
+      if (!resp) return [];
+      if (Array.isArray(resp)) return resp;
+      if (Array.isArray(resp.data)) return resp.data;
+      if (Array.isArray(resp.members)) return resp.members;
+      if (resp.result && Array.isArray(resp.result.data)) return resp.result.data;
+      return [];
+    };
+
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const resp = await walletAPI.getWalletMembers(walletId);
+        const list = extractMemberList(resp);
+
+        const found = (list || []).find((m) => {
+          if (!m) return false;
+          const e = (m.email || m.userEmail || (m.user && (m.user.email || m.userEmail)) || m.memberEmail || "").toString().trim().toLowerCase();
+          return e === normalized;
+        });
+
+        if (found) {
+          // Try multiple candidate identifiers in order of likelihood
+          const candidates = [
+            found.userId,
+            found.memberUserId,
+            found.memberId,
+            found.id,
+            (found.user && (found.user.id || found.user.userId)),
+            found.membershipId,
+            found.membership?.id,
+          ].filter(Boolean);
+
+          for (const candidateId of candidates) {
+            try {
+              await walletAPI.updateMemberRole(walletId, candidateId, "VIEW");
+              // verify it stuck
+              const verifyResp = await walletAPI.getWalletMembers(walletId);
+              const verifyList = extractMemberList(verifyResp);
+              const verifyFound = (verifyList || []).find((m) => {
+                const e = (m.email || m.userEmail || (m.user && (m.user.email || m.userEmail)) || m.memberEmail || "").toString().trim().toLowerCase();
+                return e === normalized;
+              });
+              const newRole = (verifyFound && (verifyFound.role || verifyFound.membershipRole || verifyFound.walletRole || (verifyFound.membership && verifyFound.membership.role))) || null;
+              if (newRole && String(newRole).toUpperCase().includes("VIEW")) {
+                return true;
+              }
+            } catch (err) {
+              // try next candidate
+              // eslint-disable-next-line no-console
+              console.debug("updateMemberRole attempt failed for candidateId", candidateId, err?.message || err);
+            }
+          }
+        }
+      } catch (err) {
+        // ignore and retry
+        // eslint-disable-next-line no-console
+        console.debug("enforceViewerRoleForEmail error", err?.message || err);
+      }
+      // wait before next attempt
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(intervalMs);
+    }
+    return false;
+  };
 
 export default function WalletsPage() {
   const { t } = useLanguage();
@@ -697,6 +783,30 @@ export default function WalletsPage() {
           return { success: false, message };
         }
 
+        // If verified, best-effort: attempt to enforce viewer-only for new shares
+        // (applies to both personal and group wallets). We call markLocalShared
+        // to keep optimistic UI in sync and then try to set the member role to VIEW
+        // on the server by polling and calling updateMemberRole when possible.
+        try {
+          markLocalShared(walletIdToUse, [email]);
+        } catch (e) {
+          // ignore local mark failures
+        }
+        try {
+          const enforced = await enforceViewerRoleForEmail(walletIdToUse, email, 8, 500);
+          if (enforced) {
+            const successMsg = t('wallets.toast.enforce_view_success') || `Đã đặt quyền Người xem cho ${email}`;
+            showToast(successMsg, 'success');
+          } else {
+            const warnMsg = t('wallets.toast.enforce_view_failed') || `Không thể ép quyền Người xem cho ${email} (server có thể đặt Member).`;
+            showToast(warnMsg, 'warning');
+          }
+        } catch (err) {
+          // ignore enforcement failures (best-effort)
+          // eslint-disable-next-line no-console
+          console.debug('enforce viewer role failure', err?.message || err);
+        }
+
         // If verified, update local state and reload wallets
         markLocalShared(walletIdToUse, [email]);
         setEditForm((prev) => {
@@ -835,6 +945,47 @@ export default function WalletsPage() {
     [filteredWallets, sortBy]
   );
 
+  // Ensure default wallet always appears first and the most-recently-created
+  // non-default wallet appears directly after it (position 1).
+  const finalWallets = useMemo(() => {
+    const arr = Array.isArray(sortedWallets) ? [...sortedWallets] : [];
+    const getCreatedTime = (w) => {
+      if (!w) return 0;
+      const raw = w.createdAt || w.created_at || w.created || w.timestamp || 0;
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return 0;
+      return d.getTime();
+    };
+
+    // Move first default wallet to front
+    const defaultIdx = arr.findIndex((w) => !!w.isDefault);
+    if (defaultIdx > 0) {
+      const [d] = arr.splice(defaultIdx, 1);
+      arr.unshift(d);
+    }
+
+    // Find newest non-default wallet and move it to index 1
+    let newestIdx = -1;
+    let newestTime = -Infinity;
+    for (let i = 0; i < arr.length; i++) {
+      if (i === 0) continue; // skip default (or whatever is at front)
+      const w = arr[i];
+      if (!w) continue;
+      if (w.isDefault) continue;
+      const t = getCreatedTime(w) || 0;
+      if (t > newestTime) {
+        newestTime = t;
+        newestIdx = i;
+      }
+    }
+    if (newestIdx > 1) {
+      const [n] = arr.splice(newestIdx, 1);
+      arr.splice(1, 0, n);
+    }
+
+    return arr;
+  }, [sortedWallets]);
+
   // Debug: log counts to help diagnose empty shared list (placed after sortedWallets)
   // (debug logging removed)
 
@@ -868,9 +1019,25 @@ export default function WalletsPage() {
   // Helper function để tính tỷ giá
   const getRate = (from, to) => {
     if (!from || !to || from === to) return 1;
+    // Prefer using cached exchange rate (vndPerUsd) if available to keep
+    // all conversions consistent with the dashboard cache.
+    try {
+      const cachedRaw = typeof window !== 'undefined' ? localStorage.getItem('exchange_rate_cache') : null;
+      const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
+      const vndPerUsd = cached && Number(cached.vndToUsd) ? Number(cached.vndToUsd) : null;
+      if (vndPerUsd) {
+        if (from === 'USD' && to === 'VND') return vndPerUsd;
+        if (from === 'VND' && to === 'USD') return 1 / vndPerUsd;
+        // If neither side is USD, fall through to fallback rates below
+      }
+    } catch (e) {
+      // ignore parse errors and fall back to built-in rates
+    }
+
+    // Fallback static rates (used only if cache not available)
     const rates = {
       VND: 1,
-      USD: 0.000041, // 1 VND = 0.000041 USD
+      USD: 0.000041, // 1 VND = 0.000041 USD (fallback)
       EUR: 0.000038,
       JPY: 0.0063,
       GBP: 0.000032,
@@ -1776,7 +1943,7 @@ export default function WalletsPage() {
           onSearchChange={setSearch}
           sortBy={sortBy}
           onSortChange={setSortBy}
-          wallets={sortedWallets.map(w => ({
+          wallets={finalWallets.map(w => ({
             ...w,
             // Merge sharedEmails từ localSharedMap nếu có
             sharedEmails: [

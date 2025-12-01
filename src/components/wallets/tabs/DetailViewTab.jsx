@@ -52,7 +52,20 @@ export default function DetailViewTab({
           const key = member.memberId || member.userId || member.email || member.fullName;
           const name = member.fullName || member.name || member.email || "Không rõ tên";
           const memberRoleRaw = (member.role || member.userRole || member.accessRole || member.permission || member.roleName || "").toString();
-          const roleUpper = memberRoleRaw ? memberRoleRaw.toUpperCase() : "";
+          let roleUpper = memberRoleRaw ? memberRoleRaw.toUpperCase() : "";
+          // If this wallet is personal, non-owner members should be shown as VIEW (viewer)
+          if (wallet && !wallet.isShared) {
+            // detect owner by role or by matching owner fields
+            const isOwnerRole = ["OWNER","MASTER","ADMIN"].includes(roleUpper);
+            const memberId = member.userId ?? member.memberUserId ?? member.memberId;
+            const memberEmail = (member.email || "").toString().trim().toLowerCase();
+            const ownerIds = [wallet?.ownerUserId, wallet?.ownerId, wallet?.ownerUser].filter(Boolean).map(String);
+            const ownerEmails = [wallet?.ownerEmail, wallet?.ownerContact, wallet?.owner].filter(Boolean).map(e => String(e).toLowerCase());
+            const isMemberOwner = isOwnerRole || (memberId && ownerIds.includes(String(memberId))) || (memberEmail && ownerEmails.includes(memberEmail));
+            if (!isMemberOwner) {
+              roleUpper = "VIEW";
+            }
+          }
           const getRoleLabel = (r) => {
             if (!r) return "";
             if (["OWNER","MASTER","ADMIN"].includes(r)) return "Chủ ví";

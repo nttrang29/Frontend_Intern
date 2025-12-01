@@ -115,19 +115,19 @@ export default function ManageMembersTab({
                     <div className="wallets-manage__name">{member.fullName || member.name || member.email}</div>
                     <div className="wallets-manage__meta">
                       {member.email && <span>{member.email}</span>}
-                      {role && <span>{ownerBadge(role)}</span>}
+                      {/* If wallet is personal: owner shows Chủ ví, others always show Chỉ xem */}
+                      <span>{ownerBadge(wallet && !wallet.isShared ? (isOwner ? 'OWNER' : 'VIEW') : role)}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {/* Role selector for owner to change */}
-                    {!isOwner && onUpdateMemberRole ? (
+                    {/* Role selector for owner to change - only show for shared (group) wallets */}
+                    {wallet?.isShared && !isOwner && onUpdateMemberRole ? (
                       <select
                         className="wallet-role-select"
                         value={role || 'MEMBER'}
                         onChange={async (e) => {
                           const newRole = (e.target.value || '').toUpperCase();
                           if (!memberId) return;
-                          // Server now supports VIEW/VIEWER — send the selected role as-is
                           await onUpdateMemberRole(member, newRole);
                         }}
                         disabled={isUpdating}

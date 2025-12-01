@@ -82,6 +82,32 @@ export function WalletDataProvider({ children }) {
     const resolvedRole = (apiWallet.walletRole || apiWallet.role || apiWallet.accessRole || apiWallet.sharedRole || existingWallet?.walletRole || existingWallet?.sharedRole || "")
       .toString()
       .toUpperCase();
+
+    // Client-side enforcement: for PERSONAL (non-shared) wallets, ensure that
+    // users who are not the owner are treated as VIEW (viewer) regardless of
+    // what the backend returned. This enforces the product rule that personal
+    // wallets shared to others must be viewer-only.
+    let enforcedRole = resolvedRole;
+    try {
+      const curUserRaw = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      let currentUserId = null;
+      if (curUserRaw) {
+        try {
+          const u = JSON.parse(curUserRaw);
+          currentUserId = u.userId || u.id || null;
+        } catch (e) {
+          currentUserId = null;
+        }
+      }
+      const ownerId = apiWallet.ownerId || apiWallet.ownerUserId || apiWallet.createdBy || existingWallet?.ownerUserId || null;
+      const isPersonalWallet = rawIsShared === false;
+      if (isPersonalWallet && ownerId && currentUserId && String(ownerId) !== String(currentUserId)) {
+        enforcedRole = 'VIEW';
+      }
+    } catch (e) {
+      // If any error occurs, fall back to resolvedRole
+      enforcedRole = resolvedRole;
+    }
     const hasSharedMembers = resolvedMembersCount > 1
       || resolvedSharedEmails.length > 0
       || (resolvedRole && !["", "OWNER", "MASTER", "ADMIN"].includes(resolvedRole));
@@ -101,8 +127,8 @@ export function WalletDataProvider({ children }) {
       groupId: apiWallet.groupId || null,
       ownerUserId: apiWallet.ownerId || apiWallet.ownerUserId || apiWallet.createdBy || existingWallet?.ownerUserId || null,
       ownerName: apiWallet.ownerName || apiWallet.ownerFullName || existingWallet?.ownerName || "",
-      walletRole: apiWallet.walletRole || apiWallet.role || apiWallet.accessRole || existingWallet?.walletRole || null,
-      sharedRole: apiWallet.sharedRole || existingWallet?.sharedRole || null,
+      walletRole: enforcedRole || (apiWallet.walletRole || apiWallet.role || apiWallet.accessRole || existingWallet?.walletRole || null),
+      sharedRole: enforcedRole || (apiWallet.sharedRole || existingWallet?.sharedRole || null),
       sharedEmails: resolvedSharedEmails,
       membersCount: resolvedMembersCount,
       hasSharedMembers,
