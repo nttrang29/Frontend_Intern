@@ -747,7 +747,7 @@ export default function SettingsPage() {
 <div className="settings-profile-header">
 <img
 
-          src={user?.avatar || "https://i.pravatar.cc/150?img=12"}
+          src={user?.avatar || "https://www.gravatar.com/avatar/?d=mp&s=40"}
 
           alt="avatar"
 

@@ -4,36 +4,7 @@ const BudgetDataContext = createContext(null);
 
 export function BudgetDataProvider({ children }) {
   const [budgets, setBudgets] = useState([
-    {
-      id: 1,
-      categoryId: 1,
-      categoryName: "Ăn uống",
-      categoryType: "expense", // expense or income
-      limitAmount: 3000000,
-      createdAt: "2025-11-01T09:00:00Z",
-      walletId: null,
-      walletName: "Ví tiền mặt",
-      month: "11/2025", // track which month the budget is for
-      startDate: "2025-11-01",
-      endDate: "2025-11-30",
-      alertPercentage: 90,
-      note: "Ưu tiên thanh toán từ ví tiền mặt.",
-    },
-    {
-      id: 2,
-      categoryId: 3,
-      categoryName: "Mua sắm",
-      categoryType: "expense",
-      limitAmount: 2000000,
-      createdAt: "2025-11-02T08:30:00Z",
-      walletId: null,
-      walletName: "Techcombank",
-      month: "11/2025",
-      startDate: "2025-11-01",
-      endDate: "2025-11-30",
-      alertPercentage: 85,
-      note: "Chỉ áp dụng cho các đơn online lớn.",
-    },
+    
   ]);
 
   // Calculate spent amount for category+wallet combinations
