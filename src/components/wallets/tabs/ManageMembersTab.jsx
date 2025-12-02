@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import ConfirmModal from "../../common/Modal/ConfirmModal";
 
 export default function ManageMembersTab({
   wallet,
@@ -15,6 +16,14 @@ export default function ManageMembersTab({
   const [showQuickShareForm, setShowQuickShareForm] = useState(false);
   const [quickShareEmail, setQuickShareEmail] = useState("");
   const [quickShareMessage, setQuickShareMessage] = useState("");
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    type: null,
+    payload: null,
+    title: "",
+    message: "",
+    danger: false,
+  });
 
   const toggleQuickShareForm = () => {
     setShowQuickShareForm((s) => !s);
@@ -22,17 +31,79 @@ export default function ManageMembersTab({
     if (!showQuickShareForm) setQuickShareEmail("");
   };
 
-  const handleQuickShareSubmit = async (e) => {
+  const handleQuickShareSubmit = (e) => {
     e?.preventDefault?.();
     if (!onQuickShareEmail) return;
+    const email = quickShareEmail.trim();
+    if (!email) return;
     setQuickShareMessage("");
-    const res = await onQuickShareEmail(quickShareEmail);
-    if (res?.success) {
-      setQuickShareEmail("");
-      setShowQuickShareForm(false);
-      setQuickShareMessage("");
-    } else if (res?.message) {
-      setQuickShareMessage(res.message);
+    setConfirmState({
+      open: true,
+      type: "add",
+      payload: { email },
+      title: "Xác nhận chia sẻ",
+      message: `Bạn có chắc muốn chia sẻ ví "${wallet?.name || ""}" cho ${email}?`,
+      danger: false,
+    });
+  };
+
+  const triggerRemoveConfirm = (member) => {
+    if (!member) return;
+    setConfirmState({
+      open: true,
+      type: "remove",
+      payload: { member },
+      title: "Xóa người dùng",
+      message: `Bạn có chắc muốn xóa quyền truy cập của ${member.fullName || member.email || "người dùng"}?`,
+      danger: true,
+    });
+  };
+
+  const triggerRoleConfirm = (member, newRole) => {
+    if (!member || !newRole) return;
+    const label = newRole === "VIEW" ? "Người xem" : "Thành viên";
+    setConfirmState({
+      open: true,
+      type: "role",
+      payload: { member, newRole },
+      title: "Xác nhận phân quyền",
+      message: `Bạn có chắc muốn đặt quyền của ${member.fullName || member.email || "người dùng"} thành "${label}"?`,
+      danger: false,
+    });
+  };
+
+  const resetConfirm = () => {
+    setConfirmState({ open: false, type: null, payload: null, title: "", message: "", danger: false });
+  };
+
+  const handleConfirmOk = async () => {
+    const { type, payload } = confirmState;
+    if (!type) {
+      resetConfirm();
+      return;
+    }
+
+    try {
+      if (type === "add" && onQuickShareEmail) {
+        const res = await onQuickShareEmail(payload.email);
+        if (res?.success) {
+          setQuickShareEmail("");
+          setShowQuickShareForm(false);
+          setQuickShareMessage("");
+        } else if (res?.message) {
+          setQuickShareMessage(res.message);
+        }
+      }
+
+      if (type === "remove" && onRemoveSharedMember) {
+        await onRemoveSharedMember(payload.member);
+      }
+
+      if (type === "role" && onUpdateMemberRole) {
+        await onUpdateMemberRole(payload.member, payload.newRole);
+      }
+    } finally {
+      resetConfirm();
     }
   };
   const ownerBadge = (role = "") => {
@@ -109,6 +180,8 @@ export default function ManageMembersTab({
               const role = (member.role || "").toUpperCase();
               const isOwner = ["OWNER", "MASTER", "ADMIN"].includes(role);
               const isUpdating = updatingMemberId && String(updatingMemberId) === String(memberId);
+              const isRemoving = removingMemberId && String(removingMemberId) === String(memberId);
+              const canChangeRole = !isOwner && onUpdateMemberRole;
               return (
                 <li key={memberId || member.email || role}>
                   <div>
@@ -121,14 +194,16 @@ export default function ManageMembersTab({
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     {/* Role selector for owner to change - only show for shared (group) wallets */}
-                    {wallet?.isShared && !isOwner && onUpdateMemberRole ? (
+                    {canChangeRole ? (
                       <select
                         className="wallet-role-select"
                         value={role || 'MEMBER'}
                         onChange={async (e) => {
                           const newRole = (e.target.value || '').toUpperCase();
                           if (!memberId) return;
-                          await onUpdateMemberRole(member, newRole);
+                          if (newRole === role) return;
+                          e.target.value = role || 'MEMBER';
+                          triggerRoleConfirm(member, newRole);
                         }}
                         disabled={isUpdating}
                         aria-label="Phân quyền thành viên"
@@ -138,14 +213,16 @@ export default function ManageMembersTab({
                       </select>
                     ) : null}
 
-                    <button
-                      type="button"
-                      className="wallets-btn wallets-btn--danger-outline"
-                      onClick={() => onRemoveSharedMember?.(member)}
-                      disabled={isOwner || removingMemberId === memberId}
-                    >
-                      {removingMemberId === memberId ? "Đang xóa..." : "Xóa"}
-                    </button>
+                    {!isOwner && onRemoveSharedMember && (
+                      <button
+                        type="button"
+                        className="wallets-btn wallets-btn--danger-outline"
+                        onClick={() => triggerRemoveConfirm(member)}
+                        disabled={isRemoving}
+                      >
+                        {isRemoving ? "Đang xóa..." : "Xóa"}
+                      </button>
+                    )}
                   </div>
                 </li>
               );
@@ -153,6 +230,16 @@ export default function ManageMembersTab({
           </ul>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        danger={confirmState.danger}
+        onOk={handleConfirmOk}
+        onClose={resetConfirm}
+        okText={confirmState.type === "add" ? "Chia sẻ" : "Xác nhận"}
+      />
     </div>
   );
 }

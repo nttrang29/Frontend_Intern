@@ -1,5 +1,36 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { formatConvertedBalance, formatExchangeRate, getRate } from "../utils/walletUtils";
+import { useAuth } from "../../../contexts/AuthContext";
+
+const getLocalUserId = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const authRaw = localStorage.getItem("auth_user");
+    if (authRaw) {
+      const parsed = JSON.parse(authRaw);
+      return (
+        parsed?.userId ||
+        parsed?.id ||
+        parsed?.user?.userId ||
+        parsed?.user?.id ||
+        null
+      );
+    }
+    const legacyRaw = localStorage.getItem("user");
+    if (legacyRaw) {
+      const parsed = JSON.parse(legacyRaw);
+      return parsed?.userId || parsed?.id || null;
+    }
+  } catch (error) {
+    console.warn("MergeTab: unable to parse current user", error);
+  }
+  return null;
+};
+
+const normalizeId = (value) => {
+  if (value === undefined || value === null) return null;
+  return String(value);
+};
 
 export default function MergeTab({
   wallet,
@@ -19,6 +50,18 @@ export default function MergeTab({
   const [direction, setDirection] = useState("this_into_other");
   const [searchTerm, setSearchTerm] = useState("");
   const [makeTargetDefault, setMakeTargetDefault] = useState(false);
+  const { currentUser } = useAuth();
+
+  const currentUserId = useMemo(() => {
+    const contextId =
+      currentUser?.id ||
+      currentUser?.userId ||
+      currentUser?.user?.id ||
+      currentUser?.user?.userId ||
+      null;
+    const fallback = contextId || getLocalUserId();
+    return fallback ? normalizeId(fallback) : null;
+  }, [currentUser]);
 
   useEffect(() => {
     if (!processing) return;
@@ -53,18 +96,33 @@ export default function MergeTab({
   const currentWallet = wallet;
   const thisName = currentWallet?.name || "Ví hiện tại";
 
+  const currentWalletOwnerId = useMemo(
+    () => normalizeId(currentWallet?.ownerUserId),
+    [currentWallet]
+  );
+
   const selectableWallets = useMemo(() => {
-    if (!currentWallet) return [];
-    // Only allow merging wallets of the same type:
-    // - personal wallets can only merge into other personal wallets
-    // - group wallets can only merge into other group wallets
-    const isCurrentGroup = !!currentWallet?.isShared;
+    if (!currentWallet || currentWallet.isShared) return [];
+    if (!currentUserId || !currentWalletOwnerId) return [];
+    if (currentWalletOwnerId !== currentUserId) return [];
+
     return (allWallets || []).filter((w) => {
-      if (w.id === currentWallet.id) return false;
-      const isGroup = !!w?.isShared;
-      return isGroup === isCurrentGroup;
+      if (!w || w.id === currentWallet.id) return false;
+      if (w.isShared) return false;
+      const ownerId = normalizeId(w.ownerUserId);
+      return ownerId === currentUserId;
     });
-  }, [allWallets, currentWallet]);
+  }, [allWallets, currentWallet, currentUserId, currentWalletOwnerId]);
+
+  useEffect(() => {
+    if (!targetId) return;
+    const exists = selectableWallets.some(
+      (w) => String(w.id) === String(targetId)
+    );
+    if (!exists) {
+      setTargetId("");
+    }
+  }, [selectableWallets, targetId]);
 
   const filteredWallets = useMemo(() => {
     return selectableWallets.filter((w) => {
@@ -396,7 +454,7 @@ export default function MergeTab({
                     : "Chọn ví cần gộp vào ví này"}
                 </div>
                 <p className="wallet-merge__hint">
-                  Chỉ những ví cùng loại (ví cá nhân) khác với ví hiện tại mới được hiển thị.Không hỗ trợ gộp ví cá nhân với nhóm hay ngược lại.
+                  Chỉ các ví cá nhân do chính bạn sở hữu mới được phép gộp với nhau. Ví nhóm hoặc ví người khác chia sẻ cho bạn sẽ không xuất hiện tại đây.
                 </p>
 
                 <div className="wallet-merge__search">

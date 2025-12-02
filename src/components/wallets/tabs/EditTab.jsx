@@ -3,6 +3,8 @@ import ConfirmModal from "../../common/Modal/ConfirmModal";
 import { getRate, formatConvertedBalance } from "../utils/walletUtils";
 import { formatMoney } from "../../../utils/formatMoney";
 
+const NOTE_MAX_LENGTH = 60;
+
 export default function EditTab({
   wallet,
   currencies,
@@ -11,7 +13,6 @@ export default function EditTab({
   editShareEmail,
   setEditShareEmail,
   onAddEditShareEmail,
-  onRemoveEditShareEmail,
   shareWalletLoading = false,
   onSubmitEdit,
   onDeleteWallet,
@@ -141,7 +142,11 @@ export default function EditTab({
               rows={2}
               value={editForm.note}
               onChange={(e) => onEditFieldChange("note", e.target.value)}
+              maxLength={NOTE_MAX_LENGTH}
             />
+            <span className="wallet-form__char-hint">
+              {(editForm.note || "").length}/{NOTE_MAX_LENGTH} ký tự
+            </span>
           </label>
         </div>
 
@@ -169,14 +174,11 @@ export default function EditTab({
           {(editForm.sharedEmails || []).length > 0 && (
             <div className="wallet-share-list">
               {editForm.sharedEmails.map((email) => (
-                <span key={email} className="wallet-share-pill">
+                <span
+                  key={email}
+                  className="wallet-share-pill wallet-share-pill--readonly"
+                >
                   {email}
-                  <button
-                    type="button"
-                    onClick={() => onRemoveEditShareEmail(email)}
-                  >
-                    ×
-                  </button>
                 </span>
               ))}
             </div>

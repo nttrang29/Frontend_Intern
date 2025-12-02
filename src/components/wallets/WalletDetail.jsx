@@ -18,6 +18,8 @@ import "../../styles/components/wallets/WalletForms.css";
 import "../../styles/components/wallets/WalletMerge.css";
 import "../../styles/components/wallets/WalletTransfer.css";
 
+const NOTE_MAX_LENGTH = 60;
+
 export default function WalletDetail(props) {
   const {
     wallet,
@@ -64,7 +66,6 @@ export default function WalletDetail(props) {
     editShareEmail,
     setEditShareEmail,
     onAddEditShareEmail,
-    onRemoveEditShareEmail,
     shareWalletLoading,
     onSubmitEdit,
 
@@ -413,8 +414,7 @@ export default function WalletDetail(props) {
 
   const handleRemoveSharedMember = async (member) => {
     if (!wallet || !member) return;
-    const targetId =
-      member.userId ?? member.memberUserId ?? member.memberId;
+    const targetId = member.userId ?? member.memberUserId ?? member.memberId;
     if (!targetId) return;
 
     setRemovingMemberId(targetId);
@@ -422,7 +422,6 @@ export default function WalletDetail(props) {
       if (walletAPI.removeMember) {
         await walletAPI.removeMember(wallet.id, targetId);
       }
-      // Update local list optimistically
       setSharedMembers((prev) =>
         prev.filter((m) => (m.userId ?? m.memberUserId ?? m.memberId) !== targetId)
       );
@@ -430,7 +429,7 @@ export default function WalletDetail(props) {
         logActivity({
           type: "wallet.unshare",
           message: `Xóa người dùng ${member.email || member.userId || targetId} khỏi ví ${wallet.id}`,
-          data: { walletId: wallet.id, member: member },
+          data: { walletId: wallet.id, member },
         });
       } catch (e) {}
     } catch (error) {
@@ -516,6 +515,24 @@ export default function WalletDetail(props) {
                 />
               </label>
 
+            </div>
+
+            <div className="wallet-form__row">
+              <label className="wallet-form__full">
+                Ghi chú
+                <input
+                  type="text"
+                  value={createForm.note}
+                  onChange={(e) =>
+                    onCreateFieldChange("note", e.target.value)
+                  }
+                  placeholder="Thêm ghi chú cho ví"
+                  maxLength={NOTE_MAX_LENGTH}
+                />
+                <span className="wallet-form__char-hint">
+                  {(createForm.note || "").length}/{NOTE_MAX_LENGTH} ký tự
+                </span>
+              </label>
             </div>
 
             {/* Currency selection (was hidden) */}
@@ -939,8 +956,6 @@ export default function WalletDetail(props) {
           sharedMembersError={sharedMembersError}
           canManageSharedMembers={effectiveCanManageSharedMembers}
           canInviteMembers={effectiveCanInviteMembers}
-          removingMemberId={removingMemberId}
-          onRemoveSharedMember={handleRemoveSharedMember}
           onQuickShareEmail={onQuickShareEmail}
           quickShareLoading={quickShareLoading}
           sharedFilter={sharedFilter}
@@ -1015,7 +1030,6 @@ export default function WalletDetail(props) {
           editShareEmail={editShareEmail}
           setEditShareEmail={setEditShareEmail}
           onAddEditShareEmail={onAddEditShareEmail}
-          onRemoveEditShareEmail={onRemoveEditShareEmail}
           shareWalletLoading={shareWalletLoading}
           onSubmitEdit={onSubmitEdit}
           onDeleteWallet={onDeleteWallet}

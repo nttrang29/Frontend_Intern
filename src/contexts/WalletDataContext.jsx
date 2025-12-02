@@ -13,6 +13,39 @@ import { walletAPI } from "../services/wallet.service";
 
 const WalletDataContext = createContext(null);
 
+const MERGE_PERSONAL_ONLY_ERROR = "WALLET_MERGE_PERSONAL_ONLY";
+
+const getAuthUserId = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const authRaw = localStorage.getItem("auth_user");
+    if (authRaw) {
+      const parsed = JSON.parse(authRaw);
+      return (
+        parsed?.userId ||
+        parsed?.id ||
+        parsed?.user?.userId ||
+        parsed?.user?.id ||
+        null
+      );
+    }
+
+    const legacyRaw = localStorage.getItem("user");
+    if (legacyRaw) {
+      const parsed = JSON.parse(legacyRaw);
+      return parsed?.userId || parsed?.id || null;
+    }
+  } catch (error) {
+    console.warn("WalletDataContext: unable to read auth user id", error);
+  }
+  return null;
+};
+
+const normalizeId = (value) => {
+  if (value === undefined || value === null) return null;
+  return String(value);
+};
+
 export function WalletDataProvider({ children }) {
   // ví
   const [wallets, setWallets] = useState([]);
@@ -408,6 +441,27 @@ export function WalletDataProvider({ children }) {
       const targetWalletBefore = wallets.find(w => w.id === targetIdNum);
       const sourceNameBefore = (sourceWalletBefore?.name || sourceWalletBefore?.walletName || null);
       const targetNameBefore = (targetWalletBefore?.name || targetWalletBefore?.walletName || null);
+
+      const currentUserId = normalizeId(getAuthUserId());
+      const sourceOwnerId = normalizeId(sourceWalletBefore?.ownerUserId);
+      const targetOwnerId = normalizeId(targetWalletBefore?.ownerUserId);
+      const sourceIsPersonal = !!sourceWalletBefore && !sourceWalletBefore.isShared;
+      const targetIsPersonal = !!targetWalletBefore && !targetWalletBefore.isShared;
+
+      const isAllowedMerge =
+        sourceIsPersonal &&
+        targetIsPersonal &&
+        currentUserId &&
+        sourceOwnerId &&
+        targetOwnerId &&
+        sourceOwnerId === currentUserId &&
+        targetOwnerId === currentUserId;
+
+      if (!isAllowedMerge) {
+        const restrictionError = new Error(MERGE_PERSONAL_ONLY_ERROR);
+        restrictionError.code = MERGE_PERSONAL_ONLY_ERROR;
+        throw restrictionError;
+      }
 
       // Xác định targetCurrency
       let targetCurrency;
