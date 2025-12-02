@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import { logActivity } from "../utils/activityLogger";
 import { 
   createWallet as createWalletAPI, 
   getMyWallets, 
@@ -207,6 +208,15 @@ export function WalletDataProvider({ children }) {
             : g
           ));
         }
+        try {
+          logActivity({
+            type: "wallet.create",
+            message: `Tạo ví ${finalWallet.name || finalWallet.id}`,
+            data: { walletId: finalWallet.id, name: finalWallet.name },
+          });
+        } catch (e) {
+          // ignore logging errors
+        }
         return finalWallet;
       } else {
         throw new Error(data.error || "Không thể tạo ví");
@@ -289,6 +299,13 @@ export function WalletDataProvider({ children }) {
           }
           return updated;
         });
+        try {
+          logActivity({
+            type: "wallet.update",
+            message: `Cập nhật ví ${walletId}`,
+            data: { walletId, patch: updateData },
+          });
+        } catch (e) {}
         return finalWallet;
       } else {
         throw new Error(data.error || "Không thể cập nhật ví");
@@ -301,6 +318,10 @@ export function WalletDataProvider({ children }) {
 
   const deleteWallet = async (id) => {
     try {
+      // find current wallet name for better activity description
+      const existingWallet = wallets.find(w => w.id === id) || null;
+      const existingName = existingWallet?.name || existingWallet?.walletName || null;
+
       const { response, data } = await deleteWalletAPI(id);
       
       if (response.ok) {
@@ -310,6 +331,13 @@ export function WalletDataProvider({ children }) {
           walletIds: (g.walletIds||[]).filter(wid => wid !== id), 
           budgetWalletId: g.budgetWalletId === id ? null : g.budgetWalletId 
         })));
+        try {
+          logActivity({
+            type: "wallet.delete",
+            message: `Xóa ví ${existingName || id}`,
+            data: { walletId: id, walletName: existingName },
+          });
+        } catch (e) {}
         return data;
       } else {
         throw new Error(data.error || "Không thể xóa ví");
@@ -375,6 +403,12 @@ export function WalletDataProvider({ children }) {
         throw new Error("ID ví không hợp lệ");
       }
       
+      // Capture current wallet names before merge (source will be removed afterwards)
+      const sourceWalletBefore = wallets.find(w => w.id === sourceIdNum);
+      const targetWalletBefore = wallets.find(w => w.id === targetIdNum);
+      const sourceNameBefore = (sourceWalletBefore?.name || sourceWalletBefore?.walletName || null);
+      const targetNameBefore = (targetWalletBefore?.name || targetWalletBefore?.walletName || null);
+
       // Xác định targetCurrency
       let targetCurrency;
       if (keepCurrency === "SOURCE") {
@@ -481,6 +515,23 @@ export function WalletDataProvider({ children }) {
           // ignore if CustomEvent not supported in environment
           console.debug("walletMerged event dispatch failed", e);
         }
+        try {
+          // try to include wallet names for clearer activity descriptions
+          const updatedSource = updatedWallets.find(w => w.id === sourceIdNum);
+          const updatedTarget = updatedWallets.find(w => w.id === targetIdNum);
+          const srcName = (sourceNameBefore || updatedSource?.name || updatedSource?.walletName || null);
+          const tgtName = (updatedTarget?.name || updatedTarget?.walletName || targetNameBefore || null);
+          logActivity({
+            type: "wallet.merge",
+            message: `Gộp ví ${srcName || sourceIdNum} vào ${tgtName || targetIdNum}`,
+            data: {
+              sourceId: sourceIdNum,
+              targetId: targetIdNum,
+              sourceName: srcName,
+              targetName: tgtName,
+            },
+          });
+        } catch (e) {}
 
         return {
           ...data,
@@ -550,7 +601,14 @@ export function WalletDataProvider({ children }) {
       console.log("convertToGroup - updatedWallet sau loadWallets:", updatedWallet);
       console.log("convertToGroup - updatedWallet.isShared:", updatedWallet?.isShared);
       console.log("convertToGroup - updatedWallet.type:", updatedWallet?.type);
-      
+      try {
+        logActivity({
+          type: "wallet.group",
+          message: `Chuyển ${walletName} thành ví nhóm`,
+          data: { walletId: walletIdNum, walletName },
+        });
+      } catch (e) {}
+
       return {
         ...data,
         wallet: updatedWallet,
