@@ -29,6 +29,50 @@ const TABS = {
 
 const PAGE_SIZE = 10;
 const VIEWER_ROLES = new Set(["VIEW", "VIEWER"]);
+const EXPENSE_KEYWORDS = ["chi", "expense", "spend", "outflow"];
+
+const normalizeTypeString = (value) => {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value.trim().toLowerCase();
+  if (typeof value === "number") return String(value).trim().toLowerCase();
+  if (typeof value === "object") {
+    if (typeof value.type === "string") return value.type.trim().toLowerCase();
+    if (typeof value.name === "string") return value.name.trim().toLowerCase();
+    if (typeof value.label === "string") return value.label.trim().toLowerCase();
+  }
+  return "";
+};
+
+const resolveTransactionType = (tx) => {
+  const candidates = [
+    tx?.transactionType?.typeName,
+    tx?.transactionType?.name,
+    tx?.transactionType?.label,
+    tx?.transactionType?.code,
+    tx?.transactionType,
+    tx?.type,
+    tx?.transactionTypeName,
+    tx?.category?.transactionType?.typeName,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeTypeString(candidate);
+    if (!normalized) continue;
+    if (EXPENSE_KEYWORDS.some((keyword) => normalized.includes(keyword))) {
+      return "expense";
+    }
+    if (normalized.includes("income") || normalized.includes("thu")) {
+      return "income";
+    }
+  }
+
+  const numericAmount = Number(tx?.amount);
+  if (!Number.isNaN(numericAmount) && numericAmount < 0) {
+    return "expense";
+  }
+
+  return "income";
+};
 
 const extractListFromResponse = (payload, preferredKey) => {
   if (!payload) return [];
@@ -204,8 +248,7 @@ export default function TransactionsPage() {
   const mapTransactionToFrontend = useCallback((tx) => {
     const walletName = wallets.find(w => w.walletId === tx.wallet?.walletId)?.walletName || tx.wallet?.walletName || "Unknown";
     const categoryName = tx.category?.categoryName || "Unknown";
-    const typeName = tx.transactionType?.typeName || "";
-    const type = typeName === "Chi tiêu" ? "expense" : "income";
+    const type = resolveTransactionType(tx);
     
     // Dùng created_at từ database thay vì transaction_date
     // Giữ nguyên date string từ API (ISO format), không convert
@@ -215,7 +258,7 @@ export default function TransactionsPage() {
     return {
       id: tx.transactionId,
       code: `TX-${String(tx.transactionId).padStart(4, "0")}`,
-      type: type,
+      type,
       walletName: walletName,
       amount: parseFloat(tx.amount || 0),
       currency: tx.wallet?.currencyCode || "VND",
