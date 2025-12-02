@@ -1875,11 +1875,11 @@ export default function WalletsPage() {
             <button
               type="button"
               className="budget-metric-toggle"
-              title={totalCurrency === 'VND' ? 'Hiển thị USD' : 'Hiển thị VND'}
+              title={totalCurrency === 'VND' ? 'Chuyển sang USD' : 'Chuyển sang VND'}
               onClick={(e) => { e.stopPropagation(); toggleTotalCurrency(); }}
               aria-pressed={totalCurrency === 'USD'}
             >
-              {totalCurrency}
+              <i className="bi bi-arrow-repeat"></i>
             </button>
           </div>
           <div className="budget-metric-value">{formatMoney(totalDisplayedValue, totalCurrency || "VND")}</div>

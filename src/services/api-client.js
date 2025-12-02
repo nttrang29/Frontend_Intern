@@ -721,6 +721,70 @@ export const walletAPI = {
 
 /**
  * ============================================
+ * BUDGET APIs
+ * ============================================
+ */
+
+export const budgetAPI = {
+  /**
+   * Lấy tất cả ngân sách của user
+   */
+  getBudgets: async () => {
+    return apiCall("/budgets");
+  },
+
+  /**
+   * Lấy chi tiết một ngân sách
+   * @param {number|string} budgetId
+   */
+  getBudget: async (budgetId) => {
+    return apiCall(`/budgets/${budgetId}`);
+  },
+
+  /**
+   * Tạo ngân sách mới
+   * @param {object} budgetData
+   */
+  createBudget: async (budgetData) => {
+    return apiCall("/budgets/create", {
+      method: "POST",
+      body: JSON.stringify(budgetData),
+    });
+  },
+
+  /**
+   * Cập nhật ngân sách
+   * @param {number|string} budgetId
+   * @param {object} budgetData
+   */
+  updateBudget: async (budgetId, budgetData) => {
+    return apiCall(`/budgets/${budgetId}`, {
+      method: "PUT",
+      body: JSON.stringify(budgetData),
+    });
+  },
+
+  /**
+   * Xóa ngân sách
+   * @param {number|string} budgetId
+   */
+  deleteBudget: async (budgetId) => {
+    return apiCall(`/budgets/${budgetId}`, {
+      method: "DELETE",
+    });
+  },
+
+  /**
+   * Lấy danh sách giao dịch thuộc ngân sách
+   * @param {number|string} budgetId
+   */
+  getBudgetTransactions: async (budgetId) => {
+    return apiCall(`/budgets/${budgetId}/transactions`);
+  },
+};
+
+/**
+ * ============================================
  * TRANSACTION APIs
  * ============================================
  */
@@ -1049,6 +1113,7 @@ const apiClient = {
   auth: authAPI,
   profile: profileAPI,
   wallet: walletAPI,
+  budget: budgetAPI,
   transaction: transactionAPI,
   category: categoryAPI,
   googleOAuth: googleOAuthAPI,

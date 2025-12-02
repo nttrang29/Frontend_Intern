@@ -9,12 +9,14 @@ import * as WeatherService from './weather.service';
 import * as AdminUserApi from './adminUserApi';
 import * as LoginLogApi from './loginLogApi';
 import * as ApiHelper from './api-helper';
+import apiClient, { budgetAPI as apiClientBudgetAPI } from './api-client';
 
 // Export common named APIs for convenience (keep compatibility with imports like `import { walletAPI } from '../services'`)
 export const walletAPI = WalletService.walletAPI;
 export const transactionAPI = TransactionService.transactionAPI;
 export const authAPI = AuthService;
 export const profileAPI = ProfileService;
+export const budgetAPI = apiClientBudgetAPI;
 
 // Export namespaces if caller prefers grouped access
 export const WalletServiceNS = WalletService;
@@ -28,6 +30,7 @@ export const WeatherServiceNS = WeatherService;
 export const AdminUserApiNS = AdminUserApi;
 export const LoginLogApiNS = LoginLogApi;
 export const ApiHelperNS = ApiHelper;
+export const ApiClientNS = apiClient;
 
 // Also re-export specific helpers if needed
 export const { categoryAPI } = CategoryService;

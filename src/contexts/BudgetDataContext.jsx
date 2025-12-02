@@ -1,11 +1,84 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
+import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
+
+import { budgetAPI } from "../services/api-client";
 
 const BudgetDataContext = createContext(null);
 
+const ALL_WALLETS_LABEL = "Tất cả ví";
+
+const normalizeBudget = (budget) => {
+  if (!budget) return null;
+
+  const amountLimit = Number(budget.amountLimit ?? budget.limitAmount ?? 0);
+  const warningThreshold =
+    budget.warningThreshold ?? budget.alertPercentage ?? 80;
+  const walletId =
+    budget.walletId !== undefined && budget.walletId !== null
+      ? Number(budget.walletId)
+      : null;
+
+  return {
+    id: budget.budgetId ?? budget.id ?? Date.now(),
+    budgetId: budget.budgetId ?? budget.id ?? null,
+    categoryId: budget.categoryId ?? null,
+    categoryName: budget.categoryName ?? "",
+    categoryType: budget.categoryType || "expense",
+    walletId,
+    walletName:
+      budget.walletName ??
+      (walletId === null ? ALL_WALLETS_LABEL : null),
+    limitAmount: amountLimit,
+    amountLimit,
+    startDate: budget.startDate || null,
+    endDate: budget.endDate || null,
+    note: budget.note || "",
+    alertPercentage: warningThreshold,
+    warningThreshold,
+    spentAmount: Number(budget.spentAmount ?? 0),
+    remainingAmount:
+      budget.remainingAmount ??
+      Math.max(
+        amountLimit - Number(budget.spentAmount ?? 0),
+        0
+      ),
+    exceededAmount: Number(budget.exceededAmount ?? 0),
+    usagePercentage: Number(budget.usagePercentage ?? 0),
+    status: budget.status || budget.budgetStatus || "ACTIVE",
+    budgetStatus: budget.budgetStatus || budget.status || "ACTIVE",
+    createdAt: budget.createdAt,
+    updatedAt: budget.updatedAt,
+  };
+};
+
+const buildBudgetRequest = (payload = {}) => {
+  const limit =
+    payload.limitAmount ?? payload.amountLimit;
+  const warningThreshold =
+    payload.alertPercentage ?? payload.warningThreshold ?? 80;
+
+  return {
+    categoryId:
+      payload.categoryId !== undefined && payload.categoryId !== null
+        ? Number(payload.categoryId)
+        : undefined,
+    walletId:
+      payload.walletId === undefined ||
+      payload.walletId === null ||
+      payload.walletId === "ALL"
+        ? null
+        : Number(payload.walletId),
+    amountLimit: limit !== undefined ? Number(limit) : undefined,
+    startDate: payload.startDate,
+    endDate: payload.endDate,
+    note: payload.note || "",
+    warningThreshold,
+  };
+};
+
 export function BudgetDataProvider({ children }) {
-  const [budgets, setBudgets] = useState([
-    
-  ]);
+  const [budgets, setBudgets] = useState([]);
+  const [budgetsLoading, setBudgetsLoading] = useState(false);
+  const [budgetsError, setBudgetsError] = useState(null);
 
   // Calculate spent amount for category+wallet combinations
   // Key format: "categoryName:walletName" or "categoryName:all" for budgets applying to all wallets
@@ -17,39 +90,115 @@ export function BudgetDataProvider({ children }) {
   const [externalTransactionsList, setExternalTransactionsList] = useState([]);
 
   // ====== helpers ======
-  const createBudget = useCallback((payload) => {
-    // payload: { categoryId, categoryName, categoryType, limitAmount, walletId, walletName, startDate, endDate }
-    const currentMonth = new Date().toLocaleDateString("vi-VN", {
-      month: "2-digit",
-      year: "numeric",
-    });
-    const newBudget = {
-      id: Date.now(),
-      createdAt: new Date().toISOString(),
-      month: currentMonth,
-      startDate: payload.startDate,
-      endDate: payload.endDate,
-      // include wallet fields if provided
-      walletId: payload.walletId || null,
-      walletName: payload.walletName || null,
-      alertPercentage: payload.alertPercentage ?? 90,
-      note: payload.note || "",
-      ...payload,
-    };
-    setBudgets((prev) => [newBudget, ...prev]);
-    return newBudget;
+  const loadBudgets = useCallback(async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      setBudgets([]);
+      setBudgetsLoading(false);
+      return;
+    }
+
+    setBudgetsLoading(true);
+    try {
+      const response = await budgetAPI.getBudgets();
+      const list = Array.isArray(response?.budgets)
+        ? response.budgets
+        : Array.isArray(response)
+        ? response
+        : [];
+      setBudgets(list.map((item) => normalizeBudget(item)).filter(Boolean));
+      setBudgetsError(null);
+    } catch (error) {
+      console.error("Error loading budgets:", error);
+      setBudgets([]);
+      setBudgetsError(
+        error?.message || "Không thể tải danh sách ngân sách. Vui lòng thử lại."
+      );
+    } finally {
+      setBudgetsLoading(false);
+    }
   }, []);
 
-  const updateBudget = useCallback((budgetId, patch) => {
+  const createBudget = useCallback(
+    async (payload) => {
+      const body = buildBudgetRequest(payload);
+      if (body.categoryId === undefined) {
+        throw new Error("Thiếu danh mục khi tạo ngân sách.");
+      }
+      if (body.amountLimit === undefined) {
+        throw new Error("Thiếu hạn mức chi tiêu.");
+      }
+
+      const response = await budgetAPI.createBudget(body);
+      const created = normalizeBudget(response?.budget || response);
+      if (created) {
+        setBudgets((prev) => [created, ...prev]);
+      } else {
+        await loadBudgets();
+      }
+      return created;
+    },
+    [loadBudgets]
+  );
+
+  const updateBudget = useCallback(
+    async (budgetId, patch) => {
+      if (!budgetId) {
+        throw new Error("Thiếu budgetId khi cập nhật ngân sách.");
+      }
+      const body = buildBudgetRequest(patch);
+      const response = await budgetAPI.updateBudget(budgetId, body);
+      const updated = normalizeBudget(response?.budget || response);
+
+      if (updated?.id) {
+        setBudgets((prev) =>
+          prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b))
+        );
+      } else {
+        await loadBudgets();
+      }
+
+      return updated;
+    },
+    [loadBudgets]
+  );
+
+  const deleteBudget = useCallback(async (budgetId) => {
+    if (!budgetId) {
+      throw new Error("Thiếu budgetId khi xóa ngân sách.");
+    }
+    await budgetAPI.deleteBudget(budgetId);
+    const normalizedId = String(budgetId);
     setBudgets((prev) =>
-      prev.map((b) => (b.id === budgetId ? { ...b, ...patch } : b))
+      prev.filter((b) => String(b.id ?? b.budgetId) !== normalizedId)
     );
-    return patch;
   }, []);
 
-  const deleteBudget = useCallback((budgetId) => {
-    setBudgets((prev) => prev.filter((b) => b.id !== budgetId));
-  }, []);
+  useEffect(() => {
+    loadBudgets();
+
+    const handleUserChange = () => {
+      loadBudgets();
+    };
+
+    const handleStorageChange = (event) => {
+      if (
+        event.key === "accessToken" ||
+        event.key === "auth_user" ||
+        event.key === "user"
+      ) {
+        loadBudgets();
+      }
+    };
+
+    window.addEventListener("userChanged", handleUserChange);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("userChanged", handleUserChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [loadBudgets]);
 
   // Compute spent amount for a budget object by scanning externalTransactionsList within the budget's date range
   const getSpentForBudget = useCallback((budget) => {
@@ -78,7 +227,7 @@ export function BudgetDataProvider({ children }) {
       if (!t.category) return;
       if (t.category !== budget.categoryName) return;
       // Check wallet match
-      if (budget.walletName && budget.walletName !== "Tất cả ví") {
+      if (budget.walletName && budget.walletName !== ALL_WALLETS_LABEL) {
         if (t.walletName !== budget.walletName) return;
       }
       
@@ -120,6 +269,8 @@ export function BudgetDataProvider({ children }) {
   const value = useMemo(
     () => ({
       budgets,
+      budgetsLoading,
+      budgetsError,
       transactionsByCategory,
       externalTransactionsList,
       createBudget,
@@ -130,9 +281,12 @@ export function BudgetDataProvider({ children }) {
       getRemainingAmount,
       updateTransactionsByCategory,
       updateAllExternalTransactions,
+      refreshBudgets: loadBudgets,
     }),
     [
       budgets,
+      budgetsLoading,
+      budgetsError,
       transactionsByCategory,
       externalTransactionsList,
       createBudget,
@@ -143,6 +297,7 @@ export function BudgetDataProvider({ children }) {
       getRemainingAmount,
       updateTransactionsByCategory,
       updateAllExternalTransactions,
+      loadBudgets,
     ]
   );
 

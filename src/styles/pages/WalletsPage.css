@@ -163,14 +163,26 @@
   background: transparent;
   border: 1px solid rgba(11,43,47,0.06);
   color: #0b2b2f;
-  padding: 4px 8px;
+  padding: 6px 8px;
   border-radius: 8px;
   font-weight: 700;
   cursor: pointer;
-  font-size: 0.78rem;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .budget-metric-toggle:hover {
-  background: rgba(13,110,253,0.04);
+  background: rgba(13,110,253,0.08);
+  border-color: rgba(13,110,253,0.25);
+  transform: rotate(180deg);
+}
+.budget-metric-toggle i {
+  transition: transform 0.3s ease;
+}
+.budget-metric-toggle:active {
+  transform: rotate(360deg) scale(0.95);
 }
 .budget-metric-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
