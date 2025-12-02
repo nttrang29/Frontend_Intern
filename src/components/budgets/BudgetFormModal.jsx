@@ -13,6 +13,7 @@ export default function BudgetFormModal({
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedWallet, setSelectedWallet] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
+  const [currency, setCurrency] = useState("VND");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [alertThreshold, setAlertThreshold] = useState(90);
@@ -23,6 +24,7 @@ export default function BudgetFormModal({
     if (initialData && mode === "edit") {
       setSelectedCategory(initialData.categoryName);
       setLimitAmount(initialData.limitAmount);
+      setCurrency(initialData.currency || "VND");
       // If wallet info exists on initialData, preselect
       setSelectedWallet(initialData.walletId || initialData.walletName || "");
       // Set dates from initialData if available
@@ -34,6 +36,7 @@ export default function BudgetFormModal({
       setSelectedCategory("");
       setSelectedWallet("");
       setLimitAmount("");
+      setCurrency("VND");
       setStartDate("");
       setEndDate("");
       setAlertThreshold(90);
@@ -47,9 +50,17 @@ export default function BudgetFormModal({
 
   const handleLimitChange = (e) => {
     const val = e.target.value;
-    // allow only numbers
-    if (/^\d*$/.test(val)) {
-      setLimitAmount(val);
+    // allow numbers and decimal point for USD
+    if (currency === "USD") {
+      // Allow decimal for USD
+      if (/^\d*\.?\d{0,2}$/.test(val)) {
+        setLimitAmount(val);
+      }
+    } else {
+      // Only integers for VND
+      if (/^\d*$/.test(val)) {
+        setLimitAmount(val);
+      }
     }
   };
 
@@ -91,7 +102,8 @@ export default function BudgetFormModal({
       categoryId: categoryObj.id || null,
       categoryName: selectedCategory,
       categoryType: "expense",
-      limitAmount: parseInt(limitAmount, 10),
+      limitAmount: parseFloat(limitAmount),
+      currency: currency,
       startDate,
       endDate,
       alertPercentage: Number(alertThreshold),
@@ -181,16 +193,24 @@ export default function BudgetFormModal({
 
           {/* Limit Amount */}
           <div className="mb-4">
-            <label className="form-label fw-semibold">Hạn mức Chi tiêu (VND)</label>
+            <label className="form-label fw-semibold">Hạn mức Chi tiêu ({currency})</label>
             <div className="input-group">
               <input
                 type="text"
                 className={`form-control ${errors.limit ? "is-invalid" : ""}`}
-                placeholder="0"
+                placeholder={currency === "USD" ? "0.00" : "0"}
                 value={limitAmount}
                 onChange={handleLimitChange}
               />
-              <span className="input-group-text">VND</span>
+              <select 
+                className="form-select" 
+                style={{ maxWidth: "100px" }}
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+              >
+                <option value="VND">VND</option>
+                <option value="USD">USD</option>
+              </select>
             </div>
             {errors.limit && (
               <div className="invalid-feedback d-block">{errors.limit}</div>
