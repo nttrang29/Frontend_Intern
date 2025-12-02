@@ -780,6 +780,37 @@ export const getAllTransfers = async () => {
   }
 };
 
+export const getWalletTransfers = async (walletId) => {
+  try {
+    if (walletId === undefined || walletId === null) {
+      throw new Error("walletId is required to fetch wallet transfers");
+    }
+    const response = await apiClient.get(`/${walletId}/transfers`);
+    return handleAxiosResponse(response);
+  } catch (error) {
+    if (error.response) {
+      return {
+        data: error.response.data || { error: "Đã xảy ra lỗi" },
+        response: {
+          ok: false,
+          status: error.response.status,
+          statusText: error.response.statusText,
+        },
+      };
+    } else if (error.request) {
+      return {
+        response: { ok: false, status: 0 },
+        data: { error: "Lỗi kết nối đến máy chủ khi lấy giao dịch chuyển tiền của ví." },
+      };
+    } else {
+      return {
+        response: { ok: false, status: 0 },
+        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
+      };
+    }
+  }
+};
+
 /**
  * ✏️ CẬP NHẬT GIAO DỊCH CHUYỂN TIỀN (chỉ ghi chú)
  * @param {number} transferId - ID của giao dịch chuyển tiền
@@ -892,6 +923,7 @@ const updateMemberRoleFn = updateMemberRole;
 const getTransferTargetsFn = getTransferTargets;
 const transferMoneyFn = transferMoney;
 const getAllTransfersFn = getAllTransfers;
+const getWalletTransfersFn = getWalletTransfers;
 const updateTransferFn = updateTransfer;
 const deleteTransferFn = deleteTransfer;
 
@@ -993,6 +1025,10 @@ export const walletAPI = {
   },
   getAllTransfers: async () => {
     const result = await getAllTransfersFn();
+    return result.data || result;
+  },
+  getWalletTransfers: async (walletId) => {
+    const result = await getWalletTransfersFn(walletId);
     return result.data || result;
   },
   updateTransfer: async (transferId, note) => {

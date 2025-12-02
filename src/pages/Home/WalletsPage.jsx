@@ -26,6 +26,60 @@ const CURRENCIES = ["VND", "USD"];
 const NOTE_MAX_LENGTH = 60;
 const MERGE_PERSONAL_ONLY_ERROR = "WALLET_MERGE_PERSONAL_ONLY";
 
+const extractListFromResponse = (payload, preferredKey) => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (preferredKey && Array.isArray(payload[preferredKey])) return payload[preferredKey];
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.items)) return payload.items;
+  return [];
+};
+
+const resolveWalletIdFromTransaction = (tx) => {
+  if (!tx) return null;
+  const walletRef = tx.wallet || tx.walletInfo || tx.walletDto || tx.walletDtoResponse || {};
+  return (
+    walletRef.walletId ??
+    walletRef.id ??
+    walletRef.wallet_id ??
+    tx.walletId ??
+    tx.wallet_id ??
+    tx.walletID ??
+    null
+  );
+};
+
+const transactionBelongsToWallet = (tx, walletId, walletAltId) => {
+  const txWalletId = resolveWalletIdFromTransaction(tx);
+  if (!txWalletId) return true; // scoped API responses might omit id, assume already filtered
+  return (
+    String(txWalletId) === String(walletId) ||
+    String(txWalletId) === String(walletAltId)
+  );
+};
+
+const transferTouchesWallet = (transfer, walletId, walletAltId) => {
+  if (!transfer) return false;
+  const fromWid =
+    transfer.fromWallet?.walletId ??
+    transfer.fromWallet?.id ??
+    transfer.sourceWalletId ??
+    transfer.sourceWalletID ??
+    null;
+  const toWid =
+    transfer.toWallet?.walletId ??
+    transfer.toWallet?.id ??
+    transfer.targetWalletId ??
+    transfer.targetWalletID ??
+    null;
+
+  if (!fromWid && !toWid) return true;
+  return [fromWid, toWid].some((wid) => {
+    if (!wid) return false;
+    return String(wid) === String(walletId) || String(wid) === String(walletAltId);
+  });
+};
+
 const getLocalUserId = () => {
   if (typeof window === "undefined") return null;
   try {
@@ -1496,46 +1550,27 @@ export default function WalletsPage() {
     const walletAltId = wallet.walletId || walletId;
 
     try {
-      let txResponse = null;
-      try {
-        if (transactionAPI.getWalletTransactions) {
-          txResponse = await transactionAPI.getWalletTransactions(walletId);
-        }
-      } catch (err) {
-        txResponse = null;
-      }
-
-      if (!txResponse) {
+      let txListRaw = [];
+      let shouldFallbackTx = true;
+      if (transactionAPI.getWalletTransactions) {
         try {
-          if (transactionAPI.getTransactionsByWallet) {
-            txResponse = await transactionAPI.getTransactionsByWallet(walletId);
-          }
-        } catch (err) {
-          txResponse = null;
+          const scopedTx = await transactionAPI.getWalletTransactions(walletId);
+          txListRaw = extractListFromResponse(scopedTx, "transactions");
+          shouldFallbackTx = false;
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.warn("WalletsPage: purge scoped transaction fetch failed", error);
         }
       }
 
-      if (!txResponse && transactionAPI.getAllTransactions) {
-        txResponse = await transactionAPI.getAllTransactions();
+      if (shouldFallbackTx && transactionAPI.getAllTransactions) {
+        const fallbackTx = await transactionAPI.getAllTransactions();
+        txListRaw = extractListFromResponse(fallbackTx, "transactions");
       }
 
-      const txListRaw = txResponse?.transactions || txResponse?.data || txResponse || [];
-      const relatedTransactions = (Array.isArray(txListRaw) ? txListRaw : []).filter((tx) => {
-        const walletRef = tx.wallet || tx.walletInfo || tx.walletDto || {};
-        const txWalletId =
-          walletRef.walletId ??
-          walletRef.id ??
-          walletRef.wallet_id ??
-          tx.walletId ??
-          tx.wallet_id ??
-          tx.walletID ??
-          null;
-        if (!txWalletId) return false;
-        return (
-          String(txWalletId) === String(walletId) ||
-          String(txWalletId) === String(walletAltId)
-        );
-      });
+      const relatedTransactions = (Array.isArray(txListRaw) ? txListRaw : []).filter((tx) =>
+        transactionBelongsToWallet(tx, walletId, walletAltId)
+      );
 
       let deletedCount = 0;
       for (const tx of relatedTransactions) {
@@ -1899,12 +1934,31 @@ export default function WalletsPage() {
   }, []);
 
   // Map transfer từ API sang format cho WalletDetail
-  const mapTransferForWallet = useCallback((transfer, walletId) => {
-    const isFromWallet = transfer.fromWallet?.walletId === walletId;
+  const mapTransferForWallet = useCallback((transfer, walletId, walletAltId = null) => {
+    const normalizedWalletIds = [walletId, walletAltId].filter((id) => id !== undefined && id !== null).map((id) => String(id));
+    const fromWalletResolved =
+      transfer.fromWallet?.walletId ??
+      transfer.fromWallet?.id ??
+      transfer.sourceWalletId ??
+      transfer.sourceWalletID ??
+      null;
+    const toWalletResolved =
+      transfer.toWallet?.walletId ??
+      transfer.toWallet?.id ??
+      transfer.targetWalletId ??
+      transfer.targetWalletID ??
+      null;
+    const isFromWallet = normalizedWalletIds.includes(String(fromWalletResolved));
     const amount = parseFloat(transfer.amount || 0);
 
-    const sourceName = transfer.fromWallet?.walletName || "Ví nguồn";
-    const targetName = transfer.toWallet?.walletName || "Ví đích";
+    const sourceName =
+      transfer.fromWallet?.walletName ||
+      transfer.sourceWalletName ||
+      "Ví nguồn";
+    const targetName =
+      transfer.toWallet?.walletName ||
+      transfer.targetWalletName ||
+      "Ví đích";
     const title = isFromWallet
       ? `Chuyển đến ${targetName}`
       : `Nhận từ ${sourceName}`;
@@ -1916,6 +1970,7 @@ export default function WalletsPage() {
     const timeLabel = formatTimeLabel(dateValue);
 
     const actorName = transfer.user?.fullName || transfer.user?.name || transfer.user?.email || transfer.createdByName || transfer.creatorName || "";
+    const transferId = transfer.transferId ?? transfer.id ?? `${walletId || "wallet"}-${dateValue}`;
 
     const currencyCandidates = [
       transfer.originalCurrency,
@@ -1936,7 +1991,7 @@ export default function WalletsPage() {
       : "VND";
 
     return {
-      id: `transfer-${transfer.transferId}`,
+      id: `transfer-${transferId}`,
       title: title,
       amount: displayAmount,
       timeLabel: timeLabel,
@@ -1965,63 +2020,55 @@ export default function WalletsPage() {
         const walletId = selectedWallet.id;
         const walletAltId = selectedWallet.walletId || selectedWallet.id;
 
-        // Try multiple wallet-scoped endpoints (some backends restrict /transactions to current user)
-        let txResponse = null;
-        try {
-          if (transactionAPI.getWalletTransactions) {
-            txResponse = await transactionAPI.getWalletTransactions(walletId);
-          }
-        } catch (err) {
-          txResponse = null;
-        }
-
-        if (!txResponse) {
+        let txListRaw = [];
+        let shouldFallbackTx = true;
+        if (transactionAPI.getWalletTransactions) {
           try {
-            if (transactionAPI.getTransactionsByWallet) {
-              txResponse = await transactionAPI.getTransactionsByWallet(walletId);
-            }
-          } catch (err) {
-            txResponse = null;
+            const scopedTx = await transactionAPI.getWalletTransactions(walletId);
+            txListRaw = extractListFromResponse(scopedTx, "transactions");
+            shouldFallbackTx = false;
+          } catch (error) {
+            // eslint-disable-next-line no-console
+            console.warn("WalletsPage: scoped transaction fetch failed", error);
           }
         }
 
-        if (!txResponse) {
-          txResponse = await transactionAPI.getAllTransactions();
+        if (shouldFallbackTx && transactionAPI.getAllTransactions) {
+          const fallbackTx = await transactionAPI.getAllTransactions();
+          txListRaw = extractListFromResponse(fallbackTx, "transactions");
         }
 
-        // DEBUG: log which response shape we received to help troubleshoot when only
-        // the current user's transactions are returned by the backend.
-        // Remove these logs in production.
-        try {
-          // eslint-disable-next-line no-console
-          console.debug("Loaded transactions response for wallet", walletId, txResponse);
-        } catch (e) {
-          // ignore
-        }
-
-        // Normalize possible response shapes
-        const txListRaw = txResponse?.transactions || txResponse?.data || txResponse || [];
         const externalTxs = (Array.isArray(txListRaw) ? txListRaw : [])
-          .filter((tx) => {
-            const w = tx.wallet || {};
-            const wid = w.walletId ?? w.id ?? w.wallet_id ?? null;
-            return String(wid) === String(walletId) || String(wid) === String(walletAltId);
+          .filter((tx) => transactionBelongsToWallet(tx, walletId, walletAltId))
+          .map((tx) => {
+            if (!tx.wallet && !tx.walletId) {
+              return { ...tx, wallet: { walletId } };
+            }
+            return tx;
           })
           .map((tx) => mapTransactionForWallet(tx, walletId, selectedWallet));
 
-        const transferResponse = await walletAPI.getAllTransfers();
-        const transfers = (transferResponse.transfers || [])
-          .filter((transfer) => {
-            const fromWid = transfer.fromWallet?.walletId ?? transfer.fromWallet?.id ?? null;
-            const toWid = transfer.toWallet?.walletId ?? transfer.toWallet?.id ?? null;
-            return (
-              String(fromWid) === String(walletId) ||
-              String(fromWid) === String(walletAltId) ||
-              String(toWid) === String(walletId) ||
-              String(toWid) === String(walletAltId)
-            );
-          })
-          .map((transfer) => mapTransferForWallet(transfer, walletId));
+        let transferListRaw = [];
+        let shouldFallbackTransfers = true;
+        if (walletAPI.getWalletTransfers) {
+          try {
+            const scopedTransfers = await walletAPI.getWalletTransfers(walletId);
+            transferListRaw = extractListFromResponse(scopedTransfers, "transfers");
+            shouldFallbackTransfers = false;
+          } catch (error) {
+            // eslint-disable-next-line no-console
+            console.warn("WalletsPage: scoped transfer fetch failed", error);
+          }
+        }
+
+        if (shouldFallbackTransfers) {
+          const transferResponse = await walletAPI.getAllTransfers();
+          transferListRaw = extractListFromResponse(transferResponse, "transfers");
+        }
+
+        const transfers = (Array.isArray(transferListRaw) ? transferListRaw : [])
+          .filter((transfer) => transferTouchesWallet(transfer, walletId, walletAltId))
+          .map((transfer) => mapTransferForWallet(transfer, walletId, walletAltId));
 
         const allTransactions = [...externalTxs, ...transfers].sort((a, b) => {
           const dateA = new Date(a.date);

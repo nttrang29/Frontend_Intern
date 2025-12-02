@@ -30,6 +30,15 @@ const TABS = {
 const PAGE_SIZE = 10;
 const VIEWER_ROLES = new Set(["VIEW", "VIEWER"]);
 
+const extractListFromResponse = (payload, preferredKey) => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (preferredKey && Array.isArray(payload[preferredKey])) return payload[preferredKey];
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.items)) return payload.items;
+  return [];
+};
+
 const getWalletRoleLabel = (wallet) => {
   if (!wallet) return "";
   return ((wallet.walletRole || wallet.sharedRole || wallet.role || "") + "").toUpperCase();
@@ -243,43 +252,103 @@ export default function TransactionsPage() {
     };
   }, [wallets]);
 
-  const hasWallets = Array.isArray(wallets) && wallets.length > 0;
-  // Load transactions from API
-  const loadTransactions = async () => {
-    setLoading(true);
-    try {
-      const txResponse = await transactionAPI.getAllTransactions();
-      if (txResponse && txResponse.transactions) {
-        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
-        setExternalTransactions(mapped);
+  const refreshTransactionsData = useCallback(async () => {
+    const walletIds = Array.from(
+      new Set(
+        (wallets || [])
+          .map((wallet) => wallet?.walletId ?? wallet?.id)
+          .filter((id) => id !== undefined && id !== null)
+      )
+    );
+
+    const fetchScopedHistory = async () => {
+      if (!walletIds.length) {
+        return { external: [], internal: [] };
+      }
+      if (!transactionAPI.getWalletTransactions || !walletAPI.getWalletTransfers) {
+        throw new Error("Scoped history APIs are unavailable");
       }
 
-      const transferResponse = await walletAPI.getAllTransfers();
-      if (transferResponse && transferResponse.transfers) {
-        const mappedTransfers = transferResponse.transfers.map(mapTransferToFrontend);
-        setInternalTransactions(mappedTransfers);
-      }
-    } catch (err) {
-      console.error("Failed to load transactions:", err);
+      const scopedTransactions = await Promise.all(
+        walletIds.map(async (walletId) => {
+          const response = await transactionAPI.getWalletTransactions(walletId);
+          const list = extractListFromResponse(response, "transactions");
+          return list.map((tx) => {
+            if (!tx.wallet && !tx.walletId) {
+              return { ...tx, wallet: { walletId } };
+            }
+            return tx;
+          });
+        })
+      );
+
+      const scopedTransfers = await Promise.all(
+        walletIds.map(async (walletId) => {
+          const response = await walletAPI.getWalletTransfers(walletId);
+          return extractListFromResponse(response, "transfers");
+        })
+      );
+
+      const transferMap = new Map();
+      scopedTransfers.forEach((list) => {
+        (list || []).forEach((transfer) => {
+          const key = transfer?.transferId ?? transfer?.id;
+          if (key === undefined || key === null) return;
+          if (!transferMap.has(key)) {
+            transferMap.set(key, transfer);
+          }
+        });
+      });
+
+      return {
+        external: scopedTransactions.flat(),
+        internal: Array.from(transferMap.values()),
+      };
+    };
+
+    const fetchLegacyHistory = async () => {
+      const [txResponse, transferResponse] = await Promise.all([
+        transactionAPI.getAllTransactions(),
+        walletAPI.getAllTransfers(),
+      ]);
+      return {
+        external: extractListFromResponse(txResponse, "transactions"),
+        internal: extractListFromResponse(transferResponse, "transfers"),
+      };
+    };
+
+    try {
+      const scoped = await fetchScopedHistory();
+      setExternalTransactions(scoped.external.map(mapTransactionToFrontend));
+      setInternalTransactions(scoped.internal.map(mapTransferToFrontend));
+    } catch (scopedError) {
+      console.warn("TransactionsPage: scoped history fetch failed, using legacy APIs", scopedError);
+      const legacy = await fetchLegacyHistory();
+      setExternalTransactions(legacy.external.map(mapTransactionToFrontend));
+      setInternalTransactions(legacy.internal.map(mapTransferToFrontend));
+    }
+  }, [wallets, mapTransactionToFrontend, mapTransferToFrontend]);
+
+  const runInitialLoad = useCallback(async () => {
+    setLoading(true);
+    try {
+      await refreshTransactionsData();
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshTransactionsData]);
 
   useEffect(() => {
-    // Initial load
-    loadTransactions();
+    runInitialLoad();
 
-    // Lắng nghe event khi user đăng nhập
     const handleUserChange = () => {
-      loadTransactions();
+      runInitialLoad();
     };
     window.addEventListener("userChanged", handleUserChange);
 
-    // Lắng nghe storage event
     const handleStorageChange = (e) => {
       if (e.key === "accessToken" || e.key === "user" || e.key === "auth_user") {
-        loadTransactions();
+        runInitialLoad();
       }
     };
     window.addEventListener("storage", handleStorageChange);
@@ -288,7 +357,7 @@ export default function TransactionsPage() {
       window.removeEventListener("userChanged", handleUserChange);
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, [hasWallets, mapTransactionToFrontend, mapTransferToFrontend]);
+  }, [runInitialLoad]);
 
   // Apply wallet filter when navigated with ?focus=<walletId|walletName>
   useEffect(() => {
@@ -441,19 +510,7 @@ export default function TransactionsPage() {
       // Reload wallets để cập nhật số dư sau khi tạo giao dịch
       // Điều này đảm bảo trang ví tiền tự động cập nhật mà không cần reload
       await loadWallets();
-
-      // Reload all transaction data
-      const txResponse = await transactionAPI.getAllTransactions();
-      if (txResponse.transactions) {
-        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
-        setExternalTransactions(mapped);
-      }
-
-      const transferResponse = await walletAPI.getAllTransfers();
-      if (transferResponse.transfers) {
-        const mapped = transferResponse.transfers.map(mapTransferToFrontend);
-        setInternalTransactions(mapped);
-      }
+      await refreshTransactionsData();
 
       setCurrentPage(1);
     } catch (error) {
@@ -514,12 +571,7 @@ export default function TransactionsPage() {
         
         console.log("Update transfer response:", response);
 
-        // Reload transfers
-        const transferResponse = await walletAPI.getAllTransfers();
-        if (transferResponse.transfers) {
-          const mapped = transferResponse.transfers.map(mapTransferToFrontend);
-          setInternalTransactions(mapped);
-        }
+        await refreshTransactionsData();
 
         setEditing(null);
         setToast({ open: true, message: t("transactions.toast.update_success"), type: "success" });
@@ -577,12 +629,7 @@ export default function TransactionsPage() {
       
       console.log("Update transaction response:", response);
 
-      // Reload transactions
-      const txResponse = await transactionAPI.getAllTransactions();
-      if (txResponse.transactions) {
-        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
-        setExternalTransactions(mapped);
-      }
+      await refreshTransactionsData();
 
       setEditing(null);
       setToast({ open: true, message: t("transactions.toast.update_success"), type: "success" });
@@ -627,15 +674,9 @@ export default function TransactionsPage() {
         // Gọi API xóa transfer
         await walletAPI.deleteTransfer(item.id);
 
-        // Reload transfers
-        const transferResponse = await walletAPI.getAllTransfers();
-        if (transferResponse.transfers) {
-          const mapped = transferResponse.transfers.map(mapTransferToFrontend);
-          setInternalTransactions(mapped);
-        }
-
         // Reload wallets để cập nhật số dư
         await loadWallets();
+        await refreshTransactionsData();
 
         setToast({ open: true, message: t("transactions.toast.delete_success"), type: "success" });
         return;
@@ -645,15 +686,9 @@ export default function TransactionsPage() {
       // Gọi API xóa
       await transactionAPI.deleteTransaction(item.id);
 
-      // Reload transactions
-      const txResponse = await transactionAPI.getAllTransactions();
-      if (txResponse.transactions) {
-        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
-        setExternalTransactions(mapped);
-      }
-
       // Reload wallets để cập nhật số dư
       await loadWallets();
+      await refreshTransactionsData();
 
       setToast({ open: true, message: t("transactions.toast.delete_success"), type: "success" });
     } catch (error) {

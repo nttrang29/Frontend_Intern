@@ -5,6 +5,16 @@
 
 import { apiCall } from "./api-helper";
 
+const buildQuery = (params = {}) => {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    searchParams.append(key, value);
+  });
+  const queryString = searchParams.toString();
+  return queryString ? `?${queryString}` : "";
+};
+
 /**
  * ============================================
  * TRANSACTION APIs
@@ -17,6 +27,24 @@ export const transactionAPI = {
    */
   getAllTransactions: async () => {
     return apiCall("/transactions");
+  },
+
+  /**
+   * Lấy toàn bộ giao dịch của một ví, bao gồm giao dịch do thành viên khác tạo
+   * @param {number|string} walletId
+   * @param {object} [options]
+   */
+  getWalletTransactions: async (walletId, options = {}) => {
+    if (!walletId && walletId !== 0) {
+      throw new Error("walletId is required to fetch wallet transactions");
+    }
+    const query = buildQuery(options);
+    return apiCall(`/wallets/${walletId}/transactions${query}`);
+  },
+
+  // Alias để tương thích với các đoạn code cũ
+  getTransactionsByWallet: async (walletId, options = {}) => {
+    return transactionAPI.getWalletTransactions(walletId, options);
   },
 
   /**
