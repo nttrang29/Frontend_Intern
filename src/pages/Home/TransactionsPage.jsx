@@ -28,6 +28,17 @@ const TABS = {
 };
 
 const PAGE_SIZE = 10;
+const VIEWER_ROLES = new Set(["VIEW", "VIEWER"]);
+
+const getWalletRoleLabel = (wallet) => {
+  if (!wallet) return "";
+  return ((wallet.walletRole || wallet.sharedRole || wallet.role || "") + "").toUpperCase();
+};
+
+const isViewerOnlyWallet = (wallet) => {
+  const role = getWalletRoleLabel(wallet);
+  return !!role && VIEWER_ROLES.has(role);
+};
 
 function toDateObj(str) {
   if (!str) return null;
@@ -142,6 +153,43 @@ export default function TransactionsPage() {
   // Budget warning state
   const [budgetWarning, setBudgetWarning] = useState(null);
   const [pendingTransaction, setPendingTransaction] = useState(null);
+
+  const showViewerRestrictionToast = useCallback(() => {
+    setToast({ open: true, message: t("transactions.error.viewer_wallet_restricted"), type: "error" });
+  }, [t, setToast]);
+
+  const actionableWallets = useMemo(() => {
+    if (!Array.isArray(wallets)) return [];
+    return wallets.filter((wallet) => !isViewerOnlyWallet(wallet));
+  }, [wallets]);
+
+  const findWalletByDisplayName = useCallback(
+    (walletName) => {
+      if (!walletName || !Array.isArray(wallets)) return null;
+      const normalized = walletName.trim().toLowerCase();
+      return (
+        wallets.find((wallet) => {
+          const candidates = [wallet.name, wallet.walletName]
+            .filter(Boolean)
+            .map((label) => label.trim().toLowerCase());
+          return candidates.includes(normalized);
+        }) || null
+      );
+    },
+    [wallets]
+  );
+
+  const findWalletById = useCallback(
+    (walletId) => {
+      if (!walletId || !Array.isArray(wallets)) return null;
+      return (
+        wallets.find(
+          (wallet) => String(wallet.walletId || wallet.id) === String(walletId)
+        ) || null
+      );
+    },
+    [wallets]
+  );
 
   // Helper function to map Transaction entity to frontend format
   const mapTransactionToFrontend = useCallback((tx) => {
@@ -297,9 +345,14 @@ export default function TransactionsPage() {
     try {
         if (activeTab === TABS.EXTERNAL) {
         // Find walletId and categoryId
-        const wallet = wallets.find(w => w.walletName === payload.walletName || w.name === payload.walletName);
+        const wallet = findWalletByDisplayName(payload.walletName);
         if (!wallet) {
           setToast({ open: true, message: t("transactions.error.wallet_not_found").replace("{wallet}", payload.walletName), type: "error" });
+          return;
+        }
+
+        if (isViewerOnlyWallet(wallet)) {
+          showViewerRestrictionToast();
           return;
         }
 
@@ -359,11 +412,16 @@ export default function TransactionsPage() {
         setToast({ open: true, message: t("transactions.toast.add_success") });
       } else {
         // Internal transfer
-        const sourceWallet = wallets.find(w => w.walletName === payload.sourceWallet || w.name === payload.sourceWallet);
-        const targetWallet = wallets.find(w => w.walletName === payload.targetWallet || w.name === payload.targetWallet);
+        const sourceWallet = findWalletByDisplayName(payload.sourceWallet);
+        const targetWallet = findWalletByDisplayName(payload.targetWallet);
         
         if (!sourceWallet || !targetWallet) {
           setToast({ open: true, message: t("transactions.error.wallet_not_found_pair"), type: "error" });
+          return;
+        }
+
+        if (isViewerOnlyWallet(sourceWallet) || isViewerOnlyWallet(targetWallet)) {
+          showViewerRestrictionToast();
           return;
         }
 
@@ -437,6 +495,13 @@ export default function TransactionsPage() {
     try {
       // Xử lý giao dịch chuyển tiền (transfer)
       if (editing.type === "transfer") {
+        const sourceWalletEntity = findWalletByDisplayName(editing.sourceWallet || "");
+        const targetWalletEntity = findWalletByDisplayName(editing.targetWallet || "");
+        if (isViewerOnlyWallet(sourceWalletEntity) || isViewerOnlyWallet(targetWalletEntity)) {
+          showViewerRestrictionToast();
+          return;
+        }
+
         console.log("Updating transfer:", {
           transferId: editing.id,
           note: payload.note || "",
@@ -462,6 +527,12 @@ export default function TransactionsPage() {
       }
 
       // Xử lý giao dịch thu nhập/chi tiêu (external transactions)
+      const editingWallet = findWalletByDisplayName(editing.walletName || "");
+      if (isViewerOnlyWallet(editingWallet)) {
+        showViewerRestrictionToast();
+        return;
+      }
+
       // Tìm categoryId từ category name
       const categoryList = editing.type === "income" 
         ? (incomeCategories || [])
@@ -530,6 +601,24 @@ export default function TransactionsPage() {
     if (!confirmDel) return;
 
     const item = confirmDel;
+
+    if (item.type === "transfer") {
+      const sourceWalletEntity = findWalletByDisplayName(item.sourceWallet || "");
+      const targetWalletEntity = findWalletByDisplayName(item.targetWallet || "");
+      if (isViewerOnlyWallet(sourceWalletEntity) || isViewerOnlyWallet(targetWalletEntity)) {
+        showViewerRestrictionToast();
+        setConfirmDel(null);
+        return;
+      }
+    } else {
+      const deletingWallet = findWalletByDisplayName(item.walletName || "");
+      if (isViewerOnlyWallet(deletingWallet)) {
+        showViewerRestrictionToast();
+        setConfirmDel(null);
+        return;
+      }
+    }
+
     setConfirmDel(null); // Đóng modal
 
     try {
@@ -585,6 +674,54 @@ export default function TransactionsPage() {
       }
     }
   };
+
+  const handleTransactionEditRequest = useCallback(
+    (tx) => {
+      if (!tx) return;
+
+      if (tx.type === "transfer") {
+        const sourceWalletEntity = findWalletByDisplayName(tx.sourceWallet || "");
+        const targetWalletEntity = findWalletByDisplayName(tx.targetWallet || "");
+        if (isViewerOnlyWallet(sourceWalletEntity) || isViewerOnlyWallet(targetWalletEntity)) {
+          showViewerRestrictionToast();
+          return;
+        }
+      } else {
+        const walletEntity = findWalletByDisplayName(tx.walletName || "");
+        if (isViewerOnlyWallet(walletEntity)) {
+          showViewerRestrictionToast();
+          return;
+        }
+      }
+
+      setEditing(tx);
+    },
+    [findWalletByDisplayName, showViewerRestrictionToast, setEditing]
+  );
+
+  const handleTransactionDeleteRequest = useCallback(
+    (tx) => {
+      if (!tx) return;
+
+      if (tx.type === "transfer") {
+        const sourceWalletEntity = findWalletByDisplayName(tx.sourceWallet || "");
+        const targetWalletEntity = findWalletByDisplayName(tx.targetWallet || "");
+        if (isViewerOnlyWallet(sourceWalletEntity) || isViewerOnlyWallet(targetWalletEntity)) {
+          showViewerRestrictionToast();
+          return;
+        }
+      } else {
+        const walletEntity = findWalletByDisplayName(tx.walletName || "");
+        if (isViewerOnlyWallet(walletEntity)) {
+          showViewerRestrictionToast();
+          return;
+        }
+      }
+
+      setConfirmDel(tx);
+    },
+    [findWalletByDisplayName, showViewerRestrictionToast, setConfirmDel]
+  );
 
   // Update budget data when transactions change
   useEffect(() => {
@@ -809,6 +946,12 @@ export default function TransactionsPage() {
   };
 
   const handleScheduleSubmit = (payload) => {
+    const scheduleWallet = findWalletById(payload.walletId);
+    if (scheduleWallet && isViewerOnlyWallet(scheduleWallet)) {
+      showViewerRestrictionToast();
+      return;
+    }
+
     const scheduleId = Date.now();
     const totalRuns = estimateScheduleRuns(payload.firstRun, payload.endDate, payload.scheduleType);
     const newSchedule = {
@@ -1008,6 +1151,7 @@ export default function TransactionsPage() {
                 }}
                 expanded={expandedPanel === "form"}
                 onToggleExpand={() => setExpandedPanel(expandedPanel === "form" ? null : "form")}
+                availableWallets={actionableWallets}
               />
             </div>
           )}
@@ -1024,8 +1168,8 @@ export default function TransactionsPage() {
                 paginationRange={paginationRange}
                 onPageChange={handlePageChange}
                 onView={setViewing}
-                onEdit={setEditing}
-                onDelete={setConfirmDel}
+                onEdit={handleTransactionEditRequest}
+                onDelete={handleTransactionDeleteRequest}
                 filterType={filterType}
                 onFilterTypeChange={(value) => {
                   setFilterType(value);
@@ -1061,7 +1205,7 @@ export default function TransactionsPage() {
 
       <ScheduledTransactionModal
         open={scheduleModalOpen}
-        wallets={wallets}
+        wallets={actionableWallets}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
         onSubmit={handleScheduleSubmit}
@@ -1088,6 +1232,7 @@ export default function TransactionsPage() {
         initialData={editing}
         onSubmit={handleUpdate}
         onClose={() => setEditing(null)}
+        availableWallets={actionableWallets}
       />
 
       <ConfirmModal

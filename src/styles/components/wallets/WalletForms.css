@@ -54,6 +54,14 @@
   border-color: var(--color-primary);
 }
 
+.wallet-form__char-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
 /* =============================
    CHECKBOX
    ============================= */

@@ -75,6 +75,7 @@ export default function TransactionFormModal({
   onSubmit,
   onClose,
   variant = "external",
+  availableWallets,
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [attachmentPreview, setAttachmentPreview] = useState("");
@@ -103,10 +104,16 @@ export default function TransactionFormModal({
 
   // get shared categories and wallets (cần lấy trước để dùng trong useEffect)
   const { expenseCategories, incomeCategories } = useCategoryData();
-  const { wallets: walletList } = useWalletData();
+  const { wallets: walletListFromContext } = useWalletData();
+  const walletList = useMemo(() => {
+    if (Array.isArray(availableWallets)) {
+      return availableWallets;
+    }
+    return walletListFromContext || [];
+  }, [availableWallets, walletListFromContext]);
 
   // Tìm ví mặc định
-  const defaultWallet = walletList?.find(w => w.isDefault === true);
+  const defaultWallet = walletList.find(w => w.isDefault === true);
 
   /* ========== Đổ dữ liệu ban đầu ========== */
   useEffect(() => {

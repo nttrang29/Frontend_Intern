@@ -23,6 +23,8 @@ import "../../styles/components/wallets/WalletList.css";
 import "../../styles/components/wallets/WalletHeader.css";
 
 const CURRENCIES = ["VND", "USD"];
+const NOTE_MAX_LENGTH = 60;
+const MERGE_PERSONAL_ONLY_ERROR = "WALLET_MERGE_PERSONAL_ONLY";
 
 const getLocalUserId = () => {
   if (typeof window === "undefined") return null;
@@ -1281,7 +1283,11 @@ export default function WalletsPage() {
   };
 
   const handleCreateFieldChange = (field, value) => {
-    setCreateForm((prev) => ({ ...prev, [field]: value }));
+    const nextValue =
+      field === "note"
+        ? String(value || "").slice(0, NOTE_MAX_LENGTH)
+        : value;
+    setCreateForm((prev) => ({ ...prev, [field]: nextValue }));
   };
 
   const handleAddCreateShareEmail = () => {
@@ -1385,7 +1391,7 @@ export default function WalletsPage() {
       const payload = {
         name: createForm.name.trim(),
         currency: createForm.currency,
-        note: createForm.note?.trim() || "",
+        note: (createForm.note || "").trim().slice(0, NOTE_MAX_LENGTH),
         isDefault: !!createForm.isDefault,
         isShared: false,
       };
@@ -1447,7 +1453,11 @@ export default function WalletsPage() {
   };
 
   const handleEditFieldChange = (field, value) => {
-    setEditForm((prev) => ({ ...prev, [field]: value }));
+    const nextValue =
+      field === "note"
+        ? String(value || "").slice(0, NOTE_MAX_LENGTH)
+        : value;
+    setEditForm((prev) => ({ ...prev, [field]: nextValue }));
   };
 
   const handleAddEditShareEmail = async () => {
@@ -1457,13 +1467,6 @@ export default function WalletsPage() {
     }
   };
 
-  const handleRemoveEditShareEmail = (email) => {
-    setEditForm((prev) => ({
-      ...prev,
-      sharedEmails: (prev.sharedEmails || []).filter((e) => e !== email),
-    }));
-  };
-
   const handleSubmitEdit = async (e) => {
     e.preventDefault();
     if (!selectedWallet || !updateWallet) return;
@@ -1471,7 +1474,7 @@ export default function WalletsPage() {
       await updateWallet({
         id: selectedWallet.id,
         name: editForm.name.trim(),
-        note: editForm.note?.trim() || "",
+        note: (editForm.note || "").trim().slice(0, NOTE_MAX_LENGTH),
         currency: editForm.currency,
         isDefault: !!editForm.isDefault,
       });
@@ -1486,16 +1489,106 @@ export default function WalletsPage() {
     }
   };
 
+  const purgeWalletTransactions = async (wallet) => {
+    if (!wallet) return 0;
+
+    const walletId = wallet.id;
+    const walletAltId = wallet.walletId || walletId;
+
+    try {
+      let txResponse = null;
+      try {
+        if (transactionAPI.getWalletTransactions) {
+          txResponse = await transactionAPI.getWalletTransactions(walletId);
+        }
+      } catch (err) {
+        txResponse = null;
+      }
+
+      if (!txResponse) {
+        try {
+          if (transactionAPI.getTransactionsByWallet) {
+            txResponse = await transactionAPI.getTransactionsByWallet(walletId);
+          }
+        } catch (err) {
+          txResponse = null;
+        }
+      }
+
+      if (!txResponse && transactionAPI.getAllTransactions) {
+        txResponse = await transactionAPI.getAllTransactions();
+      }
+
+      const txListRaw = txResponse?.transactions || txResponse?.data || txResponse || [];
+      const relatedTransactions = (Array.isArray(txListRaw) ? txListRaw : []).filter((tx) => {
+        const walletRef = tx.wallet || tx.walletInfo || tx.walletDto || {};
+        const txWalletId =
+          walletRef.walletId ??
+          walletRef.id ??
+          walletRef.wallet_id ??
+          tx.walletId ??
+          tx.wallet_id ??
+          tx.walletID ??
+          null;
+        if (!txWalletId) return false;
+        return (
+          String(txWalletId) === String(walletId) ||
+          String(txWalletId) === String(walletAltId)
+        );
+      });
+
+      let deletedCount = 0;
+      for (const tx of relatedTransactions) {
+        const txIdRaw =
+          tx.transactionId ??
+          tx.id ??
+          tx.txId ??
+          tx.transactionID ??
+          tx.transaction_id ??
+          null;
+        const txId = Number(txIdRaw);
+        if (!txId || Number.isNaN(txId)) continue;
+        if (!transactionAPI.deleteTransaction) continue;
+        await transactionAPI.deleteTransaction(txId);
+        deletedCount += 1;
+      }
+
+      return deletedCount;
+    } catch (error) {
+      throw new Error(error?.message || t('wallets.toast.delete_transactions_failed'));
+    }
+  };
+
   const handleDeleteWallet = async (walletId) => {
     if (!walletId || !deleteWallet) return;
     try {
       const wallet = wallets.find((w) => Number(w.id) === Number(walletId));
+      if (!wallet) return;
+
       const walletName = wallet?.name || "ví";
+      const walletBalance = Number(wallet.balance ?? wallet.current ?? 0) || 0;
+      if (Math.abs(walletBalance) > 0.000001) {
+        showToast(t('wallets.toast.delete_requires_zero_balance'), "error");
+        return;
+      }
+
+      const deletedTransactions = await purgeWalletTransactions(wallet);
+
       await deleteWallet(walletId);
-      showToast(`${t('wallets.toast.deleted')} "${walletName}"`);
+      await loadWallets();
+      refreshTransactions();
+
       if (String(walletId) === String(selectedId)) {
         setSelectedId(null);
         setActiveDetailTab("view");
+      }
+
+      if (deletedTransactions > 0) {
+        showToast(
+          `${t('wallets.toast.deleted_with_transactions', { count: deletedTransactions })} "${walletName}"`
+        );
+      } else {
+        showToast(`${t('wallets.toast.deleted')} "${walletName}"`);
       }
     } catch (error) {
       showToast(error.message || t('common.error'), "error");
@@ -1622,6 +1715,7 @@ export default function WalletsPage() {
         keepCurrency === "SOURCE"
           ? sourceWallet?.currency || targetWallet?.currency || "VND"
           : targetWallet?.currency || sourceWallet?.currency || "VND";
+      const sourceWasDefault = !!sourceWallet?.isDefault;
 
       await mergeWallets({
         sourceId,
@@ -1630,14 +1724,51 @@ export default function WalletsPage() {
         targetCurrency,
       });
 
-      if (payload.setTargetAsDefault && updateWallet) {
-        await updateWallet({ id: targetId, isDefault: true });
+      let defaultAction = null;
+      let defaultError = null;
+
+      if (payload.setTargetAsDefault) {
+        let setSucceeded = false;
+        if (setDefaultWallet) {
+          try {
+            await setDefaultWallet(targetId);
+            setSucceeded = true;
+            defaultAction = "set";
+          } catch (err) {
+            defaultError = err;
+          }
+        }
+        if (!setSucceeded && updateWallet) {
+          try {
+            await updateWallet({ id: targetId, isDefault: true });
+            setSucceeded = true;
+            defaultAction = "set";
+            defaultError = null;
+          } catch (err) {
+            defaultError = err;
+          }
+        }
+      } else if (sourceWasDefault && updateWallet) {
+        try {
+          await updateWallet({ id: targetId, isDefault: false });
+          defaultAction = "cleared";
+        } catch (err) {
+          defaultError = err;
+        }
       }
 
       await loadWallets();
       refreshTransactions();
 
-      showToast(t('wallets.toast.merged'));
+      if (defaultError) {
+        showToast(defaultError.message || t('wallets.toast.merge_default_error'), "warning");
+      } else if (defaultAction === "set") {
+        showToast(t('wallets.toast.merge_set_default'));
+      } else if (defaultAction === "cleared") {
+        showToast(t('wallets.toast.merge_cleared_default'));
+      } else {
+        showToast(t('wallets.toast.merged'));
+      }
       try {
         logActivity({
           type: "wallet.merge",
@@ -1650,7 +1781,14 @@ export default function WalletsPage() {
       setSelectedId(targetId);
       setActiveDetailTab("view");
     } catch (error) {
-      showToast(error.message || "Không thể gộp ví", "error");
+      if (
+        error?.code === MERGE_PERSONAL_ONLY_ERROR ||
+        error?.message === MERGE_PERSONAL_ONLY_ERROR
+      ) {
+        showToast(t('wallets.error.merge_personal_only'), "error");
+      } else {
+        showToast(error.message || "Không thể gộp ví", "error");
+      }
     } finally {
       setMergeTargetId("");
     }
@@ -1685,12 +1823,13 @@ export default function WalletsPage() {
   };
 
   // Map transaction từ API sang format cho WalletDetail
-  const mapTransactionForWallet = useCallback((tx, walletId) => {
+  const mapTransactionForWallet = useCallback((tx, walletId, walletRef = null) => {
     const typeName = tx.transactionType?.typeName || "";
-    const isExpense = typeName === "Chi tiêu";
+    const normalizedType = typeName.toLowerCase();
+    const isExpense = normalizedType.includes("chi") || normalizedType.includes("expense");
     const amount = parseFloat(tx.amount || 0);
 
-    const categoryName = tx.category?.categoryName || "Khác";
+    const categoryName = tx.category?.categoryName || tx.categoryName || "Khác";
     const note = tx.note || "";
     let title = categoryName;
     if (note) {
@@ -1705,15 +1844,57 @@ export default function WalletsPage() {
 
     const creatorName = tx.user?.fullName || tx.user?.name || tx.user?.email || tx.createdByName || tx.creatorName || (tx.user && (tx.user.username || tx.user.displayName)) || "";
 
+    const walletInfo = tx.wallet || {};
+    const fallbackWalletName =
+      walletRef?.name || walletRef?.walletName || walletRef?.title || "";
+    const walletName =
+      walletInfo.walletName ||
+      walletInfo.name ||
+      tx.walletName ||
+      fallbackWalletName ||
+      "";
+
+    const currencyCandidates = [
+      tx.originalCurrency,
+      tx.originalCurrencyCode,
+      tx.currencyCode,
+      tx.currency,
+      tx.transactionCurrency,
+      walletInfo.currencyCode,
+      walletInfo.currency,
+    ];
+    const resolvedCurrency = currencyCandidates.find((curr) => {
+      if (curr === undefined || curr === null) return false;
+      const normalized = String(curr).trim();
+      return normalized.length > 0;
+    });
+    const currency = resolvedCurrency
+      ? String(resolvedCurrency).toUpperCase()
+      : "VND";
+
+    const txId =
+      tx.transactionId ??
+      tx.id ??
+      tx.txId ??
+      tx.transactionID ??
+      tx.transaction_id ??
+      `${walletId || "wallet"}-${dateValue}`;
+
     return {
-      id: tx.transactionId,
-      title: title,
+      id: txId,
+      title,
       amount: displayAmount,
-      timeLabel: timeLabel,
-      categoryName: categoryName,
-      currency: tx.wallet?.currencyCode || "VND",
+      timeLabel,
+      categoryName,
+      currency,
       date: dateValue,
       creatorName,
+      note,
+      walletName,
+      type: isExpense ? "expense" : "income",
+      originalAmount: tx.originalAmount ?? null,
+      originalCurrency: tx.originalCurrency || null,
+      exchangeRate: tx.exchangeRate ?? tx.appliedExchangeRate ?? null,
     };
   }, []);
 
@@ -1736,15 +1917,37 @@ export default function WalletsPage() {
 
     const actorName = transfer.user?.fullName || transfer.user?.name || transfer.user?.email || transfer.createdByName || transfer.creatorName || "";
 
+    const currencyCandidates = [
+      transfer.originalCurrency,
+      transfer.currencyCode,
+      transfer.currency,
+      transfer.fromWallet?.currencyCode,
+      transfer.toWallet?.currencyCode,
+      transfer.fromWallet?.currency,
+      transfer.toWallet?.currency,
+    ];
+    const resolvedCurrency = currencyCandidates.find((curr) => {
+      if (curr === undefined || curr === null) return false;
+      const normalized = String(curr).trim();
+      return normalized.length > 0;
+    });
+    const currency = resolvedCurrency
+      ? String(resolvedCurrency).toUpperCase()
+      : "VND";
+
     return {
       id: `transfer-${transfer.transferId}`,
       title: title,
       amount: displayAmount,
       timeLabel: timeLabel,
       categoryName: "Chuyển tiền giữa các ví",
-      currency: transfer.currencyCode || "VND",
+      currency,
       date: dateValue,
       creatorName: actorName,
+      note: transfer.note || "",
+      sourceWallet: sourceName,
+      targetWallet: targetName,
+      type: "transfer",
     };
   }, []);
 
@@ -1804,7 +2007,7 @@ export default function WalletsPage() {
             const wid = w.walletId ?? w.id ?? w.wallet_id ?? null;
             return String(wid) === String(walletId) || String(wid) === String(walletAltId);
           })
-          .map((tx) => mapTransactionForWallet(tx, walletId));
+          .map((tx) => mapTransactionForWallet(tx, walletId, selectedWallet));
 
         const transferResponse = await walletAPI.getAllTransfers();
         const transfers = (transferResponse.transfers || [])
@@ -2008,7 +2211,6 @@ export default function WalletsPage() {
           setEditShareEmail={setEditShareEmail}
           onAddEditShareEmail={handleAddEditShareEmail}
           shareWalletLoading={shareWalletLoading}
-          onRemoveEditShareEmail={handleRemoveEditShareEmail}
           onSubmitEdit={handleSubmitEdit}
           mergeTargetId={mergeTargetId}
           setMergeTargetId={setMergeTargetId}

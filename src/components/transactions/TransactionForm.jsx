@@ -73,6 +73,7 @@ export default function TransactionForm({
   onReset,
   expanded,
   onToggleExpand,
+  availableWallets,
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [attachmentPreview, setAttachmentPreview] = useState("");
@@ -84,9 +85,15 @@ export default function TransactionForm({
   useOnClickOutside(categorySelectRef, () => setCategoryDropdownOpen(false));
 
   const { expenseCategories, incomeCategories } = useCategoryData();
-  const { wallets: walletList } = useWalletData();
+  const { wallets: walletListFromContext } = useWalletData();
+  const walletList = useMemo(() => {
+    if (Array.isArray(availableWallets)) {
+      return availableWallets;
+    }
+    return walletListFromContext || [];
+  }, [availableWallets, walletListFromContext]);
 
-  const defaultWallet = walletList?.find(w => w.isDefault === true);
+  const defaultWallet = walletList.find(w => w.isDefault === true);
 
   // Initialize form
   useEffect(() => {

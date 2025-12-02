@@ -8,8 +8,6 @@ export default function DetailViewTab({
   sharedMembersError = "",
   canManageSharedMembers = false,
   canInviteMembers = false,
-  removingMemberId = null,
-  onRemoveSharedMember,
   onQuickShareEmail,
   quickShareLoading = false,
   sharedFilter,
@@ -75,15 +73,7 @@ export default function DetailViewTab({
           };
           const roleLabel = getRoleLabel(roleUpper);
           const emailDisplay = member.email && member.email !== name ? member.email : "";
-          const memberId = member.userId ?? member.memberUserId ?? member.memberId;
-          const allowRemove =
-            canManageSharedMembers &&
-            memberId &&
-            (roleUpper || "") !== "OWNER";
-          const pillClass = allowRemove
-            ? "wallet-share-pill"
-            : "wallet-share-pill wallet-share-pill--readonly";
-          const isRemoving = removingMemberId === memberId;
+          const pillClass = "wallet-share-pill wallet-share-pill--readonly";
           return (
             <span key={key || name} className={pillClass}>
               <span className="wallet-share-pill__info">
@@ -91,16 +81,6 @@ export default function DetailViewTab({
                 {emailDisplay && <small>{emailDisplay}</small>}
                 {roleLabel && <small>{roleLabel}</small>}
               </span>
-              {allowRemove && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveSharedMember?.(member)}
-                  disabled={isRemoving}
-                  aria-label={`Xóa ${name}`}
-                >
-                  {isRemoving ? "…" : "×"}
-                </button>
-              )}
             </span>
           );
         })}
