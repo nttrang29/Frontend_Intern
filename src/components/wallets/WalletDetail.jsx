@@ -4,6 +4,7 @@ import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 import { walletAPI } from "../../services/wallet.service";
 import { useLanguage } from "../../contexts/LanguageContext";
 import Toast from "../common/Toast/Toast";
+import { logActivity } from "../../utils/activityLogger";
 import DetailViewTab from "./tabs/DetailViewTab";
 import ManageMembersTab from "./tabs/ManageMembersTab";
 import TopupTab from "./tabs/TopupTab";
@@ -425,6 +426,13 @@ export default function WalletDetail(props) {
       setSharedMembers((prev) =>
         prev.filter((m) => (m.userId ?? m.memberUserId ?? m.memberId) !== targetId)
       );
+      try {
+        logActivity({
+          type: "wallet.unshare",
+          message: `Xóa người dùng ${member.email || member.userId || targetId} khỏi ví ${wallet.id}`,
+          data: { walletId: wallet.id, member: member },
+        });
+      } catch (e) {}
     } catch (error) {
       setSharedMembersError(error.message || "Không thể xóa thành viên khỏi ví.");
     } finally {

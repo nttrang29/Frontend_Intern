@@ -816,6 +816,13 @@ export default function WalletsPage() {
         });
         showToast(`${t('wallets.share_success')} ${email}`);
         await loadWallets();
+        try {
+          logActivity({
+            type: "wallet.share",
+            message: `Chia sẻ ví ${walletIdToUse} với ${email}`,
+            data: { walletId: walletIdToUse, email },
+          });
+        } catch (e) {}
         return { success: true };
       } catch (error) {
         const message = error.message || t('wallets.toast.create_error');

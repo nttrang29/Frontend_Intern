@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
 
 import { budgetAPI } from "../services/api-client";
+import { logActivity } from "../utils/activityLogger";
 
 const BudgetDataContext = createContext(null);
 
@@ -133,6 +134,13 @@ export function BudgetDataProvider({ children }) {
       const created = normalizeBudget(response?.budget || response);
       if (created) {
         setBudgets((prev) => [created, ...prev]);
+        try {
+          logActivity({
+            type: "budget.create",
+            message: `Tạo ngân sách ${created.categoryName} ${created.limitAmount ? `— ${created.limitAmount}` : ""}`,
+            data: { budgetId: created.id, category: created.categoryName, limit: created.limitAmount },
+          });
+        } catch (e) {}
       } else {
         await loadBudgets();
       }
@@ -172,6 +180,13 @@ export function BudgetDataProvider({ children }) {
     setBudgets((prev) =>
       prev.filter((b) => String(b.id ?? b.budgetId) !== normalizedId)
     );
+    try {
+      logActivity({
+        type: "budget.delete",
+        message: `Xóa ngân sách ${budgetId}`,
+        data: { budgetId },
+      });
+    } catch (e) {}
   }, []);
 
   useEffect(() => {

@@ -79,6 +79,26 @@
   box-shadow: var(--funds-shadow-subtle);
 }
 
+/* Larger search card variant used on Activity History page */
+.cat-table-card.search-card {
+  padding: 6px; /* small outer padding to separate from page */
+}
+
+.cat-table-card.search-card .card-body {
+  padding: 14px 20px; /* larger internal padding for search controls */
+  min-height: 66px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a; /* slightly dark */
+  margin-bottom: 6px;
+}
+
 /* bên trong body */
 .category-cards-wrapper {
   padding: 4px 4px 0;
@@ -251,6 +271,30 @@
   box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.35);
 }
 
+/* Date input styling inside search area to match pill-shaped look */
+.category-search-inline input[type="date"],
+.category-search-inline .form-control.date-input {
+  border-radius: 999px;
+  padding: 6px 12px;
+  border: 1px solid var(--funds-border);
+  height: 36px;
+  font-size: 0.9rem;
+  background-color: #ffffff;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.category-search-inline input[type="date"]:focus,
+.category-search-inline .form-control.date-input:focus {
+  border-color: var(--funds-accent);
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.18);
+}
+
+/* Tweak spacing for the search actions area */
+.category-search-actions {
+  gap: 8px 12px;
+}
+
 /* nút X trong ô tìm kiếm */
 .category-search-clear-btn {
   position: absolute;
@@ -353,6 +397,48 @@
   font-size: 0.85rem;
   color: var(--funds-text-muted);
 }
+
+/* ===== Activity / Results Table Styling ===== */
+.cat-table-card .table {
+  margin-bottom: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.cat-table-card .table thead th {
+  padding: 12px 18px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--funds-border);
+  background: transparent;
+  font-weight: 700;
+  color: #0f172a;
+}
+.cat-table-card .table tbody td {
+  padding: 12px 18px;
+  vertical-align: middle;
+  border-top: 1px solid rgba(15, 23, 42, 0.04);
+  color: #111827;
+}
+.cat-table-card .table tbody tr:hover td {
+  background: rgba(45,153,174,0.03);
+}
+.cat-table-card .table td.text-muted {
+  color: var(--funds-text-muted);
+}
+.cat-table-card .table td.fw-medium {
+  font-weight: 600;
+}
+.cat-table-card .table td { white-space: nowrap; }
+.cat-table-card .table td[max-width], .cat-table-card .table td[style] { white-space: normal; }
+.cat-table-card .table td:nth-child(4) { max-width: 520px; word-wrap: break-word; }
+
+.activity-highlight {
+  color: #d93025;
+  font-weight: 600;
+}
+
+/* Make the card body a bit more airy */
+.cat-table-card .card-body { padding: 12px 14px; }
+
 
 .category-sort select {
   min-width: 190px;
