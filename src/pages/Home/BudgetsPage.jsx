@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import "../../styles/pages/BudgetsPage.css";
 import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
@@ -9,6 +9,7 @@ import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import Toast from "../../components/common/Toast/Toast";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { budgetAPI } from "../../services/budget.service";
+import { transactionAPI } from "../../services/transaction.service";
 
 const parseDateOnly = (value) => {
   if (!value) return null;
@@ -77,6 +78,7 @@ export default function BudgetsPage() {
     updateBudget,
     deleteBudget,
     externalTransactionsList,
+    updateAllExternalTransactions,
     refreshBudgets,
   } = useBudgetData();
   const { expenseCategories } = useCategoryData();
@@ -104,6 +106,149 @@ export default function BudgetsPage() {
     items: [],
     error: null,
   });
+  const preloadExternalTransactionsAttempted = useRef(false);
+
+  const extractTransactionsResponse = useCallback((payload) => {
+    if (!payload) return [];
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload.transactions)) return payload.transactions;
+    if (Array.isArray(payload.data)) return payload.data;
+    return [];
+  }, []);
+
+  const detectTransactionKind = useCallback((tx) => {
+    const normalize = (value) => {
+      if (value === undefined || value === null) return "";
+      if (typeof value === "string") return value.trim().toUpperCase();
+      if (typeof value === "number") return String(value).trim().toUpperCase();
+      if (typeof value === "object") {
+        return normalize(
+          value.type ||
+            value.typeName ||
+            value.code ||
+            value.key ||
+            value.name ||
+            value.value ||
+            value.direction
+        );
+      }
+      return "";
+    };
+
+    const expenseTokens = ["EXPENSE", "CHI", "OUT", "DEBIT", "SPEND", "PAYMENT"];
+    const incomeTokens = ["INCOME", "THU", "IN", "CREDIT", "RECEIVE", "TOPUP", "DEPOSIT"];
+
+    const candidates = [
+      tx.transactionType,
+      tx.transactionType?.type,
+      tx.transactionType?.typeName,
+      tx.transactionType?.code,
+      tx.transactionType?.direction,
+      tx.transactionCategory?.type,
+      tx.transactionCategory?.direction,
+      tx.type,
+      tx.typeName,
+      tx.category?.type,
+      tx.category?.categoryType,
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = normalize(candidate);
+      if (!normalized) continue;
+      if (expenseTokens.some((token) => normalized.includes(token))) return "expense";
+      if (incomeTokens.some((token) => normalized.includes(token))) return "income";
+    }
+
+    if (typeof tx.amount === "number") {
+      if (tx.amount < 0) return "expense";
+      if (tx.amount > 0) return "income";
+    }
+
+    return "expense";
+  }, []);
+
+  const normalizeExternalTransaction = useCallback(
+    (tx) => {
+      const walletName = (() => {
+        if (tx.wallet?.walletName) return tx.wallet.walletName;
+        if (tx.walletName) return tx.walletName;
+        const match = (wallets || []).find(
+          (wallet) =>
+            String(wallet.id) === String(tx.walletId) ||
+            String(wallet.walletId) === String(tx.walletId)
+        );
+        return match?.name || match?.walletName || "";
+      })();
+
+      const categoryName =
+        tx.category?.categoryName || tx.categoryName || tx.category || "";
+      const type = detectTransactionKind(tx);
+      const amount = Number(tx.amount || 0);
+
+      return {
+        id:
+          tx.transactionId ??
+          tx.id ??
+          tx.txId ??
+          tx.transactionID ??
+          tx.code ??
+          `${Date.now()}-${Math.random()}`,
+        code:
+          tx.code ||
+          (tx.transactionId || tx.id
+            ? `TX-${String(tx.transactionId || tx.id).padStart(4, "0")}`
+            : "TX-0000"),
+        category: categoryName,
+        walletName,
+        amount,
+        date: tx.createdAt || tx.transactionDate || tx.date || new Date().toISOString(),
+        currencyCode:
+          (tx.currencyCode ||
+            tx.currency ||
+            tx.wallet?.currencyCode ||
+            tx.wallet?.currency ||
+            tx.walletCurrency ||
+            "VND").toUpperCase(),
+        type,
+      };
+    },
+    [wallets, detectTransactionKind]
+  );
+
+  useEffect(() => {
+    if (Array.isArray(externalTransactionsList) && externalTransactionsList.length > 0) {
+      return;
+    }
+    if (preloadExternalTransactionsAttempted.current) return;
+
+    let cancelled = false;
+    preloadExternalTransactionsAttempted.current = true;
+
+    const preloadTransactions = async () => {
+      try {
+        const response = await transactionAPI.getAllTransactions();
+        const list = extractTransactionsResponse(response);
+        const normalized = list.map(normalizeExternalTransaction);
+        if (!cancelled && normalized.length > 0) {
+          updateAllExternalTransactions(normalized, { append: true });
+        }
+      } catch (error) {
+        console.warn("BudgetsPage: unable to preload transactions", error);
+        preloadExternalTransactionsAttempted.current = false;
+      }
+    };
+
+    preloadTransactions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    externalTransactionsList,
+    extractTransactionsResponse,
+    normalizeExternalTransaction,
+    updateAllExternalTransactions,
+  ]);
 
   // Helper function to convert currency
   const convertCurrency = useCallback((amount, sourceCurrency, targetCurrency) => {
@@ -229,12 +374,53 @@ export default function BudgetsPage() {
     return map;
   }, [wallets]);
 
+  const categoryNameMap = useMemo(() => {
+    const map = new Map();
+    (expenseCategories || []).forEach((category) => {
+      if (!category) return;
+      const id = category.id ?? category.categoryId;
+      if (id === undefined || id === null) return;
+      map.set(Number(id), category.name || category.categoryName || "");
+    });
+    return map;
+  }, [expenseCategories]);
+
+  const walletNameMap = useMemo(() => {
+    const map = new Map();
+    (wallets || []).forEach((wallet) => {
+      if (wallet?.id === undefined || wallet?.id === null) return;
+      const label = wallet.name || wallet.walletName || wallet.title || "";
+      map.set(String(wallet.id), label);
+    });
+    return map;
+  }, [wallets]);
+
   const getBudgetCurrency = useCallback(
     (budget) => {
       if (!budget) return "VND";
       return (budget.currencyCode || walletCurrencyMap.get(budget.walletId) || "VND").toUpperCase();
     },
     [walletCurrencyMap]
+  );
+
+  const getBudgetWalletName = useCallback(
+    (budget) => {
+      if (!budget) return "";
+      if (budget.walletName && budget.walletName !== "") {
+        if (budget.walletId === null || budget.walletId === undefined) {
+          return budget.walletName;
+        }
+        if (budget.walletName !== "Tất cả ví") {
+          return budget.walletName;
+        }
+      }
+      if (budget.walletId === null || budget.walletId === undefined) {
+        return "Tất cả ví";
+      }
+      const known = walletNameMap.get(String(budget.walletId));
+      return known || budget.walletName || "";
+    },
+    [walletNameMap]
   );
 
   const statusCounts = useMemo(() => {
@@ -393,16 +579,64 @@ export default function BudgetsPage() {
     return Array.from(fallbackMap.values());
   }, [expenseCategories, budgets]);
 
+  const getWalletRole = useCallback((wallet) => {
+    if (!wallet) return "";
+    const candidates = [
+      wallet.walletRole,
+      wallet.sharedRole,
+      wallet.role,
+      wallet.accessRole,
+      wallet.membershipRole,
+      wallet.currentRole,
+    ];
+    for (const candidate of candidates) {
+      if (!candidate && candidate !== 0) continue;
+      if (typeof candidate === "string") return candidate.toUpperCase();
+      if (typeof candidate === "number") return String(candidate).toUpperCase();
+      if (typeof candidate === "object") {
+        if (typeof candidate.role === "string") return candidate.role.toUpperCase();
+        if (typeof candidate.name === "string") return candidate.name.toUpperCase();
+        if (typeof candidate.value === "string") return candidate.value.toUpperCase();
+      }
+    }
+    return "";
+  }, []);
+
+  const isPersonalOwnedWallet = useCallback(
+    (wallet) => {
+      if (!wallet) return false;
+      if (wallet.isShared) return false; // Loại ví nhóm
+      const role = getWalletRole(wallet);
+      if (!role) return true; // ví cá nhân chuẩn
+      return ["OWNER", "MASTER", "ADMIN"].includes(role);
+    },
+    [getWalletRole]
+  );
+
   const vndWallets = useMemo(() => {
     return (wallets || []).filter((wallet) => {
       const currency = (wallet.currency || wallet.currencyCode || "VND").toUpperCase();
-      return currency === "VND";
+      if (currency !== "VND") return false;
+      return isPersonalOwnedWallet(wallet);
     });
-  }, [wallets]);
+  }, [wallets, isPersonalOwnedWallet]);
 
   const selectedBudget = useMemo(
     () => budgets.find((budget) => budget.id === selectedBudgetId) || null,
     [budgets, selectedBudgetId]
+  );
+
+  const selectedBudgetWalletName = useMemo(
+    () => getBudgetWalletName(selectedBudget),
+    [selectedBudget, getBudgetWalletName]
+  );
+
+  const selectedBudgetCategoryName = useMemo(
+    () =>
+      selectedBudget
+        ? selectedBudget.categoryName || categoryNameMap.get(Number(selectedBudget.categoryId)) || selectedBudget.category || ""
+        : "",
+    [selectedBudget, categoryNameMap]
   );
 
   const visibleBudgets = useMemo(() => {
@@ -425,8 +659,13 @@ export default function BudgetsPage() {
       .map((tx) => {
         const id = tx.transactionId ?? tx.id ?? tx.code ?? `${Date.now()}`;
         const walletName =
-          tx.wallet?.walletName || tx.walletName || tx.wallet?.name || selectedBudget?.walletName || "";
-        const categoryName = tx.category?.categoryName || tx.categoryName || tx.category || selectedBudget?.categoryName || "";
+          tx.wallet?.walletName || tx.walletName || tx.wallet?.name || selectedBudgetWalletName || "";
+        const categoryName =
+          tx.category?.categoryName ||
+          tx.categoryName ||
+          tx.category ||
+          selectedBudgetCategoryName ||
+          "";
         const typeName = (tx.transactionType?.typeName || tx.transactionType || tx.type || "").toLowerCase();
         const isIncome = typeName.includes("thu") || typeName.includes("income");
         const txCurrency =
@@ -449,7 +688,7 @@ export default function BudgetsPage() {
       })
       .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
       .slice(0, 5);
-  }, [selectedBudgetId, selectedBudgetTransactions.items, selectedBudget]);
+  }, [selectedBudgetId, selectedBudgetTransactions.items, selectedBudgetWalletName, selectedBudgetCategoryName]);
 
   const fallbackTransactions = useMemo(() => {
     const list = Array.isArray(externalTransactionsList) ? externalTransactionsList : [];
@@ -461,12 +700,12 @@ export default function BudgetsPage() {
         filtered = list.filter((tx) => {
           if (tx.type !== "expense") return false;
           const categoryMatch =
-            tx.category === selectedBudget.categoryName || tx.categoryName === selectedBudget.categoryName;
+            tx.category === selectedBudgetCategoryName || tx.categoryName === selectedBudgetCategoryName;
           if (!categoryMatch) return false;
 
-          if (selectedBudget.walletId && selectedBudget.walletName !== "Tất cả ví") {
+          if (selectedBudget.walletId && selectedBudgetWalletName && selectedBudgetWalletName !== "Tất cả ví") {
             const walletMatch =
-              tx.walletId === selectedBudget.walletId || tx.walletName === selectedBudget.walletName;
+              tx.walletId === selectedBudget.walletId || tx.walletName === selectedBudgetWalletName;
             if (!walletMatch) return false;
           }
 
@@ -495,18 +734,50 @@ export default function BudgetsPage() {
       .map((tx) => ({
         id: tx.id || tx.code,
         code: tx.code || tx.id,
-        category: tx.category || tx.categoryName,
+        category:
+          tx.category ||
+          tx.categoryName ||
+          (selectedBudgetId ? selectedBudgetCategoryName : ""),
         amount: Number(tx.amount || 0),
         date: tx.date,
         walletName: tx.walletName,
         currencyCode: tx.currency || tx.currencyCode || "VND",
         type: (tx.type || "").toLowerCase(),
       }));
-  }, [externalTransactionsList, transactionFilter, selectedBudgetId, selectedBudget]);
+  }, [externalTransactionsList, transactionFilter, selectedBudgetId, selectedBudget, selectedBudgetWalletName, selectedBudgetCategoryName]);
 
-  const sideTransactions = selectedBudgetId ? normalizedSelectedBudgetTransactions : fallbackTransactions;
-  const sideTransactionsLoading = selectedBudgetId ? selectedBudgetTransactions.loading : false;
-  const sideTransactionsError = selectedBudgetId ? selectedBudgetTransactions.error : null;
+  const shouldUseSelectedBudgetFallback = useMemo(() => {
+    if (!selectedBudgetId) return false;
+    if (selectedBudgetTransactions.error) return true;
+    const hasApiItems = Array.isArray(selectedBudgetTransactions.items)
+      ? selectedBudgetTransactions.items.length > 0
+      : false;
+    if (!hasApiItems && fallbackTransactions.length > 0) {
+      return true;
+    }
+    return false;
+  }, [selectedBudgetId, selectedBudgetTransactions.error, selectedBudgetTransactions.items, fallbackTransactions.length]);
+
+  const sideTransactions = useMemo(() => {
+    if (!selectedBudgetId) return fallbackTransactions;
+    if (shouldUseSelectedBudgetFallback) return fallbackTransactions;
+    return normalizedSelectedBudgetTransactions;
+  }, [selectedBudgetId, fallbackTransactions, normalizedSelectedBudgetTransactions, shouldUseSelectedBudgetFallback]);
+
+  const sideTransactionsLoading = selectedBudgetId && !shouldUseSelectedBudgetFallback
+    ? selectedBudgetTransactions.loading
+    : false;
+
+  const friendlySideError =
+    t("budgets.transactions.fetch_error") ||
+    "Không thể tải giao dịch liên quan ngay lúc này.";
+
+  const sideTransactionsError =
+    selectedBudgetId &&
+    selectedBudgetTransactions.error &&
+    fallbackTransactions.length === 0
+      ? friendlySideError
+      : null;
 
   const handleSearchReset = useCallback(() => {
     setSearchName("");
@@ -518,9 +789,15 @@ export default function BudgetsPage() {
       const usage = budgetUsageMap.get(budget.id) || computeBudgetUsage(budget);
       const status = budgetStateMap.get(budget.id) || deriveBudgetState(budget, usage);
       const currencyCode = getBudgetCurrency(budget);
-      setDetailBudget({ budget: { ...budget, currencyCode }, usage, status });
+      const walletName = getBudgetWalletName(budget);
+      const categoryLabel =
+        budget.categoryName ||
+        categoryNameMap.get(Number(budget.categoryId)) ||
+        t("budgets.card.unnamed_category") ||
+        "Danh mục chưa xác định";
+      setDetailBudget({ budget: { ...budget, currencyCode, walletName, categoryName: categoryLabel }, usage, status });
     },
-    [budgetUsageMap, budgetStateMap, computeBudgetUsage, getBudgetCurrency]
+    [budgetUsageMap, budgetStateMap, computeBudgetUsage, getBudgetCurrency, getBudgetWalletName, categoryNameMap, t]
   );
 
   const handleCloseDetail = useCallback(() => {
@@ -548,29 +825,80 @@ export default function BudgetsPage() {
     });
   }, []);
 
+  const hasDuplicateBudget = useCallback(
+    (payload, ignoreBudgetId = null) => {
+      if (!Array.isArray(budgets) || budgets.length === 0) return false;
+      const normalizeDateOnly = (value) => {
+        if (!value) return "";
+        return value.split("T")[0];
+      };
+      const payloadCategoryId = payload?.categoryId != null ? String(payload.categoryId) : null;
+      const payloadWalletId = payload?.walletId != null ? String(payload.walletId) : "null";
+      const payloadStart = normalizeDateOnly(payload?.startDate);
+
+      return budgets.some((budget) => {
+        if (!budget) return false;
+        if (ignoreBudgetId && String(budget.id) === String(ignoreBudgetId)) return false;
+        const budgetCategoryId = budget.categoryId != null ? String(budget.categoryId) : null;
+        const budgetWalletId = budget.walletId != null ? String(budget.walletId) : "null";
+        const budgetStart = normalizeDateOnly(budget.startDate);
+        return (
+          budgetCategoryId === payloadCategoryId &&
+          budgetWalletId === payloadWalletId &&
+          budgetStart === payloadStart
+        );
+      });
+    },
+    [budgets]
+  );
+
   const handleModalSubmit = useCallback(
     async (payload) => {
+      const ignoreId = modalMode === "edit" ? editingId : null;
+      if (hasDuplicateBudget(payload, ignoreId)) {
+        const duplicateMsgRaw = t("budgets.error.duplicate") || "";
+        const duplicateMsg =
+          duplicateMsgRaw && duplicateMsgRaw !== "budgets.error.duplicate"
+            ? duplicateMsgRaw
+            : "Hạn mức với ví, danh mục và ngày bắt đầu này đã tồn tại.";
+        const error = new Error(duplicateMsg);
+        error.code = "BUDGET_DUPLICATE";
+        throw error;
+      }
+
       try {
         let result = null;
+        let shouldForceRefresh = false;
         if (modalMode === "edit" && editingId != null) {
           result = await updateBudget(editingId, payload);
           setToast({ open: true, message: t("budgets.toast.update_success"), type: "success" });
+          if (!result) {
+            shouldForceRefresh = true;
+          }
         } else {
           result = await createBudget(payload);
           setToast({ open: true, message: t("budgets.toast.add_success"), type: "success" });
+          if (!result) {
+            shouldForceRefresh = true;
+          }
         }
-        await refreshBudgets();
+        if (shouldForceRefresh) {
+          await refreshBudgets();
+        }
         if (result?.id) {
           setSelectedBudgetId(result.id);
+        }
+
+        if (modalMode === "edit") {
+          setEditingId(null);
         }
       } catch (error) {
         console.error("Failed to save budget", error);
         setToast({ open: true, message: t("budgets.error.save_failed"), type: "error" });
-      } finally {
-        setEditingId(null);
+        throw error;
       }
     },
-    [modalMode, editingId, updateBudget, createBudget, refreshBudgets, t]
+    [modalMode, editingId, updateBudget, createBudget, refreshBudgets, t, hasDuplicateBudget]
   );
 
   const handleDeleteBudget = useCallback(async () => {
@@ -615,7 +943,7 @@ export default function BudgetsPage() {
       {/* Overview metrics */}
       <div className="row g-3 mb-4">
         <div className="col-xl-3 col-md-6">
-          <div className="budget-metric-card">
+          <div className="budget-metric-card budget-metric-card--has-toggle">
             <span className="budget-metric-label">
               {t("budgets.metric.total_limit")}
               <button
@@ -750,6 +1078,12 @@ export default function BudgetsPage() {
                 const { spent, remaining, percent } = usage;
                 const state = budgetStateMap.get(budget.id) || deriveBudgetState(budget, usage);
                 const statusLabel = getStatusLabel(state);
+                const resolvedWalletName = getBudgetWalletName(budget);
+                const resolvedCategoryName =
+                  budget.categoryName ||
+                  categoryNameMap.get(Number(budget.categoryId)) ||
+                  t("budgets.card.unnamed_category") ||
+                  "Danh mục chưa xác định";
                 const statusTone = BUDGET_STATUS_TONE[state] || "secondary";
                 const budgetCurrencyCode = getBudgetCurrency(budget);
                 const isOver = state === "over";
@@ -768,8 +1102,8 @@ export default function BudgetsPage() {
                             <i className="bi bi-wallet2" />
                           </div>
                           <div>
-                            <h5 className="budget-card-title">{budget.categoryName}</h5>
-                            {budget.walletName && <div className="text-muted small">Ví: {budget.walletName}</div>}
+                            <h5 className="budget-card-title">{resolvedCategoryName}</h5>
+                            {resolvedWalletName && <div className="text-muted small">Ví: {resolvedWalletName}</div>}
                           </div>
                         </div>
                         <span className={`budget-status-chip ${statusTone}`}>
@@ -859,9 +1193,9 @@ export default function BudgetsPage() {
                   {selectedBudget && (
                     <div className="mt-2">
                       <small className="text-muted d-block">
-                        <strong>{selectedBudget.categoryName}</strong>
-                        {selectedBudget.walletName && selectedBudget.walletName !== "Tất cả ví" && (
-                          <> • {t("budgets.card.wallet")}: {selectedBudget.walletName}</>
+                        <strong>{selectedBudgetCategoryName || (t("budgets.card.unnamed_category") || "Danh mục chưa xác định")}</strong>
+                        {selectedBudgetWalletName && selectedBudgetWalletName !== "Tất cả ví" && (
+                          <> • {t("budgets.card.wallet")}: {selectedBudgetWalletName}</>
                         )}
                       </small>
                       {selectedBudget.startDate && selectedBudget.endDate && (

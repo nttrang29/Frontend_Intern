@@ -1,4 +1,7 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+const DEFAULT_TOPBAR = ".home__topbar, .home-topbar, header.home__topbar";
+const DEFAULT_ANCHOR = ".home__main, main.home__main";
 
 export default function Toast({
   open,
@@ -7,6 +10,8 @@ export default function Toast({
   duration = 2500,
   onClose,
   offset = { top: 20, right: 24 },
+  topbarSelector = DEFAULT_TOPBAR,
+  anchorSelector = DEFAULT_ANCHOR,
 }) {
   const [pos, setPos] = useState({ top: offset.top, right: offset.right });
   const timerRef = useRef(null);
@@ -19,10 +24,44 @@ export default function Toast({
     return () => clearTimeout(timerRef.current);
   }, [open, duration, onClose]);
 
+  const recalcPosition = useCallback(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
+    let nextTop = offset.top;
+    if (topbarSelector) {
+      const topbarEl = document.querySelector(topbarSelector);
+      if (topbarEl) {
+        const rect = topbarEl.getBoundingClientRect();
+        nextTop = rect.bottom + offset.top;
+      }
+    }
+
+    let nextRight = offset.right;
+    if (anchorSelector) {
+      const anchorEl = document.querySelector(anchorSelector);
+      if (anchorEl) {
+        const rect = anchorEl.getBoundingClientRect();
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+        nextRight = Math.max(viewportWidth - rect.right, offset.right);
+      }
+    }
+
+    setPos({ top: nextTop, right: nextRight });
+  }, [anchorSelector, offset.right, offset.top, topbarSelector]);
+
   useLayoutEffect(() => {
-    if (!open) return;
-    setPos({ top: offset.top, right: offset.right });
-  }, [open, offset.top, offset.right]);
+    if (!open || typeof window === "undefined") return;
+    recalcPosition();
+
+    window.addEventListener("resize", recalcPosition);
+    window.addEventListener("scroll", recalcPosition, true);
+    return () => {
+      window.removeEventListener("resize", recalcPosition);
+      window.removeEventListener("scroll", recalcPosition, true);
+    };
+  }, [open, recalcPosition]);
 
   if (!open) return null;
 

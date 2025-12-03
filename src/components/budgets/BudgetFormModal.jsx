@@ -19,6 +19,8 @@ export default function BudgetFormModal({
   const [alertThreshold, setAlertThreshold] = useState(90);
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const resolveWalletCurrency = (walletId) => {
     const wallet = wallets.find((w) => String(w.id) === String(walletId));
@@ -63,6 +65,8 @@ export default function BudgetFormModal({
       setWalletCurrency(defaultCurrency);
     }
     setErrors({});
+    setFormError("");
+    setSubmitting(false);
   }, [open, mode, initialData, wallets]);
 
   const handleCategoryChange = (e) => setSelectedCategoryId(e.target.value);
@@ -81,7 +85,7 @@ export default function BudgetFormModal({
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -128,14 +132,22 @@ export default function BudgetFormModal({
       wallets.find((w) => String(w.id) === String(selectedWalletId)) ||
       (mode === "edit" && (initialData?.walletId === null || initialData?.walletId === undefined)
         ? { id: null, name: initialData?.walletName || "Tất cả ví" }
-        : {});
+        : null);
+
+    const resolvedWalletId =
+      walletObj && walletObj.id !== undefined && walletObj.id !== null
+        ? walletObj.id
+        : null;
+
+    const resolvedWalletName =
+      walletObj?.name || walletObj?.walletName || initialData?.walletName || (resolvedWalletId === null ? "Tất cả ví" : "");
 
     const payload = {
       categoryId: categoryObj.id || null,
       categoryName: categoryObj.name || initialData?.categoryName || "",
       categoryType: "expense",
-      walletId: walletObj.id || null,
-      walletName: walletObj.name || initialData?.walletName || "",
+      walletId: resolvedWalletId,
+      walletName: resolvedWalletName,
       limitAmount: Number(limitAmount),
       startDate,
       endDate,
@@ -143,8 +155,24 @@ export default function BudgetFormModal({
       note: note.trim(),
     };
 
-    onSubmit(payload);
-    onClose();
+    try {
+      setSubmitting(true);
+      setFormError("");
+      await onSubmit(payload);
+      onClose();
+    } catch (submitError) {
+      const message =
+        submitError?.message ||
+        submitError?.error ||
+        "Không thể lưu hạn mức. Vui lòng kiểm tra lại thông tin.";
+      const normalizedMessage =
+        message === "budgets.error.duplicate"
+          ? "Hạn mức với ví, danh mục và ngày bắt đầu này đã tồn tại."
+          : message;
+      setFormError(normalizedMessage);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const categoryList = categories || [];
@@ -176,6 +204,11 @@ export default function BudgetFormModal({
         </div>
 
         <form onSubmit={handleSubmit}>
+          {formError && (
+            <div className="alert alert-danger" role="alert">
+              {formError}
+            </div>
+          )}
           {/* Category Selector */}
           <div className="mb-3">
             <label className="form-label fw-semibold">Chọn Danh mục</label>
@@ -330,11 +363,20 @@ export default function BudgetFormModal({
 
           {/* Buttons */}
           <div className="d-flex gap-2 justify-content-end">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
               Hủy
             </button>
-            <button type="submit" className="btn btn-primary">
-              {mode === "create" ? "Thêm Hạn mức" : "Cập nhật"}
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? (
+                <span>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Đang xử lý...
+                </span>
+              ) : mode === "create" ? (
+                "Thêm Hạn mức"
+              ) : (
+                "Cập nhật"
+              )}
             </button>
           </div>
         </form>

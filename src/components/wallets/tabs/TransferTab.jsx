@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { formatMoneyInput, getMoneyValue } from "../../../utils/formatMoneyInput";
 import { formatMoney } from "../../../utils/formatMoney";
 import { getRate } from "../utils/walletUtils";
@@ -14,6 +14,36 @@ export default function TransferTab({
   setTransferNote,
   onSubmitTransfer,
 }) {
+
+  const safeWallets = useMemo(() => (Array.isArray(allWallets) ? allWallets : []), [allWallets]);
+
+  const resolveRole = (wallet) => {
+    if (!wallet) return "";
+    const candidates = [
+      wallet.walletRole,
+      wallet.sharedRole,
+      wallet.role,
+      wallet.accessRole,
+      wallet.currentUserRole,
+      wallet.membershipRole,
+    ];
+    for (const candidate of candidates) {
+      if (!candidate && candidate !== 0) continue;
+      if (typeof candidate === "string") return candidate.toUpperCase();
+      if (typeof candidate === "number") return String(candidate).toUpperCase();
+      if (typeof candidate === "object") {
+        if (typeof candidate.role === "string") return candidate.role.toUpperCase();
+        if (typeof candidate.name === "string") return candidate.name.toUpperCase();
+        if (typeof candidate.value === "string") return candidate.value.toUpperCase();
+      }
+    }
+    return "";
+  };
+
+  const isViewerOnlyWallet = (wallet) => {
+    const role = resolveRole(wallet);
+    return ["VIEW", "VIEWER"].includes(role);
+  };
 
   // Format số tiền chuyển đổi với độ chính xác cao (giống tỷ giá - 6 chữ số thập phân)
   const formatConvertedAmount = (amount = 0, currency = "VND") => {
@@ -43,8 +73,30 @@ export default function TransferTab({
 
   const sourceCurrency = wallet.currency || "VND";
   const sourceBalance = Number(wallet?.balance || 0);
-  const targetWallet =
-    allWallets.find((w) => String(w.id) === String(transferTargetId)) || null;
+  const selectableTargets = useMemo(() => {
+    return safeWallets.filter((candidate) => {
+      if (!candidate) return false;
+      if (String(candidate.id) === String(wallet?.id)) return false;
+      return !isViewerOnlyWallet(candidate);
+    });
+  }, [safeWallets, wallet?.id]);
+
+  const targetWallet = useMemo(() => {
+    return (
+      selectableTargets.find((w) => String(w.id) === String(transferTargetId)) ||
+      null
+    );
+  }, [selectableTargets, transferTargetId]);
+
+  useEffect(() => {
+    if (!transferTargetId) return;
+    const stillValid = selectableTargets.some(
+      (candidate) => String(candidate.id) === String(transferTargetId)
+    );
+    if (!stillValid) {
+      setTransferTargetId("");
+    }
+  }, [selectableTargets, transferTargetId, setTransferTargetId]);
   const targetCurrency = targetWallet?.currency || null;
 
   const currencyMismatch =
@@ -104,16 +156,22 @@ export default function TransferTab({
               onChange={(e) => setTransferTargetId(e.target.value)}
             >
               <option value="">-- Chọn ví đích --</option>
-              {allWallets
-                .filter((w) => w.id !== wallet.id)
-                .map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name || "Chưa đặt tên"}{" "}
-                    {w.isShared ? "(Nhóm)" : "(Cá nhân)"} ·{" "}
-                    {w.currency || "VND"}
-                  </option>
-                ))}
+              {selectableTargets.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name || "Chưa đặt tên"}{" "}
+                  {w.isShared ? "(Nhóm)" : "(Cá nhân)"} · {w.currency || "VND"}
+                </option>
+              ))}
             </select>
+            <div
+              style={{
+                fontSize: "0.8125rem",
+                color: "#6b7280",
+                marginTop: "4px",
+              }}
+            >
+              Chỉ những ví bạn có quyền thao tác mới hiển thị trong danh sách này.
+            </div>
             {targetWallet && (
               <div style={{ 
                 fontSize: "0.875rem", 
