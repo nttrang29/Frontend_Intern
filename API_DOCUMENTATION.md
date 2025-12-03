@@ -2811,6 +2811,402 @@ hoặc
 
 ---
 
+## ⭐ App Review APIs (Đánh giá ứng dụng)
+
+### 1. Gửi đánh giá ứng dụng
+**POST** `/app-reviews`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "displayName": "Nguyễn Văn A",
+  "rating": 5,
+  "content": "Ứng dụng rất tuyệt vời, giao diện đẹp và dễ sử dụng!"
+}
+```
+
+**Request Fields:**
+- `displayName` (optional): Tên hiển thị (tối đa 100 ký tự). Nếu không nhập, mặc định là "Người dùng ẩn danh"
+- `rating` (required): Mức độ hài lòng (1-5 sao)
+- `content` (required): Nội dung đánh giá (tối đa 5000 ký tự)
+
+**Response:**
+```json
+{
+  "message": "Cảm ơn bạn đã đánh giá ứng dụng! Chúng tôi sẽ xem xét và phản hồi sớm nhất có thể.",
+  "review": {
+    "reviewId": 1,
+    "userId": 1,
+    "userEmail": "user@example.com",
+    "userName": "Nguyễn Văn A",
+    "displayName": "Nguyễn Văn A",
+    "rating": 5,
+    "content": "Ứng dụng rất tuyệt vời...",
+    "status": "PENDING",
+    "adminReply": null,
+    "repliedAt": null,
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  }
+}
+```
+
+**Lưu ý:**
+- Mỗi người dùng chỉ được đánh giá một lần
+- Hệ thống tự động gửi thông báo cho admin khi có đánh giá mới
+- Trạng thái ban đầu: `PENDING` (chờ admin phản hồi)
+
+**Lỗi có thể xảy ra:**
+- `"Bạn đã gửi đánh giá trước đó. Mỗi người dùng chỉ được đánh giá một lần."` - User đã đánh giá rồi
+
+---
+
+### 2. Lấy đánh giá của user hiện tại
+**GET** `/app-reviews/my-review`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response (đã có đánh giá):**
+```json
+{
+  "hasReview": true,
+  "review": {
+    "reviewId": 1,
+    "userId": 1,
+    "userEmail": "user@example.com",
+    "userName": "Nguyễn Văn A",
+    "displayName": "Nguyễn Văn A",
+    "rating": 5,
+    "content": "Ứng dụng rất tuyệt vời...",
+    "status": "ANSWERED",
+    "adminReply": "Cảm ơn bạn đã đánh giá! Chúng tôi sẽ tiếp tục cải thiện ứng dụng.",
+    "repliedAt": "2024-01-01T11:00:00",
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T11:00:00"
+  }
+}
+```
+
+**Response (chưa có đánh giá):**
+```json
+{
+  "hasReview": false,
+  "review": null
+}
+```
+
+**Lưu ý:**
+- Trả về đánh giá của user nếu đã gửi
+- Nếu admin đã phản hồi, `adminReply` sẽ có nội dung
+
+---
+
+### 3. Lấy thống kê đánh giá
+**GET** `/app-reviews/stats`
+
+**Headers:** Không cần (public endpoint)
+
+**Response:**
+```json
+{
+  "totalReviews": 15,
+  "pendingCount": 3,
+  "answeredCount": 12,
+  "averageRating": 4.5,
+  "repliedCount": 12
+}
+```
+
+**Response Fields:**
+- `totalReviews`: Tổng số đánh giá
+- `pendingCount`: Số đánh giá chờ phản hồi
+- `answeredCount`: Số đánh giá đã được phản hồi
+- `averageRating`: Điểm trung bình (1-5)
+- `repliedCount`: Số đánh giá admin đã phản hồi
+
+**Lưu ý:**
+- Endpoint này có thể public để hiển thị trên trang chủ/landing page
+- Dùng để hiển thị "4.5/5 dựa trên 15 đánh giá"
+
+---
+
+### 4. Admin - Lấy tất cả đánh giá
+**GET** `/admin/app-reviews`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Query Parameters:**
+- `status` (optional): Lọc theo trạng thái - `PENDING`, `ANSWERED`
+
+**Response:**
+```json
+{
+  "reviews": [
+    {
+      "reviewId": 1,
+      "userId": 1,
+      "userEmail": "user@example.com",
+      "userName": "Nguyễn Văn A",
+      "displayName": "Nguyễn Văn A",
+      "rating": 5,
+      "content": "Ứng dụng rất tuyệt vời...",
+      "status": "PENDING",
+      "adminReply": null,
+      "repliedAt": null,
+      "createdAt": "2024-01-01T10:00:00",
+      "updatedAt": "2024-01-01T10:00:00"
+    }
+  ],
+  "total": 1,
+  "stats": {
+    "totalReviews": 15,
+    "pendingCount": 3,
+    "answeredCount": 12,
+    "averageRating": 4.5,
+    "repliedCount": 12
+  }
+}
+```
+
+**Lưu ý:** Chỉ ADMIN mới có quyền truy cập
+
+---
+
+### 5. Admin - Lấy chi tiết một đánh giá
+**GET** `/admin/app-reviews/{id}`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "review": {
+    "reviewId": 1,
+    "userId": 1,
+    "userEmail": "user@example.com",
+    "userName": "Nguyễn Văn A",
+    "displayName": "Nguyễn Văn A",
+    "rating": 5,
+    "content": "Ứng dụng rất tuyệt vời...",
+    "status": "PENDING",
+    "adminReply": null,
+    "repliedAt": null,
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  }
+}
+```
+
+---
+
+### 6. Admin - Phản hồi đánh giá
+**PUT** `/admin/app-reviews/{id}/reply`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Request Body:**
+```json
+{
+  "adminReply": "Cảm ơn bạn đã đánh giá! Chúng tôi sẽ tiếp tục cải thiện ứng dụng."
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Phản hồi đánh giá thành công",
+  "review": {
+    "reviewId": 1,
+    "status": "ANSWERED",
+    "adminReply": "Cảm ơn bạn đã đánh giá!...",
+    "repliedAt": "2024-01-01T11:00:00",
+    ...
+  }
+}
+```
+
+**Lưu ý:**
+- Tự động chuyển status sang `ANSWERED`
+- Hệ thống tự động gửi thông báo cho user khi admin phản hồi
+
+---
+
+### 7. Admin - Xóa đánh giá
+**DELETE** `/admin/app-reviews/{id}`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "message": "Xóa đánh giá thành công"
+}
+```
+
+**Lưu ý:** Xóa hoàn toàn khỏi database
+
+---
+
+### 8. Admin - Lấy thống kê đánh giá
+**GET** `/admin/app-reviews/stats`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "totalReviews": 15,
+  "pendingCount": 3,
+  "answeredCount": 12,
+  "averageRating": 4.5,
+  "repliedCount": 12
+}
+```
+
+---
+
+## 🔔 Notification APIs (Thông báo)
+
+### 1. Lấy tất cả thông báo
+**GET** `/notifications`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "notifications": [
+    {
+      "notificationId": 1,
+      "type": "REVIEW_REPLIED",
+      "title": "Admin đã phản hồi đánh giá của bạn",
+      "message": "Admin đã phản hồi đánh giá ứng dụng của bạn. Nhấn để xem chi tiết.",
+      "referenceId": 1,
+      "referenceType": "APP_REVIEW",
+      "isRead": false,
+      "readAt": null,
+      "createdAt": "2024-01-01T11:00:00"
+    },
+    {
+      "notificationId": 2,
+      "type": "BUDGET_WARNING",
+      "title": "Ngân sách sắp hết",
+      "message": "Ngân sách 'Ăn uống' đã sử dụng 85%. Còn lại: 750.000 VND",
+      "referenceId": 1,
+      "referenceType": "BUDGET",
+      "isRead": true,
+      "readAt": "2024-01-01T12:00:00",
+      "createdAt": "2024-01-01T10:00:00"
+    }
+  ],
+  "total": 2
+}
+```
+
+**Lưu ý:**
+- Tự động phân biệt user/admin dựa trên role trong token
+- Admin nhận thông báo về đánh giá/feedback mới
+- User nhận thông báo về phản hồi từ admin, cảnh báo ngân sách
+
+---
+
+### 2. Lấy thông báo chưa đọc
+**GET** `/notifications/unread`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "notifications": [
+    {
+      "notificationId": 1,
+      "type": "REVIEW_REPLIED",
+      "title": "Admin đã phản hồi đánh giá của bạn",
+      "message": "Admin đã phản hồi đánh giá ứng dụng của bạn...",
+      "referenceId": 1,
+      "referenceType": "APP_REVIEW",
+      "isRead": false,
+      "readAt": null,
+      "createdAt": "2024-01-01T11:00:00"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+### 3. Đếm số thông báo chưa đọc
+**GET** `/notifications/unread-count`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "unreadCount": 5
+}
+```
+
+**Lưu ý:**
+- Dùng để hiển thị badge số trên icon thông báo
+- Tự động phân biệt user/admin
+
+---
+
+### 4. Đánh dấu thông báo đã đọc
+**PUT** `/notifications/{id}/read`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Đã đánh dấu đã đọc",
+  "notification": {
+    "notificationId": 1,
+    "isRead": true,
+    "readAt": "2024-01-01T12:00:00",
+    ...
+  }
+}
+```
+
+---
+
+### 5. Đánh dấu tất cả thông báo đã đọc
+**PUT** `/notifications/mark-all-read`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Đã đánh dấu tất cả thông báo là đã đọc"
+}
+```
+
+---
+
+### 6. Xóa thông báo
+**DELETE** `/notifications/{id}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Xóa thông báo thành công"
+}
+```
+
+**Lưu ý:** Chỉ có thể xóa thông báo của chính mình
+
+---
+
 ## 📝 Lưu ý quan trọng
 
 ### Error Response Format
@@ -2909,6 +3305,19 @@ Hỗ trợ các loại tiền tệ: `VND`, `USD`, `EUR`, `JPY`, `GBP`, `CNY`
 ### Fund Member Role
 - `OWNER` - Chủ quỹ
 - `CONTRIBUTOR` - Được sử dụng (có thể nạp tiền)
+
+### App Review Status
+- `PENDING` - Chờ admin phản hồi
+- `ANSWERED` - Admin đã phản hồi
+
+### Notification Types
+- `NEW_APP_REVIEW` - Admin nhận: có đánh giá ứng dụng mới
+- `REVIEW_REPLIED` - User nhận: admin đã phản hồi đánh giá
+- `NEW_FEEDBACK` - Admin nhận: có feedback mới
+- `FEEDBACK_REPLIED` - User nhận: admin đã phản hồi feedback
+- `BUDGET_WARNING` - User nhận: ngân sách sắp hết
+- `BUDGET_EXCEEDED` - User nhận: ngân sách vượt hạn mức
+- `SYSTEM_ANNOUNCEMENT` - Thông báo hệ thống
 
 ---
 

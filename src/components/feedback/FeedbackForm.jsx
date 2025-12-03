@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import RatingStars from "./RatingStars";
 
-export default function FeedbackForm({ onSubmit }) {
+export default function FeedbackForm({ onSubmit, submitting = false }) {
   const [name, setName] = useState("");
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -13,9 +13,10 @@ export default function FeedbackForm({ onSubmit }) {
 
     const payload = {
       user: name.trim() || "Người dùng ẩn danh",
+      displayName: name.trim() || "Người dùng ẩn danh",
       rating,
       comment: comment.trim(),
-      date: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
+      content: comment.trim(),
     };
 
     onSubmit?.(payload);
@@ -61,8 +62,8 @@ export default function FeedbackForm({ onSubmit }) {
         </div>
 
         <div className="fb-form-actions">
-          <button type="submit" className="feedback-primary-btn">
-            Gửi đánh giá
+          <button type="submit" className="feedback-primary-btn" disabled={submitting}>
+            {submitting ? "Đang gửi..." : "Gửi đánh giá"}
           </button>
         </div>
       </form>

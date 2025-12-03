@@ -1083,6 +1083,157 @@ const checkWalletUsed = async (walletId) => {
 
 ---
 
+## ⭐ App Review APIs (Đánh giá ứng dụng)
+
+### 1. Gửi đánh giá ứng dụng
+```javascript
+const createAppReview = async (reviewData) => {
+  const response = await fetch(`${API_BASE_URL}/app-reviews`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      displayName: reviewData.displayName || null, // Optional, mặc định "Người dùng ẩn danh"
+      rating: reviewData.rating, // 1-5 sao
+      content: reviewData.content // Required
+    })
+  });
+  return response.json();
+};
+```
+
+**Lưu ý:**
+- Mỗi user chỉ được đánh giá một lần
+- Hệ thống tự động gửi thông báo cho admin khi có đánh giá mới
+
+### 2. Lấy đánh giá của user hiện tại
+```javascript
+const getMyReview = async () => {
+  const response = await fetch(`${API_BASE_URL}/app-reviews/my-review`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  });
+  return response.json();
+};
+
+// Response example:
+// {
+//   "hasReview": true,
+//   "review": {
+//     "reviewId": 1,
+//     "displayName": "Nguyễn Văn A",
+//     "rating": 5,
+//     "content": "Ứng dụng tuyệt vời!",
+//     "status": "ANSWERED",
+//     "adminReply": "Cảm ơn bạn!",
+//     "repliedAt": "2024-01-01T11:00:00",
+//     ...
+//   }
+// }
+```
+
+### 3. Lấy thống kê đánh giá (public)
+```javascript
+const getReviewStats = async () => {
+  const response = await fetch(`${API_BASE_URL}/app-reviews/stats`, {
+    method: 'GET',
+    headers: getAuthHeaders() // Có thể bỏ headers nếu endpoint là public
+  });
+  return response.json();
+};
+
+// Response example:
+// {
+//   "totalReviews": 15,
+//   "pendingCount": 3,
+//   "answeredCount": 12,
+//   "averageRating": 4.5,
+//   "repliedCount": 12
+// }
+```
+
+**Lưu ý:** Dùng để hiển thị "4.5/5 dựa trên 15 đánh giá" trên trang chủ
+
+---
+
+## 🔔 Notification APIs (Thông báo)
+
+### 1. Lấy tất cả thông báo
+```javascript
+const getNotifications = async () => {
+  const response = await fetch(`${API_BASE_URL}/notifications`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  });
+  return response.json();
+};
+```
+
+**Lưu ý:**
+- Tự động phân biệt user/admin dựa trên role
+- Admin nhận thông báo về đánh giá/feedback mới
+- User nhận thông báo về phản hồi từ admin
+
+### 2. Lấy thông báo chưa đọc
+```javascript
+const getUnreadNotifications = async () => {
+  const response = await fetch(`${API_BASE_URL}/notifications/unread`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  });
+  return response.json();
+};
+```
+
+### 3. Đếm số thông báo chưa đọc
+```javascript
+const getUnreadNotificationCount = async () => {
+  const response = await fetch(`${API_BASE_URL}/notifications/unread-count`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  });
+  return response.json();
+};
+
+// Response: { "unreadCount": 5 }
+```
+
+**Lưu ý:** Dùng để hiển thị badge số trên icon thông báo
+
+### 4. Đánh dấu thông báo đã đọc
+```javascript
+const markNotificationAsRead = async (notificationId) => {
+  const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}/read`, {
+    method: 'PUT',
+    headers: getAuthHeaders()
+  });
+  return response.json();
+};
+```
+
+### 5. Đánh dấu tất cả thông báo đã đọc
+```javascript
+const markAllNotificationsAsRead = async () => {
+  const response = await fetch(`${API_BASE_URL}/notifications/mark-all-read`, {
+    method: 'PUT',
+    headers: getAuthHeaders()
+  });
+  return response.json();
+};
+```
+
+### 6. Xóa thông báo
+```javascript
+const deleteNotification = async (notificationId) => {
+  const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  return response.json();
+};
+```
+
+---
+
 ## 👨‍💼 Admin APIs
 
 ### 1. Admin - Lấy tất cả feedback
@@ -1229,6 +1380,80 @@ const deleteUser = async (userId) => {
     headers: getAuthHeaders()
   });
   return response.status === 204;
+};
+```
+
+### 13. Admin - Lấy tất cả đánh giá ứng dụng
+```javascript
+const getAllAppReviews = async (status = null) => {
+  const params = status ? `?status=${status}` : '';
+  const response = await fetch(`${API_BASE_URL}/admin/app-reviews${params}`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  });
+  return response.json();
+};
+
+// Response:
+// {
+//   "reviews": [...],
+//   "total": 15,
+//   "stats": {
+//     "totalReviews": 15,
+//     "pendingCount": 3,
+//     "answeredCount": 12,
+//     "averageRating": 4.5,
+//     "repliedCount": 12
+//   }
+// }
+```
+
+### 14. Admin - Lấy chi tiết đánh giá
+```javascript
+const getAppReviewById = async (reviewId) => {
+  const response = await fetch(`${API_BASE_URL}/admin/app-reviews/${reviewId}`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  });
+  return response.json();
+};
+```
+
+### 15. Admin - Phản hồi đánh giá
+```javascript
+const replyToAppReview = async (reviewId, adminReply) => {
+  const response = await fetch(`${API_BASE_URL}/admin/app-reviews/${reviewId}/reply`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ adminReply })
+  });
+  return response.json();
+};
+```
+
+**Lưu ý:** 
+- Tự động chuyển status sang `ANSWERED`
+- Hệ thống tự động gửi thông báo cho user
+
+### 16. Admin - Lấy thống kê đánh giá
+```javascript
+const getAppReviewStats = async () => {
+  const response = await fetch(`${API_BASE_URL}/admin/app-reviews/stats`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  });
+  return response.json();
+};
+```
+
+### 17. Admin - Xóa đánh giá
+```javascript
+const deleteAppReview = async (reviewId) => {
+  const response = await fetch(`${API_BASE_URL}/admin/app-reviews/${reviewId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  return response.json();
 };
 ```
 
@@ -1388,7 +1613,8 @@ export const SCHEDULE_TYPE = {
 export const SCHEDULE_STATUS = {
   PENDING: 'PENDING',
   COMPLETED: 'COMPLETED',
-  FAILED: 'FAILED'
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
 };
 
 // Export Format
@@ -1402,6 +1628,32 @@ export const REPORT_TYPE = {
   TRANSACTIONS: 'TRANSACTIONS',
   BUDGETS: 'BUDGETS',
   SUMMARY: 'SUMMARY'
+};
+
+// Budget Status
+export const BUDGET_STATUS = {
+  PENDING: 'PENDING',
+  ACTIVE: 'ACTIVE',
+  WARNING: 'WARNING',
+  EXCEEDED: 'EXCEEDED',
+  COMPLETED: 'COMPLETED'
+};
+
+// App Review Status
+export const APP_REVIEW_STATUS = {
+  PENDING: 'PENDING',
+  ANSWERED: 'ANSWERED'
+};
+
+// Notification Types
+export const NOTIFICATION_TYPE = {
+  NEW_APP_REVIEW: 'NEW_APP_REVIEW',
+  REVIEW_REPLIED: 'REVIEW_REPLIED',
+  NEW_FEEDBACK: 'NEW_FEEDBACK',
+  FEEDBACK_REPLIED: 'FEEDBACK_REPLIED',
+  BUDGET_WARNING: 'BUDGET_WARNING',
+  BUDGET_EXCEEDED: 'BUDGET_EXCEEDED',
+  SYSTEM_ANNOUNCEMENT: 'SYSTEM_ANNOUNCEMENT'
 };
 ```
 
