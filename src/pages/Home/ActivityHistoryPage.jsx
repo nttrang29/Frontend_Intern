@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useBudgetData } from "../../contexts/BudgetDataContext";
 import "../../styles/pages/HomeLayout.css";
 import "../../styles/components/wallets/WalletHeader.css";
 import "../../styles/pages/CategoriesPage.css";
@@ -14,13 +15,17 @@ function formatTimestamp(ts) {
   }
 }
 
+const PAGE_SIZE = 10;
+
 export default function ActivityHistoryPage() {
   const { t } = useLanguage();
   const [events, setEvents] = useState([]);
+  const { budgets = [] } = useBudgetData();
   
   const [queryText, setQueryText] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadEvents = useCallback(() => {
     try {
@@ -52,27 +57,98 @@ export default function ActivityHistoryPage() {
   }, [loadEvents]);
 
   // Apply filters
-  const filteredEvents = events.filter((ev) => {
-    try {
-      const q = (queryText || "").trim().toLowerCase();
-      const fromDateObj = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
-      const toDateObj = dateTo ? new Date(`${dateTo}T23:59:59`) : null;
-      const tsRaw = ev.timestamp || ev.time || ev.createdAt || ev.date || null;
-      const evDate = tsRaw ? new Date(tsRaw) : null;
-      if (fromDateObj && evDate && evDate < fromDateObj) return false;
-      if (toDateObj && evDate && evDate > toDateObj) return false;
+  const filteredEvents = useMemo(() => {
+    return events.filter((ev) => {
+      try {
+        const q = (queryText || "").trim().toLowerCase();
+        const fromDateObj = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+        const toDateObj = dateTo ? new Date(`${dateTo}T23:59:59`) : null;
+        const tsRaw = ev.timestamp || ev.time || ev.createdAt || ev.date || null;
+        const evDate = tsRaw ? new Date(tsRaw) : null;
+        if (fromDateObj && evDate && evDate < fromDateObj) return false;
+        if (toDateObj && evDate && evDate > toDateObj) return false;
 
-      if (!q) return true;
-      const type = (ev.type || ev.event || ev.action || "").toString().toLowerCase();
-      const desc = (ev.message || ev.desc || ev.description || ev.note || "").toString().toLowerCase();
-      const actor = (ev.userEmail || (ev.user && ev.user.email) || ev.actor || ev.actorEmail || "").toString().toLowerCase();
-      return type.includes(q) || desc.includes(q) || actor.includes(q);
-    } catch (e) {
-      return true;
+        if (!q) return true;
+        const type = (ev.type || ev.event || ev.action || "").toString().toLowerCase();
+        const desc = (ev.message || ev.desc || ev.description || ev.note || "").toString().toLowerCase();
+        const actor = (ev.userEmail || (ev.user && ev.user.email) || ev.actor || ev.actorEmail || "").toString().toLowerCase();
+        return type.includes(q) || desc.includes(q) || actor.includes(q);
+      } catch (e) {
+        return true;
+      }
+    });
+  }, [events, queryText, dateFrom, dateTo]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / PAGE_SIZE));
+
+  const paginationRange = useMemo(() => {
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      return Array.from({ length: totalPages }, (_, idx) => idx + 1);
     }
-  });
 
-  function normalizeEvent(ev) {
+    const pages = [];
+    const startPage = Math.max(2, currentPage - 1);
+    const endPage = Math.min(totalPages - 1, currentPage + 1);
+
+    pages.push(1);
+    if (startPage > 2) pages.push("start-ellipsis");
+
+    for (let p = startPage; p <= endPage; p += 1) {
+      pages.push(p);
+    }
+
+    if (endPage < totalPages - 1) pages.push("end-ellipsis");
+    pages.push(totalPages);
+    return pages;
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage((prev) => {
+      if (prev > totalPages) return totalPages;
+      if (prev < 1) return 1;
+      return prev;
+    });
+  }, [totalPages]);
+
+  const paginatedEvents = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredEvents.slice(start, start + PAGE_SIZE);
+  }, [filteredEvents, currentPage]);
+
+  const handleChangePage = (direction) => {
+    setCurrentPage((prev) => {
+      if (direction === "first") return 1;
+      if (direction === "last") return totalPages;
+      if (direction === "prev") return Math.max(1, prev - 1);
+      if (direction === "next") return Math.min(totalPages, prev + 1);
+      if (typeof direction === "number") {
+        const target = Math.min(Math.max(direction, 1), totalPages);
+        return target;
+      }
+      return prev;
+    });
+  };
+
+  const handleResetFilters = () => {
+    setQueryText("");
+    setDateFrom("");
+    setDateTo("");
+    setCurrentPage(1);
+  };
+
+  const budgetLookup = useMemo(() => {
+    const map = new Map();
+    (budgets || []).forEach((budget) => {
+      const id = budget?.id ?? budget?.budgetId;
+      if (id !== undefined && id !== null) {
+        map.set(String(id), budget);
+      }
+    });
+    return map;
+  }, [budgets]);
+
+  const normalizeEvent = useCallback((ev) => {
     const rawType = (ev.type || ev.event || ev.action || "").toString().toLowerCase();
     const msg = ev.message || ev.desc || ev.description || ev.note || "";
     const data = ev.data || ev.payload || ev.body || {};
@@ -302,16 +378,38 @@ export default function ActivityHistoryPage() {
     } else if (rawType.includes("budget") && (rawType.includes("create") || rawType.includes("tao") || rawType.includes("tạo"))) {
       typeLabel = "Tạo ngân sách";
       let name = pick(data, ["name", "budgetName", "title"]) || ev.name;
-      if (!name) name = deepFindName(data) || "(tên ngân sách)";
-      const cat = pick(data, ["categoryName", "category", "category_name"]) || data.categoryName || ev.categoryName;
-      const walletName = pick(data, ["walletName", "wallet", "wallet_name"]) || data.walletName || ev.walletName;
-      const parts = [
-        "Tạo ngân sách ",
-        { text: name, highlight: true },
-      ];
-      if (cat) {
-        parts.push(" (", { text: cat, highlight: true }, ")");
+      let cat =
+        pick(data, ["categoryName", "category", "category_name"]) ||
+        data.category ||
+        data.categoryName ||
+        ev.categoryName;
+      const budgetIdCandidate = data.budgetId || ev.budgetId || ev.id;
+      if (!cat && budgetIdCandidate && budgetLookup.has(String(budgetIdCandidate))) {
+        const found = budgetLookup.get(String(budgetIdCandidate));
+        cat = found?.categoryName || found?.category?.name || cat;
+        if (!name) name = found?.name || found?.title || name;
       }
+      const walletName =
+        pick(data, ["walletName", "wallet", "wallet_name"]) ||
+        data.walletName ||
+        ev.walletName;
+      const hasValidName = !!(name && name !== "(tên ngân sách)");
+      if (!name) name = deepFindName(data) || "(tên ngân sách)";
+
+      const primaryLabel = hasValidName ? name : (cat || name);
+      const parts = [
+        hasValidName ? "Tạo ngân sách " : "Tạo ngân sách cho danh mục ",
+        { text: primaryLabel || "(tên ngân sách)", highlight: true },
+      ];
+
+      if (hasValidName && cat) {
+        parts.push(" — danh mục: ", { text: cat, highlight: true });
+      }
+
+      if (!hasValidName && !cat) {
+        parts.push(" — chưa xác định danh mục");
+      }
+
       if (walletName) {
         parts.push(" — ví: ", { text: walletName, highlight: true });
       }
@@ -325,12 +423,33 @@ export default function ActivityHistoryPage() {
     } else if (rawType.includes("budget") && (rawType.includes("delete") || rawType.includes("xóa"))) {
       typeLabel = "Xóa ngân sách";
       let name = pick(data, ["name", "budgetName", "title"]) || ev.name;
+      let cat =
+        pick(data, ["categoryName", "category", "category_name"]) ||
+        data.category ||
+        data.categoryName ||
+        ev.categoryName;
+      const budgetIdCandidate = data.budgetId || ev.budgetId || ev.id;
+      if (!cat && budgetIdCandidate && budgetLookup.has(String(budgetIdCandidate))) {
+        const found = budgetLookup.get(String(budgetIdCandidate));
+        cat = found?.categoryName || found?.category?.name || cat;
+        if (!name) name = found?.name || found?.title || name;
+      }
+      const hasValidName = !!(name && name !== "(tên ngân sách)");
       if (!name) name = deepFindName(data) || "(tên ngân sách)";
-      const built = createDescription([
-        "Xóa ngân sách ",
-        { text: name, highlight: true },
-        actorDisplay,
-      ]);
+
+      const primaryLabel = hasValidName ? name : (cat || name);
+      const parts = [
+        hasValidName ? "Xóa ngân sách " : "Xóa ngân sách của danh mục ",
+        { text: primaryLabel || "(tên ngân sách)", highlight: true },
+      ];
+      if (hasValidName && cat) {
+        parts.push(" — danh mục: ", { text: cat, highlight: true });
+      }
+      if (!hasValidName && !cat) {
+        parts.push(" — chưa xác định danh mục");
+      }
+      if (actorDisplay) parts.push(actorDisplay);
+      const built = createDescription(parts);
       description = built.text;
       descriptionSegments = built.segments;
     } else if ((rawType.includes("fund") || rawType.includes("quỹ")) && (rawType.includes("create") || rawType.includes("tao") || rawType.includes("tạo"))) {
@@ -381,7 +500,7 @@ export default function ActivityHistoryPage() {
       actor: actor || "-",
       raw: ev,
     };
-  }
+  }, [budgetLookup]);
 
   return (
     <div className="page page-activity">
@@ -450,7 +569,7 @@ export default function ActivityHistoryPage() {
                         <i className="bi bi-search" style={{ marginRight: 8 }} /> Tìm
                       </button>
 
-                      <button className="btn-chip btn-chip--ghost" type="button" onClick={() => { setQueryText(""); setDateFrom(""); setDateTo(""); }}>
+                      <button className="btn-chip btn-chip--ghost" type="button" onClick={handleResetFilters}>
                         Xóa lọc
                       </button>
                     </div>
@@ -477,12 +596,13 @@ export default function ActivityHistoryPage() {
                         <td colSpan={4} className="text-center text-muted">Không có sự kiện nào khớp bộ lọc.</td>
                       </tr>
                     ) : (
-                      filteredEvents.map((ev, idx) => {
+                      paginatedEvents.map((ev, idx) => {
                         const n = normalizeEvent(ev);
                         const ts = formatTimestamp(n.timestamp || ev.timestamp || ev.time || ev.createdAt);
+                        const absoluteIndex = (currentPage - 1) * PAGE_SIZE + idx + 1;
                         return (
                           <tr key={idx}>
-                            <td className="text-muted">{idx + 1}</td>
+                            <td className="text-muted">{absoluteIndex}</td>
                             <td className="fw-medium">{ts}</td>
                             <td>{n.typeLabel}</td>
                             <td style={{ maxWidth: 520 }}>
@@ -506,6 +626,61 @@ export default function ActivityHistoryPage() {
 
                 {/* raw JSON preview removed */}
               </div>
+              {filteredEvents.length > 0 && (
+                <div className="card-footer category-pagination-bar">
+                  <span className="text-muted small">Trang {currentPage} / {totalPages}</span>
+                  <div className="category-pagination">
+                    <button
+                      type="button"
+                      className="page-arrow"
+                      disabled={currentPage === 1}
+                      onClick={() => handleChangePage("first")}
+                    >
+                      «
+                    </button>
+                    <button
+                      type="button"
+                      className="page-arrow"
+                      disabled={currentPage === 1}
+                      onClick={() => handleChangePage("prev")}
+                    >
+                      ‹
+                    </button>
+                    {paginationRange.map((item, idx) =>
+                      typeof item === "string" && item.includes("ellipsis") ? (
+                        <span key={`${item}-${idx}`} className="page-ellipsis">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={`page-${item}`}
+                          type="button"
+                          className={`page-number ${currentPage === item ? "active" : ""}`}
+                          onClick={() => handleChangePage(item)}
+                        >
+                          {item}
+                        </button>
+                      )
+                    )}
+                    <button
+                      type="button"
+                      className="page-arrow"
+                      disabled={currentPage === totalPages}
+                      onClick={() => handleChangePage("next")}
+                    >
+                      ›
+                    </button>
+                    <button
+                      type="button"
+                      className="page-arrow"
+                      disabled={currentPage === totalPages}
+                      onClick={() => handleChangePage("last")}
+                    >
+                      »
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

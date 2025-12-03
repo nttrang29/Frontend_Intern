@@ -110,6 +110,19 @@
   box-shadow: 0 6px 18px rgba(13,71,84,0.04);
   transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms ease;
 }
+.budget-metric-card--has-toggle {
+  position: relative;
+  padding-right: 54px;
+}
+.budget-metric-card--has-toggle .budget-metric-toggle {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  margin-left: 0;
+}
+.budget-metric-card--has-toggle .budget-metric-label {
+  padding-right: 32px;
+}
 .budget-metric-card:hover {
   transform: translateY(-8px);
   box-shadow: 0 18px 40px rgba(13,71,84,0.12);

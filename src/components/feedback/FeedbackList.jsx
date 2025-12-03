@@ -1,10 +1,25 @@
 // src/components/feedback/FeedbackList.jsx
-import React from "react";
+import React, { useMemo } from "react";
 import "../../styles/pages/FeedbackPage.css";
+import { formatVietnamDateTime } from "../../utils/dateFormat";
 
+const getDisplayDate = (input) => {
+  if (!input) return "Không rõ thời gian";
+  const formatted = formatVietnamDateTime(input);
+  return formatted || "Không rõ thời gian";
+};
 
 export default function FeedbackList({ feedbacks }) {
-  if (!feedbacks?.length) {
+  const items = useMemo(() => {
+    if (!feedbacks?.length) return [];
+    return feedbacks.map((fb) => ({
+      ...fb,
+      displayDate: getDisplayDate(fb.createdAt || fb.date),
+      adminDisplayDate: fb.adminReply?.date ? getDisplayDate(fb.adminReply.date) : "",
+    }));
+  }, [feedbacks]);
+
+  if (!items.length) {
     return (
       <div className="feedback-empty">
         Chưa có đánh giá nào. Hãy là người đầu tiên chia sẻ cảm nhận của bạn! 📝
@@ -14,7 +29,7 @@ export default function FeedbackList({ feedbacks }) {
 
   return (
     <div className="feedback-list">
-      {feedbacks.map((fb) => (
+      {items.map((fb) => (
         <article key={fb.id} className="feedback-item">
           <header className="feedback-item-header">
             <div className="feedback-item-user">
@@ -24,7 +39,7 @@ export default function FeedbackList({ feedbacks }) {
               <div>
                 <div className="feedback-username">{fb.user}</div>
                 <div className="feedback-date">
-                  {fb.date || "Không rõ thời gian"}
+                  {fb.displayDate}
                 </div>
               </div>
             </div>
@@ -59,7 +74,7 @@ export default function FeedbackList({ feedbacks }) {
               <div className="feedback-admin-tag">Phản hồi từ admin</div>
               <p className="feedback-admin-message">{fb.adminReply.message}</p>
               <div className="feedback-admin-meta">
-                {fb.adminReply.author} • {fb.adminReply.date}
+                {fb.adminReply.author} • {fb.adminDisplayDate}
               </div>
             </div>
           )}
