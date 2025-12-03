@@ -151,6 +151,15 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   };
   
   const depositStatus = getDepositStatus();
+  const progress =
+    fund.target && fund.target > 0
+      ? Math.min(100, Math.round((fund.current / fund.target) * 100))
+      : null;
+
+  // Trạng thái quỹ từ backend (ACTIVE, CLOSED, COMPLETED)
+  const fundStatus = fund.status || fund.fundStatus || null;
+  const isFundActive = !fundStatus || fundStatus === "ACTIVE";
+  const isFundCompleted = fundStatus === "COMPLETED" || (progress !== null && progress >= 100);
 
   // Set số tiền nạp mặc định khi vào tab deposit
   useEffect(() => {
@@ -278,11 +287,6 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     }
   };
 
-  const progress =
-    fund.target && fund.target > 0
-      ? Math.min(100, Math.round((fund.current / fund.target) * 100))
-      : null;
-
   // Transaction history - Sẽ được lấy từ API khi backend implement
   // TODO: Implement API để lấy fund transaction history
   const transactionHistory = [];
@@ -293,6 +297,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
 
   const handleDeposit = async (e) => {
     e.preventDefault();
+
+    // Chặn nạp nếu quỹ không còn ACTIVE (đã đóng hoặc hoàn thành)
+    if (!isFundActive) {
+      showToast("Quỹ đã đóng hoặc hoàn thành mục tiêu, không thể nạp thêm.", "error");
+      return;
+    }
     const amount = Number(depositAmount);
     
     // Validation cơ bản
@@ -329,6 +339,24 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
 
       if (result.success) {
         showToast(`Nạp ${formatMoney(amount, fund.currency)} vào quỹ thành công!`, "success");
+
+        // Nếu backend trả về quỹ đã COMPLETED sau nạp, hiển thị thông báo đóng băng
+        const updatedFund = result.data || fund;
+        const updatedStatus = updatedFund.status || updatedFund.fundStatus || null;
+        const updatedProgress =
+          updatedFund.target && updatedFund.target > 0
+            ? Math.min(100, Math.round((updatedFund.current / updatedFund.target) * 100))
+            : null;
+
+        if (
+          updatedStatus === "COMPLETED" ||
+          (updatedFund.hasTerm && updatedFund.target && updatedProgress !== null && updatedProgress >= 100)
+        ) {
+          showToast(
+            "Quỹ đã hoàn thành mục tiêu. Quỹ sẽ được đóng băng và không thể nạp thêm.",
+            "info"
+          );
+        }
         setDepositAmount("");
         setActiveTab("info");
         // Callback để reload

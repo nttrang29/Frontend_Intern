@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import * as FundService from "../services/fund.service";
+import { useWalletData } from "./WalletDataContext";
 
 const FundDataContext = createContext(null);
 
@@ -78,6 +79,17 @@ export function FundDataProvider({ children }) {
   const [funds, setFunds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Wallet context: dùng để reload số dư ví sau các thao tác ảnh hưởng tới ví
+  let loadWalletsSafe = null;
+  try {
+    // useWalletData chỉ hợp lệ khi FundDataProvider được dùng bên trong WalletDataProvider
+    const walletCtx = useWalletData();
+    loadWalletsSafe = walletCtx?.loadWallets || null;
+  } catch (e) {
+    // Nếu chưa có WalletDataProvider bên ngoài thì bỏ qua, tránh crash
+    loadWalletsSafe = null;
+  }
 
   /**
    * Load tất cả quỹ từ API
@@ -299,8 +311,17 @@ export function FundDataProvider({ children }) {
       const updatedFund = result.data?.fund || result.data;
       console.log("FundDataContext: Deposit successful:", updatedFund);
       
-      // Reload funds list để cập nhật UI
+      // Reload funds list để cập nhật UI quỹ
       await loadFunds();
+
+      // Reload wallets để cập nhật số dư ví nguồn/đích sau khi nạp quỹ
+      if (typeof loadWalletsSafe === "function") {
+        try {
+          await loadWalletsSafe();
+        } catch (e) {
+          console.warn("FundDataContext: loadWallets sau khi nạp quỹ bị lỗi, bỏ qua", e);
+        }
+      }
       
       return { success: true, data: normalizeFund(updatedFund) };
     } catch (err) {
