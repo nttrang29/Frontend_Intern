@@ -1,7 +1,11 @@
 // src/pages/Home/FundsPage.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
+import { useFundData } from "../../contexts/FundDataContext";
+import { useNotifications } from "../../contexts/NotificationContext";
+import { calculateAllFundWarnings } from "../../utils/fundWarnings";
 import "../../styles/pages/FundsPage.css";
 import "../../styles/components/funds/FundCard.css";
 import "../../styles/components/funds/FundSection.css";
@@ -15,7 +19,10 @@ import PersonalNoTermForm from "../../components/funds/PersonalNoTermForm";
 import FundDetailView from "../../components/funds/FundDetailView";
 
 export default function FundsPage() {
+  const location = useLocation();
   const { wallets } = useWalletData();
+  const { funds, loading, loadFunds, getFundById } = useFundData();
+  const { pushNotification } = useNotifications();
   const { t } = useLanguage();
 
   // CHỈ VÍ CÁ NHÂN (vì đã bỏ quỹ nhóm)
@@ -24,49 +31,82 @@ export default function FundsPage() {
     [wallets]
   );
 
-  // Dữ liệu mẫu (sau này bind API)
-  const [funds, setFunds] = useState([
-    {
-      id: 1,
-      name: "Quỹ Mua Laptop",
-      type: "personal",
-      hasTerm: true,
-      role: "owner",
-      current: 4500000,
-      target: 15000000,
-      currency: "VND",
-    },
-    {
-      id: 2,
-      name: "Quỹ Học Tiếng Anh",
-      type: "personal",
-      hasTerm: true,
-      role: "owner",
-      current: 2000000,
-      target: 10000000,
-      currency: "VND",
-    },
-    {
-      id: 3,
-      name: "Quỹ Khẩn Cấp",
-      type: "personal",
-      hasTerm: false,
-      role: "owner",
-      current: 8000000,
-      target: null,
-      currency: "VND",
-    },
-  ]);
+  // Load funds khi component mount
+  useEffect(() => {
+    loadFunds();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tính toán warnings và push vào notifications
+  useEffect(() => {
+    if (funds.length === 0 || wallets.length === 0) return;
+    
+    const allWarnings = calculateAllFundWarnings(funds, wallets);
+    
+    // Push warnings vào notification context
+    allWarnings.forEach(warning => {
+      pushNotification({
+        role: 'user',
+        type: 'fund_warning',
+        fundId: warning.fundId,
+        title: warning.title,
+        desc: warning.message,
+        timeLabel: 'Mới',
+        severity: warning.severity,
+        warningType: warning.type
+      });
+    });
+
+    // DEMO: Push mock reminder notifications
+    funds.forEach(fund => {
+      if (fund.reminderEnabled) {
+        pushNotification({
+          role: 'user',
+          type: 'fund_reminder',
+          fundId: fund.id,
+          title: `Nhắc nạp tiền: ${fund.name}`,
+          desc: `Đã đến lúc nạp tiền vào quỹ theo lịch hẹn`,
+          timeLabel: '5 phút trước',
+        });
+      }
+      
+      if (fund.autoDepositEnabled) {
+        pushNotification({
+          role: 'user',
+          type: 'fund_auto_deposit',
+          fundId: fund.id,
+          title: `Nạp tự động thành công: ${fund.name}`,
+          desc: `Đã tự động nạp ${fund.autoDepositAmount?.toLocaleString()} ${fund.currency} vào quỹ`,
+          timeLabel: '10 phút trước',
+        });
+      }
+    });
+  }, [funds, wallets]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Xử lý navigate từ notification
+  useEffect(() => {
+    if (location.state?.openFundId && location.state?.defaultTab) {
+      const fundToOpen = funds.find(f => f.id === location.state.openFundId);
+      if (fundToOpen) {
+        handleSelectFund(fundToOpen, location.state.defaultTab);
+        // Clear state
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state, funds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Chỉ lọc quỹ cá nhân
-  const personalTermFunds = useMemo(
-    () => funds.filter((f) => f.type === "personal" && f.hasTerm),
-    [funds]
-  );
-  const personalNoTermFunds = useMemo(
-    () => funds.filter((f) => f.type === "personal" && !f.hasTerm),
-    [funds]
-  );
+  const personalTermFunds = useMemo(() => {
+    const filtered = funds.filter((f) => f.type === "personal" && f.hasTerm);
+    console.log("FundsPage: Total funds:", funds.length);
+    console.log("FundsPage: Personal term funds:", filtered.length, filtered);
+    return filtered;
+  }, [funds]);
+  
+  const personalNoTermFunds = useMemo(() => {
+    const filtered = funds.filter((f) => f.type === "personal" && !f.hasTerm);
+    console.log("FundsPage: Personal no-term funds:", filtered.length, filtered);
+    return filtered;
+  }, [funds]);
 
   // View mode
   const [viewMode, setViewMode] = useState("overview"); // overview | detail | create
@@ -77,16 +117,25 @@ export default function FundsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortMode, setSortMode] = useState("name"); // name | currentDesc | progressDesc
 
-  const handleSelectFund = (fund) => {
+  const handleSelectFund = (fund, defaultTab = "info") => {
     setActiveFund(fund);
     setViewMode("detail");
+    setDefaultTab(defaultTab);
   };
 
-  const handleUpdateFund = (updatedFund) => {
-    setFunds((prev) =>
-      prev.map((f) => (f.id === updatedFund.id ? updatedFund : f))
-    );
-    setActiveFund(updatedFund);
+  const [defaultTab, setDefaultTab] = useState("info");
+
+  const handleUpdateFund = async () => {
+    // Reload funds list từ API
+    await loadFunds();
+    
+    // Lấy lại fund detail mới nhất
+    if (activeFund?.id) {
+      const result = await getFundById(activeFund.id);
+      if (result.success) {
+        setActiveFund(result.data);
+      }
+    }
   };
 
   // Helper: áp dụng search + sort
@@ -131,6 +180,22 @@ export default function FundsPage() {
     () => applySearchAndSort(personalNoTermFunds),
     [personalNoTermFunds, searchTerm, sortMode]
   );
+
+  // Hiển thị loading
+  if (loading) {
+    return (
+      <div className="funds-page tx-page container-fluid py-4">
+        <div className="tx-page-inner">
+          <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Đang tải...</span>
+            </div>
+            <p className="mt-3 text-muted">Đang tải danh sách quỹ...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="funds-page tx-page container-fluid py-4">
@@ -244,9 +309,11 @@ export default function FundsPage() {
         <div className="card border-0 shadow-sm p-3 p-lg-4">
           <FundDetailView
             fund={activeFund}
+            defaultTab={defaultTab}
             onBack={() => {
               setViewMode("overview");
               setActiveFund(null);
+              setDefaultTab("info");
             }}
             onUpdateFund={handleUpdateFund}
           />
@@ -277,9 +344,21 @@ export default function FundsPage() {
           </div>
 
           {personalTab === "term" ? (
-            <PersonalTermForm wallets={personalWallets} />
+            <PersonalTermForm 
+              wallets={personalWallets} 
+              onSuccess={async () => {
+                await loadFunds();
+                setViewMode("overview");
+              }}
+            />
           ) : (
-            <PersonalNoTermForm wallets={personalWallets} />
+            <PersonalNoTermForm 
+              wallets={personalWallets}
+              onSuccess={async () => {
+                await loadFunds();
+                setViewMode("overview");
+              }}
+            />
           )}
         </div>
       )}

@@ -10,6 +10,7 @@ import "./styles/base/dark-mode.css";
 import { WalletDataProvider } from "./contexts/WalletDataContext";
 import { BudgetDataProvider } from "./contexts/BudgetDataContext";
 import { CategoryDataProvider } from "./contexts/CategoryDataContext";
+import { FundDataProvider } from "./contexts/FundDataContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./components/common/Toast/ToastContext";
 import { FeedbackProvider } from "./contexts/FeedbackDataContext";
@@ -54,13 +55,15 @@ createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <AuthProvider>
       <ToastProvider>
-        <NotificationProvider>          {/* ⬅️ THÊM VÀO ĐÂY */}
+        <NotificationProvider>
           <LanguageProvider>
             <FeedbackProvider>
               <CategoryDataProvider>
                 <WalletDataProvider>
                   <BudgetDataProvider>
-                    <App />
+                    <FundDataProvider>
+                      <App />
+                    </FundDataProvider>
                   </BudgetDataProvider>
                 </WalletDataProvider>
               </CategoryDataProvider>

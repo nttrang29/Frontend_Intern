@@ -1,39 +1,55 @@
 // src/components/funds/ReminderBlock.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../../styles/components/funds/FundForms.css";
 
-export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" }) {
-  const [mode, setMode] = useState("follow"); // follow | custom
-  const [customType, setCustomType] = useState("day");
-
+export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTHLY", onDataChange }) {
   const [followTime, setFollowTime] = useState("");
-  const [followWeekDay, setFollowWeekDay] = useState("mon");
-  const [followMonthDay, setFollowMonthDay] = useState(1);
-
-  const [customTime, setCustomTime] = useState("");
-  const [customWeekDay, setCustomWeekDay] = useState("mon");
-  const [customMonthDay, setCustomMonthDay] = useState(1);
+  const [followWeekDay, setFollowWeekDay] = useState("2");
+  const [followMonthDay, setFollowMonthDay] = useState("");
+  
+  // Map week day string to number (1-7)
+  const weekDayMap = {
+    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "1": 1
+  };
+  
+  // Export data when anything changes
+  useEffect(() => {
+    if (!reminderOn || !onDataChange) return;
+    
+    const reminderData = {};
+    
+    // Follow frequency (only mode available)
+    reminderData.reminderType = freq;
+    reminderData.reminderTime = followTime ? `${followTime}:00` : null;
+    
+    if (freq === "WEEKLY") {
+      reminderData.reminderDayOfWeek = weekDayMap[followWeekDay];
+    } else if (freq === "MONTHLY" || freq === "YEARLY") {
+      reminderData.reminderDayOfMonth = followMonthDay;
+    }
+    
+    onDataChange(reminderData);
+  }, [reminderOn, freq, followTime, followWeekDay, followMonthDay, onDataChange]);
 
   const freqLabel =
     {
-      day: "Theo ngày",
-      week: "Theo tuần",
-      month: "Theo tháng",
-      year: "Theo năm",
-    }[freq] || "Theo ngày";
+      DAILY: "Theo ngày",
+      WEEKLY: "Theo tuần",
+      MONTHLY: "Theo tháng",
+    }[freq] || "Theo tháng";
 
   const weekOptions = [
-    { value: "mon", label: "Thứ 2" },
-    { value: "tue", label: "Thứ 3" },
-    { value: "wed", label: "Thứ 4" },
-    { value: "thu", label: "Thứ 5" },
-    { value: "fri", label: "Thứ 6" },
-    { value: "sat", label: "Thứ 7" },
-    { value: "sun", label: "Chủ nhật" },
+    { value: "2", label: "Thứ 2" },
+    { value: "3", label: "Thứ 3" },
+    { value: "4", label: "Thứ 4" },
+    { value: "5", label: "Thứ 5" },
+    { value: "6", label: "Thứ 6" },
+    { value: "7", label: "Thứ 7" },
+    { value: "1", label: "Chủ nhật" },
   ];
 
   const renderFollowContent = () => {
-    if (freq === "day") {
+    if (freq === "DAILY") {
       return (
         <div className="funds-field">
           <label>Giờ nhắc trong ngày</label>
@@ -49,7 +65,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
       );
     }
 
-    if (freq === "week") {
+    if (freq === "WEEKLY") {
       return (
         <div className="funds-field funds-field--inline">
           <div>
@@ -81,112 +97,72 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
     }
 
     return (
-      <div className="funds-field funds-field--inline">
-        <div>
-          <label>Ngày nhắc trong tháng</label>
-          <input
-            type="number"
-            min={1}
-            max={31}
-            value={followMonthDay}
-            onChange={(e) =>
-              setFollowMonthDay(
-                Math.max(1, Math.min(31, Number(e.target.value) || 1))
-              )
-            }
-          />
-        </div>
-        <div>
-          <label>Giờ nhắc trong ngày</label>
-          <input
-            type="time"
-            value={followTime}
-            onChange={(e) => setFollowTime(e.target.value)}
-          />
-        </div>
-        <div className="funds-hint">
-          Ví dụ: ngày 5 hàng tháng lúc 09:00 sẽ nhắc bạn gửi tiền vào quỹ.
-        </div>
-      </div>
-    );
-  };
-
-  const renderCustomContent = () => {
-    if (customType === "day") {
-      return (
-        <div className="funds-field">
-          <label>Giờ nhắc (hàng ngày)</label>
-          <input
-            type="time"
-            value={customTime}
-            onChange={(e) => setCustomTime(e.target.value)}
-          />
-          <div className="funds-hint">
-            Hệ thống sẽ nhắc bạn mỗi ngày vào giờ đã chọn.
-          </div>
-        </div>
-      );
-    }
-
-    if (customType === "week") {
-      return (
+      <>
         <div className="funds-field funds-field--inline">
           <div>
-            <label>Ngày trong tuần</label>
-            <select
-              value={customWeekDay}
-              onChange={(e) => setCustomWeekDay(e.target.value)}
-            >
-              {weekOptions.map((w) => (
-                <option key={w.value} value={w.value}>
-                  {w.label}
-                </option>
-              ))}
-            </select>
+            <label>Ngày nhắc trong tháng <span className="req">*</span></label>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={followMonthDay}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Chỉ cho phép số
+                if (value === "" || /^\d+$/.test(value)) {
+                  if (value === "") {
+                    setFollowMonthDay("");
+                  } else {
+                    const num = Number(value);
+                    if (num >= 1 && num <= 31) {
+                      setFollowMonthDay(num);
+                    }
+                  }
+                }
+              }}
+              placeholder="Nhập ngày (1-31)"
+              required
+            />
+            <div className="funds-hint" style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.25rem' }}>
+              Chọn ngày từ 1-31. Ví dụ: ngày 5
+            </div>
+            {followMonthDay > 28 && (
+              <div className="funds-hint" style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.5rem' }}>
+                <div style={{ marginBottom: '0.25rem', fontWeight: '600' }}>
+                  Lưu ý ngày cuối tháng:
+                </div>
+                {followMonthDay === 31 && (
+                  <div>
+                    • Tháng 30 ngày (4,6,9,11): nhắc ngày 30<br/>
+                    • Tháng 2: nhắc ngày 28 (hoặc 29 năm nhuận)
+                  </div>
+                )}
+                {followMonthDay === 30 && (
+                  <div>
+                    • Tháng 2: nhắc ngày 28 (hoặc 29 năm nhuận)
+                  </div>
+                )}
+                {followMonthDay === 29 && (
+                  <div>
+                    • Tháng 2 thường: nhắc ngày 28
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <label>Giờ nhắc trong ngày</label>
             <input
               type="time"
-              value={customTime}
-              onChange={(e) => setCustomTime(e.target.value)}
+              value={followTime}
+              onChange={(e) => setFollowTime(e.target.value)}
             />
           </div>
-          <div className="funds-hint">
-            Ví dụ: Thứ 7 lúc 20:30 sẽ nhắc bạn, dù tần suất gửi quỹ đang là gì.
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="funds-field funds-field--inline">
-        <div>
-          <label>Ngày trong tháng</label>
-          <input
-            type="number"
-            min={1}
-            max={31}
-            value={customMonthDay}
-            onChange={(e) =>
-              setCustomMonthDay(
-                Math.max(1, Math.min(31, Number(e.target.value) || 1))
-              )
-            }
-          />
-        </div>
-        <div>
-          <label>Giờ nhắc trong ngày</label>
-          <input
-            type="time"
-            value={customTime}
-            onChange={(e) => setCustomTime(e.target.value)}
-          />
         </div>
         <div className="funds-hint">
-          Ví dụ: ngày 25 hàng tháng lúc 19:00 sẽ nhắc bạn.
+          Ví dụ: ngày 5 hàng tháng lúc 09:00 sẽ nhắc bạn gửi tiền vào quỹ.
         </div>
-      </div>
+      </>
     );
   };
 
@@ -214,61 +190,11 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
 
       {reminderOn && (
         <>
-          <div className="funds-reminder-mode">
-            <button
-              type="button"
-              className={
-                "funds-pill-toggle" +
-                (mode === "follow" ? " funds-pill-toggle--active" : "")
-              }
-              onClick={() => setMode("follow")}
-            >
-              Theo tần suất gửi quỹ ({freqLabel})
-            </button>
-            <button
-              type="button"
-              className={
-                "funds-pill-toggle" +
-                (mode === "custom" ? " funds-pill-toggle--active" : "")
-              }
-              onClick={() => setMode("custom")}
-            >
-              Tự tạo lịch nhắc riêng
-            </button>
+          <div className="funds-hint">
+            Hệ thống sẽ nhắc nhở theo tần suất gửi quỹ ({freqLabel}). 
+            Bạn chỉ cần chọn giờ / ngày cụ thể.
           </div>
-
-          {mode === "follow" && (
-            <>
-              <div className="funds-hint">
-                Hệ thống sẽ dùng cùng tần suất với phần{" "}
-                <strong>Số tiền gửi mỗi kỳ</strong>. Bạn chỉ cần chọn giờ / ngày
-                cụ thể.
-              </div>
-              {renderFollowContent()}
-            </>
-          )}
-
-          {mode === "custom" && (
-            <>
-              <div className="funds-field">
-                <label>Kiểu nhắc nhở</label>
-                <select
-                  value={customType}
-                  onChange={(e) => setCustomType(e.target.value)}
-                >
-                  <option value="day">Nhắc theo ngày</option>
-                  <option value="week">Nhắc theo tuần</option>
-                  <option value="month">Nhắc theo tháng</option>
-                </select>
-                <div className="funds-hint">
-                  Bạn có thể chọn nhắc hàng ngày / hàng tuần / hàng tháng,
-                  không phụ thuộc tần suất gửi quỹ.
-                </div>
-              </div>
-
-              {renderCustomContent()}
-            </>
-          )}
+          {renderFollowContent()}
         </>
       )}
     </div>

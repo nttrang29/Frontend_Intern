@@ -721,6 +721,129 @@ export const walletAPI = {
 
 /**
  * ============================================
+ * FUND APIs (Quỹ Tiết Kiệm)
+ * ============================================
+ */
+
+export const fundAPI = {
+  /**
+   * Tạo quỹ mới
+   * @param {object} fundData
+   */
+  createFund: async (fundData) => {
+    return apiCall("/funds", {
+      method: "POST",
+      body: JSON.stringify(fundData),
+    });
+  },
+
+  /**
+   * Lấy tất cả quỹ của user
+   */
+  getAllFunds: async () => {
+    return apiCall("/funds");
+  },
+
+  /**
+   * Lấy quỹ cá nhân
+   * @param {boolean|null} hasDeadline
+   */
+  getPersonalFunds: async (hasDeadline = null) => {
+    const params = hasDeadline !== null ? `?hasDeadline=${hasDeadline}` : "";
+    return apiCall(`/funds/personal${params}`);
+  },
+
+  /**
+   * Lấy quỹ nhóm
+   * @param {boolean|null} hasDeadline
+   */
+  getGroupFunds: async (hasDeadline = null) => {
+    const params = hasDeadline !== null ? `?hasDeadline=${hasDeadline}` : "";
+    return apiCall(`/funds/group${params}`);
+  },
+
+  /**
+   * Lấy quỹ tham gia
+   */
+  getParticipatedFunds: async () => {
+    return apiCall("/funds/participated");
+  },
+
+  /**
+   * Lấy chi tiết một quỹ
+   * @param {number|string} fundId
+   */
+  getFund: async (fundId) => {
+    return apiCall(`/funds/${fundId}`);
+  },
+
+  /**
+   * Cập nhật quỹ
+   * @param {number|string} fundId
+   * @param {object} fundData
+   */
+  updateFund: async (fundId, fundData) => {
+    return apiCall(`/funds/${fundId}`, {
+      method: "PUT",
+      body: JSON.stringify(fundData),
+    });
+  },
+
+  /**
+   * Đóng quỹ
+   * @param {number|string} fundId
+   */
+  closeFund: async (fundId) => {
+    return apiCall(`/funds/${fundId}/close`, {
+      method: "PUT",
+    });
+  },
+
+  /**
+   * Xóa quỹ
+   * @param {number|string} fundId
+   */
+  deleteFund: async (fundId) => {
+    return apiCall(`/funds/${fundId}`, {
+      method: "DELETE",
+    });
+  },
+
+  /**
+   * Nạp tiền vào quỹ
+   * @param {number|string} fundId
+   * @param {number} amount
+   */
+  depositToFund: async (fundId, amount) => {
+    return apiCall(`/funds/${fundId}/deposit`, {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+  },
+
+  /**
+   * Rút tiền từ quỹ
+   * @param {number|string} fundId
+   * @param {number} amount
+   */
+  withdrawFromFund: async (fundId, amount) => {
+    return apiCall(`/funds/${fundId}/withdraw`, {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+  },
+
+  /**
+   * Kiểm tra ví có đang được sử dụng không
+   * @param {number|string} walletId
+   */
+  checkWalletUsed: async (walletId) => {
+    return apiCall(`/funds/check-wallet/${walletId}`);
+  },
+};
+
+/**
+ * ============================================
  * BUDGET APIs
  * ============================================
  */
@@ -1113,6 +1236,7 @@ const apiClient = {
   auth: authAPI,
   profile: profileAPI,
   wallet: walletAPI,
+  fund: fundAPI,
   budget: budgetAPI,
   transaction: transactionAPI,
   category: categoryAPI,
