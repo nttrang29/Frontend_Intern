@@ -5,149 +5,169 @@ import "../../styles/components/funds/FundForms.css";
 export default function AutoTopupBlock({
   autoTopupOn,
   setAutoTopupOn,
-  dependsOnReminder,
-  reminderFreq = "day",
+  freq = "MONTHLY",
+  onDataChange,
 }) {
-  const [mode, setMode] = useState(dependsOnReminder ? "follow" : "custom");
-  const [customType, setCustomType] = useState("day");
+  const [autoTime, setAutoTime] = useState("");
+  const [autoWeekDay, setAutoWeekDay] = useState("2");
+  const [autoMonthDay, setAutoMonthDay] = useState("");
+  const [autoAmount, setAutoAmount] = useState("");
+  
+  // Map week day string to number (1-7)
+  const weekDayMap = {
+    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "1": 1
+  };
+  
+  // Export data when anything changes
+  useEffect(() => {
+    if (!autoTopupOn || !onDataChange) return;
+    
+    const autoTopupData = {
+      autoDepositType: freq,
+      autoDepositScheduleType: freq,
+      autoDepositAmount: autoAmount ? Number(autoAmount) : null,
+      autoDepositTime: autoTime ? `${autoTime}:00` : null,
+    };
+    
+    if (freq === "WEEKLY") {
+      autoTopupData.autoDepositDayOfWeek = weekDayMap[autoWeekDay];
+    } else if (freq === "MONTHLY") {
+      autoTopupData.autoDepositDayOfMonth = autoMonthDay;
+    }
+    
+    onDataChange(autoTopupData);
+  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, autoAmount, onDataChange]);
 
-  const [customTime, setCustomTime] = useState("");
-  const [customWeekDay, setCustomWeekDay] = useState("mon");
-  const [customMonthDay, setCustomMonthDay] = useState(1);
-  const [customAmount, setCustomAmount] = useState("");
-
-  const canFollowReminder = dependsOnReminder;
-
-  const freqLabel =
-    {
-      day: "Theo ngày",
-      week: "Theo tuần",
-      month: "Theo tháng",
-      year: "Theo năm",
-    }[reminderFreq] || "Theo ngày";
+  const freqLabel = {
+    DAILY: "Theo ngày",
+    WEEKLY: "Theo tuần",
+    MONTHLY: "Theo tháng",
+  }[freq] || "Theo tháng";
 
   const weekOptions = [
-    { value: "mon", label: "Thứ 2" },
-    { value: "tue", label: "Thứ 3" },
-    { value: "wed", label: "Thứ 4" },
-    { value: "thu", label: "Thứ 5" },
-    { value: "fri", label: "Thứ 6" },
-    { value: "sat", label: "Thứ 7" },
-    { value: "sun", label: "Chủ nhật" },
+    { value: "2", label: "Thứ 2" },
+    { value: "3", label: "Thứ 3" },
+    { value: "4", label: "Thứ 4" },
+    { value: "5", label: "Thứ 5" },
+    { value: "6", label: "Thứ 6" },
+    { value: "7", label: "Thứ 7" },
+    { value: "1", label: "Chủ nhật" },
   ];
 
-  useEffect(() => {
-    if (!canFollowReminder && mode === "follow") {
-      setMode("custom");
-    }
-  }, [canFollowReminder, mode]);
-
-  const renderCustomContent = () => {
-    if (customType === "day") {
+  const renderAutoDepositForm = () => {
+    if (freq === "DAILY") {
       return (
         <div className="funds-field">
-          <label>Thời gian & số tiền nạp (hàng ngày)</label>
-          <div className="funds-field--inline">
-            <input
-              type="time"
-              value={customTime}
-              onChange={(e) => setCustomTime(e.target.value)}
-            />
-            <input
-              type="number"
-              min={0}
-              placeholder="Số tiền tự nạp mỗi ngày"
-              value={customAmount}
-              onChange={(e) => setCustomAmount(e.target.value)}
-            />
-          </div>
+          <label>Giờ tự động nạp (hàng ngày)</label>
+          <input
+            type="time"
+            value={autoTime}
+            onChange={(e) => setAutoTime(e.target.value)}
+          />
           <div className="funds-hint">
-            Ví dụ: 08:00 – 100.000 VND, hệ thống sẽ tự nạp mỗi ngày.
+            Hệ thống sẽ tự động nạp tiền mỗi ngày vào giờ đã chọn.
           </div>
         </div>
       );
     }
 
-    if (customType === "week") {
+    if (freq === "WEEKLY") {
       return (
-        <div className="funds-field">
-          <label>Thời gian & số tiền nạp (hàng tuần)</label>
-          <div className="funds-field--inline">
-            <div>
-              <select
-                value={customWeekDay}
-                onChange={(e) => setCustomWeekDay(e.target.value)}
-              >
-                {weekOptions.map((w) => (
-                  <option key={w.value} value={w.value}>
-                    {w.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <input
-                type="time"
-                value={customTime}
-                onChange={(e) => setCustomTime(e.target.value)}
-              />
-            </div>
+        <div className="funds-field funds-field--inline">
+          <div>
+            <label>Ngày trong tuần</label>
+            <select
+              value={autoWeekDay}
+              onChange={(e) => setAutoWeekDay(e.target.value)}
+            >
+              {weekOptions.map((w) => (
+                <option key={w.value} value={w.value}>
+                  {w.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label>Giờ tự động nạp</label>
+            <input
+              type="time"
+              value={autoTime}
+              onChange={(e) => setAutoTime(e.target.value)}
+            />
+          </div>
+          <div className="funds-hint">
+            Ví dụ: Thứ 7 lúc 20:00 hệ thống sẽ tự động nạp tiền vào quỹ.
+          </div>
+        </div>
+      );
+    }
+
+    if (freq === "MONTHLY") {
+      return (
+        <>
+          <div className="funds-field">
+            <label>Ngày trong tháng <span className="req">*</span></label>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={autoMonthDay}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "" || /^\d+$/.test(value)) {
+                  if (value === "") {
+                    setAutoMonthDay("");
+                  } else {
+                    const num = Number(value);
+                    if (num >= 1 && num <= 31) {
+                      setAutoMonthDay(num);
+                    }
+                  }
+                }
+              }}
+              placeholder="Nhập ngày (1-31)"
+              required
+            />
+            {autoMonthDay > 28 && (
+              <div className="funds-hint" style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.5rem' }}>
+                <div style={{ marginBottom: '0.25rem', fontWeight: '600' }}>
+                  Lưu ý ngày cuối tháng:
+                </div>
+                {autoMonthDay === 31 && (
+                  <div>
+                    • Tháng 30 ngày → nạp ngày 30<br/>
+                    • Tháng 2 → nạp ngày 28/29
+                  </div>
+                )}
+                {autoMonthDay === 30 && (
+                  <div>
+                    • Tháng 2 → nạp ngày 28/29
+                  </div>
+                )}
+                {autoMonthDay === 29 && (
+                  <div>
+                    • Tháng 2 thường → nạp ngày 28
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="funds-field">
+            <label>Giờ tự động nạp</label>
             <input
-              type="number"
-              min={0}
-              placeholder="Số tiền tự nạp mỗi tuần"
-              value={customAmount}
-              onChange={(e) => setCustomAmount(e.target.value)}
+              type="time"
+              value={autoTime}
+              onChange={(e) => setAutoTime(e.target.value)}
             />
+            <div className="funds-hint">
+              Ví dụ: Ngày 5 hàng tháng lúc 20:00 hệ thống sẽ tự động nạp tiền.
+            </div>
           </div>
-          <div className="funds-hint">
-            Ví dụ: Thứ 6 lúc 21:00 – 200.000 VND, hệ thống sẽ tự nạp mỗi tuần.
-          </div>
-        </div>
+        </>
       );
     }
 
-    return (
-      <div className="funds-field">
-        <label>Thời gian & số tiền nạp (hàng tháng)</label>
-        <div className="funds-field--inline">
-          <div>
-            <input
-              type="number"
-              min={1}
-              max={31}
-              value={customMonthDay}
-              onChange={(e) =>
-                setCustomMonthDay(
-                  Math.max(1, Math.min(31, Number(e.target.value) || 1))
-                )
-              }
-            />
-          </div>
-          <div>
-            <input
-              type="time"
-              value={customTime}
-              onChange={(e) => setCustomTime(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="funds-field">
-          <input
-            type="number"
-            min={0}
-            placeholder="Số tiền tự nạp mỗi tháng"
-            value={customAmount}
-            onChange={(e) => setCustomAmount(e.target.value)}
-          />
-        </div>
-        <div className="funds-hint">
-          Ví dụ: ngày 10 hàng tháng lúc 09:00 – 500.000 VND, hệ thống sẽ tự nạp.
-        </div>
-      </div>
-    );
+    return null;
   };
 
   return (
@@ -168,75 +188,31 @@ export default function AutoTopupBlock({
 
       {!autoTopupOn && (
         <div className="funds-hint">
-          Khi bật, hệ thống có thể tự nạp tiền vào quỹ theo lịch bạn cấu hình.
+          Khi bật, hệ thống sẽ tự động nạp tiền vào quỹ theo tần xuất gửi quỹ.
         </div>
       )}
 
       {autoTopupOn && (
         <>
-          <div className="funds-reminder-mode">
-            <button
-              type="button"
-              className={
-                "funds-pill-toggle" +
-                (mode === "follow" ? " funds-pill-toggle--active" : "")
-              }
-              onClick={() => canFollowReminder && setMode("follow")}
-              disabled={!canFollowReminder}
-            >
-              Nạp theo lịch nhắc nhở
-            </button>
-            <button
-              type="button"
-              className={
-                "funds-pill-toggle" +
-                (mode === "custom" ? " funds-pill-toggle--active" : "")
-              }
-              onClick={() => setMode("custom")}
-            >
-              Tự thiết lập lịch nạp
-            </button>
+          <div className="funds-hint">
+            Hệ thống sẽ tự động nạp tiền theo tần xuất gửi quỹ ({freqLabel}). Chọn giờ/ngày cụ thể.
           </div>
-
-          {!canFollowReminder && (
+          
+          {renderAutoDepositForm()}
+          
+          <div className="funds-field">
+            <label>Số tiền tự nạp mỗi lần</label>
+            <input 
+              type="number"
+              min={0}
+              placeholder="Nhập số tiền"
+              value={autoAmount}
+              onChange={(e) => setAutoAmount(e.target.value)}
+            />
             <div className="funds-hint">
-              Để dùng chế độ <strong>nạp theo lịch nhắc nhở</strong>, hãy bật và
-              cấu hình nhắc nhở ở phần trên.
+              Số tiền này sẽ tự động chuyển từ ví nguồn vào quỹ theo lịch đã thiết lập.
             </div>
-          )}
-
-          {mode === "follow" && canFollowReminder && (
-            <div className="funds-field">
-              <label>Chế độ nạp theo lịch nhắc nhở</label>
-              <div className="funds-hint">
-                Hệ thống sẽ tự nạp tiền theo <strong>cùng lịch</strong> với{" "}
-                <strong>tần suất gửi quỹ</strong> ({freqLabel}) và thời gian
-                bạn đã chọn trong phần <strong>Nhắc nhở</strong>.
-              </div>
-            </div>
-          )}
-
-          {mode === "custom" && (
-            <>
-              <div className="funds-field">
-                <label>Kiểu lịch tự nạp</label>
-                <select
-                  value={customType}
-                  onChange={(e) => setCustomType(e.target.value)}
-                >
-                  <option value="day">Tự nạp theo ngày</option>
-                  <option value="week">Tự nạp theo tuần</option>
-                  <option value="month">Tự nạp theo tháng</option>
-                </select>
-                <div className="funds-hint">
-                  Lịch tự nạp này <strong>không phụ thuộc</strong> vào tần suất
-                  gửi quỹ hay lịch nhắc nhở.
-                </div>
-              </div>
-
-              {renderCustomContent()}
-            </>
-          )}
+          </div>
         </>
       )}
     </div>

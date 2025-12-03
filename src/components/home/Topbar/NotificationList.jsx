@@ -13,6 +13,21 @@ function getIconAndLabel(type) {
         icon: "bi-reply-fill",
         label: "Phản hồi của admin",
       };
+    case "fund_warning":
+      return {
+        icon: "bi-exclamation-triangle-fill",
+        label: "Cảnh báo quỹ",
+      };
+    case "fund_reminder":
+      return {
+        icon: "bi-bell-fill",
+        label: "Nhắc nạp tiền",
+      };
+    case "fund_auto_deposit":
+      return {
+        icon: "bi-check-circle-fill",
+        label: "Nạp tự động",
+      };
     default:
       return {
         icon: "bi-bell-fill",

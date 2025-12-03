@@ -51,6 +51,30 @@ export default function NotificationBell({ role = "user" }) {
       navigate("/home/feedback", {
         state: { focusReviewId: n.reviewId },
       });
+    } else if (n.type === "fund_warning") {
+      // Chuyển đến trang quỹ và mở fund với tab warnings
+      navigate("/home/funds", {
+        state: { 
+          openFundId: n.fundId,
+          defaultTab: "warnings"
+        },
+      });
+    } else if (n.type === "fund_reminder") {
+      // Nhắc nạp tiền - mở fund với tab deposit
+      navigate("/home/funds", {
+        state: { 
+          openFundId: n.fundId,
+          defaultTab: "deposit"
+        },
+      });
+    } else if (n.type === "fund_auto_deposit") {
+      // Thông báo nạp tự động thành công - mở fund với tab info
+      navigate("/home/funds", {
+        state: { 
+          openFundId: n.fundId,
+          defaultTab: "info"
+        },
+      });
     }
   };
 
