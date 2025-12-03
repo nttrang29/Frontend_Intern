@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
 
-import { budgetAPI } from "../services/api-client";
+import { budgetAPI } from "../services/budget.service";
 import { logActivity } from "../utils/activityLogger";
 
 const BudgetDataContext = createContext(null);
@@ -17,6 +17,13 @@ const normalizeBudget = (budget) => {
     budget.walletId !== undefined && budget.walletId !== null
       ? Number(budget.walletId)
       : null;
+  const currencyCodeRaw =
+    budget.currencyCode ||
+    budget.walletCurrency ||
+    budget.wallet?.currencyCode ||
+    budget.wallet?.currency ||
+    budget.currency;
+  const currencyCode = (currencyCodeRaw || "VND").toUpperCase();
 
   return {
     id: budget.budgetId ?? budget.id ?? Date.now(),
@@ -30,6 +37,7 @@ const normalizeBudget = (budget) => {
       (walletId === null ? ALL_WALLETS_LABEL : null),
     limitAmount: amountLimit,
     amountLimit,
+    currencyCode,
     startDate: budget.startDate || null,
     endDate: budget.endDate || null,
     note: budget.note || "",

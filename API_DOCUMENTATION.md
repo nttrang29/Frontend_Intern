@@ -1110,6 +1110,11 @@ hoặc
 - `warningThreshold` (optional): Ngưỡng cảnh báo (%) - từ 0 đến 100, mặc định 80%
 - `note` (optional): Ghi chú (tối đa 255 ký tự)
 
+**Quy tắc quan trọng:**
+- Không thể tạo ngân sách nếu có ngân sách khác cùng `categoryId` + `walletId` (hoặc “tất cả ví”) đang ở trạng thái `PENDING`, `ACTIVE`, `WARNING` hoặc `EXCEEDED` trong khoảng thời gian bị chồng chéo.
+- Ngày kết thúc phải lớn hơn ngày bắt đầu.
+- Trạng thái được hệ thống tự tính ngay khi lưu (`PENDING` nếu chưa tới ngày, `ACTIVE` nếu đang chạy).
+
 **Response:**
 ```json
 {
@@ -1135,7 +1140,7 @@ hoặc
 **Lưu ý:**
 - Hạn mức chi tiêu không phụ thuộc vào số dư ví
 - Hạn mức có thể lớn hơn số dư hiện tại trong ví
-- Không được tạo ngân sách trùng lặp (cùng user, category, wallet, và khoảng thời gian)
+- Không được tạo ngân sách trùng lặp (cùng user, category, wallet, và khoảng thời gian) nếu ngân sách kia còn hiệu lực (PENDING/ACTIVE/WARNING/EXCEEDED)
 - Tên ngân sách = Tên danh mục
 
 ---
@@ -1160,7 +1165,7 @@ hoặc
       "remainingAmount": 1500000.00,
       "exceededAmount": 0.00,
       "usagePercentage": 70.0,
-      "status": "OK",
+      "status": "ACTIVE",
       "budgetStatus": "ACTIVE",
       "startDate": "2024-01-01",
       "endDate": "2024-01-31",
@@ -1179,8 +1184,8 @@ hoặc
 - `remainingAmount`: Số tiền còn lại (amountLimit - spentAmount)
 - `exceededAmount`: Số tiền vượt hạn mức (0 nếu không vượt)
 - `usagePercentage`: Phần trăm sử dụng (%)
-- `status`: Trạng thái cảnh báo - `OK`, `WARNING` (>= warningThreshold%), `EXCEEDED` (vượt hạn mức)
-- `budgetStatus`: Trạng thái ngân sách - `ACTIVE`, `COMPLETED` (theo thời gian)
+- `status`: Trạng thái hiện tại của ngân sách – luôn nằm trong tập `PENDING`, `ACTIVE`, `WARNING`, `EXCEEDED`, `COMPLETED`
+- `budgetStatus`: Giống `status` (được giữ lại cho tương thích ngược)
 - `warningThreshold`: Ngưỡng cảnh báo (%) - mặc định 80%
 
 ---
@@ -1205,7 +1210,7 @@ hoặc
     "exceededAmount": 500000.00,
     "usagePercentage": 110.0,
     "status": "EXCEEDED",
-    "budgetStatus": "ACTIVE",
+    "budgetStatus": "EXCEEDED",
     "startDate": "2024-01-01",
     "endDate": "2024-01-31",
     "note": "Ngân sách ăn uống tháng 1",
@@ -1268,7 +1273,6 @@ hoặc
 **Request Body:**
 ```json
 {
-  "walletId": 1,
   "amountLimit": 6000000.00,
   "startDate": "2024-01-01",
   "endDate": "2024-01-31",
@@ -1277,7 +1281,6 @@ hoặc
 ```
 
 **Request Fields:**
-- `walletId` (optional): ID ví (null = áp dụng cho tất cả ví)
 - `amountLimit` (required): Hạn mức chi tiêu (phải ≥ 1.000 VND)
 - `startDate` (required): Ngày bắt đầu (format: YYYY-MM-DD)
 - `endDate` (required): Ngày kết thúc (format: YYYY-MM-DD)
@@ -1299,7 +1302,7 @@ hoặc
     "remainingAmount": 2500000.00,
     "exceededAmount": 0.00,
     "usagePercentage": 58.33,
-    "status": "OK",
+    "status": "ACTIVE",
     "budgetStatus": "ACTIVE",
     "startDate": "2024-01-01",
     "endDate": "2024-01-31",
@@ -1313,18 +1316,19 @@ hoặc
 
 **Lưu ý:**
 - Chỉ user tạo ngân sách mới được cập nhật
-- Không thể thay đổi `categoryId` (danh mục) khi cập nhật
-- Phải kiểm tra trùng lặp với các ngân sách khác (cùng user, category, wallet, và khoảng thời gian)
-- Tự động cập nhật `updatedAt` khi lưu
-- Tự động cập nhật `budgetStatus` theo thời gian (ACTIVE/COMPLETED)
+- Không thể thay đổi danh mục hoặc ví nguồn (ảnh hưởng dữ liệu lịch sử)
+- Ngày bắt đầu mới không được nhỏ hơn ngày giao dịch đã phát sinh thuộc ngân sách này
+- Hệ thống tự kiểm tra và chặn nếu thời gian mới chồng lắp với ngân sách khác đang PENDING/ACTIVE/WARNING/EXCEEDED
+- Trạng thái (`status`, `budgetStatus`) được tính lại tự động dựa trên hạn mức và ngày hiện tại
 
 **Lỗi có thể xảy ra:**
 - `"Không tìm thấy ngân sách"` - budgetId không tồn tại
 - `"Bạn không có quyền chỉnh sửa ngân sách này"` - user không phải chủ sở hữu
-- `"Ngày bắt đầu phải trước hoặc bằng ngày kết thúc"` - validation lỗi
+- `"Ngày kết thúc phải lớn hơn ngày bắt đầu"` - validation lỗi
+- `"Ngày bắt đầu không được nhỏ hơn ngày giao dịch đã phát sinh (...)"` - có giao dịch lịch sử giữ nguyên
 - `"Ví không tồn tại"` - walletId không hợp lệ
 - `"Bạn không có quyền truy cập ví này"` - user không có quyền truy cập ví
-- `"Đã có ngân sách khác trùng khoảng thời gian cho danh mục và ví này"` - trùng lặp với ngân sách khác
+- `"Danh mục ... đã có ngân sách (...) trùng thời gian..."` - trùng lặp với ngân sách khác đang còn hiệu lực
 
 ---
 
@@ -2833,13 +2837,11 @@ Hỗ trợ các loại tiền tệ: `VND`, `USD`, `EUR`, `JPY`, `GBP`, `CNY`
 - `2` - Thu nhập
 
 ### Budget Status
-- `ACTIVE` - Đang hoạt động
-- `COMPLETED` - Đã hoàn thành (hết thời hạn)
-
-### Budget Warning Status
-- `OK` - Bình thường (< 80%)
-- `WARNING` - Cảnh báo (>= 80% và < 100%)
-- `EXCEEDED` - Vượt hạn mức (> 100%)
+- `PENDING` - Thời gian ngân sách chưa bắt đầu
+- `ACTIVE` - Đang hoạt động và còn trong hạn mức
+- `WARNING` - Đang hoạt động nhưng đã chạm ngưỡng cảnh báo
+- `EXCEEDED` - Đã vượt hạn mức
+- `COMPLETED` - Đã kết thúc (sau ngày kết thúc mà không vượt hạn mức)
 
 ### Schedule Type
 - `ONCE` - Một lần

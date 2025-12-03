@@ -535,12 +535,15 @@ const createBudget = async (budgetData) => {
       amountLimit: budgetData.amountLimit,
       startDate: budgetData.startDate,
       endDate: budgetData.endDate,
-      note: budgetData.note
+      note: budgetData.note,
+      warningThreshold: budgetData.warningThreshold
     })
   });
   return response.json();
 };
 ```
+
+> ⚠️ Tip: `endDate` phải lớn hơn `startDate`. Backend sẽ từ chối nếu khoảng thời gian trùng với ngân sách khác đang ở trạng thái `PENDING/ACTIVE/WARNING/EXCEEDED`.
 
 ### 2. Lấy tất cả ngân sách
 ```javascript
@@ -552,6 +555,8 @@ const getAllBudgets = async () => {
   return response.json();
 };
 ```
+
+> Response trả về `status`/`budgetStatus` dưới dạng enum (`PENDING`, `ACTIVE`, `WARNING`, `EXCEEDED`, `COMPLETED`). FE có thể map các trạng thái này trực tiếp để hiển thị badge.
 
 ### 3. Lấy chi tiết ngân sách
 ```javascript
@@ -575,17 +580,28 @@ const getBudgetTransactions = async (budgetId) => {
 };
 ```
 
-### 5. Cập nhật trạng thái ngân sách
+### 5. Cập nhật ngân sách
 ```javascript
-const updateBudgetStatus = async (budgetId, status) => {
-  const response = await fetch(`${API_BASE_URL}/budgets/${budgetId}/status`, {
+const updateBudget = async (budgetId, budgetData) => {
+  const response = await fetch(`${API_BASE_URL}/budgets/${budgetId}`, {
     method: 'PUT',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ status })
+    body: JSON.stringify({
+      amountLimit: budgetData.amountLimit,
+      startDate: budgetData.startDate,
+      endDate: budgetData.endDate,
+      note: budgetData.note,
+      warningThreshold: budgetData.warningThreshold
+    })
   });
   return response.json();
 };
 ```
+
+> Lưu ý:
+> - Không thể thay đổi `categoryId` hoặc `walletId`.
+> - `startDate` mới không được nhỏ hơn ngày giao dịch đã phát sinh; backend sẽ báo lỗi nếu vi phạm.
+> - Backend tự tính lại trạng thái ngân sách và sẽ từ chối nếu thời gian mới chồng lắp ngân sách khác còn hiệu lực.
 
 ---
 
@@ -1319,6 +1335,15 @@ export const FUND_TYPE = {
 export const FUND_STATUS = {
   ACTIVE: 'ACTIVE',
   CLOSED: 'CLOSED',
+  COMPLETED: 'COMPLETED'
+};
+
+// Budget Status
+export const BUDGET_STATUS = {
+  PENDING: 'PENDING',
+  ACTIVE: 'ACTIVE',
+  WARNING: 'WARNING',
+  EXCEEDED: 'EXCEEDED',
   COMPLETED: 'COMPLETED'
 };
 
