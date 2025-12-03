@@ -12,10 +12,8 @@ import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
-import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
-import { budgetAPI } from "../../services/api-client";
 import Toast from "../../components/common/Toast/Toast";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatMoney } from "../../utils/formatMoney";
@@ -403,7 +401,6 @@ export default function WalletsPage() {
     setDefaultWallet,
   } = useWalletData();
   const location = useLocation();
-  const { refreshBudgets } = useBudgetData();
 
   const [currentUserId, setCurrentUserId] = useState(() => getLocalUserId());
 
@@ -694,15 +691,6 @@ export default function WalletsPage() {
     setToast({ open: true, message, type });
   const closeToast = () =>
     setToast((prev) => ({ ...prev, open: false }));
-
-  const showViewerRestriction = useCallback(() => {
-    const key = 'transactions.error.viewer_wallet_restricted';
-    const message = t(key);
-    const resolvedMessage = message && message !== key
-      ? message
-      : "Bạn chỉ có quyền xem trên ví này nên không thể thao tác.";
-    showToast(resolvedMessage, "error");
-  }, [t, showToast]);
 
   const markLocalShared = useCallback((walletId, emails = []) => {
     const cleanEmails = emails
@@ -1606,92 +1594,6 @@ export default function WalletsPage() {
     }
   };
 
-  const ensureBudgetsMigrated = useCallback(
-    async (sourceId, targetId) => {
-      if (!budgetAPI?.getBudgets || !budgetAPI?.updateBudget) return 0;
-      const source = Number(sourceId);
-      const target = Number(targetId);
-      if (!source || !target || Number.isNaN(source) || Number.isNaN(target)) {
-        return 0;
-      }
-
-      const extractBudgets = (payload) => {
-        if (!payload) return [];
-        if (Array.isArray(payload.budgets)) return payload.budgets;
-        if (Array.isArray(payload?.data?.budgets)) return payload.data.budgets;
-        if (Array.isArray(payload?.data)) return payload.data;
-        if (Array.isArray(payload)) return payload;
-        return [];
-      };
-
-      let budgetsToInspect = [];
-      try {
-        const response = await budgetAPI.getBudgets();
-        budgetsToInspect = extractBudgets(response);
-      } catch (error) {
-        throw new Error(
-          "Không thể tải danh sách ngân sách trước khi gộp ví. Vui lòng thử lại."
-        );
-      }
-
-      const affected = budgetsToInspect.filter(
-        (budget) =>
-          budget &&
-          budget.walletId !== null &&
-          Number(budget.walletId) === source
-      );
-
-      if (!affected.length) return 0;
-
-      let migrated = 0;
-      for (const budget of affected) {
-        const budgetId = budget.budgetId ?? budget.id;
-        if (!budgetId) continue;
-        const categoryId =
-          budget.categoryId ??
-          budget.category?.id ??
-          budget.category?.categoryId ??
-          null;
-        if (!categoryId) {
-          throw new Error(
-            `Ngân sách "${budget.categoryName || budgetId}" thiếu danh mục, không thể chuyển tự động. Hãy cập nhật ngân sách này thủ công trước khi gộp.`
-          );
-        }
-        const payload = {
-          categoryId,
-          walletId: target,
-          amountLimit:
-            Number(budget.amountLimit ?? budget.limitAmount ?? 0) || undefined,
-          startDate: budget.startDate,
-          endDate: budget.endDate,
-          note: budget.note || "",
-          warningThreshold:
-            budget.warningThreshold ?? budget.alertPercentage ?? 80,
-        };
-        try {
-          await budgetAPI.updateBudget(budgetId, payload);
-          migrated += 1;
-        } catch (error) {
-          const budgetLabel = budget.categoryName || budgetId;
-          throw new Error(
-            `Không thể chuyển ngân sách "${budgetLabel}" sang ví đích. ${
-              error?.message || ""
-            }`.trim()
-          );
-        }
-      }
-
-      try {
-        await refreshBudgets?.();
-      } catch (error) {
-        console.debug("refreshBudgets sau khi chuyển ngân sách thất bại", error);
-      }
-
-      return migrated;
-    },
-    [refreshBudgets]
-  );
-
   const handleDeleteWallet = async (walletId) => {
     if (!walletId || !deleteWallet) return;
     try {
@@ -1731,10 +1633,6 @@ export default function WalletsPage() {
   const handleSubmitTopup = async (e) => {
     e.preventDefault();
     if (!selectedWallet) return;
-    if (isViewerRole(selectedWallet)) {
-      showViewerRestriction();
-      return;
-    }
     const amountNum = Number(topupAmount);
     if (!amountNum || amountNum <= 0 || !topupCategoryId) {
       return;
@@ -1767,10 +1665,6 @@ export default function WalletsPage() {
   const handleSubmitWithdraw = async (e) => {
     e.preventDefault();
     if (!selectedWallet) return;
-    if (isViewerRole(selectedWallet)) {
-      showViewerRestriction();
-      return;
-    }
     const amountNum = Number(withdrawAmount);
     if (!amountNum || amountNum <= 0 || !withdrawCategoryId) {
       return;
@@ -1803,10 +1697,6 @@ export default function WalletsPage() {
   const handleSubmitTransfer = async (e) => {
     e.preventDefault();
     if (!selectedWallet || !transferTargetId) return;
-    if (isViewerRole(selectedWallet)) {
-      showViewerRestriction();
-      return;
-    }
     const amountNum = Number(transferAmount);
     if (!amountNum || amountNum <= 0) {
       return;
@@ -1846,17 +1736,6 @@ export default function WalletsPage() {
     const sourceId = payload?.sourceWalletId;
     const targetId = payload?.targetWalletId;
     if (!sourceId || !targetId) return;
-
-    let migratedBudgets = 0;
-    try {
-      migratedBudgets = await ensureBudgetsMigrated(sourceId, targetId);
-    } catch (error) {
-      showToast(
-        error?.message || "Không thể chuẩn bị ngân sách trước khi gộp ví.",
-        "error"
-      );
-      return;
-    }
 
     try {
       const keepCurrency =
@@ -1906,7 +1785,7 @@ export default function WalletsPage() {
         }
       } else if (sourceWasDefault && updateWallet) {
         try {
-          await updateWallet({ id: targetId, isDefault: false, forceUnsetDefault: true });
+          await updateWallet({ id: targetId, isDefault: false });
           defaultAction = "cleared";
         } catch (err) {
           defaultError = err;
@@ -1916,22 +1795,14 @@ export default function WalletsPage() {
       await loadWallets();
       refreshTransactions();
 
-      const budgetSuffix =
-        migratedBudgets > 0
-          ? ` — đã chuyển ${migratedBudgets} ngân sách sang ví đích`
-          : "";
-
       if (defaultError) {
-        const warningMessage =
-          (defaultError.message || t('wallets.toast.merge_default_error')) +
-          budgetSuffix;
-        showToast(warningMessage, "warning");
+        showToast(defaultError.message || t('wallets.toast.merge_default_error'), "warning");
       } else if (defaultAction === "set") {
-        showToast(`${t('wallets.toast.merge_set_default')}${budgetSuffix}`);
+        showToast(t('wallets.toast.merge_set_default'));
       } else if (defaultAction === "cleared") {
-        showToast(`${t('wallets.toast.merge_cleared_default')}${budgetSuffix}`);
+        showToast(t('wallets.toast.merge_cleared_default'));
       } else {
-        showToast(`${t('wallets.toast.merged')}${budgetSuffix}`);
+        showToast(t('wallets.toast.merged'));
       }
       try {
         logActivity({

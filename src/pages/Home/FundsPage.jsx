@@ -55,31 +55,8 @@ export default function FundsPage() {
         warningType: warning.type
       });
     });
-
-    // DEMO: Push mock reminder notifications
-    funds.forEach(fund => {
-      if (fund.reminderEnabled) {
-        pushNotification({
-          role: 'user',
-          type: 'fund_reminder',
-          fundId: fund.id,
-          title: `Nhắc nạp tiền: ${fund.name}`,
-          desc: `Đã đến lúc nạp tiền vào quỹ theo lịch hẹn`,
-          timeLabel: '5 phút trước',
-        });
-      }
-      
-      if (fund.autoDepositEnabled) {
-        pushNotification({
-          role: 'user',
-          type: 'fund_auto_deposit',
-          fundId: fund.id,
-          title: `Nạp tự động thành công: ${fund.name}`,
-          desc: `Đã tự động nạp ${fund.autoDepositAmount?.toLocaleString()} ${fund.currency} vào quỹ`,
-          timeLabel: '10 phút trước',
-        });
-      }
-    });
+    
+    // TODO: Notifications for fund reminders and auto-deposits will be handled by backend
   }, [funds, wallets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Xử lý navigate từ notification
