@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import "../../styles/admin/AdminReviewsPage.css";
 
-import { useFeedbackData } from "../../contexts/FeedbackDataContext";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { adminAppReviewAPI } from "../../services/app-review.service";
 
 function RatingStars({ value }) {
   return (
@@ -20,8 +20,29 @@ function RatingStars({ value }) {
   );
 }
 
+const normalizeReview = (review) => {
+  if (!review) return null;
+  return {
+    id: review.reviewId ?? review.id,
+    reviewId: review.reviewId ?? review.id,
+    user: review.displayName ?? review.userName ?? review.user ?? "Người dùng ẩn danh",
+    email: review.userEmail ?? review.email ?? "",
+    rating: Number(review.rating ?? 0),
+    comment: review.content ?? review.comment ?? "",
+    createdAt: review.createdAt ?? new Date().toISOString(),
+    source: "Đánh giá ứng dụng",
+    status: review.status ?? "PENDING",
+    adminReply: review.adminReply
+      ? {
+          author: "Admin",
+          message: review.adminReply,
+          date: review.repliedAt ?? review.updatedAt ?? "",
+        }
+      : null,
+  };
+};
+
 export default function AdminReviewsPage() {
-  const { reviews, addAdminReply } = useFeedbackData();
   const { pushNotification } = useNotifications();
   const { showToast } = useToast();
   const { t } = useLanguage();
@@ -29,6 +50,9 @@ export default function AdminReviewsPage() {
 
   const focusReviewId = location.state?.focusReviewId || null;
 
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("desc");
   const [search, setSearch] = useState("");
@@ -36,6 +60,38 @@ export default function AdminReviewsPage() {
   const [expandedIds, setExpandedIds] = useState(
     focusReviewId ? [focusReviewId] : []
   );
+
+  // Load all app reviews from admin API
+  const loadFeedbacks = useCallback(async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      setReviews([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await adminAppReviewAPI.getAllReviews();
+      const list = Array.isArray(response?.reviews)
+        ? response.reviews
+        : Array.isArray(response)
+        ? response
+        : [];
+      setReviews(list.map((item) => normalizeReview(item)).filter(Boolean));
+      setError(null);
+    } catch (err) {
+      console.error("Error loading admin app reviews:", err);
+      setReviews([]);
+      setError(err?.message || "Không thể tải danh sách đánh giá.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFeedbacks();
+  }, [loadFeedbacks]);
 
   const summary = useMemo(() => {
     if (!reviews.length)
@@ -108,56 +164,55 @@ export default function AdminReviewsPage() {
   const handleChangeDraft = (id, value) => {
     setReplyDrafts((drafts) => ({ ...drafts, [id]: value }));
   };
-  const handleSubmitReply = (id) => {
+  const handleSubmitReply = async (id) => {
     const content = (replyDrafts[id] || "").trim();
     if (!content) return;
 
-    const replyDate = new Date()
-      .toISOString()
-      .slice(0, 16)
-      .replace("T", " ");
+    try {
+      // 1) Gọi API thêm phản hồi
+      await adminAppReviewAPI.replyToReview(id, content);
 
-    // 1) Lưu vào feedback
-    addAdminReply(id, {
-      author: "Admin",
-      message: content,
-      date: replyDate,
-    });
+      // 2) Reload reviews để lấy dữ liệu mới nhất
+      await loadFeedbacks();
 
-    // 2) Gửi notification cho user
-    const review = reviews.find((r) => r.id === id);
+      // 3) Gửi notification cho user
+      const review = reviews.find((r) => r.id === id);
 
-    pushNotification({
-      role: "user",
-      type: "admin_reply",
-      reviewId: id,
-      title: t("admin.reviews.notification.title"),
-      desc: review
-        ? review.comment.length > 60
-          ? review.comment.slice(0, 60) + "..."
-          : review.comment
-        : "",
-      timeLabel: t("admin.reviews.notification.time"),
-    });
+      pushNotification({
+        role: "user",
+        type: "admin_reply",
+        reviewId: id,
+        title: t("admin.reviews.notification.title"),
+        desc: review
+          ? review.comment.length > 60
+            ? review.comment.slice(0, 60) + "..."
+            : review.comment
+          : "",
+        timeLabel: t("admin.reviews.notification.time"),
+      });
 
-    // 3) Xoá draft
-    setReplyDrafts((drafts) => {
-      const next = { ...drafts };
-      delete next[id];
-      return next;
-    });
+      // 4) Xoá draft
+      setReplyDrafts((drafts) => {
+        const next = { ...drafts };
+        delete next[id];
+        return next;
+      });
 
-    // 4) Thu gọn panel
-    setExpandedIds((prev) => prev.filter((x) => x !== id));
+      // 5) Thu gọn panel
+      setExpandedIds((prev) => prev.filter((x) => x !== id));
 
-    // 5) Toast
-    showToast(t("admin.reviews.toast.success"));
+      // 6) Toast
+      showToast(t("admin.reviews.toast.success"));
 
-    // 6) Scroll tới review
-    setTimeout(() => {
-      const el = document.getElementById("review-" + id);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 200);
+      // 7) Scroll tới review
+      setTimeout(() => {
+        const el = document.getElementById("review-" + id);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 200);
+    } catch (error) {
+      console.error("Error submitting admin reply:", error);
+      showToast("Không thể gửi phản hồi. Vui lòng thử lại.", { type: "error" });
+    }
   };
 
   return (
@@ -187,18 +242,31 @@ export default function AdminReviewsPage() {
         </div>
       </div>
 
-      {/* TOOLBAR */}
-      <div className="d-flex flex-wrap gap-2 mb-3">
-        <div className="btn-group">
-          <button
-            className={
-              "btn btn-sm " +
-              (statusFilter === "all" ? "btn-primary" : "btn-outline-secondary")
-            }
-            onClick={() => setStatusFilter("all")}
-          >
-            {t("admin.reviews.filter.all")}
-          </button>
+      {/* Loading/Error States */}
+      {loading ? (
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Đang tải...</span>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="alert alert-warning" role="alert">
+          {error}
+        </div>
+      ) : (
+        <>
+          {/* TOOLBAR */}
+          <div className="d-flex flex-wrap gap-2 mb-3">
+            <div className="btn-group">
+              <button
+                className={
+                  "btn btn-sm " +
+                  (statusFilter === "all" ? "btn-primary" : "btn-outline-secondary")
+                }
+                onClick={() => setStatusFilter("all")}
+              >
+                {t("admin.reviews.filter.all")}
+              </button>
           <button
             className={
               "btn btn-sm " +
@@ -413,6 +481,8 @@ export default function AdminReviewsPage() {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

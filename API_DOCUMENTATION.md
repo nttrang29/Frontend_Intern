@@ -1110,6 +1110,11 @@ hoặc
 - `warningThreshold` (optional): Ngưỡng cảnh báo (%) - từ 0 đến 100, mặc định 80%
 - `note` (optional): Ghi chú (tối đa 255 ký tự)
 
+**Quy tắc quan trọng:**
+- Không thể tạo ngân sách nếu có ngân sách khác cùng `categoryId` + `walletId` (hoặc “tất cả ví”) đang ở trạng thái `PENDING`, `ACTIVE`, `WARNING` hoặc `EXCEEDED` trong khoảng thời gian bị chồng chéo.
+- Ngày kết thúc phải lớn hơn ngày bắt đầu.
+- Trạng thái được hệ thống tự tính ngay khi lưu (`PENDING` nếu chưa tới ngày, `ACTIVE` nếu đang chạy).
+
 **Response:**
 ```json
 {
@@ -1135,7 +1140,7 @@ hoặc
 **Lưu ý:**
 - Hạn mức chi tiêu không phụ thuộc vào số dư ví
 - Hạn mức có thể lớn hơn số dư hiện tại trong ví
-- Không được tạo ngân sách trùng lặp (cùng user, category, wallet, và khoảng thời gian)
+- Không được tạo ngân sách trùng lặp (cùng user, category, wallet, và khoảng thời gian) nếu ngân sách kia còn hiệu lực (PENDING/ACTIVE/WARNING/EXCEEDED)
 - Tên ngân sách = Tên danh mục
 
 ---
@@ -1160,7 +1165,7 @@ hoặc
       "remainingAmount": 1500000.00,
       "exceededAmount": 0.00,
       "usagePercentage": 70.0,
-      "status": "OK",
+      "status": "ACTIVE",
       "budgetStatus": "ACTIVE",
       "startDate": "2024-01-01",
       "endDate": "2024-01-31",
@@ -1179,8 +1184,8 @@ hoặc
 - `remainingAmount`: Số tiền còn lại (amountLimit - spentAmount)
 - `exceededAmount`: Số tiền vượt hạn mức (0 nếu không vượt)
 - `usagePercentage`: Phần trăm sử dụng (%)
-- `status`: Trạng thái cảnh báo - `OK`, `WARNING` (>= warningThreshold%), `EXCEEDED` (vượt hạn mức)
-- `budgetStatus`: Trạng thái ngân sách - `ACTIVE`, `COMPLETED` (theo thời gian)
+- `status`: Trạng thái hiện tại của ngân sách – luôn nằm trong tập `PENDING`, `ACTIVE`, `WARNING`, `EXCEEDED`, `COMPLETED`
+- `budgetStatus`: Giống `status` (được giữ lại cho tương thích ngược)
 - `warningThreshold`: Ngưỡng cảnh báo (%) - mặc định 80%
 
 ---
@@ -1205,7 +1210,7 @@ hoặc
     "exceededAmount": 500000.00,
     "usagePercentage": 110.0,
     "status": "EXCEEDED",
-    "budgetStatus": "ACTIVE",
+    "budgetStatus": "EXCEEDED",
     "startDate": "2024-01-01",
     "endDate": "2024-01-31",
     "note": "Ngân sách ăn uống tháng 1",
@@ -1268,7 +1273,6 @@ hoặc
 **Request Body:**
 ```json
 {
-  "walletId": 1,
   "amountLimit": 6000000.00,
   "startDate": "2024-01-01",
   "endDate": "2024-01-31",
@@ -1277,7 +1281,6 @@ hoặc
 ```
 
 **Request Fields:**
-- `walletId` (optional): ID ví (null = áp dụng cho tất cả ví)
 - `amountLimit` (required): Hạn mức chi tiêu (phải ≥ 1.000 VND)
 - `startDate` (required): Ngày bắt đầu (format: YYYY-MM-DD)
 - `endDate` (required): Ngày kết thúc (format: YYYY-MM-DD)
@@ -1299,7 +1302,7 @@ hoặc
     "remainingAmount": 2500000.00,
     "exceededAmount": 0.00,
     "usagePercentage": 58.33,
-    "status": "OK",
+    "status": "ACTIVE",
     "budgetStatus": "ACTIVE",
     "startDate": "2024-01-01",
     "endDate": "2024-01-31",
@@ -1313,18 +1316,19 @@ hoặc
 
 **Lưu ý:**
 - Chỉ user tạo ngân sách mới được cập nhật
-- Không thể thay đổi `categoryId` (danh mục) khi cập nhật
-- Phải kiểm tra trùng lặp với các ngân sách khác (cùng user, category, wallet, và khoảng thời gian)
-- Tự động cập nhật `updatedAt` khi lưu
-- Tự động cập nhật `budgetStatus` theo thời gian (ACTIVE/COMPLETED)
+- Không thể thay đổi danh mục hoặc ví nguồn (ảnh hưởng dữ liệu lịch sử)
+- Ngày bắt đầu mới không được nhỏ hơn ngày giao dịch đã phát sinh thuộc ngân sách này
+- Hệ thống tự kiểm tra và chặn nếu thời gian mới chồng lắp với ngân sách khác đang PENDING/ACTIVE/WARNING/EXCEEDED
+- Trạng thái (`status`, `budgetStatus`) được tính lại tự động dựa trên hạn mức và ngày hiện tại
 
 **Lỗi có thể xảy ra:**
 - `"Không tìm thấy ngân sách"` - budgetId không tồn tại
 - `"Bạn không có quyền chỉnh sửa ngân sách này"` - user không phải chủ sở hữu
-- `"Ngày bắt đầu phải trước hoặc bằng ngày kết thúc"` - validation lỗi
+- `"Ngày kết thúc phải lớn hơn ngày bắt đầu"` - validation lỗi
+- `"Ngày bắt đầu không được nhỏ hơn ngày giao dịch đã phát sinh (...)"` - có giao dịch lịch sử giữ nguyên
 - `"Ví không tồn tại"` - walletId không hợp lệ
 - `"Bạn không có quyền truy cập ví này"` - user không có quyền truy cập ví
-- `"Đã có ngân sách khác trùng khoảng thời gian cho danh mục và ví này"` - trùng lặp với ngân sách khác
+- `"Danh mục ... đã có ngân sách (...) trùng thời gian..."` - trùng lặp với ngân sách khác đang còn hiệu lực
 
 ---
 
@@ -2807,6 +2811,402 @@ hoặc
 
 ---
 
+## ⭐ App Review APIs (Đánh giá ứng dụng)
+
+### 1. Gửi đánh giá ứng dụng
+**POST** `/app-reviews`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "displayName": "Nguyễn Văn A",
+  "rating": 5,
+  "content": "Ứng dụng rất tuyệt vời, giao diện đẹp và dễ sử dụng!"
+}
+```
+
+**Request Fields:**
+- `displayName` (optional): Tên hiển thị (tối đa 100 ký tự). Nếu không nhập, mặc định là "Người dùng ẩn danh"
+- `rating` (required): Mức độ hài lòng (1-5 sao)
+- `content` (required): Nội dung đánh giá (tối đa 5000 ký tự)
+
+**Response:**
+```json
+{
+  "message": "Cảm ơn bạn đã đánh giá ứng dụng! Chúng tôi sẽ xem xét và phản hồi sớm nhất có thể.",
+  "review": {
+    "reviewId": 1,
+    "userId": 1,
+    "userEmail": "user@example.com",
+    "userName": "Nguyễn Văn A",
+    "displayName": "Nguyễn Văn A",
+    "rating": 5,
+    "content": "Ứng dụng rất tuyệt vời...",
+    "status": "PENDING",
+    "adminReply": null,
+    "repliedAt": null,
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  }
+}
+```
+
+**Lưu ý:**
+- Mỗi người dùng chỉ được đánh giá một lần
+- Hệ thống tự động gửi thông báo cho admin khi có đánh giá mới
+- Trạng thái ban đầu: `PENDING` (chờ admin phản hồi)
+
+**Lỗi có thể xảy ra:**
+- `"Bạn đã gửi đánh giá trước đó. Mỗi người dùng chỉ được đánh giá một lần."` - User đã đánh giá rồi
+
+---
+
+### 2. Lấy đánh giá của user hiện tại
+**GET** `/app-reviews/my-review`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response (đã có đánh giá):**
+```json
+{
+  "hasReview": true,
+  "review": {
+    "reviewId": 1,
+    "userId": 1,
+    "userEmail": "user@example.com",
+    "userName": "Nguyễn Văn A",
+    "displayName": "Nguyễn Văn A",
+    "rating": 5,
+    "content": "Ứng dụng rất tuyệt vời...",
+    "status": "ANSWERED",
+    "adminReply": "Cảm ơn bạn đã đánh giá! Chúng tôi sẽ tiếp tục cải thiện ứng dụng.",
+    "repliedAt": "2024-01-01T11:00:00",
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T11:00:00"
+  }
+}
+```
+
+**Response (chưa có đánh giá):**
+```json
+{
+  "hasReview": false,
+  "review": null
+}
+```
+
+**Lưu ý:**
+- Trả về đánh giá của user nếu đã gửi
+- Nếu admin đã phản hồi, `adminReply` sẽ có nội dung
+
+---
+
+### 3. Lấy thống kê đánh giá
+**GET** `/app-reviews/stats`
+
+**Headers:** Không cần (public endpoint)
+
+**Response:**
+```json
+{
+  "totalReviews": 15,
+  "pendingCount": 3,
+  "answeredCount": 12,
+  "averageRating": 4.5,
+  "repliedCount": 12
+}
+```
+
+**Response Fields:**
+- `totalReviews`: Tổng số đánh giá
+- `pendingCount`: Số đánh giá chờ phản hồi
+- `answeredCount`: Số đánh giá đã được phản hồi
+- `averageRating`: Điểm trung bình (1-5)
+- `repliedCount`: Số đánh giá admin đã phản hồi
+
+**Lưu ý:**
+- Endpoint này có thể public để hiển thị trên trang chủ/landing page
+- Dùng để hiển thị "4.5/5 dựa trên 15 đánh giá"
+
+---
+
+### 4. Admin - Lấy tất cả đánh giá
+**GET** `/admin/app-reviews`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Query Parameters:**
+- `status` (optional): Lọc theo trạng thái - `PENDING`, `ANSWERED`
+
+**Response:**
+```json
+{
+  "reviews": [
+    {
+      "reviewId": 1,
+      "userId": 1,
+      "userEmail": "user@example.com",
+      "userName": "Nguyễn Văn A",
+      "displayName": "Nguyễn Văn A",
+      "rating": 5,
+      "content": "Ứng dụng rất tuyệt vời...",
+      "status": "PENDING",
+      "adminReply": null,
+      "repliedAt": null,
+      "createdAt": "2024-01-01T10:00:00",
+      "updatedAt": "2024-01-01T10:00:00"
+    }
+  ],
+  "total": 1,
+  "stats": {
+    "totalReviews": 15,
+    "pendingCount": 3,
+    "answeredCount": 12,
+    "averageRating": 4.5,
+    "repliedCount": 12
+  }
+}
+```
+
+**Lưu ý:** Chỉ ADMIN mới có quyền truy cập
+
+---
+
+### 5. Admin - Lấy chi tiết một đánh giá
+**GET** `/admin/app-reviews/{id}`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "review": {
+    "reviewId": 1,
+    "userId": 1,
+    "userEmail": "user@example.com",
+    "userName": "Nguyễn Văn A",
+    "displayName": "Nguyễn Văn A",
+    "rating": 5,
+    "content": "Ứng dụng rất tuyệt vời...",
+    "status": "PENDING",
+    "adminReply": null,
+    "repliedAt": null,
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  }
+}
+```
+
+---
+
+### 6. Admin - Phản hồi đánh giá
+**PUT** `/admin/app-reviews/{id}/reply`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Request Body:**
+```json
+{
+  "adminReply": "Cảm ơn bạn đã đánh giá! Chúng tôi sẽ tiếp tục cải thiện ứng dụng."
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Phản hồi đánh giá thành công",
+  "review": {
+    "reviewId": 1,
+    "status": "ANSWERED",
+    "adminReply": "Cảm ơn bạn đã đánh giá!...",
+    "repliedAt": "2024-01-01T11:00:00",
+    ...
+  }
+}
+```
+
+**Lưu ý:**
+- Tự động chuyển status sang `ANSWERED`
+- Hệ thống tự động gửi thông báo cho user khi admin phản hồi
+
+---
+
+### 7. Admin - Xóa đánh giá
+**DELETE** `/admin/app-reviews/{id}`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "message": "Xóa đánh giá thành công"
+}
+```
+
+**Lưu ý:** Xóa hoàn toàn khỏi database
+
+---
+
+### 8. Admin - Lấy thống kê đánh giá
+**GET** `/admin/app-reviews/stats`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "totalReviews": 15,
+  "pendingCount": 3,
+  "answeredCount": 12,
+  "averageRating": 4.5,
+  "repliedCount": 12
+}
+```
+
+---
+
+## 🔔 Notification APIs (Thông báo)
+
+### 1. Lấy tất cả thông báo
+**GET** `/notifications`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "notifications": [
+    {
+      "notificationId": 1,
+      "type": "REVIEW_REPLIED",
+      "title": "Admin đã phản hồi đánh giá của bạn",
+      "message": "Admin đã phản hồi đánh giá ứng dụng của bạn. Nhấn để xem chi tiết.",
+      "referenceId": 1,
+      "referenceType": "APP_REVIEW",
+      "isRead": false,
+      "readAt": null,
+      "createdAt": "2024-01-01T11:00:00"
+    },
+    {
+      "notificationId": 2,
+      "type": "BUDGET_WARNING",
+      "title": "Ngân sách sắp hết",
+      "message": "Ngân sách 'Ăn uống' đã sử dụng 85%. Còn lại: 750.000 VND",
+      "referenceId": 1,
+      "referenceType": "BUDGET",
+      "isRead": true,
+      "readAt": "2024-01-01T12:00:00",
+      "createdAt": "2024-01-01T10:00:00"
+    }
+  ],
+  "total": 2
+}
+```
+
+**Lưu ý:**
+- Tự động phân biệt user/admin dựa trên role trong token
+- Admin nhận thông báo về đánh giá/feedback mới
+- User nhận thông báo về phản hồi từ admin, cảnh báo ngân sách
+
+---
+
+### 2. Lấy thông báo chưa đọc
+**GET** `/notifications/unread`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "notifications": [
+    {
+      "notificationId": 1,
+      "type": "REVIEW_REPLIED",
+      "title": "Admin đã phản hồi đánh giá của bạn",
+      "message": "Admin đã phản hồi đánh giá ứng dụng của bạn...",
+      "referenceId": 1,
+      "referenceType": "APP_REVIEW",
+      "isRead": false,
+      "readAt": null,
+      "createdAt": "2024-01-01T11:00:00"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+### 3. Đếm số thông báo chưa đọc
+**GET** `/notifications/unread-count`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "unreadCount": 5
+}
+```
+
+**Lưu ý:**
+- Dùng để hiển thị badge số trên icon thông báo
+- Tự động phân biệt user/admin
+
+---
+
+### 4. Đánh dấu thông báo đã đọc
+**PUT** `/notifications/{id}/read`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Đã đánh dấu đã đọc",
+  "notification": {
+    "notificationId": 1,
+    "isRead": true,
+    "readAt": "2024-01-01T12:00:00",
+    ...
+  }
+}
+```
+
+---
+
+### 5. Đánh dấu tất cả thông báo đã đọc
+**PUT** `/notifications/mark-all-read`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Đã đánh dấu tất cả thông báo là đã đọc"
+}
+```
+
+---
+
+### 6. Xóa thông báo
+**DELETE** `/notifications/{id}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Xóa thông báo thành công"
+}
+```
+
+**Lưu ý:** Chỉ có thể xóa thông báo của chính mình
+
+---
+
 ## 📝 Lưu ý quan trọng
 
 ### Error Response Format
@@ -2833,13 +3233,11 @@ Hỗ trợ các loại tiền tệ: `VND`, `USD`, `EUR`, `JPY`, `GBP`, `CNY`
 - `2` - Thu nhập
 
 ### Budget Status
-- `ACTIVE` - Đang hoạt động
-- `COMPLETED` - Đã hoàn thành (hết thời hạn)
-
-### Budget Warning Status
-- `OK` - Bình thường (< 80%)
-- `WARNING` - Cảnh báo (>= 80% và < 100%)
-- `EXCEEDED` - Vượt hạn mức (> 100%)
+- `PENDING` - Thời gian ngân sách chưa bắt đầu
+- `ACTIVE` - Đang hoạt động và còn trong hạn mức
+- `WARNING` - Đang hoạt động nhưng đã chạm ngưỡng cảnh báo
+- `EXCEEDED` - Đã vượt hạn mức
+- `COMPLETED` - Đã kết thúc (sau ngày kết thúc mà không vượt hạn mức)
 
 ### Schedule Type
 - `ONCE` - Một lần
@@ -2907,6 +3305,19 @@ Hỗ trợ các loại tiền tệ: `VND`, `USD`, `EUR`, `JPY`, `GBP`, `CNY`
 ### Fund Member Role
 - `OWNER` - Chủ quỹ
 - `CONTRIBUTOR` - Được sử dụng (có thể nạp tiền)
+
+### App Review Status
+- `PENDING` - Chờ admin phản hồi
+- `ANSWERED` - Admin đã phản hồi
+
+### Notification Types
+- `NEW_APP_REVIEW` - Admin nhận: có đánh giá ứng dụng mới
+- `REVIEW_REPLIED` - User nhận: admin đã phản hồi đánh giá
+- `NEW_FEEDBACK` - Admin nhận: có feedback mới
+- `FEEDBACK_REPLIED` - User nhận: admin đã phản hồi feedback
+- `BUDGET_WARNING` - User nhận: ngân sách sắp hết
+- `BUDGET_EXCEEDED` - User nhận: ngân sách vượt hạn mức
+- `SYSTEM_ANNOUNCEMENT` - Thông báo hệ thống
 
 ---
 

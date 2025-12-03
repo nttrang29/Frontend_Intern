@@ -10,11 +10,12 @@ import { useToast } from "../../components/common/Toast/ToastContext";
 import { useLocation } from "react-router-dom";
 
 export default function FeedbackPage() {
-  const { reviews, addReview } = useFeedbackData();
+  const { reviews, loading, error, addReview } = useFeedbackData();
   const { pushNotification } = useNotifications();
   const { showToast } = useToast();
 
   const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const location = useLocation();
   const focusReviewId = location.state?.focusReviewId || null;
 
@@ -35,34 +36,45 @@ export default function FeedbackPage() {
     };
   }, [reviews]);
 
-  const handleAddFeedback = (payload) => {
-    // 1) thêm vào store chung
-    const newReview = addReview(payload);
+  const handleAddFeedback = async (payload) => {
+    try {
+      setSubmitting(true);
+      
+      // 1) Gọi API tạo feedback
+      const newReview = await addReview(payload);
 
-    // 2) toast cho user
-    showToast("Gửi đánh giá thành công!");
+      // 2) Toast cho user
+      showToast("Gửi đánh giá thành công!");
 
-    // 3) đóng form
-    setShowForm(false);
+      // 3) Đóng form
+      setShowForm(false);
 
-    // 4) bắn thông báo cho ADMIN
-    pushNotification({
-      role: "admin",
-      type: "user_feedback",
-      reviewId: newReview.id,
-      title: `Đánh giá mới từ ${newReview.user}`,
-      desc:
-        newReview.comment.length > 60
-          ? newReview.comment.slice(0, 60) + "..."
-          : newReview.comment,
-      timeLabel: "Vừa xong",
-    });
+      // 4) Bắn thông báo cho ADMIN
+      if (newReview) {
+        pushNotification({
+          role: "admin",
+          type: "user_feedback",
+          reviewId: newReview.id,
+          title: `Đánh giá mới từ ${newReview.user}`,
+          desc:
+            newReview.comment.length > 60
+              ? newReview.comment.slice(0, 60) + "..."
+              : newReview.comment,
+          timeLabel: "Vừa xong",
+        });
 
-    // 5) scroll tới feedback mới
-    setTimeout(() => {
-      const el = document.getElementById("feedback-" + newReview.id);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 300);
+        // 5) Scroll tới feedback mới
+        setTimeout(() => {
+          const el = document.getElementById("feedback-" + newReview.id);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 300);
+      }
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      showToast("Không thể gửi đánh giá. Vui lòng thử lại.", { type: "error" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Auto scroll khi đi từ thông báo admin → feedback
@@ -124,16 +136,28 @@ export default function FeedbackPage() {
           (showForm ? "feedback-form--visible" : "")
         }
       >
-        {showForm && <FeedbackForm onSubmit={handleAddFeedback} />}
+        {showForm && <FeedbackForm onSubmit={handleAddFeedback} submitting={submitting} />}
       </section>
 
       {/* Danh sách */}
-      <section className="feedback-list-wrapper">
-        <FeedbackList
-          feedbacks={reviews}
-          focusReviewId={focusReviewId}
-        />
-      </section>
+      {loading ? (
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Đang tải...</span>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="alert alert-warning" role="alert">
+          {error}
+        </div>
+      ) : (
+        <section className="feedback-list-wrapper">
+          <FeedbackList
+            feedbacks={reviews}
+            focusReviewId={focusReviewId}
+          />
+        </section>
+      )}
       </div>
     </div>
   );

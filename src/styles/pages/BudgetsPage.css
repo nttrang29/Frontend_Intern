@@ -534,6 +534,16 @@
   color: #198754;
 }
 
+.budget-status-chip.info {
+  background: rgba(13, 110, 253, 0.12);
+  color: #0d6efd;
+}
+
+.budget-status-chip.secondary {
+  background: rgba(108, 117, 125, 0.15);
+  color: #6c757d;
+}
+
 .budget-status-chip.warning {
   background: rgba(255, 193, 7, 0.2);
   color: #b7791f;
