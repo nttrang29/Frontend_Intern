@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../common/Modal/Modal";
-
+ 
 export default function BudgetFormModal({
   open,
   mode, // 'create' or 'edit'
@@ -19,9 +19,7 @@ export default function BudgetFormModal({
   const [alertThreshold, setAlertThreshold] = useState(90);
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState({});
-  const [formError, setFormError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
+ 
   useEffect(() => {
     if (initialData && mode === "edit") {
       setSelectedCategory(initialData.categoryName);
@@ -45,13 +43,11 @@ export default function BudgetFormModal({
       setNote("");
     }
     setErrors({});
-    setFormError("");
-    setSubmitting(false);
-  }, [open, mode, initialData, wallets]);
-
+  }, [open, mode, initialData]);
+ 
   const handleCategoryChange = (e) => setSelectedCategory(e.target.value);
   const handleWalletChange = (e) => setSelectedWallet(e.target.value);
-
+ 
   const handleLimitChange = (e) => {
     const val = e.target.value;
     // allow numbers and decimal point for USD
@@ -67,11 +63,11 @@ export default function BudgetFormModal({
       }
     }
   };
-
-  const handleSubmit = async (e) => {
+ 
+  const handleSubmit = (e) => {
     e.preventDefault();
     const newErrors = {};
-
+ 
     if (!selectedCategory) {
       newErrors.category = "Vui lòng chọn danh mục";
     }
@@ -94,63 +90,40 @@ export default function BudgetFormModal({
     if (alertThreshold < 50 || alertThreshold > 100) {
       newErrors.alertThreshold = "Ngưỡng cảnh báo phải trong khoảng 50% - 100%";
     }
-
+ 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-
-    const categoryObj = categories.find((c) => String(c.id) === String(selectedCategoryId)) || {};
-    const walletObj =
-      wallets.find((w) => String(w.id) === String(selectedWalletId)) ||
-      (mode === "edit" && (initialData?.walletId === null || initialData?.walletId === undefined)
-        ? { id: null, name: initialData?.walletName || "Tất cả ví" }
-        : null);
-
-    const resolvedWalletId =
-      walletObj && walletObj.id !== undefined && walletObj.id !== null
-        ? walletObj.id
-        : null;
-
-    const resolvedWalletName =
-      walletObj?.name || walletObj?.walletName || initialData?.walletName || (resolvedWalletId === null ? "Tất cả ví" : "");
-
-    const payload = {
+ 
+    const categoryObj = categories.find((c) => c.name === selectedCategory) || {};
+    // support special 'ALL' value meaning apply to all wallets
+    let payload = {
       categoryId: categoryObj.id || null,
       categoryName: selectedCategory,
       categoryType: "expense",
-      walletId: resolvedWalletId,
-      walletName: resolvedWalletName,
-      limitAmount: Number(limitAmount),
+      limitAmount: parseFloat(limitAmount),
+      currency: currency,
       startDate,
       endDate,
       alertPercentage: Number(alertThreshold),
       note: note.trim(),
     };
-
-    try {
-      setSubmitting(true);
-      setFormError("");
-      await onSubmit(payload);
-      onClose();
-    } catch (submitError) {
-      const message =
-        submitError?.message ||
-        submitError?.error ||
-        "Không thể lưu hạn mức. Vui lòng kiểm tra lại thông tin.";
-      const normalizedMessage =
-        message === "budgets.error.duplicate"
-          ? "Hạn mức với ví, danh mục và ngày bắt đầu này đã tồn tại."
-          : message;
-      setFormError(normalizedMessage);
-    } finally {
-      setSubmitting(false);
+ 
+    if (selectedWallet === "ALL") {
+      payload = { ...payload, walletId: null, walletName: "Tất cả ví" };
+    } else {
+      const walletObj = wallets.find((w) => String(w.id) === String(selectedWallet)) || wallets.find((w) => w.name === selectedWallet) || {};
+      payload = { ...payload, walletId: walletObj.id || null, walletName: walletObj.name || selectedWallet || null };
     }
+ 
+    onSubmit(payload);
+    onClose();
   };
-
+ 
   const categoryList = categories || [];
   const walletList = wallets || [];
-
+ 
   return (
     <Modal open={open} onClose={onClose} width={500}>
       <div className="modal__content budget-form-modal" style={{ padding: "2rem" }}>
@@ -175,13 +148,8 @@ export default function BudgetFormModal({
             <span>Bạn có thể bật cảnh báo khi mức sử dụng đạt ngưỡng mong muốn.</span>
           </div>
         </div>
-
+ 
         <form onSubmit={handleSubmit}>
-          {formError && (
-            <div className="alert alert-danger" role="alert">
-              {formError}
-            </div>
-          )}
           {/* Category Selector */}
           <div className="mb-3">
             <label className="form-label fw-semibold">Chọn Danh mục</label>
@@ -201,7 +169,7 @@ export default function BudgetFormModal({
               <div className="invalid-feedback d-block">{errors.category}</div>
             )}
           </div>
-
+ 
           {/* Wallet Selector */}
           <div className="mb-3">
             <label className="form-label fw-semibold">Áp dụng cho Ví</label>
@@ -222,7 +190,7 @@ export default function BudgetFormModal({
               <div className="invalid-feedback d-block">{errors.wallet}</div>
             )}
           </div>
-
+ 
           {/* Limit Amount */}
           <div className="mb-4">
             <label className="form-label fw-semibold">Hạn mức Chi tiêu ({currency})</label>
@@ -234,8 +202,8 @@ export default function BudgetFormModal({
                 value={limitAmount}
                 onChange={handleLimitChange}
               />
-              <select 
-                className="form-select" 
+              <select
+                className="form-select"
                 style={{ maxWidth: "100px" }}
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
@@ -248,7 +216,7 @@ export default function BudgetFormModal({
               <div className="invalid-feedback d-block">{errors.limit}</div>
             )}
           </div>
-
+ 
           {/* Date Range Selector */}
           <div className="mb-3">
             <label className="form-label fw-semibold">Khoảng thời gian áp dụng</label>
@@ -285,7 +253,7 @@ export default function BudgetFormModal({
             )}
             <div className="form-text mt-2">Hạn mức sẽ được theo dõi trong khoảng thời gian này.</div>
           </div>
-
+ 
           {/* Alert threshold */}
           <div className="mb-4">
             <label className="form-label fw-semibold">Ngưỡng cảnh báo (%)</label>
@@ -308,7 +276,7 @@ export default function BudgetFormModal({
             )}
             <div className="form-text">Gửi cảnh báo khi mức sử dụng đạt ngưỡng này.</div>
           </div>
-
+ 
           {/* Notes */}
           <div className="mb-4">
             <label className="form-label fw-semibold">Ghi chú (tùy chọn)</label>
@@ -321,23 +289,14 @@ export default function BudgetFormModal({
             />
             <div className="form-text">Ghi chú sẽ hiển thị trong thẻ hạn mức để cả nhóm dễ theo dõi.</div>
           </div>
-
+ 
           {/* Buttons */}
           <div className="d-flex gap-2 justify-content-end">
-            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
               Hủy
             </button>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? (
-                <span>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  Đang xử lý...
-                </span>
-              ) : mode === "create" ? (
-                "Thêm Hạn mức"
-              ) : (
-                "Cập nhật"
-              )}
+            <button type="submit" className="btn btn-primary">
+              {mode === "create" ? "Thêm Hạn mức" : "Cập nhật"}
             </button>
           </div>
         </form>
