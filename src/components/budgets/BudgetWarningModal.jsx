@@ -115,7 +115,7 @@ export default function BudgetWarningModal({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem", paddingTop: "1rem", borderTop: `1px solid ${isAlert ? "#ffc107" : "#dc3545"}` }}>
             <div>
               <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
-                Tổng sau giao dịch
+                Tổng đã chi(sau giao dịch)
               </label>
               <p style={{ color: "#212529", fontWeight: 600, margin: 0 }}>
                 {totalAfterTx.toLocaleString("vi-VN")} VND

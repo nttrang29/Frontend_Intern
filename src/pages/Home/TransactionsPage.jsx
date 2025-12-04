@@ -27,6 +27,84 @@ const TABS = {
   SCHEDULE: "schedule",
 };
 
+const EXPENSE_TOKENS = [
+  "EXPENSE",
+  "CHI",
+  "SPEND",
+  "OUTFLOW",
+  "DEBIT",
+  "PAYMENT",
+  "WITHDRAW",
+];
+
+const INCOME_TOKENS = [
+  "INCOME",
+  "THU",
+  "INFLOW",
+  "CREDIT",
+  "TOPUP",
+  "DEPOSIT",
+  "RECEIVE",
+  "SALARY",
+  "EARN",
+];
+
+const normalizeDirectionToken = (value) => {
+  if (value === undefined || value === null) return "";
+  return String(value).trim().toUpperCase();
+};
+
+const matchesToken = (value, candidates) => {
+  if (!value) return false;
+  return candidates.some((token) => value.includes(token));
+};
+
+const resolveTransactionDirection = (tx) => {
+  if (!tx) return "expense";
+  if (tx.isExpense === true || tx.isDebit === true) return "expense";
+  if (tx.isIncome === true || tx.isCredit === true) return "income";
+
+  const directionCandidates = [
+    tx.transactionType,
+    tx.transactionType?.type,
+    tx.transactionType?.typeName,
+    tx.transactionType?.typeKey,
+    tx.transactionType?.code,
+    tx.transactionType?.direction,
+    tx.transactionType?.categoryType,
+    tx.transactionTypeName,
+    tx.transactionTypeLabel,
+    tx.type,
+    tx.typeName,
+    tx.typeCode,
+    tx.transactionKind,
+    tx.transactionFlow,
+    tx.direction,
+    tx.flow,
+    tx.category?.type,
+    tx.category?.categoryType,
+    tx.category?.transactionType,
+    tx.category?.typeName,
+    tx.categoryType,
+    tx.transactionCategory?.type,
+    tx.transactionCategory?.direction,
+  ];
+
+  for (const candidate of directionCandidates) {
+    const normalized = normalizeDirectionToken(candidate);
+    if (!normalized) continue;
+    if (matchesToken(normalized, EXPENSE_TOKENS)) return "expense";
+    if (matchesToken(normalized, INCOME_TOKENS)) return "income";
+  }
+
+  const amount = Number(tx.amount ?? tx.transactionAmount);
+  if (!Number.isNaN(amount) && amount !== 0) {
+    return amount < 0 ? "expense" : "income";
+  }
+
+  return "expense";
+};
+
 const PAGE_SIZE = 10;
 const VIEWER_ROLES = new Set(["VIEW", "VIEWER"]);
 
@@ -204,8 +282,7 @@ export default function TransactionsPage() {
   const mapTransactionToFrontend = useCallback((tx) => {
     const walletName = wallets.find(w => w.walletId === tx.wallet?.walletId)?.walletName || tx.wallet?.walletName || "Unknown";
     const categoryName = tx.category?.categoryName || "Unknown";
-    const typeName = tx.transactionType?.typeName || "";
-    const type = typeName === "Chi tiêu" ? "expense" : "income";
+    const type = resolveTransactionDirection(tx);
     
     // Dùng created_at từ database thay vì transaction_date
     // Giữ nguyên date string từ API (ISO format), không convert
@@ -215,7 +292,7 @@ export default function TransactionsPage() {
     return {
       id: tx.transactionId,
       code: `TX-${String(tx.transactionId).padStart(4, "0")}`,
-      type: type,
+      type,
       walletName: walletName,
       amount: parseFloat(tx.amount || 0),
       currency: tx.wallet?.currencyCode || "VND",
