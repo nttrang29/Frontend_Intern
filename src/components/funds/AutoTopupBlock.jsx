@@ -7,11 +7,16 @@ export default function AutoTopupBlock({
   setAutoTopupOn,
   freq = "MONTHLY",
   onDataChange,
+  periodAmount = null, // số tiền gửi mỗi kỳ (nếu có) — dùng để tính tự động nạp
+  lockMode = false, // nếu true: không cho thay đổi chế độ auto/manual, chỉ hiển thị
+  initialValues = null,
+  baseStartDate = null,
 }) {
   const [autoTime, setAutoTime] = useState("");
   const [autoWeekDay, setAutoWeekDay] = useState("2");
   const [autoMonthDay, setAutoMonthDay] = useState("");
-  const [autoAmount, setAutoAmount] = useState("");
+  const [autoStartAt, setAutoStartAt] = useState("");
+  const inputsDisabled = lockMode;
   
   // Map week day string to number (1-7)
   const weekDayMap = {
@@ -20,23 +25,60 @@ export default function AutoTopupBlock({
   
   // Export data when anything changes
   useEffect(() => {
-    if (!autoTopupOn || !onDataChange) return;
-    
+    if (!initialValues) return;
+
+    if (initialValues.autoDepositTime) {
+      setAutoTime(initialValues.autoDepositTime.slice(0, 5));
+    }
+
+    if (initialValues.autoDepositDayOfWeek) {
+      setAutoWeekDay(String(initialValues.autoDepositDayOfWeek));
+    }
+
+    if (initialValues.autoDepositDayOfMonth) {
+      setAutoMonthDay(initialValues.autoDepositDayOfMonth);
+    }
+
+    if (initialValues.autoDepositStartAt) {
+      setAutoStartAt(initialValues.autoDepositStartAt.slice(0, 16));
+    }
+  }, [initialValues]);
+
+  useEffect(() => {
+    if (!autoStartAt && baseStartDate && autoTime) {
+      setAutoStartAt(`${baseStartDate}T${autoTime}`);
+    }
+  }, [autoStartAt, baseStartDate, autoTime]);
+
+  useEffect(() => {
+    if (!onDataChange) {
+      return;
+    }
+
+    if (!autoTopupOn) {
+      onDataChange(null);
+      return;
+    }
+
+    // Nếu có periodAmount (số tiền gửi mỗi kỳ), sử dụng giá trị đó làm số tiền tự nạp.
+    const computedAmount = periodAmount ? Number(periodAmount) : null;
+
     const autoTopupData = {
       autoDepositType: freq,
       autoDepositScheduleType: freq,
-      autoDepositAmount: autoAmount ? Number(autoAmount) : null,
+      autoDepositAmount: computedAmount,
       autoDepositTime: autoTime ? `${autoTime}:00` : null,
+      autoDepositStartAt: autoStartAt ? `${autoStartAt}:00` : null,
     };
-    
+
     if (freq === "WEEKLY") {
       autoTopupData.autoDepositDayOfWeek = weekDayMap[autoWeekDay];
     } else if (freq === "MONTHLY") {
       autoTopupData.autoDepositDayOfMonth = autoMonthDay;
     }
-    
+
     onDataChange(autoTopupData);
-  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, autoAmount, onDataChange]);
+  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, autoStartAt, periodAmount, onDataChange]);
 
   const freqLabel = {
     DAILY: "Theo ngày",
@@ -63,6 +105,7 @@ export default function AutoTopupBlock({
             type="time"
             value={autoTime}
             onChange={(e) => setAutoTime(e.target.value)}
+            disabled={inputsDisabled}
           />
           <div className="funds-hint">
             Hệ thống sẽ tự động nạp tiền mỗi ngày vào giờ đã chọn.
@@ -79,6 +122,7 @@ export default function AutoTopupBlock({
             <select
               value={autoWeekDay}
               onChange={(e) => setAutoWeekDay(e.target.value)}
+              disabled={inputsDisabled}
             >
               {weekOptions.map((w) => (
                 <option key={w.value} value={w.value}>
@@ -93,6 +137,7 @@ export default function AutoTopupBlock({
               type="time"
               value={autoTime}
               onChange={(e) => setAutoTime(e.target.value)}
+              disabled={inputsDisabled}
             />
           </div>
           <div className="funds-hint">
@@ -127,6 +172,7 @@ export default function AutoTopupBlock({
               }}
               placeholder="Nhập ngày (1-31)"
               required
+              disabled={inputsDisabled}
             />
             {autoMonthDay > 28 && (
               <div className="funds-hint" style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.5rem' }}>
@@ -158,6 +204,7 @@ export default function AutoTopupBlock({
               type="time"
               value={autoTime}
               onChange={(e) => setAutoTime(e.target.value)}
+              disabled={inputsDisabled}
             />
             <div className="funds-hint">
               Ví dụ: Ngày 5 hàng tháng lúc 20:00 hệ thống sẽ tự động nạp tiền.
@@ -174,17 +221,24 @@ export default function AutoTopupBlock({
     <div className="funds-fieldset">
       <div className="funds-fieldset__legend">Tự động nạp tiền</div>
 
-      <div className="funds-toggle-line">
-        <span>Bật tự động nạp tiền vào quỹ</span>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={autoTopupOn}
-            onChange={(e) => setAutoTopupOn(e.target.checked)}
-          />
-          <span className="switch__slider" />
-        </label>
-      </div>
+      {/* Nếu lockMode: chỉ hiển thị chế độ hiện tại, không cho toggle */}
+      {!lockMode ? (
+        <div className="funds-toggle-line">
+          <span>Bật tự động nạp tiền vào quỹ</span>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={autoTopupOn}
+              onChange={(e) => setAutoTopupOn(e.target.checked)}
+            />
+            <span className="switch__slider" />
+          </label>
+        </div>
+      ) : (
+        <div style={{ marginBottom: '0.5rem' }}>
+          <strong>Chế độ nạp:</strong> {autoTopupOn ? 'Nạp tự động' : 'Nạp thủ công'}
+        </div>
+      )}
 
       {!autoTopupOn && (
         <div className="funds-hint">
@@ -197,20 +251,34 @@ export default function AutoTopupBlock({
           <div className="funds-hint">
             Hệ thống sẽ tự động nạp tiền theo tần xuất gửi quỹ ({freqLabel}). Chọn giờ/ngày cụ thể.
           </div>
-          
+
           {renderAutoDepositForm()}
-          
+
+          <div className="funds-field">
+            <label>Ngày bắt đầu áp dụng</label>
+            <input
+              type="datetime-local"
+              step="60"
+              value={autoStartAt}
+              onChange={(e) => setAutoStartAt(e.target.value)}
+              disabled={inputsDisabled}
+            />
+            <div className="funds-hint">
+              Hệ thống chỉ thực hiện nạp tự động kể từ thời điểm này trở đi.
+            </div>
+          </div>
+
           <div className="funds-field">
             <label>Số tiền tự nạp mỗi lần</label>
             <input 
               type="number"
               min={0}
-              placeholder="Nhập số tiền"
-              value={autoAmount}
-              onChange={(e) => setAutoAmount(e.target.value)}
+              placeholder={periodAmount ? String(periodAmount) : "Sẽ lấy theo Số tiền gửi mỗi kỳ"}
+              value={periodAmount ? String(periodAmount) : ""}
+              disabled
             />
             <div className="funds-hint">
-              Số tiền này sẽ tự động chuyển từ ví nguồn vào quỹ theo lịch đã thiết lập.
+              Số tiền tự động nạp sẽ được lấy theo "Số tiền gửi mỗi kỳ" của quỹ. Người dùng không thể chỉnh trực tiếp ở đây.
             </div>
           </div>
         </>
