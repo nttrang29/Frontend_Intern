@@ -1230,6 +1230,64 @@ export const loginLogAPI = {
 };
 
 /**
+ * ============================================
+ * NOTIFICATION APIs
+ * ============================================
+ */
+
+export const notificationAPI = {
+  /**
+   * Lấy tất cả thông báo
+   */
+  getAll: async () => {
+    return apiCall("/notifications");
+  },
+
+  /**
+   * Lấy thông báo chưa đọc
+   */
+  getUnread: async () => {
+    return apiCall("/notifications/unread");
+  },
+
+  /**
+   * Đếm số thông báo chưa đọc
+   */
+  getUnreadCount: async () => {
+    return apiCall("/notifications/unread-count");
+  },
+
+  /**
+   * Đánh dấu thông báo đã đọc
+   * @param {number} notificationId
+   */
+  markAsRead: async (notificationId) => {
+    return apiCall(`/notifications/${notificationId}/read`, {
+      method: "PUT",
+    });
+  },
+
+  /**
+   * Đánh dấu tất cả thông báo đã đọc
+   */
+  markAllAsRead: async () => {
+    return apiCall("/notifications/mark-all-read", {
+      method: "PUT",
+    });
+  },
+
+  /**
+   * Xóa thông báo
+   * @param {number} notificationId
+   */
+  delete: async (notificationId) => {
+    return apiCall(`/notifications/${notificationId}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+/**
  * Export default object chứa tất cả APIs
  */
 const apiClient = {
@@ -1243,6 +1301,7 @@ const apiClient = {
   googleOAuth: googleOAuthAPI,
   admin: adminAPI,
   loginLog: loginLogAPI,
+  notification: notificationAPI,
 };
 
 export default apiClient;

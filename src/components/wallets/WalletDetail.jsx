@@ -199,7 +199,6 @@ export default function WalletDetail(props) {
   const effectiveIsOwner = !!effectiveRole && ["OWNER", "MASTER", "ADMIN"].includes(effectiveRole);
   const effectiveIsMember = !!effectiveRole && ["MEMBER", "USER", "USE"].includes(effectiveRole);
   const effectiveIsViewer = !!effectiveRole && ["VIEW", "VIEWER"].includes(effectiveRole);
-  const viewerOnlyWallet = effectiveIsViewer;
 
   // Effective flags for managing/inviting members: only owners can manage/invite
   const effectiveCanManageSharedMembers = effectiveIsOwner ? canManageSharedMembers : false;
@@ -839,7 +838,7 @@ export default function WalletDetail(props) {
       {/* TABS */}
       <div className="wallets-detail__tabs">
         {/* If the user is a viewer for this wallet, only show the details tab */}
-        {viewerOnlyWallet ? (
+        {effectiveIsViewer ? (
           <button
             className={
               activeDetailTab === "view"

@@ -121,7 +121,6 @@ export function WalletDataProvider({ children }) {
     // users who are not the owner are treated as VIEW (viewer) regardless of
     // what the backend returned. This enforces the product rule that personal
     // wallets shared to others must be viewer-only.
-    const ownerRoles = ["OWNER", "MASTER", "ADMIN"];
     let enforcedRole = resolvedRole;
     try {
       const curUserRaw = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
@@ -136,15 +135,8 @@ export function WalletDataProvider({ children }) {
       }
       const ownerId = apiWallet.ownerId || apiWallet.ownerUserId || apiWallet.createdBy || existingWallet?.ownerUserId || null;
       const isPersonalWallet = rawIsShared === false;
-      const hasExternalMembers = resolvedMembersCount > 1 || resolvedSharedEmails.length > 0;
-
-      if (isPersonalWallet) {
-        const isOwner = ownerId && currentUserId && String(ownerId) === String(currentUserId);
-        if (!isOwner && ownerId && currentUserId) {
-          enforcedRole = 'VIEW';
-        } else if (hasExternalMembers && resolvedRole && !ownerRoles.includes(resolvedRole)) {
-          enforcedRole = 'VIEW';
-        }
+      if (isPersonalWallet && ownerId && currentUserId && String(ownerId) !== String(currentUserId)) {
+        enforcedRole = 'VIEW';
       }
     } catch (e) {
       // If any error occurs, fall back to resolvedRole
@@ -278,9 +270,8 @@ export function WalletDataProvider({ children }) {
       // 1. Khi shouldSetDefault = true: Luôn thêm setAsDefault: true vào backendPayload
       // 2. Khi shouldUnsetDefault = true && wasDefault = true: Thêm setAsDefault: false
       // 3. Luôn gọi updateWalletAPI nếu có thay đổi hoặc shouldSetDefault/shouldUnsetDefault
-      const forceUnsetDefault = patch.forceUnsetDefault === true;
       const shouldSetDefault = patch.isDefault === true;
-      const shouldUnsetDefault = patch.isDefault === false || forceUnsetDefault;
+      const shouldUnsetDefault = patch.isDefault === false;
       const wasDefault = oldWallet?.isDefault || false;
       
       // Xây dựng updateData, chỉ gửi các field có giá trị
@@ -304,7 +295,7 @@ export function WalletDataProvider({ children }) {
       // Xử lý set/unset default wallet theo WALLET_DEFAULT_FEATURE_CHANGES.md
       if (shouldSetDefault) {
         updateData.setAsDefault = true;
-      } else if (shouldUnsetDefault && (wasDefault || forceUnsetDefault)) {
+      } else if (shouldUnsetDefault && wasDefault) {
         updateData.setAsDefault = false;
       }
       
@@ -320,23 +311,6 @@ export function WalletDataProvider({ children }) {
         updateData.color = patch.color || oldWallet?.color || DEFAULT_WALLET_COLOR;
       }
       
-      // Nếu chỉ thay đổi trạng thái mặc định, backend vẫn yêu cầu các field bắt buộc.
-      // Tự động điền lại tên, mô tả và mã tiền tệ hiện tại để tránh bị từ chối.
-      const needsBaseFields =
-        (updateData.setAsDefault !== undefined) &&
-        !updateData.walletName &&
-        oldWallet;
-
-      if (needsBaseFields) {
-        updateData.walletName = oldWallet?.name || oldWallet?.walletName || "";
-        updateData.description =
-          updateData.description !== undefined
-            ? updateData.description
-            : oldWallet?.note || oldWallet?.description || "";
-        updateData.currencyCode =
-          oldWallet?.currency || oldWallet?.currencyCode || "VND";
-      }
-
       // Gọi API update nếu có thay đổi hoặc shouldSetDefault/shouldUnsetDefault
       // Theo WALLET_DEFAULT_FEATURE_CHANGES.md: Luôn gọi updateWalletAPI khi có thay đổi hoặc set/unset default
       const { response, data } = await updateWalletAPI(walletId, updateData);

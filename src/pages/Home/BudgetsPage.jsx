@@ -253,55 +253,41 @@ export default function BudgetsPage() {
   // Helper function to convert currency
   const convertCurrency = useCallback((amount, sourceCurrency, targetCurrency) => {
     const numericAmount = Number(amount) || 0;
-    const from = (sourceCurrency || "VND").toUpperCase();
-    const to = (targetCurrency || "VND").toUpperCase();
-    if (from === to) return numericAmount;
-
-    const cached =
-      typeof window !== "undefined"
-        ? localStorage.getItem("exchange_rate_cache")
-          ? JSON.parse(localStorage.getItem("exchange_rate_cache"))
-          : null
-        : null;
-    const vndToUsd = cached && Number(cached.vndToUsd) ? Number(cached.vndToUsd) : 24500;
-
-    if (from === "VND" && to === "USD") {
+    if (!targetCurrency || targetCurrency === "VND") return numericAmount;
+    
+    // Get cached exchange rate from localStorage
+    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
+    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
+    
+    if (targetCurrency === "USD") {
       return numericAmount / vndToUsd;
     }
-    if (from === "USD" && to === "VND") {
-      return numericAmount * vndToUsd;
-    }
-    return numericAmount; // fallback for unsupported currencies
+    return numericAmount;
   }, []);
 
-  // Format amount by currency code
-  const formatAmountByCurrency = useCallback((amount, currencyCode) => {
+  // Format money with proper currency
+  const formatMoneyWithCurrency = useCallback((amount, currency) => {
     const numAmount = Number(amount) || 0;
-    const code = (currencyCode || "VND").toUpperCase();
-    if (code === "USD") {
-      const formatted =
-        Math.abs(numAmount) < 0.01 && numAmount !== 0
-          ? numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 })
-          : numAmount % 1 === 0
-          ? numAmount.toLocaleString("en-US")
-          : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (currency === "USD") {
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 8 
+        });
+        return `$${formatted}`;
+      }
+      const formatted = numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return `$${formatted}`;
     }
-    if (code === "VND") {
-      return `${numAmount.toLocaleString("vi-VN")} ₫`;
-    }
-    return `${numAmount.toLocaleString("en-US")} ${code}`;
+    return `${numAmount.toLocaleString("vi-VN")} VND`;
   }, []);
-
-  // Format money with proper currency for aggregated stats
-  const formatMoneyWithCurrency = useCallback((amount, currency) => {
-    return formatAmountByCurrency(amount, currency);
-  }, [formatAmountByCurrency]);
 
   const computeBudgetUsage = useCallback(
     (budget) => {
       if (!budget) {
-        return { spent: 0, remaining: 0, percent: 0 };
+        return { spent: 0, remaining: 0, percent: 0, status: "healthy" };
       }
 
       const spentValue = getSpentForBudget
@@ -311,25 +297,31 @@ export default function BudgetsPage() {
       const limit = budget.limitAmount || 0;
       const percentRaw = limit > 0 ? (spentValue / limit) * 100 : 0;
       const percent = Math.min(999, Math.max(0, Math.round(percentRaw)));
+      const threshold = budget.alertPercentage ?? 80;
+
+      let status = "healthy";
+      if (percent >= 100) {
+        status = "over";
+      } else if (percent >= threshold) {
+        status = "warning";
+      }
 
       return {
         spent: spentValue,
         remaining: limit - spentValue,
         percent,
+        status,
       };
     },
     [getSpentAmount, getSpentForBudget]
   );
 
-  const { usageMap: budgetUsageMap, stateMap: budgetStateMap } = useMemo(() => {
-    const usageMap = new Map();
-    const stateMap = new Map();
+  const budgetUsageMap = useMemo(() => {
+    const map = new Map();
     (budgets || []).forEach((budget) => {
-      const usage = computeBudgetUsage(budget);
-      usageMap.set(budget.id, usage);
-      stateMap.set(budget.id, deriveBudgetState(budget, usage));
+      map.set(budget.id, computeBudgetUsage(budget));
     });
-    return { usageMap, stateMap };
+    return map;
   }, [budgets, computeBudgetUsage]);
 
   const handleAddBudget = () => {
@@ -348,9 +340,9 @@ export default function BudgetsPage() {
       limitAmount: budget.limitAmount,
       startDate: budget.startDate,
       endDate: budget.endDate,
-      walletId: budget.walletId != null ? budget.walletId : null,
-      walletName: budget.walletName || "",
-      currencyCode: budget.currencyCode || "VND",
+      // If walletId is null and walletName is missing or equals the special label, treat as ALL
+      walletId: budget.walletId != null ? budget.walletId : (budget.walletName === "Tất cả ví" ? "ALL" : (budget.walletName || null)),
+      walletName: budget.walletName != null ? budget.walletName : (budget.walletId == null ? "Tất cả ví" : null),
       alertPercentage: budget.alertPercentage ?? 90,
       note: budget.note || "",
     });
@@ -365,14 +357,12 @@ export default function BudgetsPage() {
     return `${dateObj.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })} ${dateObj.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
   };
 
-  const walletCurrencyMap = useMemo(() => {
-    const map = new Map();
-    (wallets || []).forEach((wallet) => {
-      const currency = (wallet.currency || wallet.currencyCode || "VND").toUpperCase();
-      map.set(wallet.id, currency);
-    });
-    return map;
-  }, [wallets]);
+  const parseDateOnly = (value) => {
+    if (!value) return null;
+    const [year, month, day] = value.split("T")[0].split("-").map((part) => Number(part));
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  };
 
   const categoryNameMap = useMemo(() => {
     const map = new Map();
@@ -425,14 +415,15 @@ export default function BudgetsPage() {
 
   const statusCounts = useMemo(() => {
     const total = Array.isArray(budgets) ? budgets.length : 0;
-    const counts = { all: total, active: 0, pending: 0, completed: 0, warning: 0, over: 0 };
-    budgetStateMap.forEach((state) => {
-      if (counts[state] !== undefined) {
-        counts[state] += 1;
-      }
+    const counts = { all: total, healthy: 0, warning: 0, over: 0 };
+    budgetUsageMap.forEach((usage) => {
+      if (usage?.status === "warning") counts.warning += 1;
+      if (usage?.status === "over") counts.over += 1;
+      if (usage?.status === "healthy") counts.healthy += 1;
     });
+    counts.healthy = counts.healthy || 0;
     return counts;
-  }, [budgets, budgetStateMap]);
+  }, [budgets, budgetUsageMap]);
 
   const overviewStats = useMemo(() => {
     if (!budgets || budgets.length === 0) {
@@ -451,16 +442,20 @@ export default function BudgetsPage() {
     let warningCount = 0;
     let overCount = 0;
     let activeBudgets = 0;
+    const today = new Date();
 
     budgets.forEach((budget) => {
-      const usage = budgetUsageMap.get(budget.id) || { spent: 0 };
-      const state = budgetStateMap.get(budget.id);
-      const currency = getBudgetCurrency(budget);
-      totalLimit += convertCurrency(budget.limitAmount || 0, currency, budgetCurrency);
-      totalSpent += convertCurrency(usage.spent || 0, currency, budgetCurrency);
-      if (state === "warning") warningCount += 1;
-      if (state === "over") overCount += 1;
-      if (state === "active") activeBudgets += 1;
+      totalLimit += budget.limitAmount || 0;
+      const usage = budgetUsageMap.get(budget.id) || { spent: 0, status: "healthy" };
+      totalSpent += usage.spent || 0;
+      if (usage.status === "warning") warningCount += 1;
+      if (usage.status === "over") overCount += 1;
+
+      const start = budget.startDate ? parseDateOnly(budget.startDate) : null;
+      const end = budget.endDate ? parseDateOnly(budget.endDate) : null;
+      if (!start || !end || (today >= start && today <= end)) {
+        activeBudgets += 1;
+      }
     });
 
     return {
@@ -471,94 +466,23 @@ export default function BudgetsPage() {
       overCount,
       activeBudgets,
     };
-  }, [budgets, budgetUsageMap, budgetStateMap, budgetCurrency, convertCurrency, getBudgetCurrency]);
+  }, [budgets, budgetUsageMap]);
 
   const bannerState = useMemo(() => {
     const overItems = [];
     const warningItems = [];
     budgets.forEach((budget) => {
       const usage = budgetUsageMap.get(budget.id);
-      const state = budgetStateMap.get(budget.id);
-      if (!usage || !state) return;
-      if (state === "over") overItems.push({ budget, usage });
-      if (state === "warning") warningItems.push({ budget, usage });
+      if (!usage) return;
+      if (usage.status === "over") overItems.push({ budget, usage });
+      if (usage.status === "warning") warningItems.push({ budget, usage });
     });
     return { overItems, warningItems };
-  }, [budgets, budgetUsageMap, budgetStateMap]);
+  }, [budgets, budgetUsageMap]);
 
 
+  const { formatCurrency } = useCurrency();
   const { t } = useLanguage();
-  const statusTabs = useMemo(
-    () => [
-      { value: "all", label: t("budgets.status.all") || "Tất cả" },
-      { value: "active", label: t("budgets.status.active") || "Đang hoạt động" },
-      { value: "pending", label: t("budgets.status.pending") || "Đang chờ" },
-      { value: "completed", label: t("budgets.status.completed") || "Hoàn thành" },
-      { value: "warning", label: t("budgets.status.warning") || "Vượt ngưỡng" },
-      { value: "over", label: t("budgets.status.over") || "Vượt hạn mức" },
-    ],
-    [t]
-  );
-  const getStatusLabel = useCallback(
-    (state) =>
-      t(`budgets.status.${state}`) ||
-      {
-        active: "Đang hoạt động",
-        pending: "Đang chờ",
-        completed: "Hoàn thành",
-        warning: "Vượt ngưỡng",
-        over: "Vượt hạn mức",
-      }[state] ||
-      state,
-    [t]
-  );
-  const getStatusButtonClass = useCallback((value, isActive) => {
-    const mapping = {
-      all: { active: "btn btn-sm btn-primary", inactive: "btn btn-sm btn-outline-primary" },
-      active: { active: "btn btn-sm btn-success", inactive: "btn btn-sm btn-outline-success" },
-      pending: { active: "btn btn-sm btn-info text-white", inactive: "btn btn-sm btn-outline-info" },
-      completed: { active: "btn btn-sm btn-secondary", inactive: "btn btn-sm btn-outline-secondary" },
-      warning: { active: "btn btn-sm btn-warning", inactive: "btn btn-sm btn-outline-warning" },
-      over: { active: "btn btn-sm btn-danger", inactive: "btn btn-sm btn-outline-danger" },
-    };
-    const config = mapping[value] || mapping.all;
-    return isActive ? config.active : config.inactive;
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!selectedBudgetId) {
-      setSelectedBudgetTransactions({ loading: false, items: [], error: null });
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setSelectedBudgetTransactions((prev) => ({ ...prev, loading: true, error: null }));
-    budgetAPI
-      .getBudgetTransactions(selectedBudgetId)
-      .then((response) => {
-        if (cancelled) return;
-        const list = Array.isArray(response?.transactions)
-          ? response.transactions
-          : Array.isArray(response)
-          ? response
-          : [];
-        setSelectedBudgetTransactions({ loading: false, items: list, error: null });
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setSelectedBudgetTransactions({
-          loading: false,
-          items: [],
-          error: error?.message || "Không thể tải danh sách giao dịch.",
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedBudgetId]);
 
   const filteredCategories = useMemo(() => {
     if (Array.isArray(expenseCategories) && expenseCategories.length > 0) {
@@ -647,8 +571,8 @@ export default function BudgetsPage() {
       const matchesName = !normalizedName || budget.categoryName?.toLowerCase().includes(normalizedName);
       if (!matchesName) return false;
       if (statusFilter === "all") return true;
-      const state = budgetStateMap.get(budget.id);
-      return state === statusFilter;
+      const usage = budgetUsageMap.get(budget.id);
+      return usage?.status === statusFilter;
     });
   }, [budgets, searchName, statusFilter, budgetStateMap]);
 
@@ -690,14 +614,16 @@ export default function BudgetsPage() {
       .slice(0, 5);
   }, [selectedBudgetId, selectedBudgetTransactions.items, selectedBudgetWalletName, selectedBudgetCategoryName]);
 
-  const fallbackTransactions = useMemo(() => {
+  const latestTransactions = useMemo(() => {
     const list = Array.isArray(externalTransactionsList) ? externalTransactionsList : [];
     
     // Nếu có budget được chọn, lọc transactions theo budget đó
     let filtered = list;
     if (selectedBudgetId) {
+      const selectedBudget = budgets.find(b => b.id === selectedBudgetId);
       if (selectedBudget) {
         filtered = list.filter((tx) => {
+          // Kiểm tra type phải là expense
           if (tx.type !== "expense") return false;
           const categoryMatch =
             tx.category === selectedBudgetCategoryName || tx.categoryName === selectedBudgetCategoryName;
@@ -708,19 +634,22 @@ export default function BudgetsPage() {
               tx.walletId === selectedBudget.walletId || tx.walletName === selectedBudgetWalletName;
             if (!walletMatch) return false;
           }
-
+          
+          // Kiểm tra thời gian
           if (selectedBudget.startDate && selectedBudget.endDate) {
             const txDate = new Date(tx.date);
             const startDate = new Date(selectedBudget.startDate);
             const endDate = new Date(selectedBudget.endDate);
-            endDate.setHours(23, 59, 59, 999);
+            endDate.setHours(23, 59, 59, 999); // Bao gồm cả ngày cuối
+            
             if (txDate < startDate || txDate > endDate) return false;
           }
-
+          
           return true;
         });
       }
     } else {
+      // Nếu không có budget được chọn, lọc theo type
       filtered = list.filter((tx) => {
         if (transactionFilter === "all") return true;
         return (tx.type || "").toLowerCase() === transactionFilter.toLowerCase();
@@ -802,6 +731,15 @@ export default function BudgetsPage() {
 
   const handleCloseDetail = useCallback(() => {
     setDetailBudget(null);
+  }, []);
+
+  const handleSendReminder = useCallback((budget) => {
+    if (!budget) return;
+    setToast({
+      open: true,
+      message: t("budgets.toast.remind_sent", { category: budget.categoryName }),
+      type: "success",
+    });
   }, []);
 
   const handleCreateTransactionShortcut = useCallback((budget) => {
@@ -956,14 +894,14 @@ export default function BudgetsPage() {
                 <i className="bi bi-arrow-repeat"></i>
               </button>
             </span>
-            <div className="budget-metric-value">{formatMoneyWithCurrency(overviewStats.totalLimit, budgetCurrency)}</div>
+            <div className="budget-metric-value">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalLimit, budgetCurrency), budgetCurrency)}</div>
             <small className="text-muted">{t("budgets.metric.active_count", { count: overviewStats.activeBudgets })}</small>
           </div>
         </div>
         <div className="col-xl-3 col-md-6">
           <div className="budget-metric-card">
             <span className="budget-metric-label">{t("budgets.metric.used")}</span>
-            <div className="budget-metric-value text-primary">{formatMoneyWithCurrency(overviewStats.totalSpent, budgetCurrency)}</div>
+            <div className="budget-metric-value text-primary">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalSpent, budgetCurrency), budgetCurrency)}</div>
             <small className="text-muted">
               {overviewStats.totalLimit > 0
                 ? t("budgets.metric.used_percent", { percent: Math.round((overviewStats.totalSpent / overviewStats.totalLimit) * 100) })
@@ -974,7 +912,7 @@ export default function BudgetsPage() {
         <div className="col-xl-3 col-md-6">
           <div className="budget-metric-card">
             <span className="budget-metric-label">{t("budgets.metric.remaining")}</span>
-            <div className="budget-metric-value text-success">{formatMoneyWithCurrency(overviewStats.totalRemaining, budgetCurrency)}</div>
+            <div className="budget-metric-value text-success">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalRemaining, budgetCurrency), budgetCurrency)}</div>
             <small className="text-muted">{t("budgets.metric.overall")}</small>
           </div>
         </div>
@@ -1032,23 +970,18 @@ export default function BudgetsPage() {
             </div>
             <div className="col-md-5 d-flex align-items-center justify-content-end">
               <div className="d-flex gap-2 flex-wrap w-100 justify-content-end budget-status-group">
-                {statusTabs.map((tab) => {
-                  const isActive = statusFilter === tab.value;
-                  const btnClass = getStatusButtonClass(tab.value, isActive);
-                  return (
-                    <button
-                      type="button"
-                      key={tab.value}
-                      className={btnClass}
-                      onClick={() => setStatusFilter(tab.value)}
-                    >
-                      {tab.label}
-                      <span className="badge bg-white text-dark ms-2">
-                        {statusCounts[tab.value] ?? 0}
-                      </span>
-                    </button>
-                  );
-                })}
+                <button type="button" className={`btn btn-sm ${statusFilter === 'all' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setStatusFilter('all')}>
+                  {t('budgets.tab.all')} <span className="badge bg-white text-primary ms-2">{statusCounts.all ?? 0}</span>
+                </button>
+                <button type="button" className={`btn btn-sm ${statusFilter === 'healthy' ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setStatusFilter('healthy')}>
+                  {t('budgets.tab.healthy')} <span className="badge bg-white text-dark ms-2">{statusCounts.healthy ?? 0}</span>
+                </button>
+                <button type="button" className={`btn btn-sm ${statusFilter === 'warning' ? 'btn-warning' : 'btn-outline-warning'}`} onClick={() => setStatusFilter('warning')}>
+                  {t('budgets.tab.warning')} <span className="badge bg-white text-warning ms-2">{statusCounts.warning ?? 0}</span>
+                </button>
+                <button type="button" className={`btn btn-sm ${statusFilter === 'over' ? 'btn-danger' : 'btn-outline-danger'}`} onClick={() => setStatusFilter('over')}>
+                  {t('budgets.tab.over')} <span className="badge bg-white text-danger ms-2">{statusCounts.over ?? 0}</span>
+                </button>
               </div>
             </div>
           </form>
@@ -1106,8 +1039,8 @@ export default function BudgetsPage() {
                             {resolvedWalletName && <div className="text-muted small">Ví: {resolvedWalletName}</div>}
                           </div>
                         </div>
-                        <span className={`budget-status-chip ${statusTone}`}>
-                          {statusLabel}
+                        <span className={`budget-status-chip ${budgetStatusTone[status] || ""}`}>
+                          {t(`budgets.status.${status}`)}
                         </span>
                       </div>
 
@@ -1140,15 +1073,15 @@ export default function BudgetsPage() {
                       <div className="budget-stats">
                         <div className="budget-stat-item">
                           <label className="budget-stat-label">Hạn mức</label>
-                          <div className="budget-stat-value">{formatAmountByCurrency(budget.limitAmount, budgetCurrencyCode)}</div>
+                          <div className="budget-stat-value">{formatMoneyWithCurrency(convertCurrency(budget.limitAmount, budgetCurrency), budgetCurrency)}</div>
                         </div>
                         <div className="budget-stat-item">
                           <label className="budget-stat-label">Đã chi</label>
-                          <div className={`budget-stat-value ${isOver ? "danger" : ""}`}>{formatAmountByCurrency(spent, budgetCurrencyCode)}</div>
+                          <div className={`budget-stat-value ${isOver ? "danger" : ""}`}>{formatMoneyWithCurrency(convertCurrency(spent, budgetCurrency), budgetCurrency)}</div>
                         </div>
                         <div className="budget-stat-item">
                           <label className="budget-stat-label">Còn lại</label>
-                          <div className={`budget-stat-value ${remaining < 0 ? "danger" : "success"}`}>{formatAmountByCurrency(remaining, budgetCurrencyCode)}</div>
+                          <div className={`budget-stat-value ${remaining < 0 ? "danger" : "success"}`}>{formatMoneyWithCurrency(convertCurrency(remaining, budgetCurrency), budgetCurrency)}</div>
                         </div>
                         <div className="budget-stat-item">
                           <label className="budget-stat-label">Sử dụng</label>
@@ -1188,7 +1121,7 @@ export default function BudgetsPage() {
               <div className="d-flex justify-content-between align-items-start mb-3">
                 <div>
                   <h5 className="mb-1">
-                    {selectedBudgetId ? t("budgets.side.related_title", "Giao dịch liên quan") : t("budgets.side.recent_title")}
+                    {selectedBudgetId ? "Giao dịch liên quan" : t("budgets.side.recent_title")}
                   </h5>
                   {selectedBudget && (
                     <div className="mt-2">
@@ -1227,51 +1160,39 @@ export default function BudgetsPage() {
                 )}
               </div>
 
-              {sideTransactionsLoading ? (
-                <div className="text-center text-muted py-4">
-                  <div className="spinner-border spinner-border-sm me-2" role="status" />
-                  {t("common.loading")}
-                </div>
-              ) : sideTransactionsError ? (
-                <div className="alert alert-warning py-2" role="alert">
-                  {sideTransactionsError}
-                </div>
-              ) : (
-                <div className="table-responsive budget-transaction-mini">
-                  <table className="table budget-transaction-table">
-                    <thead>
+              <div className="table-responsive budget-transaction-mini">
+                <table className="table budget-transaction-table">
+                  <thead>
+                    <tr>
+                      <th>{t("transactions.col.code")}</th>
+                      <th>{t("transactions.col.category")}</th>
+                      <th>{t("transactions.col.amount")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {latestTransactions.length === 0 ? (
                       <tr>
-                        <th>{t("transactions.col.code")}</th>
-                        <th>{t("transactions.col.category")}</th>
-                        <th>{t("transactions.col.amount")}</th>
+                        <td colSpan={3} className="text-center text-muted py-4">
+                          {t("budgets.transactions.empty")}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {sideTransactions.length === 0 ? (
-                        <tr>
-                          <td colSpan={3} className="text-center text-muted py-4">
-                            {t("budgets.transactions.empty")}
+                    ) : (
+                      latestTransactions.map((tx) => (
+                        <tr key={tx.id}>
+                          <td>{tx.code || tx.id}</td>
+                          <td>
+                            <div className="fw-semibold">{tx.category || "Không xác định"}</div>
+                            <small className="text-muted">{formatDateTime(tx.date)}</small>
+                          </td>
+                          <td className={`fw-semibold ${tx.type === "expense" ? "text-danger" : "text-success"}`}>
+                            {formatCurrency(tx.amount)}
                           </td>
                         </tr>
-                      ) : (
-                        sideTransactions.map((tx) => (
-                          <tr key={tx.id || tx.code}>
-                            <td>{tx.code || tx.id}</td>
-                            <td>
-                              <div className="fw-semibold">{tx.category || "Không xác định"}</div>
-                              <small className="text-muted d-block">{formatDateTime(tx.date)}</small>
-                              {tx.walletName && <small className="text-muted d-block">{tx.walletName}</small>}
-                            </td>
-                            <td className={`fw-semibold text-end ${tx.type === "expense" ? "text-danger" : "text-success"}`}>
-                              {formatAmountByCurrency(tx.amount, tx.currencyCode)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
               <button className="btn btn-outline-primary w-100" type="button" onClick={handleViewAllTransactions}>
                 {t("transactions.view_all")}
@@ -1286,9 +1207,9 @@ export default function BudgetsPage() {
         open={!!detailBudget}
         budget={detailBudget?.budget}
         usage={detailBudget?.usage}
-        status={detailBudget?.status}
         onClose={handleCloseDetail}
         onEdit={handleEditBudget}
+        onRemind={handleSendReminder}
       />
 
       <BudgetFormModal
@@ -1296,7 +1217,7 @@ export default function BudgetsPage() {
         mode={modalMode}
         initialData={modalInitial}
         categories={filteredCategories}
-        wallets={vndWallets}
+        wallets={wallets}
         onSubmit={handleModalSubmit}
         onClose={() => setModalOpen(false)}
       />
