@@ -9,9 +9,9 @@ import BudgetDetailModal from "../../components/budgets/BudgetDetailModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import Toast from "../../components/common/Toast/Toast";
 import { useLanguage } from "../../contexts/LanguageContext";
-
+ 
 // Use centralized categories from CategoryDataContext
-
+ 
 export default function BudgetsPage() {
   const {
     budgets,
@@ -34,7 +34,7 @@ export default function BudgetsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [transactionFilter, setTransactionFilter] = useState("all");
   const [selectedBudgetId, setSelectedBudgetId] = useState(null);
-  
+ 
   // Currency toggle state (similar to WalletsPage)
   const [budgetCurrency, setBudgetCurrency] = useState(() => localStorage.getItem("budgets_currency") || "VND");
   React.useEffect(() => {
@@ -48,63 +48,63 @@ export default function BudgetsPage() {
     { value: "warning", label: "warning" },
     { value: "over", label: "over" },
   ];
-
+ 
   // Helper function to convert currency (similar to WalletsPage)
   const convertCurrency = useCallback((amount, targetCurrency) => {
     const numericAmount = Number(amount) || 0;
     if (!targetCurrency || targetCurrency === "VND") return numericAmount;
-    
+   
     // Get cached exchange rate from localStorage
     const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
     const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
-    
+   
     if (targetCurrency === "USD") {
       return numericAmount / vndToUsd;
     }
     return numericAmount;
   }, []);
-
+ 
   // Format money with proper currency
   const formatMoneyWithCurrency = useCallback((amount, currency) => {
     const numAmount = Number(amount) || 0;
     if (currency === "USD") {
       if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
+        const formatted = numAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8
         });
         return `$${formatted}`;
       }
-      const formatted = numAmount % 1 === 0 
+      const formatted = numAmount % 1 === 0
         ? numAmount.toLocaleString("en-US")
         : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return `$${formatted}`;
     }
     return `${numAmount.toLocaleString("vi-VN")} VND`;
   }, []);
-
+ 
   const computeBudgetUsage = useCallback(
     (budget) => {
       if (!budget) {
         return { spent: 0, remaining: 0, percent: 0, status: "healthy" };
       }
-
+ 
       const spentValue = getSpentForBudget
         ? getSpentForBudget(budget)
         : getSpentAmount(budget.categoryName, budget.walletName);
-
+ 
       const limit = budget.limitAmount || 0;
       const percentRaw = limit > 0 ? (spentValue / limit) * 100 : 0;
       const percent = Math.min(999, Math.max(0, Math.round(percentRaw)));
       const threshold = budget.alertPercentage ?? 80;
-
+ 
       let status = "healthy";
       if (percent >= 100) {
         status = "over";
       } else if (percent >= threshold) {
         status = "warning";
       }
-
+ 
       return {
         spent: spentValue,
         remaining: limit - spentValue,
@@ -114,7 +114,7 @@ export default function BudgetsPage() {
     },
     [getSpentAmount, getSpentForBudget]
   );
-
+ 
   const budgetUsageMap = useMemo(() => {
     const map = new Map();
     (budgets || []).forEach((budget) => {
@@ -122,14 +122,14 @@ export default function BudgetsPage() {
     });
     return map;
   }, [budgets, computeBudgetUsage]);
-
+ 
   const handleAddBudget = () => {
     setModalMode("create");
     setModalInitial(null);
     setEditingId(null);
     setModalOpen(true);
   };
-
+ 
   const handleEditBudget = (budget) => {
     setModalMode("edit");
     setModalInitial({
@@ -148,33 +148,33 @@ export default function BudgetsPage() {
     setEditingId(budget.id);
     setModalOpen(true);
   };
-
+ 
   const formatDateTime = (value) => {
     if (!value) return "";
     const dateObj = new Date(value);
     if (Number.isNaN(dateObj.getTime())) return value;
     return `${dateObj.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })} ${dateObj.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
   };
-
+ 
   const parseDateOnly = (value) => {
     if (!value) return null;
     const [year, month, day] = value.split("T")[0].split("-").map((part) => Number(part));
     if (!year || !month || !day) return null;
     return new Date(year, month - 1, day);
   };
-
+ 
   const budgetStatusLabel = {
     healthy: "healthy",
     warning: "warning",
     over: "over",
   };
-
+ 
   const budgetStatusTone = {
     healthy: "success",
     warning: "warning",
     over: "danger",
   };
-
+ 
   const statusCounts = useMemo(() => {
     const total = Array.isArray(budgets) ? budgets.length : 0;
     const counts = { all: total, healthy: 0, warning: 0, over: 0 };
@@ -186,7 +186,7 @@ export default function BudgetsPage() {
     counts.healthy = counts.healthy || 0;
     return counts;
   }, [budgets, budgetUsageMap]);
-
+ 
   const overviewStats = useMemo(() => {
     if (!budgets || budgets.length === 0) {
       return {
@@ -198,28 +198,28 @@ export default function BudgetsPage() {
         activeBudgets: 0,
       };
     }
-
+ 
     let totalLimit = 0;
     let totalSpent = 0;
     let warningCount = 0;
     let overCount = 0;
     let activeBudgets = 0;
     const today = new Date();
-
+ 
     budgets.forEach((budget) => {
       totalLimit += budget.limitAmount || 0;
       const usage = budgetUsageMap.get(budget.id) || { spent: 0, status: "healthy" };
       totalSpent += usage.spent || 0;
       if (usage.status === "warning") warningCount += 1;
       if (usage.status === "over") overCount += 1;
-
+ 
       const start = budget.startDate ? parseDateOnly(budget.startDate) : null;
       const end = budget.endDate ? parseDateOnly(budget.endDate) : null;
       if (!start || !end || (today >= start && today <= end)) {
         activeBudgets += 1;
       }
     });
-
+ 
     return {
       totalLimit,
       totalSpent,
@@ -229,7 +229,7 @@ export default function BudgetsPage() {
       activeBudgets,
     };
   }, [budgets, budgetUsageMap]);
-
+ 
   const bannerState = useMemo(() => {
     const overItems = [];
     const warningItems = [];
@@ -241,11 +241,11 @@ export default function BudgetsPage() {
     });
     return { overItems, warningItems };
   }, [budgets, budgetUsageMap]);
-
-
+ 
+ 
   const { formatCurrency } = useCurrency();
   const { t } = useLanguage();
-
+ 
   const filteredCategories = useMemo(() => {
     if (Array.isArray(expenseCategories) && expenseCategories.length > 0) {
       return expenseCategories;
@@ -264,11 +264,11 @@ export default function BudgetsPage() {
     });
     return Array.from(fallbackMap.values());
   }, [expenseCategories, budgets]);
-
+ 
   const visibleBudgets = useMemo(() => {
     if (!Array.isArray(budgets)) return [];
     const normalizedName = searchName.trim().toLowerCase();
-
+ 
     return budgets.filter((budget) => {
       const matchesName = !normalizedName || budget.categoryName?.toLowerCase().includes(normalizedName);
       if (!matchesName) return false;
@@ -277,10 +277,10 @@ export default function BudgetsPage() {
       return usage?.status === statusFilter;
     });
   }, [budgets, searchName, statusFilter, budgetUsageMap]);
-
+ 
   const latestTransactions = useMemo(() => {
     const list = Array.isArray(externalTransactionsList) ? externalTransactionsList : [];
-    
+   
     // Nếu có budget được chọn, lọc transactions theo budget đó
     let filtered = list;
     if (selectedBudgetId) {
@@ -289,29 +289,29 @@ export default function BudgetsPage() {
         filtered = list.filter((tx) => {
           // Kiểm tra type phải là expense
           if (tx.type !== "expense") return false;
-          
+         
           // Kiểm tra danh mục
-          const categoryMatch = tx.category === selectedBudget.categoryName || 
+          const categoryMatch = tx.category === selectedBudget.categoryName ||
                                 tx.categoryName === selectedBudget.categoryName;
           if (!categoryMatch) return false;
-          
+         
           // Kiểm tra ví (nếu budget có chỉ định ví cụ thể)
           if (selectedBudget.walletId && selectedBudget.walletName !== "Tất cả ví") {
-            const walletMatch = tx.walletId === selectedBudget.walletId || 
+            const walletMatch = tx.walletId === selectedBudget.walletId ||
                                tx.walletName === selectedBudget.walletName;
             if (!walletMatch) return false;
           }
-          
+         
           // Kiểm tra thời gian
           if (selectedBudget.startDate && selectedBudget.endDate) {
             const txDate = new Date(tx.date);
             const startDate = new Date(selectedBudget.startDate);
             const endDate = new Date(selectedBudget.endDate);
             endDate.setHours(23, 59, 59, 999); // Bao gồm cả ngày cuối
-            
+           
             if (txDate < startDate || txDate > endDate) return false;
           }
-          
+         
           return true;
         });
       }
@@ -322,27 +322,27 @@ export default function BudgetsPage() {
         return (tx.type || "").toLowerCase() === transactionFilter.toLowerCase();
       });
     }
-
+ 
     return filtered
       .slice()
       .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
       .slice(0, 5);
   }, [externalTransactionsList, transactionFilter, selectedBudgetId, budgets]);
-
+ 
   const handleSearchReset = useCallback(() => {
     setSearchName("");
   }, []);
-
+ 
   const handleOpenDetail = useCallback((budget) => {
     if (!budget) return;
     const usage = budgetUsageMap.get(budget.id) || computeBudgetUsage(budget);
     setDetailBudget({ budget, usage });
   }, [budgetUsageMap, computeBudgetUsage]);
-
+ 
   const handleCloseDetail = useCallback(() => {
     setDetailBudget(null);
   }, []);
-
+ 
   const handleSendReminder = useCallback((budget) => {
     if (!budget) return;
     setToast({
@@ -351,7 +351,7 @@ export default function BudgetsPage() {
       type: "success",
     });
   }, []);
-
+ 
   const handleCreateTransactionShortcut = useCallback((budget) => {
     if (!budget) return;
     setToast({
@@ -360,7 +360,7 @@ export default function BudgetsPage() {
       type: "success",
     });
   }, []);
-
+ 
   const handleViewAllTransactions = useCallback(() => {
     if (typeof window !== "undefined") {
       window.location.href = "/home/transactions";
@@ -372,7 +372,7 @@ export default function BudgetsPage() {
       type: "error",
     });
   }, []);
-
+ 
   const handleModalSubmit = useCallback(async (payload) => {
     try {
       if (modalMode === "edit" && editingId != null) {
@@ -389,7 +389,7 @@ export default function BudgetsPage() {
       setEditingId(null);
     }
   }, [modalMode, editingId, updateBudget, createBudget]);
-
+ 
   const handleDeleteBudget = useCallback(async () => {
     if (!confirmDel) return;
     try {
@@ -402,7 +402,7 @@ export default function BudgetsPage() {
       setConfirmDel(null);
     }
   }, [confirmDel, deleteBudget]);
-
+ 
   return (
     <div className="budget-page container-fluid py-4">
       <div className="tx-page-inner">
@@ -417,7 +417,7 @@ export default function BudgetsPage() {
               <p className="wallet-header-subtitle">{t("budgets.page.subtitle")}</p>
             </div>
           </div>
-
+ 
           <div className="wallet-header-right">
             <button
               className="wallet-header-btn d-flex align-items-center"
@@ -428,7 +428,7 @@ export default function BudgetsPage() {
             </button>
           </div>
         </div>
-
+ 
       {/* Overview metrics */}
       <div className="row g-3 mb-4">
         <div className="col-xl-3 col-md-6">
@@ -479,7 +479,7 @@ export default function BudgetsPage() {
           </div>
         </div>
       </div>
-
+ 
       {(bannerState.warningItems.length > 0 || bannerState.overItems.length > 0) && (
         <div className="budget-warning-banner mb-4">
           <div>
@@ -503,7 +503,7 @@ export default function BudgetsPage() {
           </div>
         </div>
       )}
-
+ 
       {/* FORM TÌM KIẾM */}
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">
@@ -538,9 +538,9 @@ export default function BudgetsPage() {
           </form>
         </div>
       </div>
-
+ 
       {/* Status buttons have been moved into the search form */}
-
+ 
       <div className="budget-content-layout">
         <div className="budget-main-column">
           {visibleBudgets.length === 0 ? (
@@ -562,10 +562,10 @@ export default function BudgetsPage() {
                 const { spent, remaining, percent, status } = usage;
                 const isOver = status === "over";
                 const isWarning = status === "warning";
-
+ 
                 return (
                   <div className="col-xl-6" key={budget.id}>
-                    <div 
+                    <div
                       className={`budget-card ${selectedBudgetId === budget.id ? 'budget-card--selected' : ''}`}
                       onClick={() => setSelectedBudgetId(budget.id)}
                       style={{ cursor: 'pointer' }}
@@ -584,7 +584,7 @@ export default function BudgetsPage() {
                           {t(`budgets.status.${status}`)}
                         </span>
                       </div>
-
+ 
                       <div className="budget-card-meta">
                             <div>
                           <label>{t("budgets.form.date_range_label")}</label>
@@ -599,7 +599,7 @@ export default function BudgetsPage() {
                           <p>{(budget.alertPercentage ?? 80) + "% " + t("budgets.card.alert_suffix")}</p>
                         </div>
                       </div>
-
+ 
                       <div className="progress">
                         <div
                           className={`progress-bar ${isOver ? "bg-danger" : isWarning ? "bg-warning" : ""}`}
@@ -610,7 +610,7 @@ export default function BudgetsPage() {
                           aria-valuemax="100"
                         ></div>
                       </div>
-
+ 
                       <div className="budget-stats">
                         <div className="budget-stat-item">
                           <label className="budget-stat-label">Hạn mức</label>
@@ -629,14 +629,14 @@ export default function BudgetsPage() {
                           <div className={`budget-stat-value ${isOver ? "danger" : isWarning ? "warning" : ""}`}>{Math.round(percent)}%</div>
                         </div>
                       </div>
-
+ 
                       {budget.note && (
                         <div className="budget-note">
                           <i className="bi bi-chat-left-text" />
                           <span>{budget.note}</span>
                         </div>
                       )}
-
+ 
                       <div className="budget-card-actions">
                         <button className="btn-detail-budget" onClick={() => handleOpenDetail(budget)} title={t("budgets.action.detail")}>
                           <i className="bi bi-pie-chart me-1"></i>{t("budgets.action.detail")}
@@ -655,7 +655,7 @@ export default function BudgetsPage() {
             </div>
           )}
         </div>
-
+ 
         <aside className="budget-side-column">
           <div className="card border-0 shadow-sm">
             <div className="card-body">
@@ -680,7 +680,7 @@ export default function BudgetsPage() {
                               {new Date(selectedBudget.startDate).toLocaleDateString("vi-VN")} - {new Date(selectedBudget.endDate).toLocaleDateString("vi-VN")}
                             </small>
                           )}
-                          <button 
+                          <button
                             className="btn btn-sm btn-outline-secondary mt-2"
                             onClick={() => setSelectedBudgetId(null)}
                           >
@@ -705,7 +705,7 @@ export default function BudgetsPage() {
                   </select>
                 )}
               </div>
-
+ 
               <div className="table-responsive budget-transaction-mini">
                 <table className="table budget-transaction-table">
                   <thead>
@@ -739,7 +739,7 @@ export default function BudgetsPage() {
                   </tbody>
                 </table>
               </div>
-
+ 
               <button className="btn btn-outline-primary w-100" type="button" onClick={handleViewAllTransactions}>
                 {t("transactions.view_all")}
               </button>
@@ -747,7 +747,7 @@ export default function BudgetsPage() {
           </div>
         </aside>
       </div>
-
+ 
       {/* Modals */}
       <BudgetDetailModal
         open={!!detailBudget}
@@ -757,7 +757,7 @@ export default function BudgetsPage() {
         onEdit={handleEditBudget}
         onRemind={handleSendReminder}
       />
-
+ 
       <BudgetFormModal
         open={modalOpen}
         mode={modalMode}
@@ -767,7 +767,7 @@ export default function BudgetsPage() {
         onSubmit={handleModalSubmit}
         onClose={() => setModalOpen(false)}
       />
-
+ 
       <ConfirmModal
         open={!!confirmDel}
         title={t("budgets.confirm.delete_title")}
@@ -777,7 +777,7 @@ export default function BudgetsPage() {
         onOk={handleDeleteBudget}
         onClose={() => setConfirmDel(null)}
       />
-
+ 
       <Toast
         open={toast.open}
         message={toast.message}

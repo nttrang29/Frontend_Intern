@@ -27,6 +27,84 @@ const TABS = {
   SCHEDULE: "schedule",
 };
 
+const EXPENSE_TOKENS = [
+  "EXPENSE",
+  "CHI",
+  "SPEND",
+  "OUTFLOW",
+  "DEBIT",
+  "PAYMENT",
+  "WITHDRAW",
+];
+
+const INCOME_TOKENS = [
+  "INCOME",
+  "THU",
+  "INFLOW",
+  "CREDIT",
+  "TOPUP",
+  "DEPOSIT",
+  "RECEIVE",
+  "SALARY",
+  "EARN",
+];
+
+const normalizeDirectionToken = (value) => {
+  if (value === undefined || value === null) return "";
+  return String(value).trim().toUpperCase();
+};
+
+const matchesToken = (value, candidates) => {
+  if (!value) return false;
+  return candidates.some((token) => value.includes(token));
+};
+
+const resolveTransactionDirection = (tx) => {
+  if (!tx) return "expense";
+  if (tx.isExpense === true || tx.isDebit === true) return "expense";
+  if (tx.isIncome === true || tx.isCredit === true) return "income";
+
+  const directionCandidates = [
+    tx.transactionType,
+    tx.transactionType?.type,
+    tx.transactionType?.typeName,
+    tx.transactionType?.typeKey,
+    tx.transactionType?.code,
+    tx.transactionType?.direction,
+    tx.transactionType?.categoryType,
+    tx.transactionTypeName,
+    tx.transactionTypeLabel,
+    tx.type,
+    tx.typeName,
+    tx.typeCode,
+    tx.transactionKind,
+    tx.transactionFlow,
+    tx.direction,
+    tx.flow,
+    tx.category?.type,
+    tx.category?.categoryType,
+    tx.category?.transactionType,
+    tx.category?.typeName,
+    tx.categoryType,
+    tx.transactionCategory?.type,
+    tx.transactionCategory?.direction,
+  ];
+
+  for (const candidate of directionCandidates) {
+    const normalized = normalizeDirectionToken(candidate);
+    if (!normalized) continue;
+    if (matchesToken(normalized, EXPENSE_TOKENS)) return "expense";
+    if (matchesToken(normalized, INCOME_TOKENS)) return "income";
+  }
+
+  const amount = Number(tx.amount ?? tx.transactionAmount);
+  if (!Number.isNaN(amount) && amount !== 0) {
+    return amount < 0 ? "expense" : "income";
+  }
+
+  return "expense";
+};
+
 const PAGE_SIZE = 10;
 const VIEWER_ROLES = new Set(["VIEW", "VIEWER"]);
 
@@ -204,8 +282,7 @@ export default function TransactionsPage() {
   const mapTransactionToFrontend = useCallback((tx) => {
     const walletName = wallets.find(w => w.walletId === tx.wallet?.walletId)?.walletName || tx.wallet?.walletName || "Unknown";
     const categoryName = tx.category?.categoryName || "Unknown";
-    const typeName = tx.transactionType?.typeName || "";
-    const type = typeName === "Chi tiêu" ? "expense" : "income";
+    const type = resolveTransactionDirection(tx);
     
     // Dùng created_at từ database thay vì transaction_date
     // Giữ nguyên date string từ API (ISO format), không convert
@@ -215,7 +292,7 @@ export default function TransactionsPage() {
     return {
       id: tx.transactionId,
       code: `TX-${String(tx.transactionId).padStart(4, "0")}`,
-      type: type,
+      type,
       walletName: walletName,
       amount: parseFloat(tx.amount || 0),
       currency: tx.wallet?.currencyCode || "VND",
@@ -409,8 +486,77 @@ export default function TransactionsPage() {
     setActiveTab(value);
     setSearchText("");
   };
+
+  const evaluateBudgetWarning = useCallback((payload, walletEntity) => {
+    if (!payload || !walletEntity) return null;
+    if (!budgets || budgets.length === 0) return null;
+    const normalizedCategory = normalizeBudgetCategoryKey(payload.category);
+    if (!normalizedCategory) return null;
+
+    const txDate = (() => {
+      if (payload.date) {
+        const parsed = new Date(payload.date);
+        if (!Number.isNaN(parsed.getTime())) {
+          return parsed;
+        }
+      }
+      return new Date();
+    })();
+
+    const orderedBudgets = [...budgets].sort((a, b) => {
+      const aGlobal = a?.walletId === null || a?.walletId === undefined;
+      const bGlobal = b?.walletId === null || b?.walletId === undefined;
+      if (aGlobal === bGlobal) return 0;
+      return aGlobal ? 1 : -1;
+    });
+
+    let alertCandidate = null;
+
+    for (const budget of orderedBudgets) {
+      if (!budget) continue;
+      if ((budget.categoryType || "expense").toLowerCase() !== "expense") continue;
+      const budgetCategory = normalizeBudgetCategoryKey(budget.categoryName);
+      if (!budgetCategory || budgetCategory !== normalizedCategory) continue;
+      if (!isTransactionWithinBudgetPeriod(budget, txDate)) continue;
+      if (!doesBudgetMatchWallet(budget, walletEntity, payload.walletName)) continue;
+
+      const limit = Number(budget.limitAmount || budget.amountLimit || 0);
+      const amount = Number(payload.amount || 0);
+      if (!limit || !amount) continue;
+
+      const spent = Number(getSpentForBudget(budget) || 0);
+      const totalAfterTx = spent + amount;
+      const warnPercent = Number(budget.alertPercentage ?? budget.warningThreshold ?? 80);
+      const warningAmount = limit * (warnPercent / 100);
+      const isExceeding = totalAfterTx > limit;
+      const crossesWarning = !isExceeding && spent < warningAmount && totalAfterTx >= warningAmount;
+
+      if (isExceeding || crossesWarning) {
+        const snapshot = {
+          categoryName: budget.categoryName,
+          walletName: budget.walletName || payload.walletName,
+          budgetLimit: limit,
+          spent,
+          transactionAmount: amount,
+          totalAfterTx,
+          isExceeding,
+        };
+
+        if (isExceeding) {
+          return snapshot;
+        }
+
+        if (!alertCandidate) {
+          alertCandidate = snapshot;
+        }
+      }
+    }
+
+    return alertCandidate;
+  }, [budgets, getSpentForBudget]);
   
-  const handleCreate = async (payload) => {
+  const handleCreate = async (payload, options = {}) => {
+    const skipBudgetCheck = options.skipBudgetCheck === true;
     try {
         if (activeTab === TABS.EXTERNAL) {
         // Find walletId and categoryId
@@ -455,6 +601,15 @@ export default function TransactionsPage() {
           return;
         }
         
+        if (payload.type === "expense" && !skipBudgetCheck) {
+          const warningData = evaluateBudgetWarning(payload, wallet);
+          if (warningData) {
+            setPendingTransaction({ ...payload });
+            setBudgetWarning(warningData);
+            return;
+          }
+        }
+
         const transactionDate = payload.date ? new Date(payload.date).toISOString() : new Date().toISOString();
 
         // Call API
@@ -524,7 +679,7 @@ export default function TransactionsPage() {
     if (!pendingTransaction) return;
 
     // Create the transaction anyway by calling handleCreate
-    await handleCreate(pendingTransaction);
+    await handleCreate(pendingTransaction, { skipBudgetCheck: true });
 
     setBudgetWarning(null);
     setPendingTransaction(null);
@@ -1285,6 +1440,7 @@ export default function TransactionsPage() {
       <BudgetWarningModal
         open={!!budgetWarning}
         categoryName={budgetWarning?.categoryName}
+        walletName={budgetWarning?.walletName}
         budgetLimit={budgetWarning?.budgetLimit || 0}
         spent={budgetWarning?.spent || 0}
         transactionAmount={budgetWarning?.transactionAmount || 0}
@@ -1337,6 +1493,55 @@ function estimateScheduleRuns(startValue, endValue, scheduleType) {
     default:
       return 0;
   }
+}
+
+function normalizeBudgetCategoryKey(value) {
+  if (!value && value !== 0) return "";
+  return String(value).trim().toLowerCase();
+}
+
+function parseBudgetBoundaryDate(value, isEnd = false) {
+  if (!value) return null;
+  const [datePart] = value.split("T");
+  const [year, month, day] = (datePart || "").split("-");
+  const y = Number(year);
+  const m = Number(month) - 1;
+  const d = Number(day);
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return null;
+  const hours = isEnd ? 23 : 0;
+  const minutes = isEnd ? 59 : 0;
+  const seconds = isEnd ? 59 : 0;
+  const ms = isEnd ? 999 : 0;
+  return new Date(y, m, d, hours, minutes, seconds, ms);
+}
+
+function isTransactionWithinBudgetPeriod(budget, txDate) {
+  if (!budget) return false;
+  if (!budget.startDate && !budget.endDate) return true;
+  if (!txDate || Number.isNaN(txDate.getTime())) return false;
+  const start = parseBudgetBoundaryDate(budget.startDate, false);
+  const end = parseBudgetBoundaryDate(budget.endDate, true);
+  if (start && txDate < start) return false;
+  if (end && txDate > end) return false;
+  return true;
+}
+
+function doesBudgetMatchWallet(budget, walletEntity, fallbackWalletName) {
+  if (!budget) return false;
+  if (budget.walletId === null || budget.walletId === undefined) {
+    return true;
+  }
+  const walletId = walletEntity ? (walletEntity.walletId ?? walletEntity.id) : null;
+  if (walletId !== null && walletId !== undefined) {
+    if (Number(budget.walletId) === Number(walletId)) {
+      return true;
+    }
+  }
+  const budgetWalletName = normalizeBudgetCategoryKey(budget.walletName);
+  const walletName = normalizeBudgetCategoryKey(
+    walletEntity?.name || walletEntity?.walletName || fallbackWalletName
+  );
+  return !!budgetWalletName && budgetWalletName === walletName;
 }
 
 const SCHEDULE_TYPE_LABELS = {

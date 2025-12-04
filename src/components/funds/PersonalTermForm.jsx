@@ -275,7 +275,8 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
       // Thêm auto deposit data nếu bật
       if (autoTopupOn && autoTopupData) {
         fundData.autoDepositEnabled = true;
-        fundData.autoDepositType = autoTopupData.autoDepositType;
+        fundData.autoDepositScheduleType = autoTopupData.autoDepositScheduleType;
+        fundData.autoDepositTime = autoTopupData.autoDepositTime;
         fundData.autoDepositAmount = autoTopupData.autoDepositAmount ? Number(autoTopupData.autoDepositAmount) : null;
 
         // Always set schedule type/time/day fields when provided by autoTopupData.
@@ -582,3 +583,4 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     </div>
   );
 }
+

@@ -128,7 +128,8 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
       // Thêm auto deposit data nếu bật
       if (autoTopupOn && autoTopupData) {
         fundData.autoDepositEnabled = true;
-        fundData.autoDepositType = autoTopupData.autoDepositType;
+        fundData.autoDepositScheduleType = autoTopupData.autoDepositScheduleType;
+        fundData.autoDepositTime = autoTopupData.autoDepositTime;
         fundData.autoDepositAmount = autoTopupData.autoDepositAmount ? Number(autoTopupData.autoDepositAmount) : null;
 
         fundData.autoDepositScheduleType = autoTopupData.autoDepositScheduleType || autoTopupData.autoDepositType || null;
@@ -357,3 +358,4 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
     </div>
   );
 }
+

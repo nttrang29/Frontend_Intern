@@ -1,6 +1,11 @@
 // src/components/funds/AutoTopupBlock.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import "../../styles/components/funds/FundForms.css";
+
+// Map week day string to number (1-7) - MOVE RA NGOÀI để tránh re-create mỗi lần render
+const WEEK_DAY_MAP = {
+  "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "1": 1
+};
 
 export default function AutoTopupBlock({
   autoTopupOn,
@@ -18,10 +23,11 @@ export default function AutoTopupBlock({
   const [autoStartAt, setAutoStartAt] = useState("");
   const inputsDisabled = lockMode;
   
-  // Map week day string to number (1-7)
-  const weekDayMap = {
-    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "1": 1
-  };
+  // Dùng useRef để lưu onDataChange - tránh re-create function mỗi lần render
+  const onDataChangeRef = useRef(onDataChange);
+  useEffect(() => {
+    onDataChangeRef.current = onDataChange;
+  }, [onDataChange]);
   
   // Export data when anything changes
   useEffect(() => {
@@ -72,9 +78,9 @@ export default function AutoTopupBlock({
     };
 
     if (freq === "WEEKLY") {
-      autoTopupData.autoDepositDayOfWeek = weekDayMap[autoWeekDay];
+      autoTopupData.autoDepositDayOfWeek = WEEK_DAY_MAP[autoWeekDay];
     } else if (freq === "MONTHLY") {
-      autoTopupData.autoDepositDayOfMonth = autoMonthDay;
+      autoTopupData.autoDepositDayOfMonth = autoMonthDay ? Number(autoMonthDay) : null;
     }
 
     onDataChange(autoTopupData);
