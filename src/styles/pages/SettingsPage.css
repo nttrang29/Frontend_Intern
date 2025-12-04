@@ -298,6 +298,13 @@
 
 }
 
+.settings-detail__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 /* ====== PROFILE EDIT (2 CỘT) ====== */
 
 .settings-profile-grid {
@@ -610,6 +617,13 @@
 
 }
 
+.settings-table__empty {
+  padding: 16px 0;
+  text-align: center;
+  color: #2d99ae;
+  font-size: 0.9rem;
+}
+
 .settings-table th,
 
 .settings-table td {
@@ -628,6 +642,34 @@
 
   color: #000;
 
+}
+
+.settings-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.settings-status-chip--success {
+  background: rgba(45, 153, 174, 0.18);
+  color: #2d99ae;
+}
+
+.settings-status-chip--failed,
+.settings-status-chip--failure,
+.settings-status-chip--error {
+  background: rgba(180, 35, 24, 0.15);
+  color: #b42318;
+}
+
+.settings-status-chip--suspicious,
+.settings-status-chip--warning {
+  background: rgba(242, 201, 76, 0.25);
+  color: #8f6400;
 }
 
 /* ====== LIST & RADIO ====== */

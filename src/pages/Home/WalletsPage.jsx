@@ -17,6 +17,7 @@ import { walletAPI } from "../../services/wallet.service";
 import Toast from "../../components/common/Toast/Toast";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatMoney } from "../../utils/formatMoney";
+import { formatVietnamDate, formatVietnamTime } from "../../utils/dateFormat";
 
 import "../../styles/pages/WalletsPage.css";
 import "../../styles/components/wallets/WalletList.css";
@@ -237,60 +238,6 @@ const sortWalletsByMode = (walletList = [], sortMode = "default") => {
   });
   return arr;
 };
-
-/**
- * Format ngày theo múi giờ Việt Nam (UTC+7)
- * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
- * @returns {string} - Format: "DD/MM/YYYY"
- */
-function formatVietnamDate(date) {
-  if (!date) return "";
-
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === "string") {
-    d = new Date(date);
-  } else {
-    return "";
-  }
-
-  if (Number.isNaN(d.getTime())) return "";
-
-  return d.toLocaleDateString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-/**
- * Format giờ theo múi giờ Việt Nam (UTC+7)
- * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
- * @returns {string} - Format: "HH:mm"
- */
-function formatVietnamTime(date) {
-  if (!date) return "";
-
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === "string") {
-    d = new Date(date);
-  } else {
-    return "";
-  }
-
-  if (Number.isNaN(d.getTime())) return "";
-
-  return d.toLocaleTimeString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
 
 /**
  * Format time label cho giao dịch (ngày giờ chính xác)

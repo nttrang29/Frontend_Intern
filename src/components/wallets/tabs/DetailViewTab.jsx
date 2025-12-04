@@ -1,4 +1,5 @@
 import React from "react";
+import { formatVietnamDate } from "../../../utils/dateFormat";
 
 export default function DetailViewTab({
   wallet,
@@ -118,9 +119,7 @@ export default function DetailViewTab({
               <div className="wallet-detail-item">
                 <span className="wallet-detail-item__label">Ngày tạo</span>
                 <span className="wallet-detail-item__value">
-                  {wallet.createdAt
-                    ? new Date(wallet.createdAt).toLocaleDateString("vi-VN")
-                    : "—"}
+                  {wallet.createdAt ? formatVietnamDate(wallet.createdAt) : "—"}
                 </span>
               </div>
               <div className="wallet-detail-item wallet-detail-item--full">

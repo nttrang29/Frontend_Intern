@@ -1,5 +1,6 @@
 import React from "react";
 import Modal from "../common/Modal/Modal";
+import { formatVietnamDate, formatVietnamDateTime } from "../../utils/dateFormat";
 
 const STATUS_LABEL = {
   PENDING: "Chờ chạy",
@@ -19,12 +20,8 @@ const STATUS_CLASS = {
 
 function formatDateTime(value) {
   if (!value) return "--";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return `${date.toLocaleDateString("vi-VN")} ${date.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  const formatted = formatVietnamDateTime(value);
+  return formatted || "--";
 }
 
 export default function ScheduledTransactionDrawer({ open, schedule, onClose, onCancel }) {
@@ -52,7 +49,7 @@ export default function ScheduledTransactionDrawer({ open, schedule, onClose, on
             <li><span>Kiểu lịch:</span> {typeLabel}</li>
             <li>
               <span>Khoảng thời gian:</span> {formatDateTime(schedule.firstRun)}
-              {schedule.endDate ? ` → ${new Date(schedule.endDate).toLocaleDateString("vi-VN")}` : " (Không giới hạn)"}
+              {schedule.endDate ? ` → ${formatVietnamDate(schedule.endDate)}` : " (Không giới hạn)"}
             </li>
             <li><span>Số tiền:</span> {schedule.amount.toLocaleString("vi-VN") } VND</li>
             <li><span>Tiếp theo:</span> {formatDateTime(schedule.nextRun)}</li>

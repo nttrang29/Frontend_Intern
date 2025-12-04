@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useDateFormat } from "./hooks/useDateFormat";
 
 // AUTH
 import LoginPage from "./pages/Auth/LoginPage";
@@ -24,6 +25,7 @@ import ActivityHistoryPage from "./pages/Home/ActivityHistoryPage";
 import AdminUsersPage from "./pages/Admin/AdminUsersPage";
 import AdminReviewsPage from "./pages/Admin/AdminReviewsPage"; // hoặc tên file bạn đang dùng
 export default function App() {
+  useDateFormat();
   return (
     <BrowserRouter>
   <Routes>

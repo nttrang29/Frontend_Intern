@@ -18,6 +18,7 @@ import { useWalletData } from "../../contexts/WalletDataContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
+import { formatVietnamDateTime } from "../../utils/dateFormat";
 
 // ===== REMOVED MOCK DATA - Now using API =====
 
@@ -48,6 +49,37 @@ const INCOME_TOKENS = [
   "SALARY",
   "EARN",
 ];
+
+const ensureIsoDateWithTimezone = (rawValue) => {
+  if (!rawValue) return rawValue;
+  if (typeof rawValue !== "string") {
+    return rawValue;
+  }
+
+  let value = rawValue.trim();
+  if (!value) return value;
+
+  if (value.includes(" ")) {
+    value = value.replace(" ", "T");
+  }
+
+  const hasTimePart = /T\d{2}:\d{2}/.test(value);
+  if (!hasTimePart) {
+    return value;
+  }
+
+  const hasSeconds = /T\d{2}:\d{2}:\d{2}/.test(value);
+  if (!hasSeconds) {
+    value = value.replace(/T(\d{2}:\d{2})(?!:)/, "T$1:00");
+  }
+
+  const hasTimezone = /(Z|z|[+\-]\d{2}:?\d{2})$/.test(value);
+  if (!hasTimezone) {
+    value = `${value}Z`;
+  }
+
+  return value;
+};
 
 const normalizeDirectionToken = (value) => {
   if (value === undefined || value === null) return "";
@@ -133,66 +165,6 @@ function toDateObj(str) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/**
- * Format ngày theo múi giờ Việt Nam (UTC+7)
- * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
- * @returns {string} - Format: "DD/MM/YYYY"
- */
-function formatVietnamDate(date) {
-  if (!date) return "";
-  
-  // Parse date string từ API (thường là ISO string ở UTC)
-  // Không dùng new Date() trực tiếp vì nó sẽ parse theo local timezone
-  // Thay vào đó, parse ISO string và convert sang VN timezone
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === 'string') {
-    // Nếu là ISO string, parse nó như UTC time
-    d = new Date(date);
-  } else {
-    return "";
-  }
-  
-  if (Number.isNaN(d.getTime())) return "";
-  
-  // Dùng toLocaleString với timezone VN để convert đúng
-  return d.toLocaleDateString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-/**
- * Format giờ theo múi giờ Việt Nam (UTC+7)
- * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
- * @returns {string} - Format: "HH:mm"
- */
-function formatVietnamTime(date) {
-  if (!date) return "";
-  
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === 'string') {
-    // Parse ISO string như UTC time
-    d = new Date(date);
-  } else {
-    return "";
-  }
-  
-  if (Number.isNaN(d.getTime())) return "";
-  
-  // Dùng toLocaleString với timezone VN để convert đúng
-  return d.toLocaleTimeString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
 
 /**
  * Format số tiền với độ chính xác cao (tối đa 8 chữ số thập phân)
@@ -280,22 +252,31 @@ export default function TransactionsPage() {
 
   // Helper function to map Transaction entity to frontend format
   const mapTransactionToFrontend = useCallback((tx) => {
-    const walletName = wallets.find(w => w.walletId === tx.wallet?.walletId)?.walletName || tx.wallet?.walletName || "Unknown";
+    if (!tx) return null;
+    const walletName =
+      wallets.find((w) => w.walletId === tx.wallet?.walletId)?.walletName ||
+      tx.wallet?.walletName ||
+      "Unknown";
     const categoryName = tx.category?.categoryName || "Unknown";
     const type = resolveTransactionDirection(tx);
-    
-    // Dùng created_at từ database thay vì transaction_date
-    // Giữ nguyên date string từ API (ISO format), không convert
-    // Format sẽ được xử lý khi hiển thị bằng formatVietnamDate/Time
-    const dateValue = tx.createdAt || tx.transactionDate || new Date().toISOString();
-    
+
+    const rawDateValue =
+      tx.transactionDate ||
+      tx.transaction_date ||
+      tx.date ||
+      tx.createdAt ||
+      tx.created_at ||
+      new Date().toISOString();
+
+    const dateValue = ensureIsoDateWithTimezone(rawDateValue);
+
     return {
       id: tx.transactionId,
       code: `TX-${String(tx.transactionId).padStart(4, "0")}`,
       type,
-      walletName: walletName,
+      walletName,
       amount: parseFloat(tx.amount || 0),
-      currency: tx.wallet?.currencyCode || "VND",
+      currency: tx.wallet?.currencyCode || tx.currencyCode || "VND",
       date: dateValue,
       category: categoryName,
       note: tx.note || "",
@@ -304,15 +285,27 @@ export default function TransactionsPage() {
     };
   }, [wallets]);
 
-  // Helper function to map WalletTransfer entity to frontend format
   const mapTransferToFrontend = useCallback((transfer) => {
-    const sourceWalletName = wallets.find(w => w.walletId === transfer.fromWallet?.walletId)?.walletName || transfer.fromWallet?.walletName || "Unknown";
-    const targetWalletName = wallets.find(w => w.walletId === transfer.toWallet?.walletId)?.walletName || transfer.toWallet?.walletName || "Unknown";
-    
-    // Dùng created_at từ database thay vì transfer_date
-    // Giữ nguyên date string từ API (ISO format), không convert
-    const dateValue = transfer.createdAt || transfer.transferDate || new Date().toISOString();
-    
+    if (!transfer) return null;
+    const sourceWalletName =
+      wallets.find((w) => w.walletId === transfer.fromWallet?.walletId)?.walletName ||
+      transfer.fromWallet?.walletName ||
+      "Unknown";
+    const targetWalletName =
+      wallets.find((w) => w.walletId === transfer.toWallet?.walletId)?.walletName ||
+      transfer.toWallet?.walletName ||
+      "Unknown";
+
+    const rawDateValue =
+      transfer.transferDate ||
+      transfer.transfer_date ||
+      transfer.date ||
+      transfer.createdAt ||
+      transfer.created_at ||
+      new Date().toISOString();
+
+    const dateValue = ensureIsoDateWithTimezone(rawDateValue);
+
     return {
       id: transfer.transferId,
       code: `TR-${String(transfer.transferId).padStart(4, "0")}`,
@@ -1460,18 +1453,6 @@ export default function TransactionsPage() {
       </div>
     </div>
   );
-}
-
-function formatVietnamDateTime(date) {
-  if (!date) return "";
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else {
-    d = new Date(date);
-  }
-  if (Number.isNaN(d.getTime())) return "";
-  return `${formatVietnamDate(d)} ${formatVietnamTime(d)}`.trim();
 }
 
 function estimateScheduleRuns(startValue, endValue, scheduleType) {

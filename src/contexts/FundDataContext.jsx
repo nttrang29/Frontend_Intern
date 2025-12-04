@@ -1,8 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import * as FundService from "../services/fund.service";
 import { useWalletData } from "./WalletDataContext";
+import { logActivity } from "../utils/activityLogger";
 
 const FundDataContext = createContext(null);
+
+const logFundActivity = (type, message, data = {}) => {
+  try {
+    logActivity({ type, message, data });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.debug("FundDataContext: failed to log activity", error);
+  }
+};
 
 /**
  * Helper: Normalize fund data từ API
@@ -196,12 +206,23 @@ export function FundDataProvider({ children }) {
       }
       
       const createdFund = result.data?.fund || result.data;
+      const normalizedCreated = normalizeFund(createdFund);
       console.log("FundDataContext: Fund created successfully:", createdFund);
+
+      logFundActivity("fund.create", `Tạo quỹ ${normalizedCreated.fundName || normalizedCreated.id || ""}`,
+        {
+          fundId: normalizedCreated.fundId || normalizedCreated.id,
+          fundType: normalizedCreated.fundType,
+          targetWalletName: normalizedCreated.targetWalletName,
+          currency: normalizedCreated.currency,
+          targetAmount: normalizedCreated.targetAmount,
+        }
+      );
       
       // Reload funds list để cập nhật UI
       await loadFunds();
       
-      return { success: true, data: normalizeFund(createdFund) };
+      return { success: true, data: normalizedCreated };
     } catch (err) {
       console.error("FundDataContext: Error creating fund:", err);
       return { 
@@ -217,6 +238,8 @@ export function FundDataProvider({ children }) {
   const updateFund = async (fundId, updateData) => {
     try {
       console.log(`FundDataContext: Updating fund ${fundId} via API...`, updateData);
+      const normalizedId = String(fundId);
+      const previousFund = funds.find((f) => String(f.id ?? f.fundId) === normalizedId);
       
       const result = await FundService.updateFund(fundId, updateData);
       
@@ -225,12 +248,24 @@ export function FundDataProvider({ children }) {
       }
       
       const updatedFund = result.data?.fund || result.data;
+      const normalizedUpdated = normalizeFund(updatedFund);
       console.log("FundDataContext: Fund updated successfully:", updatedFund);
+
+      logFundActivity("fund.update", `Chỉnh sửa quỹ ${normalizedUpdated.fundName || normalizedId}`,
+        {
+          fundId: normalizedUpdated.fundId || normalizedUpdated.id || normalizedId,
+          fundType: normalizedUpdated.fundType,
+          previousTarget: previousFund?.targetAmount ?? previousFund?.target ?? null,
+          newTarget: normalizedUpdated.targetAmount,
+          previousNote: previousFund?.note || "",
+          note: normalizedUpdated.note || "",
+        }
+      );
       
       // Reload funds list để cập nhật UI
       await loadFunds();
       
-      return { success: true, data: normalizeFund(updatedFund) };
+      return { success: true, data: normalizedUpdated };
     } catch (err) {
       console.error("FundDataContext: Error updating fund:", err);
       return { 
@@ -246,6 +281,8 @@ export function FundDataProvider({ children }) {
   const closeFund = async (fundId) => {
     try {
       console.log(`FundDataContext: Closing fund ${fundId} via API...`);
+      const normalizedId = String(fundId);
+      const targetFund = funds.find((f) => String(f.id ?? f.fundId) === normalizedId);
       
       const result = await FundService.closeFund(fundId);
       
@@ -254,6 +291,13 @@ export function FundDataProvider({ children }) {
       }
       
       console.log("FundDataContext: Fund closed successfully");
+      logFundActivity("fund.close", `Đóng quỹ ${targetFund?.fundName || normalizedId}`,
+        {
+          fundId: normalizedId,
+          fundType: targetFund?.fundType,
+          currentAmount: targetFund?.currentAmount,
+        }
+      );
       
       // Reload funds list để cập nhật UI
       await loadFunds();
@@ -274,6 +318,8 @@ export function FundDataProvider({ children }) {
   const deleteFund = async (fundId) => {
     try {
       console.log(`FundDataContext: Deleting fund ${fundId} via API...`);
+      const normalizedId = String(fundId);
+      const targetFund = funds.find((f) => String(f.id ?? f.fundId) === normalizedId);
       
       const result = await FundService.deleteFund(fundId);
       
@@ -282,6 +328,13 @@ export function FundDataProvider({ children }) {
       }
       
       console.log("FundDataContext: Fund deleted successfully");
+      logFundActivity("fund.delete", `Xóa quỹ ${targetFund?.fundName || normalizedId}`,
+        {
+          fundId: normalizedId,
+          fundType: targetFund?.fundType,
+          currentAmount: targetFund?.currentAmount,
+        }
+      );
       
       // Reload funds list để cập nhật UI
       await loadFunds();
@@ -310,7 +363,17 @@ export function FundDataProvider({ children }) {
       }
       
       const updatedFund = result.data?.fund || result.data;
+      const normalizedUpdated = normalizeFund(updatedFund);
       console.log("FundDataContext: Deposit successful:", updatedFund);
+
+      logFundActivity("fund.deposit", `Nạp ${amount} vào quỹ ${normalizedUpdated.fundName || fundId}`,
+        {
+          fundId: normalizedUpdated.fundId || normalizedUpdated.id || fundId,
+          amount: Number(amount) || 0,
+          currency: normalizedUpdated.currency,
+          targetWalletName: normalizedUpdated.targetWalletName,
+        }
+      );
       
       // Reload funds list để cập nhật UI quỹ
       await loadFunds();
@@ -324,7 +387,7 @@ export function FundDataProvider({ children }) {
         }
       }
       
-      return { success: true, data: normalizeFund(updatedFund) };
+      return { success: true, data: normalizedUpdated };
     } catch (err) {
       console.error("FundDataContext: Error depositing to fund:", err);
       return { 
@@ -348,12 +411,22 @@ export function FundDataProvider({ children }) {
       }
       
       const updatedFund = result.data?.fund || result.data;
+      const normalizedUpdated = normalizeFund(updatedFund);
       console.log("FundDataContext: Withdrawal successful:", updatedFund);
+
+      logFundActivity("fund.withdraw", `Rút ${amount} từ quỹ ${normalizedUpdated.fundName || fundId}`,
+        {
+          fundId: normalizedUpdated.fundId || normalizedUpdated.id || fundId,
+          amount: Number(amount) || 0,
+          currency: normalizedUpdated.currency,
+          sourceWalletName: normalizedUpdated.sourceWalletName,
+        }
+      );
       
       // Reload funds list để cập nhật UI
       await loadFunds();
       
-      return { success: true, data: normalizeFund(updatedFund) };
+      return { success: true, data: normalizedUpdated };
     } catch (err) {
       console.error("FundDataContext: Error withdrawing from fund:", err);
       return { 

@@ -1,6 +1,7 @@
 // src/home/store/NotificationContext.jsx
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import * as NotificationService from "../services/notification.service";
+import { formatVietnamDate } from "../utils/dateFormat";
 
 const NotificationContext = createContext(null);
 
@@ -123,7 +124,7 @@ function formatTimeLabel(createdAt) {
   if (diffDays === 1) return "Hôm qua";
   if (diffDays < 7) return `${diffDays} ngày trước`;
   
-  return created.toLocaleDateString('vi-VN');
+  return formatVietnamDate(created);
 }
 
 export const useNotifications = () => useContext(NotificationContext);

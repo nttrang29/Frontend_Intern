@@ -21,6 +21,17 @@ const normalizeBudget = (budget) => {
       ? Number(budget.walletId)
       : null;
 
+  const walletNameFromPayload =
+    budget.walletName ||
+    budget.wallet?.walletName ||
+    budget.wallet?.name ||
+    budget.wallet?.title ||
+    budget.walletLabel ||
+    budget.walletTitle ||
+    budget.walletDisplayName ||
+    budget.wallet?.label ||
+    "";
+
   return {
     id: budget.budgetId ?? budget.id ?? Date.now(),
     budgetId: budget.budgetId ?? budget.id ?? null,
@@ -29,8 +40,9 @@ const normalizeBudget = (budget) => {
     categoryType: budget.categoryType || "expense",
     walletId,
     walletName:
-      budget.walletName ??
-      (walletId === null ? ALL_WALLETS_LABEL : null),
+      walletId === null
+        ? ALL_WALLETS_LABEL
+        : walletNameFromPayload || null,
     limitAmount: amountLimit,
     amountLimit,
     startDate: budget.startDate || null,
@@ -193,6 +205,10 @@ export function BudgetDataProvider({ children }) {
       if (!budgetId) {
         throw new Error("Thiếu budgetId khi cập nhật ngân sách.");
       }
+      const normalizedId = String(budgetId);
+      const previousBudget = budgets.find(
+        (b) => String(b.id ?? b.budgetId) === normalizedId
+      );
       const body = buildBudgetRequest(patch);
       const response = await budgetAPI.updateBudget(budgetId, body);
       const updatedRaw = normalizeBudget(response?.budget || response);
@@ -221,9 +237,37 @@ export function BudgetDataProvider({ children }) {
         await loadBudgets();
       }
 
+      try {
+        const categoryName =
+          updated?.categoryName || previousBudget?.categoryName || "";
+        const walletName =
+          updated?.walletName || previousBudget?.walletName || ALL_WALLETS_LABEL;
+        const prevLimit =
+          previousBudget?.amountLimit ?? previousBudget?.limitAmount ?? null;
+        const nextLimit =
+          updated?.amountLimit ??
+          updated?.limitAmount ??
+          patch.amountLimit ??
+          patch.limitAmount ??
+          null;
+        logActivity({
+          type: "budget.update",
+          message: `Cập nhật ngân sách ${categoryName || normalizedId}`,
+          data: {
+            budgetId: updated?.id || budgetId,
+            category: categoryName,
+            walletName,
+            previousLimit: prevLimit,
+            newLimit: nextLimit,
+            startDate: updated?.startDate || previousBudget?.startDate || null,
+            endDate: updated?.endDate || previousBudget?.endDate || null,
+          },
+        });
+      } catch (e) {}
+
       return updated;
     },
-    [loadBudgets]
+    [budgets, loadBudgets]
   );
 
   const deleteBudget = useCallback(async (budgetId) => {
