@@ -3,7 +3,7 @@ import Modal from "../common/Modal/Modal";
 import SearchableSelectInput from "../common/SearchableSelectInput";
 import { mapWalletsToSelectOptions, WALLET_TYPE_ICON_CONFIG } from "../../utils/walletSelectHelpers";
 import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../utils/formatMoneyInput";
-
+ 
 export default function BudgetFormModal({
   open,
   mode, // 'create' or 'edit'
@@ -13,15 +13,23 @@ export default function BudgetFormModal({
   onSubmit,
   onClose,
 }) {
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedWallet, setSelectedWallet] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [selectedWalletId, setSelectedWalletId] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
-  const [currency, setCurrency] = useState("VND");
+  const [walletCurrency, setWalletCurrency] = useState("VND");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [alertThreshold, setAlertThreshold] = useState(90);
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+ 
+  const resolveWalletCurrency = (walletId) => {
+    const wallet = wallets.find((w) => String(w.id) === String(walletId));
+    const code = wallet?.currency || wallet?.currencyCode;
+    return (code || "VND").toUpperCase();
+  };
  
   useEffect(() => {
     if (initialData && mode === "edit") {
@@ -42,21 +50,28 @@ export default function BudgetFormModal({
       setEndDate(initialData.endDate || "");
       setAlertThreshold(initialData.alertPercentage ?? 90);
       setNote(initialData.note || "");
+      const initialCurrency =
+        initialData.currencyCode ||
+        resolveWalletCurrency(initialData.walletId) ||
+        "VND";
+      setWalletCurrency(initialCurrency);
     } else {
-      setSelectedCategory("");
-      setSelectedWallet("");
+      setSelectedCategoryId("");
+      setSelectedWalletId("");
       setLimitAmount("");
-      setCurrency("VND");
       setStartDate("");
       setEndDate("");
       setAlertThreshold(90);
       setNote("");
+      const defaultCurrency =
+        wallets.length === 1 ? resolveWalletCurrency(wallets[0].id) : "VND";
+      setWalletCurrency(defaultCurrency);
     }
     setErrors({});
     setFormError("");
     setSubmitting(false);
   }, [open, mode, initialData, wallets]);
-
+ 
   const handleCategoryChange = (value) => setSelectedCategoryId(value);
   const handleWalletChange = (value) => {
     setSelectedWalletId(value);
@@ -69,28 +84,28 @@ export default function BudgetFormModal({
       setWalletCurrency(defaultCurrency);
     }
   };
-
+ 
   const handleLimitChange = (e) => {
     handleMoneyInputChange(e, setLimitAmount);
   };
  
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
     const limitNumeric = getMoneyValue(limitAmount);
-
+ 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const startDateObj = startDate ? new Date(startDate) : null;
     const endDateObj = endDate ? new Date(endDate) : null;
     if (startDateObj) startDateObj.setHours(0, 0, 0, 0);
     if (endDateObj) endDateObj.setHours(0, 0, 0, 0);
-
+ 
     if (!selectedCategoryId) {
       newErrors.category = "Vui lòng chọn danh mục";
     }
-    // wallet optional but recommended
-    if (!selectedWallet) {
+    const walletRequired = !(mode === "edit" && (initialData?.walletId === null || initialData?.walletId === undefined));
+    if (walletRequired && !selectedWalletId) {
       newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
     }
     if (!limitNumeric || limitNumeric <= 0) {
@@ -102,8 +117,11 @@ export default function BudgetFormModal({
     if (!endDate) {
       newErrors.endDate = "Vui lòng chọn ngày kết thúc";
     }
-    if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
-      newErrors.dateRange = "Ngày kết thúc phải sau ngày bắt đầu";
+    if (startDateObj && startDateObj < today) {
+      newErrors.startDate = "Ngày bắt đầu không được nhỏ hơn ngày hiện tại";
+    }
+    if (startDateObj && endDateObj && endDateObj <= startDateObj) {
+      newErrors.endDate = "Ngày kết thúc phải lớn hơn ngày bắt đầu";
     }
     if (alertThreshold < 50 || alertThreshold > 100) {
       newErrors.alertThreshold = "Ngưỡng cảnh báo phải trong khoảng 50% - 100%";
@@ -114,11 +132,24 @@ export default function BudgetFormModal({
       return;
     }
  
-    const categoryObj = categories.find((c) => c.name === selectedCategory) || {};
-    // support special 'ALL' value meaning apply to all wallets
-    let payload = {
+    const categoryObj = categories.find((c) => String(c.id) === String(selectedCategoryId)) || {};
+    const walletObj =
+      wallets.find((w) => String(w.id) === String(selectedWalletId)) ||
+      (mode === "edit" && (initialData?.walletId === null || initialData?.walletId === undefined)
+        ? { id: null, name: initialData?.walletName || "Tất cả ví" }
+        : null);
+ 
+    const resolvedWalletId =
+      walletObj && walletObj.id !== undefined && walletObj.id !== null
+        ? walletObj.id
+        : null;
+ 
+    const resolvedWalletName =
+      walletObj?.name || walletObj?.walletName || initialData?.walletName || (resolvedWalletId === null ? "Tất cả ví" : "");
+ 
+    const payload = {
       categoryId: categoryObj.id || null,
-      categoryName: selectedCategory,
+      categoryName: categoryObj.name || initialData?.categoryName || "",
       categoryType: "expense",
       walletId: resolvedWalletId,
       walletName: resolvedWalletName,
@@ -129,20 +160,29 @@ export default function BudgetFormModal({
       note: note.trim(),
     };
  
-    if (selectedWallet === "ALL") {
-      payload = { ...payload, walletId: null, walletName: "Tất cả ví" };
-    } else {
-      const walletObj = wallets.find((w) => String(w.id) === String(selectedWallet)) || wallets.find((w) => w.name === selectedWallet) || {};
-      payload = { ...payload, walletId: walletObj.id || null, walletName: walletObj.name || selectedWallet || null };
+    try {
+      setSubmitting(true);
+      setFormError("");
+      await onSubmit(payload);
+      onClose();
+    } catch (submitError) {
+      const message =
+        submitError?.message ||
+        submitError?.error ||
+        "Không thể lưu hạn mức. Vui lòng kiểm tra lại thông tin.";
+      const normalizedMessage =
+        message === "budgets.error.duplicate"
+          ? "Hạn mức với ví, danh mục và ngày bắt đầu này đã tồn tại."
+          : message;
+      setFormError(normalizedMessage);
+    } finally {
+      setSubmitting(false);
     }
- 
-    onSubmit(payload);
-    onClose();
   };
  
   const categoryList = categories || [];
   const walletList = wallets || [];
-
+ 
   const categoryOptions = useMemo(() => {
     const defaults = categoryList.map((cat) => ({
       value: cat && cat.id !== undefined && cat.id !== null ? String(cat.id) : "",
@@ -151,7 +191,7 @@ export default function BudgetFormModal({
       iconColor: "#0b5aa5",
       iconBg: "linear-gradient(135deg, rgba(11,90,165,0.12) 0%, rgba(10,180,190,0.05) 100%)",
     })).filter((opt) => opt.value && opt.label);
-
+ 
     if (
       mode === "edit" &&
       selectedCategoryId &&
@@ -167,7 +207,7 @@ export default function BudgetFormModal({
     }
     return defaults;
   }, [categoryList, mode, selectedCategoryId, initialData]);
-
+ 
   const walletTypeLabels = useMemo(
     () => ({
       personal: "Ví cá nhân",
@@ -176,16 +216,16 @@ export default function BudgetFormModal({
     }),
     []
   );
-
+ 
   const walletOptions = useMemo(() => {
     const options = mapWalletsToSelectOptions(
       walletList,
       walletTypeLabels,
       (wallet) => (wallet?.id !== undefined && wallet?.id !== null ? wallet.id : "")
     );
-
+ 
     const normalized = options.filter((opt) => opt.value !== "");
-
+ 
     if (
       mode === "edit" &&
       selectedWalletId &&
@@ -200,10 +240,10 @@ export default function BudgetFormModal({
         iconBg: fallbackConfig.bg,
       });
     }
-
+ 
     return normalized;
   }, [walletList, walletTypeLabels, mode, selectedWalletId, initialData]);
-
+ 
   return (
     <Modal open={open} onClose={onClose} width={500}>
       <div className="modal__content budget-form-modal" style={{ padding: "2rem" }}>
@@ -230,6 +270,11 @@ export default function BudgetFormModal({
         </div>
  
         <form onSubmit={handleSubmit}>
+          {formError && (
+            <div className="alert alert-danger" role="alert">
+              {formError}
+            </div>
+          )}
           {/* Category Selector */}
           <div className="mb-3">
             <SearchableSelectInput
@@ -270,24 +315,16 @@ export default function BudgetFormModal({
  
           {/* Limit Amount */}
           <div className="mb-4">
-            <label className="form-label fw-semibold">Hạn mức Chi tiêu ({currency})</label>
+            <label className="form-label fw-semibold">Hạn mức Chi tiêu ({walletCurrency})</label>
             <div className="input-group">
               <input
                 type="text"
                 className={`form-control ${errors.limit ? "is-invalid" : ""}`}
-                placeholder={currency === "USD" ? "0.00" : "0"}
+                placeholder="0"
                 value={limitAmount}
                 onChange={handleLimitChange}
               />
-              <select
-                className="form-select"
-                style={{ maxWidth: "100px" }}
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-              >
-                <option value="VND">VND</option>
-                <option value="USD">USD</option>
-              </select>
+              <span className="input-group-text">{walletCurrency}</span>
             </div>
             {errors.limit && (
               <div className="invalid-feedback d-block">{errors.limit}</div>
@@ -323,11 +360,6 @@ export default function BudgetFormModal({
                 )}
               </div>
             </div>
-            {errors.dateRange && (
-              <div className="invalid-feedback d-block" style={{ marginTop: "0.5rem" }}>
-                {errors.dateRange}
-              </div>
-            )}
             <div className="form-text mt-2">Hạn mức sẽ được theo dõi trong khoảng thời gian này.</div>
           </div>
  
@@ -369,11 +401,20 @@ export default function BudgetFormModal({
  
           {/* Buttons */}
           <div className="d-flex gap-2 justify-content-end">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
               Hủy
             </button>
-            <button type="submit" className="btn btn-primary">
-              {mode === "create" ? "Thêm Hạn mức" : "Cập nhật"}
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? (
+                <span>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Đang xử lý...
+                </span>
+              ) : mode === "create" ? (
+                "Thêm Hạn mức"
+              ) : (
+                "Cập nhật"
+              )}
             </button>
           </div>
         </form>
@@ -381,3 +422,5 @@ export default function BudgetFormModal({
     </Modal>
   );
 }
+ 
+ 
