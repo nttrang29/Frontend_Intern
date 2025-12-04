@@ -46,12 +46,13 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
 
   const [freq, setFreq] = useState("MONTHLY");
   const [periodAmount, setPeriodAmount] = useState("");
-  const [startDate, setStartDate] = useState("");
+  // Default start date = today (ISO format yyyy-MM-dd) so input[type=date] shows today's date
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [startDateError, setStartDateError] = useState("");
   const [calculatedEndDate, setCalculatedEndDate] = useState("");
   const [estimateText, setEstimateText] = useState("");
   
-  // Ngày hôm nay (để validate)
+  // Ngày hôm nay (ISO yyyy-MM-dd) để validate
   const today = new Date().toISOString().split('T')[0];
   
   // Handler để validate startDate
@@ -212,33 +213,23 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     // Validate auto topup nếu bật
     if (autoTopupOn) {
       if (!autoTopupData) {
-        showToast("Vui lòng đợi hệ thống khởi tạo dữ liệu tự động nạp.", "error");
+        showToast("Vui lòng cấu hình lịch tự động nạp.", "error");
         return;
       }
-      
-      if (!periodAmount || Number(periodAmount) <= 0) {
-        showToast("Vui lòng nhập số tiền gửi mỗi kỳ trước khi bật tự động nạp.", "error");
-        return;
-      }
-      
       if (!autoTopupData.autoDepositTime) {
-        showToast("Vui lòng chọn giờ tự động nạp (ví dụ: 20:00).", "error");
+        showToast("Vui lòng chọn giờ tự động nạp.", "error");
         return;
       }
-      
-      if (freq === "MONTHLY" && !autoTopupData.autoDepositDayOfMonth) {
-        showToast("Vui lòng chọn ngày trong tháng (1-31) cho tự động nạp.", "error");
-        return;
-      }
-      
-      if (freq === "WEEKLY" && !autoTopupData.autoDepositDayOfWeek) {
+      if (autoTopupData.autoDepositScheduleType === "WEEKLY" && !autoTopupData.autoDepositDayOfWeek) {
         showToast("Vui lòng chọn ngày trong tuần cho tự động nạp.", "error");
         return;
       }
-      
-      if (!autoTopupData.autoDepositScheduleType) {
-        showToast("Lỗi hệ thống: Không xác định được tần suất tự động nạp.", "error");
-        console.error("Missing autoDepositScheduleType. freq =", freq);
+      if (autoTopupData.autoDepositScheduleType === "MONTHLY" && !autoTopupData.autoDepositDayOfMonth) {
+        showToast("Vui lòng chọn ngày trong tháng cho tự động nạp.", "error");
+        return;
+      }
+      if (!autoTopupData.autoDepositStartAt) {
+        showToast("Vui lòng chọn thời điểm bắt đầu nạp tự động.", "error");
         return;
       }
     }
@@ -287,19 +278,24 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
         fundData.autoDepositScheduleType = autoTopupData.autoDepositScheduleType;
         fundData.autoDepositTime = autoTopupData.autoDepositTime;
         fundData.autoDepositAmount = autoTopupData.autoDepositAmount ? Number(autoTopupData.autoDepositAmount) : null;
-        
-        // Copy các trường tùy theo schedule type
+
+        // Always set schedule type/time/day fields when provided by autoTopupData.
+        fundData.autoDepositScheduleType = autoTopupData.autoDepositScheduleType || autoTopupData.autoDepositType || null;
+        fundData.autoDepositTime = autoTopupData.autoDepositTime || null;
         if (autoTopupData.autoDepositDayOfWeek) {
           fundData.autoDepositDayOfWeek = autoTopupData.autoDepositDayOfWeek;
         }
         if (autoTopupData.autoDepositDayOfMonth) {
-          fundData.autoDepositDayOfMonth = Number(autoTopupData.autoDepositDayOfMonth);
+          fundData.autoDepositDayOfMonth = autoTopupData.autoDepositDayOfMonth;
         }
         if (autoTopupData.autoDepositMonth) {
           fundData.autoDepositMonth = autoTopupData.autoDepositMonth;
         }
         if (autoTopupData.autoDepositDay) {
           fundData.autoDepositDay = autoTopupData.autoDepositDay;
+        }
+        if (autoTopupData.autoDepositStartAt) {
+          fundData.autoDepositStartAt = autoTopupData.autoDepositStartAt;
         }
       } else {
         fundData.autoDepositEnabled = false;
@@ -559,7 +555,8 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
         setAutoTopupOn={setAutoTopupOn}
         freq={freq}
         onDataChange={setAutoTopupData}
-        defaultAmount={periodAmount}
+        periodAmount={periodAmount}
+        baseStartDate={startDate}
       />
 
       {/* ACTIONS */}

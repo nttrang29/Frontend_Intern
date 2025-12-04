@@ -30,11 +30,12 @@ const buildFormState = (fund) => ({
   autoDepositTime: fund.autoDepositTime ? fund.autoDepositTime.substring(0, 5) : "",
   autoDepositDayOfWeek: fund.autoDepositDayOfWeek || "",
   autoDepositDayOfMonth: fund.autoDepositDayOfMonth || "",
+  autoDepositStartAt: fund.autoDepositStartAt || "",
 });
 
 export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab = "info" }) {
   const { updateFund, depositToFund, withdrawFromFund, deleteFund, closeFund } = useFundData();
-  const { wallets } = useWalletData();
+  const { wallets, loadWallets } = useWalletData();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState(defaultTab); // info | edit | deposit | withdraw | warnings | history
@@ -53,6 +54,16 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   const [reminderData, setReminderData] = useState(null);
   const [autoTopupOn, setAutoTopupOn] = useState(fund.autoDepositEnabled || false);
   const [autoTopupData, setAutoTopupData] = useState(null);
+
+  const autoTopupInitialValues = useMemo(() => {
+    if (!fund.autoDepositEnabled) return null;
+    return {
+      autoDepositTime: fund.autoDepositTime,
+      autoDepositDayOfWeek: fund.autoDepositDayOfWeek,
+      autoDepositDayOfMonth: fund.autoDepositDayOfMonth,
+      autoDepositStartAt: fund.autoDepositStartAt,
+    };
+  }, [fund]);
   
   // State for delete confirmation modal
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -205,6 +216,34 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         return;
       }
 
+      if (autoTopupOn) {
+        if (!autoTopupData) {
+          showToast("Vui lòng cấu hình lịch tự động nạp.", "error");
+          setSaving(false);
+          return;
+        }
+        if (!autoTopupData.autoDepositTime) {
+          showToast("Vui lòng chọn giờ tự động nạp.", "error");
+          setSaving(false);
+          return;
+        }
+        if (autoTopupData.autoDepositScheduleType === "WEEKLY" && !autoTopupData.autoDepositDayOfWeek) {
+          showToast("Vui lòng chọn ngày trong tuần cho tự động nạp.", "error");
+          setSaving(false);
+          return;
+        }
+        if (autoTopupData.autoDepositScheduleType === "MONTHLY" && !autoTopupData.autoDepositDayOfMonth) {
+          showToast("Vui lòng chọn ngày trong tháng cho tự động nạp.", "error");
+          setSaving(false);
+          return;
+        }
+        if (!autoTopupData.autoDepositStartAt) {
+          showToast("Vui lòng chọn thời điểm bắt đầu nạp tự động.", "error");
+          setSaving(false);
+          return;
+        }
+      }
+
       const updateData = {
         fundName: form.name.trim(),
         currencyCode: selectedCurrency,
@@ -245,22 +284,24 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       if (autoTopupOn && autoTopupData) {
         updateData.autoDepositType = autoTopupData.autoDepositType;
         updateData.autoDepositAmount = autoTopupData.autoDepositAmount;
-        
-        if (autoTopupData.autoDepositType === "CUSTOM_SCHEDULE") {
-          updateData.autoDepositScheduleType = autoTopupData.autoDepositScheduleType;
-          updateData.autoDepositTime = autoTopupData.autoDepositTime;
-          if (autoTopupData.autoDepositDayOfWeek) {
-            updateData.autoDepositDayOfWeek = autoTopupData.autoDepositDayOfWeek;
-          }
-          if (autoTopupData.autoDepositDayOfMonth) {
-            updateData.autoDepositDayOfMonth = autoTopupData.autoDepositDayOfMonth;
-          }
-          if (autoTopupData.autoDepositMonth) {
-            updateData.autoDepositMonth = autoTopupData.autoDepositMonth;
-          }
-          if (autoTopupData.autoDepositDay) {
-            updateData.autoDepositDay = autoTopupData.autoDepositDay;
-          }
+
+        // Ghi schedule type/time/day nếu autoTopupData có, hoặc fallback về autoDepositType
+        updateData.autoDepositScheduleType = autoTopupData.autoDepositScheduleType || autoTopupData.autoDepositType || null;
+        updateData.autoDepositTime = autoTopupData.autoDepositTime || null;
+        if (autoTopupData.autoDepositDayOfWeek) {
+          updateData.autoDepositDayOfWeek = autoTopupData.autoDepositDayOfWeek;
+        }
+        if (autoTopupData.autoDepositDayOfMonth) {
+          updateData.autoDepositDayOfMonth = autoTopupData.autoDepositDayOfMonth;
+        }
+        if (autoTopupData.autoDepositMonth) {
+          updateData.autoDepositMonth = autoTopupData.autoDepositMonth;
+        }
+        if (autoTopupData.autoDepositDay) {
+          updateData.autoDepositDay = autoTopupData.autoDepositDay;
+        }
+        if (autoTopupData.autoDepositStartAt) {
+          updateData.autoDepositStartAt = autoTopupData.autoDepositStartAt;
         }
       }
 
@@ -415,6 +456,15 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         // Đóng quỹ (soft delete - giữ lại lịch sử)
         await closeFund(fund.id);
         
+        // Reload wallets so UI shows updated balances
+        try {
+          if (loadWallets) await loadWallets();
+        } catch (e) {
+          console.warn('Unable to reload wallets after withdraw', e);
+        }
+        // Let parent refresh funds list if provided
+        if (onUpdateFund) await onUpdateFund();
+
         // Delay một chút để user đọc toast
         setTimeout(() => {
           // Quay về danh sách quỹ
@@ -996,6 +1046,9 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                   setAutoTopupOn={setAutoTopupOn}
                   freq={form.frequency || "MONTHLY"}
                   onDataChange={setAutoTopupData}
+                  periodAmount={form.amountPerPeriod}
+                  initialValues={autoTopupInitialValues}
+                  baseStartDate={form.startDate}
                 />
 
                 <div className="funds-actions mt-3" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

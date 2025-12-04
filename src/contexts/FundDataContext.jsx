@@ -64,6 +64,7 @@ const normalizeFund = (apiFund) => {
     autoDepositMonth: apiFund.autoDepositMonth || null,
     autoDepositDay: apiFund.autoDepositDay || null,
     autoDepositAmount: apiFund.autoDepositAmount || null,
+    autoDepositStartAt: apiFund.autoDepositStartAt || null,
     
     // Thành viên (cho quỹ nhóm)
     members: apiFund.members || [],
