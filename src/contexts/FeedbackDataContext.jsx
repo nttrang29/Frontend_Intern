@@ -1,115 +1,60 @@
 // src/home/store/FeedbackDataContext.jsx
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { appReviewAPI } from "../services/app-review.service";
+import React, { createContext, useContext, useState } from "react";
 
 const FeedbackContext = createContext(null);
 
-const normalizeReview = (review) => {
-  if (!review) return null;
-  return {
-    id: review.reviewId ?? review.id,
-    reviewId: review.reviewId ?? review.id,
-    user: review.displayName ?? review.userName ?? review.user ?? "Người dùng ẩn danh",
-    email: review.userEmail ?? review.email ?? "",
-    rating: Number(review.rating ?? 0),
-    comment: review.content ?? review.comment ?? "",
-    createdAt: review.createdAt ?? new Date().toISOString(),
+const INITIAL_REVIEWS = [
+  {
+    id: 1,
+    user: "Nguyễn Văn A",
+    email: "user1@example.com",
+    rating: 5,
+    comment: "Ứng dụng quản lý ví rất tốt, giao diện dễ nhìn.",
+    createdAt: "2025-11-12 20:05",
     source: "Feedback trong app",
-    status: review.status ?? "PENDING",
-    adminReply: review.adminReply
-      ? {
-          author: "Admin",
-          message: review.adminReply,
-          date: review.repliedAt ?? review.updatedAt ?? "",
-        }
-      : null,
-  };
-};
+    adminReply: {
+      author: "MyWallet Team",
+      message: "Cảm ơn bạn đã tin tưởng sử dụng MyWallet! ❤️",
+      date: "2025-11-13 09:10",
+    },
+  },
+  {
+    id: 2,
+    user: "Trần Thị B",
+    email: "user2@example.com",
+    rating: 3,
+    comment:
+      "Muốn xuất báo cáo ra Excel, hiện tại chỉ xem được trong giao diện.",
+    createdAt: "2025-11-11 14:12",
+    source: "Đánh giá app store",
+    adminReply: null,
+  },
+];
 
 export function FeedbackProvider({ children }) {
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Load app reviews từ API
-  const loadFeedbacks = useCallback(async () => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      setReviews([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Lấy review của user hiện tại
-      const response = await appReviewAPI.getMyReview();
-      if (response.hasReview && response.review) {
-        setReviews([normalizeReview(response.review)]);
-      } else {
-        setReviews([]);
-      }
-      setError(null);
-    } catch (err) {
-      console.error("Error loading app review:", err);
-      setReviews([]);
-      setError(err?.message || "Không thể tải đánh giá.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadFeedbacks();
-
-    const handleUserChange = () => {
-      loadFeedbacks();
-    };
-
-    const handleStorageChange = (event) => {
-      if (
-        event.key === "accessToken" ||
-        event.key === "auth_user" ||
-        event.key === "user"
-      ) {
-        loadFeedbacks();
-      }
-    };
-
-    window.addEventListener("userChanged", handleUserChange);
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("userChanged", handleUserChange);
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [loadFeedbacks]);
+  const [reviews, setReviews] = useState(INITIAL_REVIEWS);
 
   // user gửi đánh giá mới
-  const addReview = useCallback(async (payload) => {
-    try {
-      const response = await appReviewAPI.createReview({
-        displayName: payload.user || payload.displayName || "Người dùng ẩn danh",
-        rating: Number(payload.rating),
-        content: payload.comment || payload.content,
-      });
+  const addReview = (payload) => {
+    const now = new Date();
+    const createdAt = now.toISOString().slice(0, 16).replace("T", " ");
 
-      const newReview = normalizeReview(response?.review || response);
-      if (newReview) {
-        setReviews([newReview]); // User chỉ có 1 review
-        return newReview;
-      }
-      
-      // Fallback: reload
-      await loadFeedbacks();
-      return null;
-    } catch (err) {
-      console.error("Error creating review:", err);
-      throw err;
-    }
-  }, [loadFeedbacks]);
+    const newReview = {
+      id: Date.now(),
+      user: payload.user,
+      email: payload.email || "user@example.com", // sau này lấy từ tài khoản thật
+      rating: payload.rating,
+      comment: payload.comment,
+      createdAt,
+      source: "Feedback trong app",
+      adminReply: null,
+    };
 
-  // admin phản hồi (giữ lại cho tương thích, nhưng thực tế admin dùng admin API)
+    setReviews((prev) => [newReview, ...prev]);
+    return newReview;
+  };
+
+  // admin phản hồi
   const addAdminReply = (reviewId, { author = "Admin", message, date }) => {
     const replyDate =
       date || new Date().toISOString().slice(0, 16).replace("T", " ");
@@ -131,16 +76,7 @@ export function FeedbackProvider({ children }) {
   };
 
   return (
-    <FeedbackContext.Provider
-      value={{
-        reviews,
-        loading,
-        error,
-        addReview,
-        addAdminReply,
-        refreshFeedbacks: loadFeedbacks,
-      }}
-    >
+    <FeedbackContext.Provider value={{ reviews, addReview, addAdminReply }}>
       {children}
     </FeedbackContext.Provider>
   );

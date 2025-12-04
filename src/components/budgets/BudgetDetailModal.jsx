@@ -1,48 +1,28 @@
 import React from "react";
 import Modal from "../common/Modal/Modal";
-import { useLanguage } from "../../contexts/LanguageContext";
 
-const STATUS_TONE = {
-  active: "success",
-  pending: "info",
-  completed: "secondary",
-  warning: "warning",
-  over: "danger",
-};
-
-const FALLBACK_LABEL = {
-  active: "Đang hoạt động",
-  pending: "Đang chờ",
-  completed: "Hoàn thành",
-  warning: "Vượt ngưỡng",
-  over: "Vượt hạn mức",
-};
-
-const formatAmount = (value = 0, currencyCode = "VND") => {
-  const amount = Number(value) || 0;
-  const code = (currencyCode || "VND").toUpperCase();
-  if (code === "USD") {
-    const formatted =
-      Math.abs(amount) < 0.01 && amount !== 0
-        ? amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 })
-        : amount % 1 === 0
-        ? amount.toLocaleString("en-US")
-        : amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return `$${formatted}`;
-  }
-  if (code === "VND") {
-    return `${amount.toLocaleString("vi-VN")} ₫`;
-  }
-  return `${amount.toLocaleString("en-US")} ${code}`;
-};
-
-export default function BudgetDetailModal({ open, budget, usage, status = "active", onClose, onEdit }) {
-  const { t } = useLanguage();
+export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit, onRemind }) {
   if (!open || !budget) return null;
-  const currencyCode = (budget.currencyCode || "VND").toUpperCase();
 
-  const statusTone = STATUS_TONE[status] || "secondary";
-  const statusLabel = t(`budgets.status.${status}`) || FALLBACK_LABEL[status] || FALLBACK_LABEL.active;
+  const formatCurrency = (value = 0) => {
+    try {
+      return (value || 0).toLocaleString("vi-VN");
+    } catch (error) {
+      return String(value || 0);
+    }
+  };
+
+  const statusLabel = {
+    healthy: "Đang hoạt động",
+    warning: "Vượt ngưỡng cảnh báo",
+    over: "Vượt hạn mức",
+  };
+
+  const statusTone = {
+    healthy: "success",
+    warning: "warning",
+    over: "danger",
+  }[usage?.status || "healthy"] || "success";
   const percent = usage?.percent ?? 0;
   const limit = budget.limitAmount || 0;
   const spent = usage?.spent || 0;
@@ -61,22 +41,22 @@ export default function BudgetDetailModal({ open, budget, usage, status = "activ
             <span className="text-muted">Áp dụng cho ví: {budget.walletName || "Tất cả ví"}</span>
           </div>
           <span className={`budget-status-chip ${statusTone}`}>
-            {statusLabel}
+            {statusLabel[usage?.status || "healthy"]}
           </span>
         </div>
 
         <div className="budget-detail-grid">
           <div>
             <label>Hạn mức</label>
-            <p>{formatAmount(limit, currencyCode)}</p>
+            <p>{formatCurrency(limit)} VND</p>
           </div>
           <div>
             <label>Đã chi</label>
-            <p className={spent > limit ? "text-danger" : ""}>{formatAmount(spent, currencyCode)}</p>
+            <p className={spent > limit ? "text-danger" : ""}>{formatCurrency(spent)} VND</p>
           </div>
           <div>
             <label>Còn lại</label>
-            <p className={remaining < 0 ? "text-danger" : "text-success"}>{formatAmount(remaining, currencyCode)}</p>
+            <p className={remaining < 0 ? "text-danger" : "text-success"}>{formatCurrency(remaining)} VND</p>
           </div>
           <div>
             <label>Khoảng thời gian</label>
@@ -105,6 +85,9 @@ export default function BudgetDetailModal({ open, budget, usage, status = "activ
         </div>
 
         <div className="budget-detail-actions">
+          <button type="button" className="btn btn-outline-secondary" onClick={() => onRemind?.(budget)}>
+            Gửi nhắc nhở
+          </button>
           <div className="ms-auto d-flex gap-2">
             <button type="button" className="btn btn-light" onClick={onClose}>
               Đóng

@@ -1,42 +1,55 @@
 // src/components/funds/AutoTopupBlock.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import "../../styles/components/funds/FundForms.css";
+
+// Map week day string to number (1-7) - MOVE RA NGOÀI để tránh re-create mỗi lần render
+const WEEK_DAY_MAP = {
+  "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "1": 1
+};
 
 export default function AutoTopupBlock({
   autoTopupOn,
   setAutoTopupOn,
   freq = "MONTHLY",
   onDataChange,
+  defaultAmount = "", // Số tiền gửi mỗi kỳ
 }) {
   const [autoTime, setAutoTime] = useState("");
   const [autoWeekDay, setAutoWeekDay] = useState("2");
   const [autoMonthDay, setAutoMonthDay] = useState("");
-  const [autoAmount, setAutoAmount] = useState("");
   
-  // Map week day string to number (1-7)
-  const weekDayMap = {
-    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "1": 1
-  };
+  // Dùng useRef để lưu onDataChange - tránh re-create function mỗi lần render
+  const onDataChangeRef = useRef(onDataChange);
+  useEffect(() => {
+    onDataChangeRef.current = onDataChange;
+  }, [onDataChange]);
   
   // Export data when anything changes
   useEffect(() => {
-    if (!autoTopupOn || !onDataChange) return;
+    if (!onDataChangeRef.current) return;
+    
+    // Luôn gửi data, kể cả khi autoTopupOn = false (để clear data)
+    if (!autoTopupOn) {
+      onDataChangeRef.current(null);
+      return;
+    }
     
     const autoTopupData = {
       autoDepositType: freq,
       autoDepositScheduleType: freq,
-      autoDepositAmount: autoAmount ? Number(autoAmount) : null,
+      autoDepositAmount: defaultAmount ? Number(defaultAmount) : null,
       autoDepositTime: autoTime ? `${autoTime}:00` : null,
     };
     
     if (freq === "WEEKLY") {
-      autoTopupData.autoDepositDayOfWeek = weekDayMap[autoWeekDay];
+      autoTopupData.autoDepositDayOfWeek = WEEK_DAY_MAP[autoWeekDay];
     } else if (freq === "MONTHLY") {
-      autoTopupData.autoDepositDayOfMonth = autoMonthDay;
+      autoTopupData.autoDepositDayOfMonth = autoMonthDay ? Number(autoMonthDay) : null;
     }
     
-    onDataChange(autoTopupData);
-  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, autoAmount, onDataChange]);
+    onDataChangeRef.current(autoTopupData);
+  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, defaultAmount]);
+  // ✅ BỎ onDataChange khỏi dependency array - dùng ref thay thế
 
   const freqLabel = {
     DAILY: "Theo ngày",
@@ -203,14 +216,14 @@ export default function AutoTopupBlock({
           <div className="funds-field">
             <label>Số tiền tự nạp mỗi lần</label>
             <input 
-              type="number"
-              min={0}
-              placeholder="Nhập số tiền"
-              value={autoAmount}
-              onChange={(e) => setAutoAmount(e.target.value)}
+              type="text"
+              value={defaultAmount || ""}
+              placeholder="Tự động lấy từ số tiền gửi mỗi kỳ"
+              disabled
+              style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
             />
             <div className="funds-hint">
-              Số tiền này sẽ tự động chuyển từ ví nguồn vào quỹ theo lịch đã thiết lập.
+              Số tiền này sẽ tự động bằng với "Số tiền gửi mỗi kỳ" và được chuyển từ ví nguồn vào quỹ theo lịch đã thiết lập.
             </div>
           </div>
         </>

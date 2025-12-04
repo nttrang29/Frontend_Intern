@@ -67,11 +67,27 @@ export default function NotificationBell({ role = "user" }) {
           defaultTab: "deposit"
         },
       });
-    } else if (n.type === "fund_auto_deposit") {
+    } else if (n.type === "FUND_AUTO_DEPOSIT_SUCCESS" || n.type === "fund_auto_deposit") {
       // Thông báo nạp tự động thành công - mở fund với tab info
       navigate("/home/funds", {
         state: { 
-          openFundId: n.fundId,
+          openFundId: n.referenceId || n.fundId,
+          defaultTab: "info"
+        },
+      });
+    } else if (n.type === "FUND_AUTO_DEPOSIT_FAILED") {
+      // Thông báo nạp tự động thất bại - mở fund với tab deposit để nạp thủ công
+      navigate("/home/funds", {
+        state: { 
+          openFundId: n.referenceId,
+          defaultTab: "deposit"
+        },
+      });
+    } else if (n.type === "FUND_COMPLETED") {
+      // Thông báo quỹ đạt mục tiêu - mở fund với tab info
+      navigate("/home/funds", {
+        state: { 
+          openFundId: n.referenceId,
           defaultTab: "info"
         },
       });
