@@ -19,6 +19,8 @@ export default function BudgetFormModal({
   const [alertThreshold, setAlertThreshold] = useState(90);
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (initialData && mode === "edit") {
@@ -43,7 +45,9 @@ export default function BudgetFormModal({
       setNote("");
     }
     setErrors({});
-  }, [open, mode, initialData]);
+    setFormError("");
+    setSubmitting(false);
+  }, [open, mode, initialData, wallets]);
 
   const handleCategoryChange = (e) => setSelectedCategory(e.target.value);
   const handleWalletChange = (e) => setSelectedWallet(e.target.value);
@@ -64,7 +68,7 @@ export default function BudgetFormModal({
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -96,29 +100,52 @@ export default function BudgetFormModal({
       return;
     }
 
-    const categoryObj = categories.find((c) => c.name === selectedCategory) || {};
-    // support special 'ALL' value meaning apply to all wallets
-    let payload = {
+    const categoryObj = categories.find((c) => String(c.id) === String(selectedCategoryId)) || {};
+    const walletObj =
+      wallets.find((w) => String(w.id) === String(selectedWalletId)) ||
+      (mode === "edit" && (initialData?.walletId === null || initialData?.walletId === undefined)
+        ? { id: null, name: initialData?.walletName || "Tất cả ví" }
+        : null);
+
+    const resolvedWalletId =
+      walletObj && walletObj.id !== undefined && walletObj.id !== null
+        ? walletObj.id
+        : null;
+
+    const resolvedWalletName =
+      walletObj?.name || walletObj?.walletName || initialData?.walletName || (resolvedWalletId === null ? "Tất cả ví" : "");
+
+    const payload = {
       categoryId: categoryObj.id || null,
       categoryName: selectedCategory,
       categoryType: "expense",
-      limitAmount: parseFloat(limitAmount),
-      currency: currency,
+      walletId: resolvedWalletId,
+      walletName: resolvedWalletName,
+      limitAmount: Number(limitAmount),
       startDate,
       endDate,
       alertPercentage: Number(alertThreshold),
       note: note.trim(),
     };
 
-    if (selectedWallet === "ALL") {
-      payload = { ...payload, walletId: null, walletName: "Tất cả ví" };
-    } else {
-      const walletObj = wallets.find((w) => String(w.id) === String(selectedWallet)) || wallets.find((w) => w.name === selectedWallet) || {};
-      payload = { ...payload, walletId: walletObj.id || null, walletName: walletObj.name || selectedWallet || null };
+    try {
+      setSubmitting(true);
+      setFormError("");
+      await onSubmit(payload);
+      onClose();
+    } catch (submitError) {
+      const message =
+        submitError?.message ||
+        submitError?.error ||
+        "Không thể lưu hạn mức. Vui lòng kiểm tra lại thông tin.";
+      const normalizedMessage =
+        message === "budgets.error.duplicate"
+          ? "Hạn mức với ví, danh mục và ngày bắt đầu này đã tồn tại."
+          : message;
+      setFormError(normalizedMessage);
+    } finally {
+      setSubmitting(false);
     }
-
-    onSubmit(payload);
-    onClose();
   };
 
   const categoryList = categories || [];
@@ -150,6 +177,11 @@ export default function BudgetFormModal({
         </div>
 
         <form onSubmit={handleSubmit}>
+          {formError && (
+            <div className="alert alert-danger" role="alert">
+              {formError}
+            </div>
+          )}
           {/* Category Selector */}
           <div className="mb-3">
             <label className="form-label fw-semibold">Chọn Danh mục</label>
@@ -292,11 +324,20 @@ export default function BudgetFormModal({
 
           {/* Buttons */}
           <div className="d-flex gap-2 justify-content-end">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
               Hủy
             </button>
-            <button type="submit" className="btn btn-primary">
-              {mode === "create" ? "Thêm Hạn mức" : "Cập nhật"}
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? (
+                <span>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Đang xử lý...
+                </span>
+              ) : mode === "create" ? (
+                "Thêm Hạn mức"
+              ) : (
+                "Cập nhật"
+              )}
             </button>
           </div>
         </form>

@@ -3,6 +3,9 @@ import React, { createContext, useContext, useMemo, useState, useCallback, useEf
 import { budgetAPI } from "../services/api-client";
 import { logActivity } from "../utils/activityLogger";
 
+const TRANSACTION_CACHE_KEY = "budget_external_transactions";
+const MAX_CACHED_TRANSACTIONS = 300;
+
 const BudgetDataContext = createContext(null);
 
 const ALL_WALLETS_LABEL = "Tất cả ví";
@@ -88,7 +91,18 @@ export function BudgetDataProvider({ children }) {
   });
   
   // Keep a copy of all external transactions so we can compute period-based totals
-  const [externalTransactionsList, setExternalTransactionsList] = useState([]);
+  const [externalTransactionsList, setExternalTransactionsList] = useState(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const cached = window.localStorage.getItem(TRANSACTION_CACHE_KEY);
+      if (!cached) return [];
+      const parsed = JSON.parse(cached);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      window.localStorage.removeItem(TRANSACTION_CACHE_KEY);
+      return [];
+    }
+  });
 
   // ====== helpers ======
   const loadBudgets = useCallback(async () => {
@@ -131,14 +145,39 @@ export function BudgetDataProvider({ children }) {
       }
 
       const response = await budgetAPI.createBudget(body);
-      const created = normalizeBudget(response?.budget || response);
+      const createdRaw = normalizeBudget(response?.budget || response);
+      const created = createdRaw
+        ? {
+            ...createdRaw,
+            categoryId:
+              createdRaw.categoryId ??
+              (payload.categoryId !== undefined ? Number(payload.categoryId) : null),
+            categoryName:
+              createdRaw.categoryName || payload.categoryName || "",
+            walletId:
+              createdRaw.walletId !== undefined && createdRaw.walletId !== null
+                ? createdRaw.walletId
+                : body.walletId ?? null,
+            walletName:
+              createdRaw.walletName || payload.walletName || (body.walletId == null ? "Tất cả ví" : ""),
+          }
+        : null;
       if (created) {
         setBudgets((prev) => [created, ...prev]);
         try {
+          const categoryName = payload.categoryName || created.categoryName || "";
+          const categoryId = payload.categoryId || created.categoryId || null;
+          const walletName = payload.walletName || created.walletName || "";
           logActivity({
             type: "budget.create",
-            message: `Tạo ngân sách ${created.categoryName} ${created.limitAmount ? `— ${created.limitAmount}` : ""}`,
-            data: { budgetId: created.id, category: created.categoryName, limit: created.limitAmount },
+            message: `Tạo ngân sách ${categoryName || created.id}`,
+            data: {
+              budgetId: created.id,
+              category: categoryName,
+              categoryId,
+              walletName,
+              limit: created.limitAmount,
+            },
           });
         } catch (e) {}
       } else {
@@ -156,7 +195,23 @@ export function BudgetDataProvider({ children }) {
       }
       const body = buildBudgetRequest(patch);
       const response = await budgetAPI.updateBudget(budgetId, body);
-      const updated = normalizeBudget(response?.budget || response);
+      const updatedRaw = normalizeBudget(response?.budget || response);
+      const updated = updatedRaw
+        ? {
+            ...updatedRaw,
+            categoryId:
+              updatedRaw.categoryId ??
+              (patch.categoryId !== undefined ? Number(patch.categoryId) : null),
+            categoryName:
+              updatedRaw.categoryName || patch.categoryName || "",
+            walletId:
+              updatedRaw.walletId !== undefined && updatedRaw.walletId !== null
+                ? updatedRaw.walletId
+                : body.walletId ?? null,
+            walletName:
+              updatedRaw.walletName || patch.walletName || (body.walletId == null ? "Tất cả ví" : ""),
+          }
+        : null;
 
       if (updated?.id) {
         setBudgets((prev) =>
@@ -175,19 +230,27 @@ export function BudgetDataProvider({ children }) {
     if (!budgetId) {
       throw new Error("Thiếu budgetId khi xóa ngân sách.");
     }
-    await budgetAPI.deleteBudget(budgetId);
     const normalizedId = String(budgetId);
+    const targetBudget = budgets.find(
+      (b) => String(b.id ?? b.budgetId) === normalizedId
+    );
+    await budgetAPI.deleteBudget(budgetId);
     setBudgets((prev) =>
       prev.filter((b) => String(b.id ?? b.budgetId) !== normalizedId)
     );
     try {
       logActivity({
         type: "budget.delete",
-        message: `Xóa ngân sách ${budgetId}`,
-        data: { budgetId },
+        message: `Xóa ngân sách ${targetBudget?.categoryName || budgetId}`,
+        data: {
+          budgetId,
+          category: targetBudget?.categoryName || "",
+          categoryId: targetBudget?.categoryId || null,
+          walletName: targetBudget?.walletName || "",
+        },
       });
     } catch (e) {}
-  }, []);
+  }, [budgets]);
 
   useEffect(() => {
     loadBudgets();
@@ -277,9 +340,46 @@ export function BudgetDataProvider({ children }) {
     setTransactionsByCategory(categoryMap);
   }, []);
 
-  const updateAllExternalTransactions = useCallback((list) => {
-    setExternalTransactionsList(list || []);
+  const persistTransactions = useCallback((list) => {
+    if (typeof window === "undefined") return;
+    if (list.length > 0) {
+      window.localStorage.setItem(TRANSACTION_CACHE_KEY, JSON.stringify(list));
+    } else {
+      window.localStorage.removeItem(TRANSACTION_CACHE_KEY);
+    }
   }, []);
+
+  const updateAllExternalTransactions = useCallback((list, { append } = {}) => {
+    let nextList = Array.isArray(list) ? list : [];
+    if (append && nextList.length > 0) {
+      setExternalTransactionsList((prev) => {
+        const existing = Array.isArray(prev) ? prev : [];
+        const dedupeMap = new Map();
+        [...existing, ...nextList].forEach((tx) => {
+          if (!tx) return;
+          const key =
+            tx.id ??
+            tx.transactionId ??
+            tx.code ??
+            `${tx.category || "unknown"}-${tx.date || Date.now()}-${tx.amount || 0}`;
+          dedupeMap.set(String(key), tx);
+        });
+        const merged = Array.from(dedupeMap.values()).slice(0, MAX_CACHED_TRANSACTIONS);
+        persistTransactions(merged);
+        return merged;
+      });
+      return;
+    }
+
+    nextList = nextList.slice(0, MAX_CACHED_TRANSACTIONS);
+    setExternalTransactionsList(nextList);
+    try {
+      persistTransactions(nextList);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.debug("BudgetDataContext: unable to cache transactions", error);
+    }
+  }, [persistTransactions]);
 
   const value = useMemo(
     () => ({

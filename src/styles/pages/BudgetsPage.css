@@ -329,6 +329,22 @@
   gap: 0.25rem;
 }
 
+.budget-metric-card--has-toggle {
+  position: relative;
+  padding-right: 3.5rem;
+}
+
+.budget-metric-card--has-toggle .budget-metric-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1.1rem;
+  margin-left: 0;
+}
+
+.budget-metric-card--has-toggle .budget-metric-label {
+  padding-right: 2.25rem;
+}
+
 .budget-metric-label {
   font-size: 0.85rem;
   text-transform: uppercase;
@@ -343,7 +359,6 @@
 /* Small currency toggle button shown inside the metric label */
 .budget-metric-toggle {
   margin-left: 8px;
-  float: right;
   background: transparent;
   border: 1px solid rgba(11,43,47,0.06);
   color: #0b2b2f;
