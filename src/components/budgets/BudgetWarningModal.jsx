@@ -4,6 +4,7 @@ import Modal from "../common/Modal/Modal";
 export default function BudgetWarningModal({
   open,
   categoryName,
+  walletName,
   budgetLimit,
   spent,
   transactionAmount,
@@ -52,11 +53,19 @@ export default function BudgetWarningModal({
             marginBottom: "1.5rem",
           }}
         >
-          <div style={{ marginBottom: "1rem" }}>
-            <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
-              Danh mục
-            </label>
-            <p style={{ color: "#212529", fontWeight: 500, margin: 0 }}>{categoryName}</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+            <div>
+              <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
+                Danh mục
+              </label>
+              <p style={{ color: "#212529", fontWeight: 500, margin: 0 }}>{categoryName}</p>
+            </div>
+            <div>
+              <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
+                Ví áp dụng
+              </label>
+              <p style={{ color: "#212529", fontWeight: 500, margin: 0 }}>{walletName || "Tất cả ví"}</p>
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>

@@ -452,8 +452,77 @@ export default function TransactionsPage() {
     setActiveTab(value);
     setSearchText("");
   };
+
+  const evaluateBudgetWarning = useCallback((payload, walletEntity) => {
+    if (!payload || !walletEntity) return null;
+    if (!budgets || budgets.length === 0) return null;
+    const normalizedCategory = normalizeBudgetCategoryKey(payload.category);
+    if (!normalizedCategory) return null;
+
+    const txDate = (() => {
+      if (payload.date) {
+        const parsed = new Date(payload.date);
+        if (!Number.isNaN(parsed.getTime())) {
+          return parsed;
+        }
+      }
+      return new Date();
+    })();
+
+    const orderedBudgets = [...budgets].sort((a, b) => {
+      const aGlobal = a?.walletId === null || a?.walletId === undefined;
+      const bGlobal = b?.walletId === null || b?.walletId === undefined;
+      if (aGlobal === bGlobal) return 0;
+      return aGlobal ? 1 : -1;
+    });
+
+    let alertCandidate = null;
+
+    for (const budget of orderedBudgets) {
+      if (!budget) continue;
+      if ((budget.categoryType || "expense").toLowerCase() !== "expense") continue;
+      const budgetCategory = normalizeBudgetCategoryKey(budget.categoryName);
+      if (!budgetCategory || budgetCategory !== normalizedCategory) continue;
+      if (!isTransactionWithinBudgetPeriod(budget, txDate)) continue;
+      if (!doesBudgetMatchWallet(budget, walletEntity, payload.walletName)) continue;
+
+      const limit = Number(budget.limitAmount || budget.amountLimit || 0);
+      const amount = Number(payload.amount || 0);
+      if (!limit || !amount) continue;
+
+      const spent = Number(getSpentForBudget(budget) || 0);
+      const totalAfterTx = spent + amount;
+      const warnPercent = Number(budget.alertPercentage ?? budget.warningThreshold ?? 80);
+      const warningAmount = limit * (warnPercent / 100);
+      const isExceeding = totalAfterTx > limit;
+      const crossesWarning = !isExceeding && spent < warningAmount && totalAfterTx >= warningAmount;
+
+      if (isExceeding || crossesWarning) {
+        const snapshot = {
+          categoryName: budget.categoryName,
+          walletName: budget.walletName || payload.walletName,
+          budgetLimit: limit,
+          spent,
+          transactionAmount: amount,
+          totalAfterTx,
+          isExceeding,
+        };
+
+        if (isExceeding) {
+          return snapshot;
+        }
+
+        if (!alertCandidate) {
+          alertCandidate = snapshot;
+        }
+      }
+    }
+
+    return alertCandidate;
+  }, [budgets, getSpentForBudget]);
   
-  const handleCreate = async (payload) => {
+  const handleCreate = async (payload, options = {}) => {
+    const skipBudgetCheck = options.skipBudgetCheck === true;
     try {
         if (activeTab === TABS.EXTERNAL) {
         // Find walletId and categoryId
@@ -498,6 +567,15 @@ export default function TransactionsPage() {
           return;
         }
         
+        if (payload.type === "expense" && !skipBudgetCheck) {
+          const warningData = evaluateBudgetWarning(payload, wallet);
+          if (warningData) {
+            setPendingTransaction({ ...payload });
+            setBudgetWarning(warningData);
+            return;
+          }
+        }
+
         const transactionDate = payload.date ? new Date(payload.date).toISOString() : new Date().toISOString();
 
         // Call API
@@ -567,7 +645,7 @@ export default function TransactionsPage() {
     if (!pendingTransaction) return;
 
     // Create the transaction anyway by calling handleCreate
-    await handleCreate(pendingTransaction);
+    await handleCreate(pendingTransaction, { skipBudgetCheck: true });
 
     setBudgetWarning(null);
     setPendingTransaction(null);
@@ -1328,6 +1406,7 @@ export default function TransactionsPage() {
       <BudgetWarningModal
         open={!!budgetWarning}
         categoryName={budgetWarning?.categoryName}
+        walletName={budgetWarning?.walletName}
         budgetLimit={budgetWarning?.budgetLimit || 0}
         spent={budgetWarning?.spent || 0}
         transactionAmount={budgetWarning?.transactionAmount || 0}
@@ -1380,6 +1459,55 @@ function estimateScheduleRuns(startValue, endValue, scheduleType) {
     default:
       return 0;
   }
+}
+
+function normalizeBudgetCategoryKey(value) {
+  if (!value && value !== 0) return "";
+  return String(value).trim().toLowerCase();
+}
+
+function parseBudgetBoundaryDate(value, isEnd = false) {
+  if (!value) return null;
+  const [datePart] = value.split("T");
+  const [year, month, day] = (datePart || "").split("-");
+  const y = Number(year);
+  const m = Number(month) - 1;
+  const d = Number(day);
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return null;
+  const hours = isEnd ? 23 : 0;
+  const minutes = isEnd ? 59 : 0;
+  const seconds = isEnd ? 59 : 0;
+  const ms = isEnd ? 999 : 0;
+  return new Date(y, m, d, hours, minutes, seconds, ms);
+}
+
+function isTransactionWithinBudgetPeriod(budget, txDate) {
+  if (!budget) return false;
+  if (!budget.startDate && !budget.endDate) return true;
+  if (!txDate || Number.isNaN(txDate.getTime())) return false;
+  const start = parseBudgetBoundaryDate(budget.startDate, false);
+  const end = parseBudgetBoundaryDate(budget.endDate, true);
+  if (start && txDate < start) return false;
+  if (end && txDate > end) return false;
+  return true;
+}
+
+function doesBudgetMatchWallet(budget, walletEntity, fallbackWalletName) {
+  if (!budget) return false;
+  if (budget.walletId === null || budget.walletId === undefined) {
+    return true;
+  }
+  const walletId = walletEntity ? (walletEntity.walletId ?? walletEntity.id) : null;
+  if (walletId !== null && walletId !== undefined) {
+    if (Number(budget.walletId) === Number(walletId)) {
+      return true;
+    }
+  }
+  const budgetWalletName = normalizeBudgetCategoryKey(budget.walletName);
+  const walletName = normalizeBudgetCategoryKey(
+    walletEntity?.name || walletEntity?.walletName || fallbackWalletName
+  );
+  return !!budgetWalletName && budgetWalletName === walletName;
 }
 
 const SCHEDULE_TYPE_LABELS = {
