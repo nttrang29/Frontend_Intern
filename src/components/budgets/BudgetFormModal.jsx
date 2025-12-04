@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Modal from "../common/Modal/Modal";
- 
+import SearchableSelectInput from "../common/SearchableSelectInput";
+import { mapWalletsToSelectOptions, WALLET_TYPE_ICON_CONFIG } from "../../utils/walletSelectHelpers";
+import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../utils/formatMoneyInput";
+
 export default function BudgetFormModal({
   open,
   mode, // 'create' or 'edit'
@@ -22,12 +25,19 @@ export default function BudgetFormModal({
  
   useEffect(() => {
     if (initialData && mode === "edit") {
-      setSelectedCategory(initialData.categoryName);
-      setLimitAmount(initialData.limitAmount);
-      setCurrency(initialData.currency || "VND");
-      // If wallet info exists on initialData, preselect
-      setSelectedWallet(initialData.walletId || initialData.walletName || "");
-      // Set dates from initialData if available
+      setSelectedCategoryId(initialData.categoryId ? String(initialData.categoryId) : "");
+      if (initialData.walletId !== null && initialData.walletId !== undefined) {
+        setSelectedWalletId(String(initialData.walletId));
+      } else if (initialData.walletName) {
+        setSelectedWalletId("__legacy__");
+      } else {
+        setSelectedWalletId("");
+      }
+      setLimitAmount(
+        initialData.limitAmount !== undefined && initialData.limitAmount !== null
+          ? formatMoneyInput(initialData.limitAmount)
+          : ""
+      );
       setStartDate(initialData.startDate || "");
       setEndDate(initialData.endDate || "");
       setAlertThreshold(initialData.alertPercentage ?? 90);
@@ -43,39 +53,47 @@ export default function BudgetFormModal({
       setNote("");
     }
     setErrors({});
-  }, [open, mode, initialData]);
- 
-  const handleCategoryChange = (e) => setSelectedCategory(e.target.value);
-  const handleWalletChange = (e) => setSelectedWallet(e.target.value);
- 
-  const handleLimitChange = (e) => {
-    const val = e.target.value;
-    // allow numbers and decimal point for USD
-    if (currency === "USD") {
-      // Allow decimal for USD
-      if (/^\d*\.?\d{0,2}$/.test(val)) {
-        setLimitAmount(val);
-      }
+    setFormError("");
+    setSubmitting(false);
+  }, [open, mode, initialData, wallets]);
+
+  const handleCategoryChange = (value) => setSelectedCategoryId(value);
+  const handleWalletChange = (value) => {
+    setSelectedWalletId(value);
+    if (value) {
+      setWalletCurrency(resolveWalletCurrency(value));
     } else {
-      // Only integers for VND
-      if (/^\d*$/.test(val)) {
-        setLimitAmount(val);
-      }
+      const defaultCurrency = walletList.length === 1
+        ? resolveWalletCurrency(walletList[0].id)
+        : "VND";
+      setWalletCurrency(defaultCurrency);
     }
+  };
+
+  const handleLimitChange = (e) => {
+    handleMoneyInputChange(e, setLimitAmount);
   };
  
   const handleSubmit = (e) => {
     e.preventDefault();
     const newErrors = {};
- 
-    if (!selectedCategory) {
+    const limitNumeric = getMoneyValue(limitAmount);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDateObj = startDate ? new Date(startDate) : null;
+    const endDateObj = endDate ? new Date(endDate) : null;
+    if (startDateObj) startDateObj.setHours(0, 0, 0, 0);
+    if (endDateObj) endDateObj.setHours(0, 0, 0, 0);
+
+    if (!selectedCategoryId) {
       newErrors.category = "Vui lòng chọn danh mục";
     }
     // wallet optional but recommended
     if (!selectedWallet) {
       newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
     }
-    if (!limitAmount || limitAmount === "0") {
+    if (!limitNumeric || limitNumeric <= 0) {
       newErrors.limit = "Vui lòng nhập hạn mức lớn hơn 0";
     }
     if (!startDate) {
@@ -102,8 +120,9 @@ export default function BudgetFormModal({
       categoryId: categoryObj.id || null,
       categoryName: selectedCategory,
       categoryType: "expense",
-      limitAmount: parseFloat(limitAmount),
-      currency: currency,
+      walletId: resolvedWalletId,
+      walletName: resolvedWalletName,
+      limitAmount: limitNumeric,
       startDate,
       endDate,
       alertPercentage: Number(alertThreshold),
@@ -123,7 +142,68 @@ export default function BudgetFormModal({
  
   const categoryList = categories || [];
   const walletList = wallets || [];
- 
+
+  const categoryOptions = useMemo(() => {
+    const defaults = categoryList.map((cat) => ({
+      value: cat && cat.id !== undefined && cat.id !== null ? String(cat.id) : "",
+      label: cat?.name || "",
+      icon: cat?.icon || "bi-tags",
+      iconColor: "#0b5aa5",
+      iconBg: "linear-gradient(135deg, rgba(11,90,165,0.12) 0%, rgba(10,180,190,0.05) 100%)",
+    })).filter((opt) => opt.value && opt.label);
+
+    if (
+      mode === "edit" &&
+      selectedCategoryId &&
+      !defaults.some((opt) => opt.value === String(selectedCategoryId))
+    ) {
+      defaults.push({
+        value: String(selectedCategoryId),
+        label: initialData?.categoryName || "Danh mục đã chọn",
+        icon: "bi-bookmark-check",
+        iconColor: "#0f172a",
+        iconBg: "rgba(15,23,42,0.08)",
+      });
+    }
+    return defaults;
+  }, [categoryList, mode, selectedCategoryId, initialData]);
+
+  const walletTypeLabels = useMemo(
+    () => ({
+      personal: "Ví cá nhân",
+      shared: "Ví được chia sẻ",
+      group: "Ví nhóm",
+    }),
+    []
+  );
+
+  const walletOptions = useMemo(() => {
+    const options = mapWalletsToSelectOptions(
+      walletList,
+      walletTypeLabels,
+      (wallet) => (wallet?.id !== undefined && wallet?.id !== null ? wallet.id : "")
+    );
+
+    const normalized = options.filter((opt) => opt.value !== "");
+
+    if (
+      mode === "edit" &&
+      selectedWalletId &&
+      !normalized.some((opt) => opt.value === String(selectedWalletId))
+    ) {
+      const fallbackConfig = WALLET_TYPE_ICON_CONFIG.shared;
+      normalized.push({
+        value: String(selectedWalletId),
+        label: initialData?.walletName || "Ví đã chọn",
+        icon: fallbackConfig.icon,
+        iconColor: fallbackConfig.color,
+        iconBg: fallbackConfig.bg,
+      });
+    }
+
+    return normalized;
+  }, [walletList, walletTypeLabels, mode, selectedWalletId, initialData]);
+
   return (
     <Modal open={open} onClose={onClose} width={500}>
       <div className="modal__content budget-form-modal" style={{ padding: "2rem" }}>
@@ -152,42 +232,39 @@ export default function BudgetFormModal({
         <form onSubmit={handleSubmit}>
           {/* Category Selector */}
           <div className="mb-3">
-            <label className="form-label fw-semibold">Chọn Danh mục</label>
-            <select
-              className={`form-select ${errors.category ? "is-invalid" : ""}`}
-              value={selectedCategory}
+            <SearchableSelectInput
+              label="Chọn Danh mục"
+              value={selectedCategoryId}
               onChange={handleCategoryChange}
-            >
-              <option value="">-- Chọn danh mục --</option>
-              {categoryList.map((cat) => (
-                <option key={cat.id} value={cat.name}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            {errors.category && (
-              <div className="invalid-feedback d-block">{errors.category}</div>
+              options={categoryOptions}
+              placeholder="-- Chọn danh mục --"
+              disabled={mode === "edit"}
+              emptyMessage="Không có danh mục phù hợp"
+              error={errors.category}
+            />
+            {mode === "edit" && (
+              <div className="form-text text-muted">
+                Không thể thay đổi danh mục khi chỉnh sửa hạn mức.
+              </div>
             )}
           </div>
  
           {/* Wallet Selector */}
           <div className="mb-3">
-            <label className="form-label fw-semibold">Áp dụng cho Ví</label>
-            <select
-              className={`form-select ${errors.wallet ? "is-invalid" : ""}`}
-              value={selectedWallet}
+            <SearchableSelectInput
+              label="Áp dụng cho Ví"
+              value={selectedWalletId}
               onChange={handleWalletChange}
-            >
-              <option value="">-- Chọn ví --</option>
-              <option value="ALL">Áp dụng cho tất cả ví</option>
-              {walletList.map((w) => (
-                <option key={w.id || w.name} value={w.id ?? w.name}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-            {errors.wallet && (
-              <div className="invalid-feedback d-block">{errors.wallet}</div>
+              options={walletOptions}
+              placeholder="-- Chọn ví --"
+              disabled={mode === "edit"}
+              emptyMessage="Không có ví khả dụng"
+              error={errors.wallet}
+            />
+            {mode === "edit" && (
+              <div className="form-text text-muted">
+                Không thể thay đổi ví áp dụng khi chỉnh sửa.
+              </div>
             )}
           </div>
  

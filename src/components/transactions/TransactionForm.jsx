@@ -8,6 +8,8 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import { getVietnamDateTime, convertToVietnamDateTime, formatMoney } from "./utils/transactionUtils";
 import useOnClickOutside from "../../hooks/useOnClickOutside";
 import { getRate, formatConvertedBalance } from "../wallets/utils/walletUtils";
+import SearchableSelectInput from "../common/SearchableSelectInput";
+import { WALLET_TYPE_ICON_CONFIG, mapWalletsToSelectOptions } from "../../utils/walletSelectHelpers";
 
 const EMPTY_FORM = {
   type: "expense",
@@ -21,49 +23,6 @@ const EMPTY_FORM = {
   sourceWallet: "",
   targetWallet: "",
 };
-
-function SelectInput({
-  label,
-  value,
-  onChange,
-  options = [],
-  required = true,
-  disabled = false,
-  emptyMessage,
-}) {
-  const { t } = useLanguage();
-  const handleSelect = (e) => {
-    onChange(e.target.value);
-  };
-
-  const hasOptions = Array.isArray(options) && options.length > 0;
-
-  return (
-    <div className="mb-3">
-      <label className="form-label fw-semibold">{label}</label>
-      {hasOptions ? (
-        <select
-          className="form-select"
-          value={value || ""}
-          onChange={handleSelect}
-          required={required}
-          disabled={disabled}
-        >
-          <option value="">{t("transactions.form.select_option")}</option>
-          {options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <div className="text-muted small">
-          {emptyMessage || t("common.no_data") || "Không có dữ liệu để hiển thị."}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function TransactionForm({
   mode = "create",
@@ -199,19 +158,25 @@ export default function TransactionForm({
     return found?.icon || "bi-tags";
   }, [form.category, categoryOptionsWithIcon]);
 
+  const walletTypeLabels = useMemo(() => ({
+    personal: t("wallets.type.personal") || "Ví cá nhân",
+    shared: t("wallets.type.shared") || t("wallets.type.shared_personal") || "Ví được chia sẻ",
+    group: t("wallets.type.group") || "Ví nhóm",
+  }), [t]);
+
   const walletOptions = useMemo(() => {
-    if (!walletList || walletList.length === 0) return [];
-    return walletList.map((w) => w.name).filter(Boolean);
-  }, [walletList]);
+    return mapWalletsToSelectOptions(
+      walletList,
+      walletTypeLabels,
+      (wallet) => wallet?.name || ""
+    );
+  }, [walletList, walletTypeLabels]);
 
   const targetWalletOptions = useMemo(() => {
-    if (!walletList || walletList.length === 0) return [];
-    if (!form.sourceWallet) return walletList.map((w) => w.name).filter(Boolean);
-    return walletList
-      .filter((w) => w.name !== form.sourceWallet)
-      .map((w) => w.name)
-      .filter(Boolean);
-  }, [walletList, form.sourceWallet]);
+    if (!walletOptions || walletOptions.length === 0) return [];
+    if (!form.sourceWallet) return walletOptions;
+    return walletOptions.filter((opt) => opt.value !== form.sourceWallet);
+  }, [walletOptions, form.sourceWallet]);
 
   const selectedWallet = walletList?.find(w => w.name === form.walletName);
   const sourceWallet = walletList?.find(w => w.name === form.sourceWallet);
@@ -432,11 +397,12 @@ export default function TransactionForm({
         </div>
         <div className="card-body">
           <form onSubmit={handleSubmit}>
-            <SelectInput
+            <SearchableSelectInput
               label={t("transactions.form.source_wallet")}
               value={form.sourceWallet}
               onChange={(v) => setForm(f => ({ ...f, sourceWallet: v }))}
               options={walletOptions}
+              placeholder={t("transactions.form.wallet_placeholder") || "Nhập hoặc chọn ví..."}
               disabled={mode === "edit"}
             />
             {form.sourceWallet && (
@@ -448,11 +414,12 @@ export default function TransactionForm({
               </div>
             )}
 
-            <SelectInput
+            <SearchableSelectInput
               label={t("transactions.form.target_wallet")}
               value={form.targetWallet}
               onChange={(v) => setForm(f => ({ ...f, targetWallet: v }))}
               options={targetWalletOptions}
+              placeholder={t("transactions.form.wallet_placeholder") || "Nhập hoặc chọn ví..."}
               disabled={mode === "edit"}
             />
             {form.targetWallet && (
@@ -572,11 +539,12 @@ export default function TransactionForm({
           {/* Row 1: Ví và Số tiền có trong ví */}
           <div className="row mb-3">
             <div className={form.walletName ? "col-md-6" : "col-12"}>
-              <SelectInput
+              <SearchableSelectInput
                 label={t("transactions.form.wallet")}
                 value={form.walletName}
                 onChange={(v) => setForm(f => ({ ...f, walletName: v }))}
                 options={walletOptions}
+                placeholder={t("transactions.form.wallet_placeholder") || "Nhập hoặc chọn ví..."}
               />
             </div>
             {form.walletName && (
