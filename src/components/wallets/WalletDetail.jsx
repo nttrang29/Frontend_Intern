@@ -5,6 +5,7 @@ import { walletAPI } from "../../services/wallet.service";
 import { useLanguage } from "../../contexts/LanguageContext";
 import Toast from "../common/Toast/Toast";
 import { logActivity } from "../../utils/activityLogger";
+import { useWalletData } from "../../contexts/WalletDataContext";
 import DetailViewTab from "./tabs/DetailViewTab";
 import ManageMembersTab from "./tabs/ManageMembersTab";
 import TopupTab from "./tabs/TopupTab";
@@ -63,10 +64,6 @@ export default function WalletDetail(props) {
     // edit
     editForm,
     onEditFieldChange,
-    editShareEmail,
-    setEditShareEmail,
-    onAddEditShareEmail,
-    shareWalletLoading,
     onSubmitEdit,
 
     // merge
@@ -106,6 +103,9 @@ export default function WalletDetail(props) {
     onChangeSelectedWallet,
     onDeleteWallet,
   } = props;
+
+  const walletContext = useWalletData();
+  const { loadWallets } = walletContext || {};
 
   // Extract loadingTransactions với default value
   const isLoadingTransactions = loadingTransactions || false;
@@ -199,6 +199,12 @@ export default function WalletDetail(props) {
   const effectiveIsOwner = !!effectiveRole && ["OWNER", "MASTER", "ADMIN"].includes(effectiveRole);
   const effectiveIsMember = !!effectiveRole && ["MEMBER", "USER", "USE"].includes(effectiveRole);
   const effectiveIsViewer = !!effectiveRole && ["VIEW", "VIEWER"].includes(effectiveRole);
+
+  const displayIsDefault = useMemo(() => {
+    if (!wallet) return false;
+    if (wallet.isShared) return false;
+    return !!wallet.isDefault && effectiveIsOwner;
+  }, [wallet?.id, wallet?.isDefault, wallet?.isShared, effectiveIsOwner]);
 
   // Effective flags for managing/inviting members: only owners can manage/invite
   const effectiveCanManageSharedMembers = effectiveIsOwner ? canManageSharedMembers : false;
@@ -417,6 +423,13 @@ export default function WalletDetail(props) {
     const targetId = member.userId ?? member.memberUserId ?? member.memberId;
     if (!targetId) return;
 
+     const removedLabel =
+      member.fullName ||
+      member.name ||
+      member.email ||
+      `${t("wallets.members.unknown") || "Thành viên"} #${targetId}`;
+    const walletLabel = wallet.name || `#${wallet.id}`;
+
     setRemovingMemberId(targetId);
     try {
       if (walletAPI.removeMember) {
@@ -425,15 +438,52 @@ export default function WalletDetail(props) {
       setSharedMembers((prev) =>
         prev.filter((m) => (m.userId ?? m.memberUserId ?? m.memberId) !== targetId)
       );
+      setSharedMembersError("");
+
+      try {
+        const resp = await walletAPI.getWalletMembers(wallet.id);
+        let list = [];
+        if (!resp) list = [];
+        else if (Array.isArray(resp)) list = resp;
+        else if (Array.isArray(resp.data)) list = resp.data;
+        else if (Array.isArray(resp.members)) list = resp.members;
+        else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+        setSharedMembers(normalizeMembersList(list));
+      } catch (fetchErr) {
+        // keep filtered list if refresh fails
+        console.debug("refresh members after removal failed", fetchErr);
+      }
+
+      const successKey = "wallets.toast.member_removed_success";
+      const successTemplate = t(successKey, { member: removedLabel, wallet: walletLabel });
+      const successMessage =
+        successTemplate && successTemplate !== successKey
+          ? successTemplate
+          : `Đã xóa ${removedLabel} khỏi ${walletLabel}.`;
+      setToast({ open: true, message: successMessage, type: "success" });
+
+      if (typeof loadWallets === "function") {
+        try {
+          await loadWallets();
+        } catch (reloadErr) {
+          console.debug("loadWallets failed after member removal", reloadErr);
+        }
+      }
+
       try {
         logActivity({
-          type: "wallet.unshare",
-          message: `Xóa người dùng ${member.email || member.userId || targetId} khỏi ví ${wallet.id}`,
-          data: { walletId: wallet.id, member },
+          type: "wallet.remove_member",
+          message: `Đã xóa ${removedLabel} khỏi ví ${walletLabel}`,
+          data: { walletId: wallet.id, walletName: wallet.name, member },
         });
       } catch (e) {}
     } catch (error) {
       setSharedMembersError(error.message || "Không thể xóa thành viên khỏi ví.");
+      setToast({
+        open: true,
+        message: error.message || t("wallets.error.remove_member_failed") || "Không thể xóa thành viên",
+        type: "error",
+      });
     } finally {
       setRemovingMemberId(null);
     }
@@ -799,6 +849,9 @@ export default function WalletDetail(props) {
         open={toast.open}
         message={toast.message}
         type={toast.type}
+        offset={{ top: 20, right: 24 }}
+        topbarSelector={null}
+        anchorSelector={null}
         onClose={() => setToast((s) => ({ ...s, open: false }))}
       />
       {/* HEADER */}
@@ -811,7 +864,7 @@ export default function WalletDetail(props) {
             <span className="wallet-tag">
               {wallet.isShared ? t("wallets.group_wallet") : t("wallets.personal_wallet")}
             </span>
-            {!wallet.isShared && wallet.isDefault && (
+            {displayIsDefault && (
               <span className="wallet-tag wallet-tag--outline">
                 {t("wallets.card.default")}
               </span>
@@ -1027,10 +1080,6 @@ export default function WalletDetail(props) {
           currencies={currencies}
           editForm={editForm}
           onEditFieldChange={onEditFieldChange}
-          editShareEmail={editShareEmail}
-          setEditShareEmail={setEditShareEmail}
-          onAddEditShareEmail={onAddEditShareEmail}
-          shareWalletLoading={shareWalletLoading}
           onSubmitEdit={onSubmitEdit}
           onDeleteWallet={onDeleteWallet}
         />

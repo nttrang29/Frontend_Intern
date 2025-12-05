@@ -8,8 +8,49 @@ import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
 import useOnClickOutside from "../../hooks/useOnClickOutside";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBudgetData } from "../../contexts/BudgetDataContext";
 
 const PAGE_SIZE = 9; // ✅ giới hạn 9 thẻ mỗi trang
+
+const parseDateOnly = (value) => {
+  if (!value) return null;
+  const [datePart] = String(value).split("T");
+  const parts = datePart.split("-").map((part) => Number(part));
+  if (parts.length !== 3 || parts.some((num) => Number.isNaN(num))) return null;
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day);
+};
+
+const isBudgetPendingOrActive = (budget) => {
+  if (!budget) return false;
+  const status = String(budget.status || budget.budgetStatus || "").toUpperCase();
+  if (["PENDING", "ACTIVE", "RUNNING"].includes(status)) return true;
+  if (["ENDED", "EXPIRED", "CANCELLED", "STOPPED", "ARCHIVED"].includes(status)) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = parseDateOnly(budget.startDate);
+  const end = parseDateOnly(budget.endDate);
+
+  if (start && today < start) return true;
+  if (end && today > end) return false;
+  return true;
+};
+
+const getLinkedBudgetsByCategory = (budgets, categoryId) => {
+  if (!budgets || !categoryId) return [];
+  const normalizedId = Number(categoryId);
+  if (Number.isNaN(normalizedId)) return [];
+  return budgets.filter((budget) => {
+    if (budget?.categoryId === undefined || budget?.categoryId === null) {
+      return false;
+    }
+    if (Number(budget.categoryId) !== normalizedId) return false;
+    return isBudgetPendingOrActive(budget);
+  });
+};
 
 export default function CategoriesPage() {
   const { t } = useLanguage();
@@ -23,6 +64,7 @@ export default function CategoriesPage() {
     deleteExpenseCategory,
     deleteIncomeCategory,
   } = useCategoryData();
+  const { budgets, refreshBudgets } = useBudgetData();
 
   const { currentUser } = useAuth();
   const isAdmin =
@@ -61,6 +103,15 @@ export default function CategoriesPage() {
     type: "success",
   });
   const [confirmDel, setConfirmDel] = useState(null);
+  const [editBudgetWarning, setEditBudgetWarning] = useState(null);
+
+  const closeCategoryModal = () => {
+    setModalOpen(false);
+    setModalEditingId(null);
+    setModalEditingKind(null);
+    setModalInitial("");
+    setEditBudgetWarning(null);
+  };
 
   // ===============================
   // HELPER: check system category
@@ -259,6 +310,7 @@ export default function CategoriesPage() {
     if (activeTab === "system" && !isAdmin) {
       return;
     }
+    setEditBudgetWarning(null);
     
     setModalMode("create");
     setModalInitial("");
@@ -276,6 +328,7 @@ export default function CategoriesPage() {
   const openEditModal = (cat) => {
     const isSystemCategory = getIsSystemCategory(cat);
     if (isSystemCategory && !isAdmin) return;
+    setEditBudgetWarning(null);
 
     const kind = cat.__type
       ? cat.__type
@@ -297,10 +350,12 @@ export default function CategoriesPage() {
   // ===============================
   // VALIDATE DUPLICATE & SUBMIT MODAL
   // ===============================
-  const handleModalSubmit = async (payload) => {
+  const handleModalSubmit = async (payload, options = {}) => {
+    const { skipBudgetWarning = false, linkedBudgetCount: providedLinkedCount = 0 } = options;
     const rawName = (payload.name || "").trim();
     if (!rawName) return;
     const normalized = rawName.toLowerCase();
+    const payloadWithName = { ...payload, name: rawName };
 
     if (modalMode === "create") {
       const createKind =
@@ -345,9 +400,9 @@ export default function CategoriesPage() {
         const finalKind = payload.transactionType || createKind;
         
         if (finalKind === "expense") {
-          await createExpenseCategory({ ...payload, name: rawName });
+          await createExpenseCategory(payloadWithName);
         } else {
-          await createIncomeCategory({ ...payload, name: rawName });
+          await createIncomeCategory(payloadWithName);
         }
 
         setPage(1);
@@ -366,6 +421,19 @@ export default function CategoriesPage() {
         return;
       }
     } else if (modalMode === "edit") {
+      let linkedBudgetCount = providedLinkedCount;
+      if (!skipBudgetWarning) {
+        const linkedBudgets = getLinkedBudgetsByCategory(budgets, modalEditingId);
+        linkedBudgetCount = linkedBudgets.length;
+        if (linkedBudgets.length > 0) {
+          setEditBudgetWarning({
+            payload: payloadWithName,
+            budgets: linkedBudgets,
+          });
+          return;
+        }
+      }
+
       const listInKind =
         modalEditingKind === "income"
           ? incomeCategories || []
@@ -393,14 +461,23 @@ export default function CategoriesPage() {
 
       try {
         if (modalEditingKind === "expense") {
-          await updateExpenseCategory(modalEditingId, { ...payload, name: rawName });
+          await updateExpenseCategory(modalEditingId, payloadWithName);
         } else {
-          await updateIncomeCategory(modalEditingId, { ...payload, name: rawName });
+          await updateIncomeCategory(modalEditingId, payloadWithName);
+        }
+
+        if (linkedBudgetCount > 0 && typeof refreshBudgets === "function") {
+          refreshBudgets();
         }
 
         setToast({
           open: true,
-          message: t("categories.toast.update_success"),
+          message:
+            linkedBudgetCount > 0
+              ? t("categories.toast.update_sync_success", {
+                  count: linkedBudgetCount,
+                })
+              : t("categories.toast.update_success"),
           type: "success",
         });
       } catch (error) {
@@ -415,14 +492,23 @@ export default function CategoriesPage() {
     }
 
     // Đóng modal sau khi tất cả operations hoàn thành
-    setModalOpen(false);
-    setModalEditingId(null);
-    setModalEditingKind(null);
+    closeCategoryModal();
   };
 
   const handleDelete = (cat) => {
     const isSystemCategory = getIsSystemCategory(cat);
     if (isSystemCategory && !isAdmin) return;
+    const linkedBudgets = getLinkedBudgetsByCategory(budgets, cat?.id);
+    if (linkedBudgets.length > 0) {
+      setToast({
+        open: true,
+        message: t("categories.error.delete_has_budget", {
+          count: linkedBudgets.length,
+        }),
+        type: "error",
+      });
+      return;
+    }
     setConfirmDel(cat);
   };
 
@@ -463,6 +549,16 @@ export default function CategoriesPage() {
         type: "error",
       });
     }
+  };
+
+  const handleProceedEditWarning = () => {
+    if (!editBudgetWarning) return;
+    const { payload, budgets: linked } = editBudgetWarning;
+    setEditBudgetWarning(null);
+    handleModalSubmit(payload, {
+      skipBudgetWarning: true,
+      linkedBudgetCount: Array.isArray(linked) ? linked.length : 0,
+    });
   };
 
   // ===============================
@@ -850,11 +946,28 @@ export default function CategoriesPage() {
             : "chi phí"
         }
         onSubmit={handleModalSubmit}
-        onClose={() => setModalOpen(false)}
+        onClose={closeCategoryModal}
         isAdmin={isAdmin}
         activeTab={activeTab}
         selectedType={systemCategoryType}
         onTypeChange={(type) => setSystemCategoryType(type)}
+      />
+
+      <ConfirmModal
+        open={!!editBudgetWarning}
+        title={t("categories.modal.budget_warning.title")}
+        message={
+          editBudgetWarning
+            ? t("categories.modal.budget_warning.message", {
+                count: editBudgetWarning.budgets.length,
+              })
+            : ""
+        }
+        okText={t("categories.modal.budget_warning.ok")}
+        cancelText={t("categories.modal.budget_warning.cancel")}
+        danger={false}
+        onOk={handleProceedEditWarning}
+        onClose={() => setEditBudgetWarning(null)}
       />
 
       <ConfirmModal

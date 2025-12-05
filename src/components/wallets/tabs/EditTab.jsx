@@ -10,10 +10,6 @@ export default function EditTab({
   currencies,
   editForm,
   onEditFieldChange,
-  editShareEmail,
-  setEditShareEmail,
-  onAddEditShareEmail,
-  shareWalletLoading = false,
   onSubmitEdit,
   onDeleteWallet,
 }) {
@@ -61,8 +57,8 @@ export default function EditTab({
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
-        <h3>Sửa ví & chia sẻ</h3>
-        <span>Chỉnh thông tin ví và quản lý người được chia sẻ.</span>
+        <h3>Sửa ví</h3>
+        <span>Chỉnh thông tin cơ bản của ví. Thêm thành viên tại tab "Quản lý người dùng".</span>
       </div>
 
       <form className="wallet-form" onSubmit={onSubmitEdit} autoComplete="off">
@@ -150,40 +146,7 @@ export default function EditTab({
           </label>
         </div>
 
-        <div className="wallet-form__share-block">
-          <label className="wallet-form__full">
-            Thêm email chia sẻ
-            <div className="wallet-form__share-row">
-              <input
-                type="email"
-                value={editShareEmail}
-                onChange={(e) => setEditShareEmail(e.target.value)}
-                placeholder="example@gmail.com"
-              />
-              <button
-                type="button"
-                className="wallets-btn wallets-btn--ghost"
-                onClick={onAddEditShareEmail}
-                disabled={!editShareEmail?.trim() || shareWalletLoading}
-              >
-                {shareWalletLoading ? "Đang chia sẻ..." : "Thêm"}
-              </button>
-            </div>
-          </label>
-
-          {(editForm.sharedEmails || []).length > 0 && (
-            <div className="wallet-share-list">
-              {editForm.sharedEmails.map((email) => (
-                <span
-                  key={email}
-                  className="wallet-share-pill wallet-share-pill--readonly"
-                >
-                  {email}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+    
 
         {/* Hiển thị thời gian tạo */}
         {createdAt && (

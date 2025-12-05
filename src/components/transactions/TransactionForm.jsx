@@ -738,19 +738,6 @@ export default function TransactionForm({
           </div>
 
           <div className="mb-3">
-            <label className="form-label fw-semibold">{t("transactions.form.date_time")}</label>
-            <input
-              type="datetime-local"
-              className="form-control"
-              name="date"
-              value={form.date}
-              onChange={handleChange}
-              required
-            />
-            <small className="text-muted">{t("transactions.form.auto_current_time")}</small>
-          </div>
-
-          <div className="mb-3">
             <label className="form-label fw-semibold">{t("transactions.form.note")}</label>
             <textarea
               className="form-control"
