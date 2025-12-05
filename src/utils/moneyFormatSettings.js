@@ -24,9 +24,22 @@ export const MONEY_FORMATS = [
   },
 ];
 
+const getStorageValue = (key, fallback) => {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const value = localStorage.getItem(key);
+    return value ?? fallback;
+  } catch (error) {
+    return fallback;
+  }
+};
+
 export function getMoneyFormatSettings() {
-  const formatKey = localStorage.getItem("moneyFormat") || "space";
-  const decimalDigits = parseInt(localStorage.getItem("moneyDecimalDigits") || "0", 10);
+  const formatKey = getStorageValue("moneyFormat", "space");
+  const parsedDigits = parseInt(getStorageValue("moneyDecimalDigits", "0"), 10);
+  const decimalDigits = Number.isNaN(parsedDigits)
+    ? 0
+    : Math.min(Math.max(parsedDigits, 0), 8);
   const found = MONEY_FORMATS.find(f => f.key === formatKey) || MONEY_FORMATS[0];
   return {
     ...found,

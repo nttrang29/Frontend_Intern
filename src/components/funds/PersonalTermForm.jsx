@@ -507,7 +507,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
               style={startDateError ? { borderColor: '#ef4444', boxShadow: '0 0 0 0.2rem rgba(239, 68, 68, 0.25)' } : {}}
             />
             <div className="funds-hint" style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.25rem' }}>
-              Chỉ được chọn từ ngày hôm nay ({new Date().toLocaleDateString('vi-VN')}) trở đi. Không thể chọn ngày quá khứ.
+              Chỉ được chọn từ ngày hôm nay ({formatVietnamDate(new Date())}) trở đi. Không thể chọn ngày quá khứ.
             </div>
             {startDateError && (
               <div style={{ 
@@ -531,7 +531,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             <label>Ngày kết thúc (tự động tính)</label>
             <input
               type="text"
-              value={calculatedEndDate ? new Date(calculatedEndDate).toLocaleDateString('vi-VN') : "Nhập đủ thông tin để tính toán"}
+              value={calculatedEndDate ? formatVietnamDate(calculatedEndDate) : "Nhập đủ thông tin để tính toán"}
               disabled
               style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
             />

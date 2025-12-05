@@ -2,6 +2,7 @@
 import React from "react";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useCurrency } from "../../hooks/useCurrency";
+import { formatVietnamDateTime } from "../../utils/dateFormat";
 import "../../styles/components/transactions/TransactionList.css";
 
 const PAGE_SIZE = 10;
@@ -10,70 +11,6 @@ function toDateObj(str) {
   if (!str) return null;
   const d = new Date(str);
   return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function formatVietnamDate(date) {
-  if (!date) return "";
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === 'string') {
-    d = new Date(date);
-  } else {
-    return "";
-  }
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-function formatVietnamTime(date) {
-  if (!date) return "";
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === 'string') {
-    d = new Date(date);
-  } else {
-    return "";
-  }
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
-
-function formatVietnamDateTime(date) {
-  if (!date) return "";
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === 'string') {
-    d = new Date(date);
-  } else {
-    return "";
-  }
-  if (Number.isNaN(d.getTime())) return "";
-  const dateStr = d.toLocaleDateString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-  const timeStr = d.toLocaleTimeString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  return `${dateStr} ${timeStr}`;
 }
 
 export default function TransactionList({
@@ -296,7 +233,7 @@ export default function TransactionList({
                 <th>{t("transactions.table.wallet") || "Ví"}</th>
                 <th>{t("transactions.table.time")}</th>
                 <th>{t("transactions.table.type")}</th>
-                <th className="tx-note-col">{t("transactions.table.note")}</th>
+                <th className="tx-note-col">{t("transactions.table.category") || "Danh mục"}</th>
                 <th className="text-end">{t("transactions.table.amount")}</th>
                 <th>{t("transactions.table.currency")}</th>
                 <th className="text-center">{t("transactions.table.action")}</th>
@@ -338,7 +275,7 @@ export default function TransactionList({
                           {tx.type === "income" ? t("transactions.type.income") : t("transactions.type.expense")}
                         </span>
                       </td>
-                      <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
+                      <td className="tx-note-cell" title={tx.category || "-"}>{tx.category || "-"}</td>
                       <td className="text-end">
                         <span 
                           className={tx.type === "expense" ? "tx-amount-expense" : "tx-amount-income"}

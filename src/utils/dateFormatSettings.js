@@ -26,13 +26,22 @@ export function setDateFormatSetting(formatKey) {
   localStorage.setItem("dateFormat", formatKey);
 }
 
-export function formatDate(date, formatKey) {
+export function formatDate(date, formatKey, options = {}) {
   if (!date) return "";
   const d = typeof date === "string" ? new Date(date) : date;
   if (isNaN(d.getTime())) return "";
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
+
+  const timeZone = options.timeZone || "Asia/Ho_Chi_Minh";
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const dateStr = formatter.format(d);
+  const [day = "01", month = "01", year = "1970"] = dateStr.split("/");
+
   switch (formatKey) {
     case "MM/dd/yyyy":
       return `${month}/${day}/${year}`;

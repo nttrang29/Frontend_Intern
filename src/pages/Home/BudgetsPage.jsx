@@ -9,6 +9,7 @@ import BudgetDetailModal from "../../components/budgets/BudgetDetailModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import Toast from "../../components/common/Toast/Toast";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { formatVietnamDate, formatVietnamDateTime } from "../../utils/dateFormat";
  
 // Use centralized categories from CategoryDataContext
  
@@ -151,9 +152,8 @@ export default function BudgetsPage() {
  
   const formatDateTime = (value) => {
     if (!value) return "";
-    const dateObj = new Date(value);
-    if (Number.isNaN(dateObj.getTime())) return value;
-    return `${dateObj.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })} ${dateObj.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
+    const formatted = formatVietnamDateTime(value);
+    return formatted || "";
   };
  
   const parseDateOnly = (value) => {
@@ -265,6 +265,41 @@ export default function BudgetsPage() {
     return Array.from(fallbackMap.values());
   }, [expenseCategories, budgets]);
  
+  const categoryIconMap = useMemo(() => {
+    const map = new Map();
+    (expenseCategories || []).forEach((category) => {
+      if (!category) return;
+      const icon = category.icon || "bi-tags";
+      const idKey = category.id ?? category.categoryId;
+      if (idKey !== undefined && idKey !== null) {
+        map.set(`id:${idKey}`, icon);
+      }
+      const nameKey = (category.name || category.categoryName || "").toLowerCase();
+      if (nameKey) {
+        map.set(`name:${nameKey}`, icon);
+      }
+    });
+    return map;
+  }, [expenseCategories]);
+
+  const resolveCategoryIcon = useCallback(
+    (budget) => {
+      if (!budget) return "bi bi-tags";
+      const byId =
+        budget.categoryId !== undefined && budget.categoryId !== null
+          ? categoryIconMap.get(`id:${budget.categoryId}`)
+          : null;
+      const byName = budget.categoryName
+        ? categoryIconMap.get(`name:${budget.categoryName.toLowerCase()}`)
+        : null;
+      const rawIcon = byId || byName || "bi-tags";
+      if (rawIcon.startsWith("bi ")) return rawIcon;
+      if (rawIcon.startsWith("bi-")) return `bi ${rawIcon}`;
+      return `bi bi-${rawIcon}`;
+    },
+    [categoryIconMap]
+  );
+
   const visibleBudgets = useMemo(() => {
     if (!Array.isArray(budgets)) return [];
     const normalizedName = searchName.trim().toLowerCase();
@@ -573,7 +608,7 @@ export default function BudgetsPage() {
                       <div className="budget-card-header">
                         <div className="budget-card-heading">
                           <div className="budget-card-icon">
-                            <i className="bi bi-wallet2" />
+                            <i className={resolveCategoryIcon(budget)} />
                           </div>
                           <div>
                             <h5 className="budget-card-title">{budget.categoryName}</h5>
@@ -590,7 +625,7 @@ export default function BudgetsPage() {
                           <label>{t("budgets.form.date_range_label")}</label>
                           <p>
                             {budget.startDate && budget.endDate
-                              ? t("budgets.card.from_to", { start: new Date(budget.startDate).toLocaleDateString(), end: new Date(budget.endDate).toLocaleDateString() })
+                              ? t("budgets.card.from_to", { start: formatVietnamDate(budget.startDate), end: formatVietnamDate(budget.endDate) })
                               : t("budgets.card.no_date")}
                           </p>
                         </div>
@@ -677,7 +712,7 @@ export default function BudgetsPage() {
                           </small>
                           {selectedBudget.startDate && selectedBudget.endDate && (
                             <small className="text-muted d-block">
-                              {new Date(selectedBudget.startDate).toLocaleDateString("vi-VN")} - {new Date(selectedBudget.endDate).toLocaleDateString("vi-VN")}
+                              {formatVietnamDate(selectedBudget.startDate)} - {formatVietnamDate(selectedBudget.endDate)}
                             </small>
                           )}
                           <button

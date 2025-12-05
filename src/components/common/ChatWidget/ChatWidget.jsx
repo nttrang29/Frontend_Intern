@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { formatVietnamTime } from "../../../utils/dateFormat";
 import "./ChatWidget.css";
 
 export default function ChatWidget() {
@@ -106,12 +107,7 @@ export default function ChatWidget() {
     return "Tôi hiểu bạn đang hỏi về: \"" + userMessage + "\". Hiện tại tôi có thể giúp bạn với:\n- Quản lý ví và giao dịch\n- Thiết lập ngân sách\n- Xem báo cáo\n- Quản lý danh mục\n\nBạn muốn biết thêm về tính năng nào?";
   };
 
-  const formatTime = (date) => {
-    return date.toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const formatTime = (date) => formatVietnamTime(date) || "";
 
   return (
     <div className="chat-widget-container">

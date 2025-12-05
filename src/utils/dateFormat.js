@@ -1,3 +1,5 @@
+import { getDateFormatSetting, formatDate as formatBySetting } from "./dateFormatSettings";
+
 /**
  * Utility functions để format ngày giờ theo múi giờ Việt Nam (UTC+7)
  */
@@ -77,16 +79,7 @@ export function convertToVietnamDateTime(dateInput) {
  * @returns {string} - Chuỗi ngày đã format (ví dụ: "17/11/2025")
  */
 export function formatVietnamDate(date) {
-  if (!date) return "";
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) return "";
-  
-  return d.toLocaleDateString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return formatBySetting(date, getDateFormatSetting(), { timeZone: "Asia/Ho_Chi_Minh" });
 }
 
 /**
@@ -115,13 +108,10 @@ export function formatVietnamTime(date) {
  * @returns {string} - Chuỗi ngày giờ đã format (ví dụ: "17/11/2025 21:16")
  */
 export function formatVietnamDateTime(date) {
-  if (!date) return "";
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) return "";
-  
-  const dateStr = formatVietnamDate(d);
-  const timeStr = formatVietnamTime(d);
-  
-  return `${dateStr} ${timeStr}`;
+  const dateStr = formatVietnamDate(date);
+  const timeStr = formatVietnamTime(date);
+
+  if (dateStr && timeStr) return `${dateStr} ${timeStr}`;
+  return dateStr || timeStr || "";
 }
 

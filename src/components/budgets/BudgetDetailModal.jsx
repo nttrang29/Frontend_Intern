@@ -1,5 +1,6 @@
 import React from "react";
 import Modal from "../common/Modal/Modal";
+import { formatVietnamDate } from "../../utils/dateFormat";
 
 export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit, onRemind }) {
   if (!open || !budget) return null;
@@ -28,7 +29,7 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
   const spent = usage?.spent || 0;
   const remaining = usage?.remaining ?? limit - spent;
   const rangeLabel = budget.startDate && budget.endDate
-    ? `${new Date(budget.startDate).toLocaleDateString("vi-VN")} - ${new Date(budget.endDate).toLocaleDateString("vi-VN")}`
+    ? `${formatVietnamDate(budget.startDate)} - ${formatVietnamDate(budget.endDate)}`
     : "Chưa thiết lập";
 
   return (
@@ -79,7 +80,7 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
             <ul>
               <li>Danh mục: {budget.categoryName}</li>
               <li>Ví áp dụng: {budget.walletName || "Tất cả ví"}</li>
-              <li>Ngày tạo: {budget.createdAt ? new Date(budget.createdAt).toLocaleDateString("vi-VN") : "--"}</li>
+              <li>Ngày tạo: {budget.createdAt ? formatVietnamDate(budget.createdAt) : "--"}</li>
             </ul>
           </div>
         </div>

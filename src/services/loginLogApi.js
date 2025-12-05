@@ -45,11 +45,23 @@ const handleAxiosResponse = (axiosResponse) => {
 
 /**
  * User tự xem lịch sử đăng nhập của chính mình
- * GET /me/login-logs
+ * GET /me/login-logs?page=0&size=10
  */
-export const getMyLoginLogs = async () => {
+export const getMyLoginLogs = async (params = {}) => {
+  const {
+    page = 0,
+    size = 10,
+    limit,
+  } = params;
+
   try {
-    const response = await apiClient.get("/me/login-logs");
+    const response = await apiClient.get("/me/login-logs", {
+      params: {
+        page,
+        size,
+        limit: typeof limit === "number" ? limit : size,
+      },
+    });
     return handleAxiosResponse(response);
   } catch (error) {
     if (error.response) {

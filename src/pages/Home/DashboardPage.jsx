@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
+import { formatVietnamDate, formatVietnamTime } from "../../utils/dateFormat";
 import { useLanguage } from "../../contexts/LanguageContext";
 
 import "../../styles/pages/DashboardPage.css";
@@ -368,7 +369,6 @@ export default function DashboardPage() {
   }, [currentTransactions, period, t]);
 
   const historyList = useMemo(() => {
-    const locale = "vi-VN";
     const normalizedSearch = historySearch.trim().toLowerCase();
     return currentTransactions
       .slice()
@@ -387,13 +387,7 @@ export default function DashboardPage() {
         title: tx.category,
         description: tx.note || tx.walletName,
         amount: tx.type === "expense" ? -tx.amount : tx.amount,
-        time: `${tx.date.toLocaleDateString(locale, {
-          day: "2-digit",
-          month: "2-digit",
-        })} • ${tx.date.toLocaleTimeString(locale, {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`,
+        time: `${formatVietnamDate(tx.date)} • ${formatVietnamTime(tx.date)}`,
       }));
   }, [currentTransactions, historySearch, historyFilter]);
 

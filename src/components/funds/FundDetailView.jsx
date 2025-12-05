@@ -5,6 +5,7 @@ import { useWalletData } from "../../contexts/WalletDataContext";
 import { useToast } from "../common/Toast/ToastContext";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import { formatMoney } from "../../utils/formatMoney";
+import { formatVietnamDate } from "../../utils/dateFormat";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 import "../../styles/components/funds/FundDetail.css";
@@ -784,13 +785,13 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                       <div>
                         <label>Ngày bắt đầu</label>
                         <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                          {fund.startDate ? new Date(fund.startDate).toLocaleDateString('vi-VN') : "Chưa thiết lập"}
+                          {fund.startDate ? formatVietnamDate(fund.startDate) : "Chưa thiết lập"}
                         </div>
                       </div>
                       <div>
                         <label>Ngày kết thúc</label>
                         <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                          {fund.endDate ? new Date(fund.endDate).toLocaleDateString('vi-VN') : "Chưa thiết lập"}
+                          {fund.endDate ? formatVietnamDate(fund.endDate) : "Chưa thiết lập"}
                         </div>
                       </div>
                     </div>
@@ -1021,7 +1022,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                                 return '';
                             }
                             
-                            return endDate.toLocaleDateString('vi-VN');
+                            return formatVietnamDate(endDate);
                           })()}
                           disabled
                           style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
@@ -1229,7 +1230,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                     }}>
                       <i className="bi bi-info-circle-fill" style={{ fontSize: '1.25rem', color: '#10b981' }}></i>
                       <div style={{ fontSize: '0.875rem', color: '#065f46' }}>
-                        <strong>Lưu ý:</strong> Lần nạp tiếp theo theo lịch là <strong>{depositStatus.nextDepositDate.toLocaleDateString('vi-VN')}</strong>. 
+                        <strong>Lưu ý:</strong> Lần nạp tiếp theo theo lịch là <strong>{formatVietnamDate(depositStatus.nextDepositDate)}</strong>. 
                         Bạn vẫn có thể nạp thủ công bất kỳ lúc nào.
                       </div>
                     </div>
@@ -2646,12 +2647,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
               <div style={{ fontSize: '0.875rem', color: '#374151' }}>
                 {fund.startDate && (
                   <div style={{ marginBottom: '0.25rem' }}>
-                    <strong>Bắt đầu:</strong> {new Date(fund.startDate).toLocaleDateString('vi-VN')}
+                    <strong>Bắt đầu:</strong> {formatVietnamDate(fund.startDate)}
                   </div>
                 )}
                 {fund.endDate && (
                   <div>
-                    <strong>Kết thúc:</strong> {new Date(fund.endDate).toLocaleDateString('vi-VN')}
+                    <strong>Kết thúc:</strong> {formatVietnamDate(fund.endDate)}
                   </div>
                 )}
               </div>

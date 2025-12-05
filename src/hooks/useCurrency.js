@@ -42,11 +42,18 @@ export function useCurrency() {
       }
     }
     // Format number with custom thousand/decimal separators
+    let digits = decimalDigits;
+    if (cur === "USD") {
+      digits = 2;
+    }
+    if (digits === 0 && cur !== "USD") {
+      value = Math.trunc(value);
+    }
     formatted = value
-      .toFixed(decimalDigits)
+      .toFixed(digits)
       .replace(/\B(?=(\d{3})+(?!\d))/g, thousand);
     // Replace decimal point if needed
-    if (decimal !== ".") {
+    if (digits > 0 && decimal !== ".") {
       const parts = formatted.split(".");
       if (parts.length === 2) {
         formatted = parts[0] + decimal + parts[1];

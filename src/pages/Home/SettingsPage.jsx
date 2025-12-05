@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { getProfile, updateProfile, changePassword } from "../../services/profile.service";
+import { logoutAllDevices } from "../../services/auth.service";
+import { getMyLoginLogs } from "../../services/loginLogApi";
 import "../../styles/pages/SettingsPage.css";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
@@ -14,10 +16,6 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState("");
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
-  const [defaultCurrency, setDefaultCurrency] = useState(() => {
-    // Lấy từ localStorage hoặc mặc định là VND
-    return localStorage.getItem("defaultCurrency") || "VND";
-  });
   // Move money format state to top-level to avoid hook rules error
   const [moneyFormat, setMoneyFormat] = useState(() => localStorage.getItem("moneyFormat") || "space");
   const [moneyDecimalDigits, setMoneyDecimalDigits] = useState(() => localStorage.getItem("moneyDecimalDigits") || "0");
@@ -27,29 +25,21 @@ export default function SettingsPage() {
   const [selectedTheme, setSelectedTheme] = useState(() => {
     return localStorage.getItem("theme") || "light";
   });
+  const [logoutAllLoading, setLogoutAllLoading] = useState(false);
+  const [loginLogs, setLoginLogs] = useState([]);
+  const [loginLogLoading, setLoginLogLoading] = useState(false);
+  const [loginLogError, setLoginLogError] = useState("");
 
   const { t, changeLanguage, language } = useLanguage();
   const { showToast } = useToast();
   const [selectedLang, setSelectedLang] = useState(language || "vi");
 
-  // Refs cho các input fields
-  const fullNameRef = useRef(null);
-  const avatarRef = useRef(null);
-  const oldPasswordRef = useRef(null);
-  const newPasswordRef = useRef(null);
-  const confirmPasswordRef = useRef(null);
-  const currencyRef = useRef(null);
+  const toastPosition = {
+    anchorSelector: "body",
+    topbarSelector: ".no-topbar",
+    offset: { top: 12, right: 16 },
+  };
 
-  // Load profile khi component mount
-  useEffect(() => {
-    loadProfile();
-    // Load và áp dụng theme khi component mount
-    const savedTheme = localStorage.getItem("theme") || "light";
-    setSelectedTheme(savedTheme);
-    applyTheme(savedTheme);
-  }, []);
-
-  // Hàm áp dụng theme
   const applyTheme = (theme) => {
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
@@ -58,7 +48,6 @@ export default function SettingsPage() {
       document.documentElement.classList.remove("dark");
       document.body.classList.remove("dark");
     } else if (theme === "system") {
-      // System: theo preference của OS
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       if (prefersDark) {
         document.documentElement.classList.add("dark");
@@ -70,40 +59,103 @@ export default function SettingsPage() {
     }
   };
 
-  // Lắng nghe thay đổi system preference khi theme là "system"
-  useEffect(() => {
-    if (selectedTheme === "system") {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      
-      const handleSystemThemeChange = (e) => {
-        if (selectedTheme === "system") {
-          if (e.matches) {
-            document.documentElement.classList.add("dark");
-            document.body.classList.add("dark");
-          } else {
-            document.documentElement.classList.remove("dark");
-            document.body.classList.remove("dark");
-          }
-        }
-      };
+  // Refs cho các input fields
+  const fullNameRef = useRef(null);
+  const avatarRef = useRef(null);
+  const oldPasswordRef = useRef(null);
+  const newPasswordRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
 
-      // Lắng nghe thay đổi
-      if (mediaQuery.addEventListener) {
-        mediaQuery.addEventListener("change", handleSystemThemeChange);
-      } else {
-        // Fallback cho trình duyệt cũ
-        mediaQuery.addListener(handleSystemThemeChange);
-      }
-
-      // Cleanup
-      return () => {
-        if (mediaQuery.removeEventListener) {
-          mediaQuery.removeEventListener("change", handleSystemThemeChange);
-        } else {
-          mediaQuery.removeListener(handleSystemThemeChange);
-        }
-      };
+  const formatLogTime = (log) => {
+    const raw =
+      log?.time ||
+      log?.loginTime ||
+      log?.createdAt ||
+      log?.loginAt ||
+      log?.timestamp;
+    if (!raw) return "--";
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) {
+      return typeof raw === "string" ? raw : "--";
     }
+    const locale = selectedLang === "vi" ? "vi-VN" : "en-US";
+    return date.toLocaleString(locale, {
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatLogStatus = (status) => {
+    if (!status) return "--";
+    const str = String(status);
+    const normalized = str.toLowerCase();
+    if (normalized === "success") return t("common.success");
+    if (["failed", "failure", "error"].includes(normalized)) return t("common.error");
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  const resolveLogDevice = (log) => log?.device || log?.deviceInfo || log?.userAgent || "--";
+  const resolveLogIp = (log) => log?.ipAddress || log?.ip || log?.clientIp || "--";
+  const resolveLogAccount = (log) => {
+    if (log?.account) return log.account;
+    if (log?.accountName && log?.accountEmail) {
+      return `${log.accountName} (${log.accountEmail})`;
+    }
+    if (log?.accountName) return log.accountName;
+    if (log?.accountEmail) return log.accountEmail;
+    if (log?.userEmail) return log.userEmail;
+    if (log?.userName) return log.userName;
+    if (user?.fullName && user?.email) {
+      return `${user.fullName} (${user.email})`;
+    }
+    return user?.email || user?.fullName || "--";
+  };
+
+  // Load profile khi component mount
+  useEffect(() => {
+    loadProfile();
+    fetchLoginLogs();
+    // Load và áp dụng theme khi component mount
+    const savedTheme = localStorage.getItem("theme") || "light";
+    setSelectedTheme(savedTheme);
+    applyTheme(savedTheme);
+  }, []);
+
+  // Lắng nghe thay đổi system preference khi chọn mode "system"
+  useEffect(() => {
+    if (selectedTheme !== "system") {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const handleSystemThemeChange = (event) => {
+      if (event.matches) {
+        document.documentElement.classList.add("dark");
+        document.body.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+        document.body.classList.remove("dark");
+      }
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleSystemThemeChange);
+    } else {
+      mediaQuery.addListener(handleSystemThemeChange);
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener("change", handleSystemThemeChange);
+      } else {
+        mediaQuery.removeListener(handleSystemThemeChange);
+      }
+    };
   }, [selectedTheme]);
 
   const loadProfile = async () => {
@@ -158,6 +210,56 @@ export default function SettingsPage() {
       setAvatarPreview(reader.result);
     };
     reader.readAsDataURL(file);
+  };
+
+  const fetchLoginLogs = async () => {
+    setLoginLogLoading(true);
+    setLoginLogError("");
+    try {
+      const { response, data } = await getMyLoginLogs({ page: 0, size: 10 });
+      if (response?.ok) {
+        const logs = Array.isArray(data?.logs)
+          ? data.logs
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data)
+              ? data
+              : [];
+        setLoginLogs(logs);
+      } else {
+        setLoginLogError(data?.error || t("settings.login_log.error"));
+      }
+    } catch (err) {
+      setLoginLogError(t("settings.login_log.error"));
+    } finally {
+      setLoginLogLoading(false);
+    }
+  };
+
+  const handleLogoutAllDevices = async () => {
+    if (logoutAllLoading) return;
+    setLogoutAllLoading(true);
+    try {
+      const { response, data } = await logoutAllDevices();
+      if (response?.ok) {
+        showToast(t("settings.logout_all.success"), {
+          type: "success",
+          ...toastPosition,
+        });
+      } else {
+        showToast(data?.error || t("settings.logout_all.error"), {
+          type: "error",
+          ...toastPosition,
+        });
+      }
+    } catch (error) {
+      showToast(t("settings.logout_all.error"), {
+        type: "error",
+        ...toastPosition,
+      });
+    } finally {
+      setLogoutAllLoading(false);
+    }
   };
   // Sửa trong file SettingsPage.jsx
 
@@ -427,37 +529,62 @@ export default function SettingsPage() {
 <div className="settings-detail__body">
 <h4>{t('settings.login_log')}</h4>
 <p className="settings-detail__desc">{t('settings.login_log.desc')}</p>
+<div className="settings-detail__actions">
+  <button
+    className="settings-btn"
+    onClick={fetchLoginLogs}
+    disabled={loginLogLoading}
+  >
+    {loginLogLoading ? t('common.loading') : t('settings.login_log.refresh')}
+  </button>
+</div>
+{loginLogError && (
+  <div
+    className="settings-error"
+    style={{
+      color: '#b42318',
+      marginBottom: '10px',
+      padding: '10px',
+      backgroundColor: '#ffe6e6',
+      borderRadius: '4px',
+    }}
+  >
+    {loginLogError}
+  </div>
+)}
 <div className="settings-table__wrap">
-<table className="settings-table">
-<thead>
-<tr>
-<th>Thời gian</th>
-<th>Thiết bị</th>
-<th>Địa chỉ IP</th>
-<th>Trạng thái</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Hôm nay, 09:32</td>
-<td>Chrome • Windows</td>
-<td>192.168.1.10</td>
-<td>Thành công</td>
-</tr>
-<tr>
-<td>Hôm qua, 21:15</td>
-<td>Safari • iOS</td>
-<td>10.0.0.5</td>
-<td>Thành công</td>
-</tr>
-<tr>
-<td>2 ngày trước</td>
-<td>Không xác định</td>
-<td>203.113.12.45</td>
-<td>Nghi vấn</td>
-</tr>
-</tbody>
-</table>
+{loginLogLoading ? (
+  <div className="settings-table__empty">{t('common.loading')}</div>
+) : loginLogs.length ? (
+  <table className="settings-table">
+    <thead>
+      <tr>
+        <th>{t('settings.login_log.col.time')}</th>
+        <th>{t('settings.login_log.col.account')}</th>
+        <th>{t('settings.login_log.col.device')}</th>
+        <th>{t('settings.login_log.col.ip')}</th>
+        <th>{t('settings.login_log.col.status')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {loginLogs.map((log, index) => (
+        <tr key={log.id || log._id || `${index}-${log?.time || log?.createdAt || log?.timestamp || log?.ipAddress || ''}`}>
+          <td>{formatLogTime(log)}</td>
+          <td>{resolveLogAccount(log)}</td>
+          <td>{resolveLogDevice(log)}</td>
+          <td>{resolveLogIp(log)}</td>
+          <td>
+            <span className={`settings-status-chip settings-status-chip--${(log?.status || '').toString().toLowerCase()}`}>
+              {formatLogStatus(log?.status)}
+            </span>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <div className="settings-table__empty">{t('settings.login_log.empty')}</div>
+)}
 </div>
 </div>
 
@@ -473,48 +600,18 @@ export default function SettingsPage() {
     <li>{t('settings.logout_all.note1')}</li>
     <li>{t('settings.logout_all.note2')}</li>
   </ul>
-  <button className="settings-btn settings-btn--danger">{t('settings.logout_all.btn')}</button>
+  <button
+    className="settings-btn settings-btn--danger"
+    onClick={handleLogoutAllDevices}
+    disabled={logoutAllLoading}
+  >
+    {logoutAllLoading ? t('common.loading') : t('settings.logout_all.btn')}
+  </button>
 </div>
 
         );
 
       // ====== NHÓM CÀI ĐẶT HỆ THỐNG ======
-
-      case "currency":
-
-        return (
-<div className="settings-detail__body">
-  <h4>{t('settings.currency')}</h4>
-  <p className="settings-detail__desc">{t('settings.currency.desc')}</p>
-  <div className="settings-form__group">
-    <label>{t('settings.currency.label')}</label>
-    <select
-      ref={currencyRef}
-      defaultValue={defaultCurrency}
-      onChange={(e) => setDefaultCurrency(e.target.value)}
-    >
-      <option value="VND">VND - Việt Nam Đồng</option>
-      <option value="USD">USD - Đô la Mỹ</option>
-    </select>
-  </div>
-{error && activeKey === "currency" && <div className="settings-error" style={{color: 'red', marginBottom: '10px', padding: '10px', backgroundColor: '#ffe6e6', borderRadius: '4px'}}>{error}</div>}
-{success && activeKey === "currency" && <div className="settings-success" style={{color: 'green', marginBottom: '10px', padding: '10px', backgroundColor: '#e6ffe6', borderRadius: '4px'}}>{success}</div>}
-            <button 
-              className="settings-btn settings-btn--primary"
-              onClick={() => {
-                const selectedCurrency = currencyRef.current?.value || "VND";
-                localStorage.setItem("defaultCurrency", selectedCurrency);
-                setDefaultCurrency(selectedCurrency);
-                // Bắn event để các component khác cập nhật
-                window.dispatchEvent(new CustomEvent('currencySettingChanged', { detail: { currency: selectedCurrency } }));
-                showToast(t('settings.currency.saved'), { type: 'success', anchorSelector: 'body', topbarSelector: '.no-topbar', offset: { top: 12, right: 16 } });
-              }}
-            >
-              {t('common.save')}
-</button>
-</div>
-
-        );
 
       case "currency-format":
         return (
@@ -729,7 +826,6 @@ export default function SettingsPage() {
   ];
 
   const systemItems = [
-    { key: "currency", labelKey: "settings.currency" },
     { key: "currency-format", labelKey: "settings.currency_format" },
     { key: "date-format", labelKey: "settings.date_format" },
     { key: "language", labelKey: "settings.language" },

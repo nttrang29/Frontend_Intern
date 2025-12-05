@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
 import { useDateFormat } from "../../hooks/useDateFormat";
+import { formatVietnamTime } from "../../utils/dateFormat";
 
 import "../../styles/pages/ReportsPage.css";
 import { useWalletData } from "../../contexts/WalletDataContext";
+import { useFundData } from "../../contexts/FundDataContext";
+import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -248,6 +251,12 @@ export default function ReportsPage() {
   const { t } = useLanguage();
   const { formatDate } = useDateFormat();
   const { wallets, loading: walletsLoading } = useWalletData();
+  const { funds = [], loading: fundsLoading } = useFundData();
+  const {
+    budgets = [],
+    budgetsLoading,
+    getSpentForBudget,
+  } = useBudgetData();
   const { currentUser } = useAuth();
   const [selectedWalletId, setSelectedWalletId] = useState(null);
   const [range, setRange] = useState("week");
@@ -259,6 +268,17 @@ export default function ReportsPage() {
   const [hoveredColumnIndex, setHoveredColumnIndex] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeReportTab, setActiveReportTab] = useState("wallets");
+
+  const formatDateSafe = useCallback(
+    (value) => {
+      if (!value) return null;
+      const dateValue = value instanceof Date ? value : new Date(value);
+      if (Number.isNaN(dateValue.getTime())) return null;
+      return formatDate(dateValue);
+    },
+    [formatDate]
+  );
   
   // Lấy email và userId của user hiện tại
   const currentUserEmail = useMemo(() => {
@@ -452,7 +472,7 @@ export default function ReportsPage() {
 
     const walletName = selectedWallet.name || "Ví";
     const dateRange = range === "day" ? "Ngày" : range === "week" ? "Tuần" : range === "month" ? "Tháng" : "Năm";
-    const currentDate = new Date().toLocaleDateString("vi-VN");
+    const currentDate = formatDate(new Date());
 
     // Build HTML content
     let htmlContent = `
@@ -544,15 +564,7 @@ export default function ReportsPage() {
 
     walletTransactions.forEach((tx, index) => {
       const dateObj = tx.date instanceof Date ? tx.date : new Date(tx.date);
-      const dateTimeStr = dateObj.toLocaleDateString("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }) + " " + dateObj.toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
+      const dateTimeStr = `${formatDate(dateObj)} ${formatVietnamTime(dateObj)}`.trim();
 
       const formatAmountOnly = (amount) => {
         const numAmount = Number(amount) || 0;
@@ -667,10 +679,162 @@ export default function ReportsPage() {
   const currency = selectedWallet?.currency || "VND";
   const net = summary.income - summary.expense;
 
+  const fundSummary = useMemo(() => {
+    if (!Array.isArray(funds) || funds.length === 0) {
+      return {
+        total: 0,
+        totalCurrent: 0,
+        totalTarget: 0,
+        progressPct: 0,
+        termCount: 0,
+        nearingDeadline: 0,
+        completed: 0,
+      };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const activeFunds = funds.filter((fund) => (fund.status || "").toUpperCase() !== "CLOSED");
+    const totalCurrent = activeFunds.reduce(
+      (sum, fund) => sum + (Number(fund.currentAmount ?? fund.current ?? 0) || 0),
+      0
+    );
+    const totalTarget = activeFunds.reduce(
+      (sum, fund) => sum + (Number(fund.targetAmount ?? fund.target ?? 0) || 0),
+      0
+    );
+    const termFunds = activeFunds.filter((fund) => fund.hasDeadline || fund.hasTerm);
+    const nearingDeadline = termFunds.reduce((count, fund) => {
+      if (!fund.endDate) return count;
+      const endDate = new Date(fund.endDate);
+      if (Number.isNaN(endDate.getTime())) return count;
+      const diffDays = (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 30 && diffDays >= 0) return count + 1;
+      return count;
+    }, 0);
+    const completed = activeFunds.filter((fund) => {
+      const target = Number(fund.targetAmount ?? fund.target ?? 0) || 0;
+      if (!target) return false;
+      const currentValue = Number(fund.currentAmount ?? fund.current ?? 0) || 0;
+      return currentValue >= target;
+    }).length;
+    const progressPct = totalTarget > 0 ? Math.min(100, (totalCurrent / totalTarget) * 100) : 0;
+
+    return {
+      total: activeFunds.length,
+      totalCurrent,
+      totalTarget,
+      progressPct,
+      termCount: termFunds.length,
+      nearingDeadline,
+      completed,
+    };
+  }, [funds]);
+
+  const fundProgressList = useMemo(() => {
+    if (!Array.isArray(funds) || funds.length === 0) return [];
+    return funds
+      .filter((fund) => (fund.status || "").toUpperCase() !== "CLOSED")
+      .map((fund) => {
+        const currentValue = Number(fund.currentAmount ?? fund.current ?? 0) || 0;
+        const targetValue = Number(fund.targetAmount ?? fund.target ?? 0) || 0;
+        const progress = targetValue > 0 ? Math.min(100, (currentValue / targetValue) * 100) : null;
+        return {
+          id: fund.id ?? fund.fundId ?? `${fund.fundName || "fund"}-${fund.targetWalletId || "0"}`,
+          name: fund.fundName || fund.name || t("sidebar.funds"),
+          currentValue,
+          targetValue,
+          progress,
+          hasDeadline: !!(fund.hasDeadline || fund.hasTerm),
+          endDate: fund.endDate || null,
+        };
+      })
+      .sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0))
+      .slice(0, 4);
+  }, [funds, t]);
+
+  const budgetUsageList = useMemo(() => {
+    if (!Array.isArray(budgets) || budgets.length === 0) return [];
+    return budgets
+      .map((budget) => {
+        const limit = Number(budget.amountLimit ?? budget.limitAmount ?? 0) || 0;
+        let spent = Number(budget.spentAmount ?? 0) || 0;
+        if (budget.startDate && budget.endDate) {
+          const computedSpent = getSpentForBudget(budget);
+          if (typeof computedSpent === "number" && computedSpent > spent) {
+            spent = computedSpent;
+          }
+        }
+        const usageRaw = limit > 0 ? (spent / limit) * 100 : 0;
+        const warningThreshold = Number(budget.warningThreshold ?? budget.alertPercentage ?? 80) || 80;
+        let status = "ok";
+        if (usageRaw >= 100) status = "exceeded";
+        else if (usageRaw >= warningThreshold) status = "warning";
+
+        return {
+          id: budget.id ?? budget.budgetId ?? `${budget.categoryName}-${budget.walletId ?? "all"}`,
+          categoryName: budget.categoryName || "Budget",
+          walletName:
+            budget.walletName ||
+            (budget.walletId === null || budget.walletId === undefined ? t("wallets.all") ?? "Tất cả ví" : ""),
+          limit,
+          spent,
+          usage: Math.min(Math.max(usageRaw, 0), 200),
+          status,
+          startDate: budget.startDate,
+          endDate: budget.endDate,
+        };
+      })
+      .sort((a, b) => b.usage - a.usage);
+  }, [budgets, getSpentForBudget, t]);
+
+  const topBudgetUsage = useMemo(() => budgetUsageList.slice(0, 4), [budgetUsageList]);
+
+  const budgetSummary = useMemo(() => {
+    const total = budgets.length;
+    if (budgetUsageList.length === 0) {
+      return {
+        total,
+        totalLimit: 0,
+        totalSpent: 0,
+        utilization: 0,
+        warningCount: 0,
+        exceededCount: 0,
+        okCount: total,
+      };
+    }
+
+    const totalLimit = budgetUsageList.reduce((sum, item) => sum + item.limit, 0);
+    const totalSpent = budgetUsageList.reduce((sum, item) => sum + item.spent, 0);
+    const warningCount = budgetUsageList.filter((item) => item.status === "warning").length;
+    const exceededCount = budgetUsageList.filter((item) => item.status === "exceeded").length;
+    const okCount = Math.max(total - warningCount - exceededCount, 0);
+    const utilization = totalLimit > 0 ? Math.min((totalSpent / totalLimit) * 100, 150) : 0;
+
+    return {
+      total,
+      totalLimit,
+      totalSpent,
+      utilization,
+      warningCount,
+      exceededCount,
+      okCount,
+    };
+  }, [budgetUsageList, budgets.length]);
+
   const handleViewHistory = useCallback(() => {
     if (!selectedWalletId) return;
     setShowHistory((prev) => !prev);
   }, [selectedWalletId]);
+
+  const reportTabs = useMemo(
+    () => [
+      { key: "wallets", label: t("reports.tabs.wallets"), icon: "bi-wallet2" },
+      { key: "funds", label: t("reports.tabs.funds"), icon: "bi-piggy-bank" },
+      { key: "budgets", label: t("reports.tabs.budgets"), icon: "bi-pie-chart" },
+    ],
+    [t]
+  );
 
   return (
     <div className="reports-page container-fluid tx-page py-4">
@@ -686,13 +850,24 @@ export default function ReportsPage() {
             </div>
           </div>
           <div className="wallet-header-right">
-            <div className="reports-header-pill">
-              <i className="bi bi-graph-up" /> {t("reports.overview_realtime")}
+            <div className="reports-tab-toggle">
+              {reportTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={`reports-tab-btn ${activeReportTab === tab.key ? "active" : ""}`}
+                  onClick={() => setActiveReportTab(tab.key)}
+                >
+                  <i className={`bi ${tab.icon}`} />
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
-
-        <div className="reports-layout">
+        <div className="reports-content">
+        {activeReportTab === "wallets" && (
+          <div className="reports-layout">
           <div className="reports-wallet-card card border-0 shadow-sm">
             <div className="card-body">
               <div className="d-flex justify-content-between align-items-center mb-3">
@@ -923,15 +1098,7 @@ export default function ReportsPage() {
                         <tbody>
                           {paginatedTransactions.map((tx, index) => {
                             const dateObj = tx.date instanceof Date ? tx.date : new Date(tx.date);
-                            const dateTimeStr = dateObj.toLocaleDateString("vi-VN", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                            }) + " " + dateObj.toLocaleTimeString("vi-VN", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              hour12: false,
-                            });
+                            const dateTimeStr = `${formatDate(dateObj)} ${formatVietnamTime(dateObj)}`.trim();
                             const formatAmountOnly = (amount) => {
                               const numAmount = Number(amount) || 0;
                               return numAmount.toLocaleString("vi-VN", {
@@ -1149,6 +1316,181 @@ export default function ReportsPage() {
               )}
             </div>
           </div>
+        </div>
+        )}
+        {activeReportTab === "funds" && (
+          <div className="reports-single-card card border-0 shadow-sm">
+            <div className="card-body">
+              <div className="reports-section-header">
+                <div>
+                  <h5 className="mb-1">{t("reports.funds.section_title")}</h5>
+                  <p className="text-muted mb-0 small">{t("reports.funds.section_subtitle")}</p>
+                </div>
+              </div>
+              <div className="reports-section-summary">
+                <div>
+                  <p className="reports-section-label">{t("reports.funds.total_label")}</p>
+                  <h4 className="mb-0">{fundSummary.total}</h4>
+                </div>
+                <div>
+                  <p className="reports-section-label">{t("reports.funds.raised")}</p>
+                  <h4 className="mb-0">{formatCurrency(fundSummary.totalCurrent)}</h4>
+                </div>
+                <div>
+                  <p className="reports-section-label">{t("reports.funds.target")}</p>
+                  <h4 className="mb-0">{formatCurrency(fundSummary.totalTarget)}</h4>
+                </div>
+              </div>
+              <div className="reports-section-progress">
+                <div className="reports-progress-header">
+                  <span className="text-muted small">{t("reports.funds.progress_to_target")}</span>
+                  <strong>{Math.round(fundSummary.progressPct)}%</strong>
+                </div>
+                <div className="reports-section-progress-bar">
+                  <span style={{ width: `${Math.min(fundSummary.progressPct, 100)}%` }} />
+                </div>
+              </div>
+              <div className="reports-status-tags">
+                <span className="reports-status-chip">
+                  {t("reports.funds.term_funds")}: <strong>{fundSummary.termCount}</strong>
+                </span>
+                <span className="reports-status-chip warning">
+                  {t("reports.funds.near_deadline")}: <strong>{fundSummary.nearingDeadline}</strong>
+                </span>
+                <span className="reports-status-chip success">
+                  {t("reports.funds.completed")}: <strong>{fundSummary.completed}</strong>
+                </span>
+              </div>
+              <div className="reports-section-list">
+                {fundsLoading ? (
+                  <div className="text-center text-muted small py-3">{t("reports.funds.loading")}</div>
+                ) : fundProgressList.length === 0 ? (
+                  <div className="text-center text-muted small py-3">{t("reports.funds.no_data")}</div>
+                ) : (
+                  fundProgressList.map((fund) => {
+                    const deadlineLabel = fund.hasDeadline ? formatDateSafe(fund.endDate) : null;
+                    return (
+                      <div className="reports-mini-row" key={fund.id}>
+                        <div className="reports-mini-title">
+                          <div>
+                            <p className="mb-0">{fund.name}</p>
+                            <span className="reports-mini-subtitle">
+                              {fund.targetValue
+                                ? `${formatCurrency(fund.currentValue)} / ${formatCurrency(fund.targetValue)}`
+                                : formatCurrency(fund.currentValue)}
+                            </span>
+                          </div>
+                          <span className="reports-status-badge status-ok">
+                            {fund.targetValue
+                              ? `${Math.round(fund.progress ?? 0)}%`
+                              : t("reports.funds.no_target")}
+                          </span>
+                        </div>
+                        {fund.targetValue ? (
+                          <div className="reports-mini-progress">
+                            <div className="reports-mini-progress-bar">
+                              <span
+                                className="progress-fill"
+                                style={{ width: `${Math.min(fund.progress ?? 0, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : null}
+                        {deadlineLabel && (
+                          <div className="reports-mini-meta">
+                            {t("reports.funds.deadline")}: {deadlineLabel}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {activeReportTab === "budgets" && (
+          <div className="reports-single-card card border-0 shadow-sm">
+            <div className="card-body">
+              <div className="reports-section-header">
+                <div>
+                  <h5 className="mb-1">{t("reports.budgets.section_title")}</h5>
+                  <p className="text-muted mb-0 small">{t("reports.budgets.section_subtitle")}</p>
+                </div>
+                <span className="badge rounded-pill text-bg-light">{budgetSummary.total}</span>
+              </div>
+              <div className="reports-section-summary">
+                <div>
+                  <p className="reports-section-label">{t("reports.budgets.total_limit")}</p>
+                  <h4 className="mb-0">{formatCurrency(budgetSummary.totalLimit)}</h4>
+                </div>
+                <div>
+                  <p className="reports-section-label">{t("reports.budgets.total_spent")}</p>
+                  <h4 className="mb-0">{formatCurrency(budgetSummary.totalSpent)}</h4>
+                </div>
+                <div>
+                  <p className="reports-section-label">{t("reports.budgets.utilization")}</p>
+                  <h4 className="mb-0">{Math.round(budgetSummary.utilization)}%</h4>
+                </div>
+              </div>
+              <div className="reports-status-tags">
+                <span className="reports-status-chip success">
+                  {t("reports.budgets.status.ok")}: <strong>{budgetSummary.okCount}</strong>
+                </span>
+                <span className="reports-status-chip warning">
+                  {t("reports.budgets.status.warning")}: <strong>{budgetSummary.warningCount}</strong>
+                </span>
+                <span className="reports-status-chip danger">
+                  {t("reports.budgets.status.exceeded")}: <strong>{budgetSummary.exceededCount}</strong>
+                </span>
+              </div>
+              <div className="reports-section-list">
+                {budgetsLoading ? (
+                  <div className="text-center text-muted small py-3">{t("reports.budgets.loading")}</div>
+                ) : topBudgetUsage.length === 0 ? (
+                  <div className="text-center text-muted small py-3">{t("reports.budgets.no_data")}</div>
+                ) : (
+                  topBudgetUsage.map((budget) => {
+                    const periodStart = formatDateSafe(budget.startDate);
+                    const periodEnd = formatDateSafe(budget.endDate);
+                    return (
+                      <div className="reports-mini-row" key={budget.id}>
+                        <div className="reports-mini-title">
+                          <div>
+                            <p className="mb-0">{budget.categoryName}</p>
+                            {budget.walletName && (
+                              <span className="reports-mini-subtitle">{budget.walletName}</span>
+                            )}
+                          </div>
+                          <span className={`reports-status-badge status-${budget.status}`}>
+                            {t(`reports.budgets.status.${budget.status}`)}
+                          </span>
+                        </div>
+                        <div className="reports-mini-progress">
+                          <div className="reports-mini-progress-bar">
+                            <span
+                              className={`progress-fill status-${budget.status}`}
+                              style={{ width: `${Math.min(budget.usage, 100)}%` }}
+                            />
+                          </div>
+                          <div className="reports-mini-stats">
+                            <span>{formatCurrency(budget.spent)}</span>
+                            <span>{formatCurrency(budget.limit)}</span>
+                          </div>
+                        </div>
+                        {periodStart && periodEnd && (
+                          <div className="reports-mini-meta">
+                            {t("reports.budgets.period")}: {periodStart} - {periodEnd}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </div>
