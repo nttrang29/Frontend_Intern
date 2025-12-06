@@ -16,8 +16,10 @@ import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
+import { API_BASE_URL } from "../../services/api-client";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
 
 // ===== REMOVED MOCK DATA - Now using API =====
@@ -140,6 +142,235 @@ const resolveTransactionDirection = (tx) => {
 const PAGE_SIZE = 10;
 const VIEWER_ROLES = new Set(["VIEW", "VIEWER"]);
 
+const ATTACHMENT_KEYS = [
+  "imageUrl",
+  "imageURL",
+  "imageUri",
+  "image_uri",
+  "imagePath",
+  "image_path",
+  "imageLocation",
+  "imageLink",
+  "imageSrc",
+  "attachmentUrl",
+  "attachmentURL",
+  "attachmentUri",
+  "attachment_uri",
+  "attachmentPath",
+  "attachment_path",
+  "fileUrl",
+  "fileURL",
+  "fileUri",
+  "file_uri",
+  "filePath",
+  "file_path",
+  "documentUrl",
+  "documentURL",
+  "documentUri",
+  "document_uri",
+  "photoUrl",
+  "photoURL",
+  "photoUri",
+  "photo_uri",
+  "mediaUrl",
+  "mediaURL",
+  "mediaUri",
+  "media_uri",
+  "receiptUrl",
+  "receiptURL",
+  "receiptImage",
+  "receiptImageUrl",
+  "receiptImageURL",
+  "proofUrl",
+  "proofURL",
+  "proofImage",
+  "transactionImage",
+  "transactionImageUrl",
+  "transactionImageURL",
+  "downloadUrl",
+  "downloadURL",
+  "fileDownloadUrl",
+  "fileDownloadURL",
+  "contentUrl",
+  "contentURL",
+  "signedUrl",
+  "signedURL",
+  "blobUrl",
+  "blobURL",
+  "previewUrl",
+  "previewURL",
+  "image",
+  "attachment",
+  "file",
+  "media",
+  "photo",
+  "picture",
+];
+
+const ATTACHMENT_HINTS = [
+  "image",
+  "attachment",
+  "receipt",
+  "invoice",
+  "proof",
+  "document",
+  "file",
+  "photo",
+  "picture",
+  "media",
+  "evidence",
+];
+
+const MEDIA_EXTENSION_PATTERN = /\.(png|jpe?g|gif|bmp|webp|svg|heic|heif|tiff?|pdf|jpeg)(?:$|[?#])/i;
+const BASE64_BODY_PATTERN = /^[A-Za-z0-9+/=\s]+$/;
+
+const looksLikeBase64Payload = (value) => {
+  if (!value) return false;
+  const normalized = value.replace(/^base64,/i, "").replace(/\s+/g, "");
+  return normalized.length > 80 && BASE64_BODY_PATTERN.test(normalized);
+};
+
+const convertBase64ToDataUrl = (value) => {
+  if (!value) return "";
+  if (/^data:/i.test(value)) return value;
+  const body = value.replace(/^base64,/i, "").trim();
+  if (!body) return "";
+  return `data:image/jpeg;base64,${body}`;
+};
+
+const looksLikeRelativeMediaPath = (value) => {
+  if (!value) return false;
+  if (/^[.]{0,2}\//.test(value)) return true;
+  if (value.startsWith("/")) return true;
+  if (value.includes("/") || value.includes("\\")) return true;
+  if (MEDIA_EXTENSION_PATTERN.test(value)) return true;
+  if (/^uploads/i.test(value) || /^files/i.test(value) || /^images/i.test(value)) return true;
+  if (value.includes("?")) return true;
+  return false;
+};
+
+const formatAttachmentUrl = (value) => {
+  if (!value) return "";
+  let trimmed = String(value).trim();
+  if (!trimmed) return "";
+  trimmed = trimmed.replace(/\\/g, "/");
+
+  if (/^(data:|blob:)/i.test(trimmed)) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+
+  if (looksLikeBase64Payload(trimmed)) {
+    return convertBase64ToDataUrl(trimmed);
+  }
+
+  if (!looksLikeRelativeMediaPath(trimmed)) {
+    return "";
+  }
+
+  const base = (API_BASE_URL || "").replace(/\/$/, "");
+  if (!base) {
+    return trimmed.startsWith("/") ? trimmed : `/${trimmed}`.replace(/\/+/g, "/");
+  }
+
+  if (trimmed.startsWith("/")) {
+    return `${base}${trimmed}`.replace(/([^:]\/)\/+/g, "$1");
+  }
+  return `${base}/${trimmed}`.replace(/([^:]\/)\/+/g, "$1");
+};
+
+const extractAttachmentValue = (value, depth = 0) => {
+  if (!value || depth > 4) return "";
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : "";
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = extractAttachmentValue(item, depth + 1);
+      if (nested) return nested;
+    }
+    return "";
+  }
+  if (typeof value === "object") {
+    const candidateKeys = [
+      "url",
+      "href",
+      "link",
+      "path",
+      "location",
+      "value",
+      "source",
+      "src",
+      "downloadUrl",
+      "downloadURL",
+      "fileDownloadUrl",
+      "fileDownloadURL",
+      "contentUrl",
+      "contentURL",
+      "signedUrl",
+      "signedURL",
+      "previewUrl",
+      "previewURL",
+    ];
+    for (const key of candidateKeys) {
+      if (key in value) {
+        const nested = extractAttachmentValue(value[key], depth + 1);
+        if (nested) return nested;
+      }
+    }
+  }
+  return "";
+};
+
+const normalizeAttachmentCandidate = (value) => {
+  const resolved = extractAttachmentValue(value);
+  if (!resolved) return "";
+  return formatAttachmentUrl(resolved);
+};
+
+const resolveAttachmentFromTransaction = (tx) => {
+  if (!tx) return "";
+  for (const key of ATTACHMENT_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(tx, key)) {
+      const normalized = normalizeAttachmentCandidate(tx[key]);
+      if (normalized) return normalized;
+    }
+  }
+  const fallbackSources = [tx.media, tx.attachments, tx.files, tx.images];
+  for (const source of fallbackSources) {
+    const normalized = normalizeAttachmentCandidate(source);
+    if (normalized) return normalized;
+  }
+
+  const scanObjectForHints = (obj, depth = 0) => {
+    if (!obj || depth > 5) return "";
+    if (typeof obj === "string") {
+      return formatAttachmentUrl(obj);
+    }
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        const resolved = scanObjectForHints(item, depth + 1);
+        if (resolved) return resolved;
+      }
+      return "";
+    }
+    if (typeof obj === "object") {
+      for (const key of Object.keys(obj)) {
+        const lower = key.toLowerCase();
+        if (ATTACHMENT_HINTS.some((hint) => lower.includes(hint))) {
+          const normalized = normalizeAttachmentCandidate(obj[key]);
+          if (normalized) return normalized;
+        }
+        const nested = scanObjectForHints(obj[key], depth + 1);
+        if (nested) return nested;
+      }
+    }
+    return "";
+  };
+
+  return scanObjectForHints(tx);
+};
+
 const extractListFromResponse = (payload, preferredKey) => {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
@@ -206,12 +437,113 @@ export default function TransactionsPage() {
   const { budgets, getSpentAmount, getSpentForBudget, updateTransactionsByCategory, updateAllExternalTransactions } = useBudgetData();
   const { expenseCategories, incomeCategories } = useCategoryData();
   const { wallets, loadWallets } = useWalletData();
+  const { currentUser } = useAuth();
   const location = useLocation();
   const [appliedFocusParam, setAppliedFocusParam] = useState("");
   
   // Budget warning state
   const [budgetWarning, setBudgetWarning] = useState(null);
   const [pendingTransaction, setPendingTransaction] = useState(null);
+
+  const currentUserIdentifiers = useMemo(() => {
+    if (!currentUser) {
+      return { id: null, email: "" };
+    }
+    const idCandidates = [
+      currentUser.userId,
+      currentUser.id,
+      currentUser.accountId,
+      currentUser.userID,
+      currentUser.accountID,
+    ];
+    const chosenId = idCandidates.find((val) => val !== null && val !== undefined) ?? null;
+    const emailCandidate =
+      (currentUser.email ||
+        currentUser.userEmail ||
+        currentUser.username ||
+        currentUser.login ||
+        currentUser.accountEmail ||
+        "") + "";
+    return {
+      id: chosenId !== null ? String(chosenId) : null,
+      email: emailCandidate.trim().toLowerCase(),
+    };
+  }, [currentUser]);
+
+  const matchesCurrentUser = useCallback(
+    (entity) => {
+      if (!entity) return false;
+      const { id: userId, email: userEmail } = currentUserIdentifiers;
+      if (!userId && !userEmail) return true;
+
+      const toIdString = (value) => {
+        if (value === null || value === undefined) return null;
+        if (typeof value === "object") {
+          const nestedId =
+            value.userId ??
+            value.id ??
+            value.accountId ??
+            value.ownerId ??
+            value.createdBy ??
+            null;
+          return nestedId === null || nestedId === undefined ? null : String(nestedId);
+        }
+        return String(value);
+      };
+
+      const toEmailString = (value) => {
+        if (!value) return null;
+        return String(value).trim().toLowerCase();
+      };
+
+      const candidateIds = [
+        entity.userId,
+        entity.user_id,
+        entity.createdBy,
+        entity.createdById,
+        entity.creatorId,
+        entity.ownerId,
+        entity.createdByUserId,
+        entity.user?.userId,
+        entity.user?.id,
+        entity.user?.accountId,
+        entity.owner?.id,
+        entity.creator?.id,
+        entity.createdBy?.id,
+        entity.createdBy?.userId,
+        entity.actor?.id,
+      ]
+        .map((val) => toIdString(val))
+        .filter(Boolean);
+
+      if (userId && candidateIds.includes(userId)) {
+        return true;
+      }
+
+      const candidateEmails = [
+        entity.userEmail,
+        entity.createdByEmail,
+        entity.ownerEmail,
+        entity.creatorEmail,
+        entity.actorEmail,
+        entity.user?.email,
+        entity.user?.userEmail,
+        entity.owner?.email,
+        entity.creator?.email,
+        entity.createdBy?.email,
+        entity.actor?.email,
+      ]
+        .map((val) => toEmailString(val))
+        .filter(Boolean);
+
+      if (userEmail && candidateEmails.includes(userEmail)) {
+        return true;
+      }
+
+      return false;
+    },
+    [currentUserIdentifiers]
+  );
 
   const showViewerRestrictionToast = useCallback(() => {
     setToast({ open: true, message: t("transactions.error.viewer_wallet_restricted"), type: "error" });
@@ -254,10 +586,17 @@ export default function TransactionsPage() {
   const mapTransactionToFrontend = useCallback((tx) => {
     if (!tx) return null;
     const walletName =
-      wallets.find((w) => w.walletId === tx.wallet?.walletId)?.walletName ||
-      tx.wallet?.walletName ||
+          wallets.find((w) => w.walletId === tx.wallet?.walletId)?.walletName ||
+          tx.wallet?.walletName ||
+          tx.wallet?.name ||
+          tx.walletName ||
+          "Unknown";
+    const categoryName =
+      tx.category?.categoryName ||
+      tx.category?.name ||
+      tx.categoryName ||
+      tx.category ||
       "Unknown";
-    const categoryName = tx.category?.categoryName || "Unknown";
     const type = resolveTransactionDirection(tx);
 
     const rawDateValue =
@@ -281,7 +620,7 @@ export default function TransactionsPage() {
       category: categoryName,
       note: tx.note || "",
       creatorCode: `USR${String(tx.user?.userId || 0).padStart(3, "0")}`,
-      attachment: tx.imageUrl || "",
+      attachment: resolveAttachmentFromTransaction(tx),
     };
   }, [wallets]);
 
@@ -389,15 +728,19 @@ export default function TransactionsPage() {
 
     try {
       const scoped = await fetchScopedHistory();
-      setExternalTransactions(scoped.external.map(mapTransactionToFrontend));
-      setInternalTransactions(scoped.internal.map(mapTransferToFrontend));
+      const filteredScopedExternal = scoped.external.filter(matchesCurrentUser);
+      const filteredScopedInternal = scoped.internal.filter(matchesCurrentUser);
+      setExternalTransactions(filteredScopedExternal.map(mapTransactionToFrontend));
+      setInternalTransactions(filteredScopedInternal.map(mapTransferToFrontend));
     } catch (scopedError) {
       console.warn("TransactionsPage: scoped history fetch failed, using legacy APIs", scopedError);
       const legacy = await fetchLegacyHistory();
-      setExternalTransactions(legacy.external.map(mapTransactionToFrontend));
-      setInternalTransactions(legacy.internal.map(mapTransferToFrontend));
+      const filteredLegacyExternal = legacy.external.filter(matchesCurrentUser);
+      const filteredLegacyInternal = legacy.internal.filter(matchesCurrentUser);
+      setExternalTransactions(filteredLegacyExternal.map(mapTransactionToFrontend));
+      setInternalTransactions(filteredLegacyInternal.map(mapTransferToFrontend));
     }
-  }, [wallets, mapTransactionToFrontend, mapTransferToFrontend]);
+  }, [wallets, mapTransactionToFrontend, mapTransferToFrontend, matchesCurrentUser]);
 
   const runInitialLoad = useCallback(async () => {
     setLoading(true);

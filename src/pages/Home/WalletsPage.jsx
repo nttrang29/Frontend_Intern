@@ -17,7 +17,7 @@ import { walletAPI } from "../../services/wallet.service";
 import Toast from "../../components/common/Toast/Toast";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatMoney } from "../../utils/formatMoney";
-import { formatVietnamDate, formatVietnamTime } from "../../utils/dateFormat";
+import { formatVietnamDateTime } from "../../utils/dateFormat";
 
 import "../../styles/pages/WalletsPage.css";
 import "../../styles/components/wallets/WalletList.css";
@@ -266,6 +266,17 @@ function normalizeTransactionDate(rawInput) {
     return getVietnamDateTime();
   }
 
+  const isoWithoutZonePattern = /^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?)?$/;
+  const hasExplicitZone = /(Z|z|[+\-]\d{2}:?\d{2})$/.test(rawString);
+  if (isoWithoutZonePattern.test(rawString) && !hasExplicitZone) {
+    const isoLike = rawString.includes("T") ? rawString : rawString.replace(" ", "T");
+    const appended = `${isoLike}Z`;
+    const utcDate = new Date(appended);
+    if (!Number.isNaN(utcDate.getTime())) {
+      return utcDate.toISOString();
+    }
+  }
+
   const isoAttempt = new Date(rawString);
   if (!Number.isNaN(isoAttempt.getTime())) {
     return isoAttempt.toISOString();
@@ -292,15 +303,8 @@ function normalizeTransactionDate(rawInput) {
 
 function formatTimeLabel(dateString) {
   if (!dateString) return "";
-
   const normalized = normalizeTransactionDate(dateString);
-  const transactionDate = new Date(normalized);
-  if (Number.isNaN(transactionDate.getTime())) return "";
-
-  const dateStr = formatVietnamDate(transactionDate);
-  const timeStr = formatVietnamTime(transactionDate);
-
-  return `${dateStr} ${timeStr}`;
+  return formatVietnamDateTime(normalized);
 }
 
 const getVietnamDateTime = () => {
@@ -590,7 +594,6 @@ export default function WalletsPage() {
   const [createShareEmail, setCreateShareEmail] = useState("");
 
   const [editForm, setEditForm] = useState(buildWalletForm());
-  const [editShareEmail, setEditShareEmail] = useState("");
   const [shareWalletLoading, setShareWalletLoading] = useState(false);
   const [selectedSharedOwnerId, setSelectedSharedOwnerId] = useState(null);
   const [selectedSharedOwnerWalletId, setSelectedSharedOwnerWalletId] =
@@ -1008,6 +1011,11 @@ export default function WalletsPage() {
   // non-default wallet appears directly after it (position 1).
   const finalWallets = useMemo(() => {
     const arr = Array.isArray(sortedWallets) ? [...sortedWallets] : [];
+
+    // When user selects an explicit sort mode, respect that order fully
+    if (sortBy !== "default") {
+      return arr;
+    }
     const getCreatedTime = (w) => {
       if (!w) return 0;
       const raw = w.createdAt || w.created_at || w.created || w.timestamp || 0;
@@ -1043,14 +1051,13 @@ export default function WalletsPage() {
     }
 
     return arr;
-  }, [sortedWallets]);
+  }, [sortedWallets, sortBy]);
 
   // Debug: log counts to help diagnose empty shared list (placed after sortedWallets)
   // (debug logging removed)
 
   useEffect(() => {
     setEditForm(buildWalletForm(selectedWallet));
-    setEditShareEmail("");
     setMergeTargetId("");
     setTopupAmount("");
     setTopupNote("");
@@ -1508,13 +1515,6 @@ export default function WalletsPage() {
         ? String(value || "").slice(0, NOTE_MAX_LENGTH)
         : value;
     setEditForm((prev) => ({ ...prev, [field]: nextValue }));
-  };
-
-  const handleAddEditShareEmail = async () => {
-    const result = await shareEmailForSelectedWallet(editShareEmail);
-    if (result?.success) {
-      setEditShareEmail("");
-    }
   };
 
   const handleSubmitEdit = async (e) => {
@@ -2349,17 +2349,23 @@ export default function WalletsPage() {
           onSearchChange={setSearch}
           sortBy={sortBy}
           onSortChange={setSortBy}
-          wallets={finalWallets.map(w => ({
-            ...w,
-            // Merge sharedEmails từ localSharedMap nếu có
-            sharedEmails: [
-              ...(Array.isArray(w.sharedEmails) ? w.sharedEmails : []),
-              ...(Array.isArray(localSharedMap[w.id]) ? localSharedMap[w.id] : [])
-            ].filter((email, index, self) => 
-              email && typeof email === 'string' && email.trim() && 
-              self.indexOf(email) === index
-            )
-          }))}
+          wallets={finalWallets.map((w) => {
+            const ownedByMe = isWalletOwnedByMe(w);
+            const displayIsDefault = !!w.isDefault && ownedByMe && !w.isShared;
+            return {
+              ...w,
+              isDefault: displayIsDefault,
+              displayIsDefault,
+              // Merge sharedEmails từ localSharedMap nếu có
+              sharedEmails: [
+                ...(Array.isArray(w.sharedEmails) ? w.sharedEmails : []),
+                ...(Array.isArray(localSharedMap[w.id]) ? localSharedMap[w.id] : [])
+              ].filter((email, index, self) =>
+                email && typeof email === "string" && email.trim() &&
+                self.indexOf(email) === index
+              )
+            };
+          })}
           selectedId={selectedId}
           onSelectWallet={handleSelectWallet}
           sharedWithMeOwners={sharedWithMeOwnerGroups}
@@ -2403,10 +2409,6 @@ export default function WalletsPage() {
           onSubmitCreate={handleSubmitCreate}
           editForm={editForm}
           onEditFieldChange={handleEditFieldChange}
-          editShareEmail={editShareEmail}
-          setEditShareEmail={setEditShareEmail}
-          onAddEditShareEmail={handleAddEditShareEmail}
-          shareWalletLoading={shareWalletLoading}
           onSubmitEdit={handleSubmitEdit}
           mergeTargetId={mergeTargetId}
           setMergeTargetId={setMergeTargetId}

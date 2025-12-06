@@ -347,32 +347,46 @@ export default function ActivityHistoryPage() {
       ]);
       description = built.text;
       descriptionSegments = built.segments;
-    } else if (rawType.includes("share") || rawType.includes("add_member") || rawType.includes("add user") || rawType.includes("thêm")) {
+    } else if (
+      (rawType.includes("remove_member") || rawType.includes("unshare") || (rawType.includes("remove") && (rawType.includes("user") || rawType.includes("member"))))) {
+      typeLabel = "Xóa người dùng";
+      let who = pick(data, ["email", "removedEmail", "memberEmail"]) || ev.email || ev.removedEmail;
+      if (!who) who = deepFindName(data) || "(email)";
+      let walletName =
+        pick(data, ["walletName", "wallet_name", "wallet", "name"]) ||
+        ev.walletName ||
+        deepFindName(data) ||
+        "(tên ví)";
+      const built = createDescription([
+        "Xóa ",
+        { text: who, highlight: true },
+        " khỏi ví ",
+        { text: walletName, highlight: true },
+        actorDisplay,
+      ]);
+      description = built.text;
+      descriptionSegments = built.segments;
+    } else if ((rawType.includes("share") && !rawType.includes("unshare")) || rawType.includes("add_member") || rawType.includes("add user") || rawType.includes("thêm")) {
       typeLabel = "Thêm người dùng";
       let who = pick(data, ["email", "sharedTo", "invitee", "inviteeEmail"]) || ev.email || ev.sharedTo;
       if (!who) who = deepFindName(data) || "(email)";
       const role = pick(data, ["role", "sharedRole", "membershipRole"]) || ev.role || "";
+      let walletName =
+        pick(data, ["walletName", "wallet_name", "wallet", "name"]) ||
+        ev.walletName ||
+        deepFindName(data) ||
+        "(tên ví)";
       const parts = [
         "Thêm ",
         { text: who, highlight: true },
+        " vào ví ",
+        { text: walletName, highlight: true },
       ];
       if (role) {
         parts.push(" với vai trò ", { text: role, highlight: true });
       }
       if (actorDisplay) parts.push(actorDisplay);
       const built = createDescription(parts);
-      description = built.text;
-      descriptionSegments = built.segments;
-    } else if (rawType.includes("remove_member") || (rawType.includes("remove") && (rawType.includes("user") || rawType.includes("member")))) {
-      typeLabel = "Xóa người dùng";
-      let who = pick(data, ["email", "removedEmail", "memberEmail"]) || ev.email || ev.removedEmail;
-      if (!who) who = deepFindName(data) || "(email)";
-      const built = createDescription([
-        "Xóa ",
-        { text: who, highlight: true },
-        " khỏi ví",
-        actorDisplay,
-      ]);
       description = built.text;
       descriptionSegments = built.segments;
     } else if (rawType.includes("budget") && (rawType.includes("create") || rawType.includes("tao") || rawType.includes("tạo"))) {

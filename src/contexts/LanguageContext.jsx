@@ -839,6 +839,12 @@ const translations = {
     "categories.error.duplicate_expense": "Bạn đã có danh mục chi phí cá nhân này rồi.",
     "categories.error.duplicate_income": "Bạn đã có danh mục thu nhập cá nhân này rồi.",
     "categories.error.delete_failed": "Lỗi khi xóa danh mục",
+    "categories.modal.budget_warning.title": "Ngân sách liên kết",
+    "categories.modal.budget_warning.message": "Danh mục này đang được dùng trong {count} ngân sách đang hoạt động hoặc sắp áp dụng. Nếu tiếp tục chỉnh sửa, mọi ngân sách liên quan sẽ được đồng bộ theo thay đổi mới. Bạn có chắc chắn muốn tiếp tục?",
+    "categories.modal.budget_warning.ok": "Tiếp tục cập nhật",
+    "categories.modal.budget_warning.cancel": "Quay lại",
+    "categories.error.delete_has_budget": "Không thể xóa vì danh mục đang được dùng trong {count} ngân sách đang hoạt động hoặc chờ áp dụng.",
+    "categories.toast.update_sync_success": "Đã cập nhật danh mục và đồng bộ {count} ngân sách.",
 
     // Budgets Page
     "budgets.page.title": "Quản lý Hạn mức Chi tiêu",
@@ -1881,6 +1887,12 @@ const translations = {
     "categories.error.duplicate_expense": "You already have this personal expense category.",
     "categories.error.duplicate_income": "You already have this personal income category.",
     "categories.error.delete_failed": "Error deleting category",
+    "categories.modal.budget_warning.title": "Linked Budgets",
+    "categories.modal.budget_warning.message": "This category is being used by {count} budgets that are active or scheduled to start. Continuing will sync your changes to every linked budget. Proceed?",
+    "categories.modal.budget_warning.ok": "Update anyway",
+    "categories.modal.budget_warning.cancel": "Go back",
+    "categories.error.delete_has_budget": "Cannot delete because this category is used by {count} active or upcoming budgets.",
+    "categories.toast.update_sync_success": "Category updated and synced with {count} budgets.",
 
     // Budgets Page
     "budgets.page.title": "Budget Management",
