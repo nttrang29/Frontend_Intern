@@ -1,19 +1,18 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useBudgetData } from "../../contexts/BudgetDataContext";
+import { useAuth } from "../../contexts/AuthContext";
+import { useDateFormat } from "../../hooks/useDateFormat";
 import "../../styles/pages/HomeLayout.css";
 import "../../styles/components/wallets/WalletHeader.css";
 import "../../styles/pages/CategoriesPage.css";
+import "../../styles/home/ActivityHistoryPage.css";
 import { formatMoney } from "../../utils/formatMoney";
-
-function formatTimestamp(ts) {
-  try {
-    const d = new Date(ts);
-    return d.toLocaleString();
-  } catch (e) {
-    return ts;
-  }
-}
+import {
+  getActivityStorageKey,
+  getLegacyActivityKeys,
+  resolveActivityUser,
+} from "../../utils/activityLogger";
 
 const PAGE_SIZE = 10;
 
@@ -21,33 +20,145 @@ export default function ActivityHistoryPage() {
   const { t } = useLanguage();
   const [events, setEvents] = useState([]);
   const { budgets = [] } = useBudgetData();
+  const { currentUser } = useAuth();
+  const { formatDate: formatWithSetting } = useDateFormat();
   
   const [queryText, setQueryText] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
+  const legacyKeys = useMemo(() => getLegacyActivityKeys(), []);
+  const userMeta = useMemo(() => resolveActivityUser(currentUser), [currentUser]);
+  const activityKey = useMemo(() => getActivityStorageKey(currentUser), [currentUser]);
+
   const loadEvents = useCallback(() => {
     try {
-      const keys = ["activity_log", "activityLog", "activity-log"];
-      let raw = null;
-      for (const k of keys) {
-        const v = localStorage.getItem(k);
-        if (v) {
-          raw = v;
-          break;
-        }
+      if (typeof window === "undefined" || !window.localStorage) {
+        setEvents([]);
+        return;
       }
-      const parsed = raw ? JSON.parse(raw) : [];
-      setEvents(Array.isArray(parsed) ? parsed : []);
+
+      const keysToCheck = [];
+      if (activityKey) keysToCheck.push(activityKey);
+      legacyKeys.forEach((key) => {
+        if (key && !keysToCheck.includes(key)) keysToCheck.push(key);
+      });
+
+      const allowedIds = new Set();
+      const allowedEmails = new Set();
+
+      const pushId = (val) => {
+        if (val === undefined || val === null) return;
+        allowedIds.add(String(val));
+      };
+      const pushEmail = (val) => {
+        if (!val) return;
+        allowedEmails.add(String(val).toLowerCase());
+      };
+
+      const candidates = [currentUser, currentUser?.user, userMeta];
+      candidates.forEach((candidate) => {
+        if (!candidate) return;
+        pushId(candidate.id);
+        pushId(candidate.userId);
+        pushEmail(candidate.email);
+      });
+
+      const parseArray = (raw) => {
+        try {
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (_error) {
+          return [];
+        }
+      };
+
+      const shouldInclude = (entry, isPrimaryKey) => {
+        if (isPrimaryKey) return true;
+        if (allowedIds.size === 0 && allowedEmails.size === 0) return false;
+        const idCandidates = [
+          entry?.userId,
+          entry?.user_id,
+          entry?.user?.id,
+          entry?.user?.userId,
+        ];
+        if (
+          idCandidates.some(
+            (candidate) => candidate !== undefined && candidate !== null && allowedIds.has(String(candidate))
+          )
+        ) {
+          return true;
+        }
+        const entryEmail = (entry?.userEmail || entry?.user?.email || "").toLowerCase();
+        if (entryEmail && allowedEmails.has(entryEmail)) {
+          return true;
+        }
+        return false;
+      };
+
+      const merged = [];
+      const seen = new Set();
+
+      keysToCheck.forEach((key) => {
+        if (!key) return;
+        const raw = window.localStorage.getItem(key);
+        if (!raw) return;
+        const items = parseArray(raw);
+        const isPrimary = key === activityKey;
+        items.forEach((item) => {
+          if (!shouldInclude(item, isPrimary)) return;
+          const ts = item?.timestamp || item?.time || item?.createdAt || item?.date || "";
+          const dedupeKey = `${key}|${ts}|${item?.type || item?.event || item?.action || ""}|${item?.message || item?.desc || item?.description || ""}`;
+          if (seen.has(dedupeKey)) return;
+          seen.add(dedupeKey);
+          merged.push(item);
+        });
+      });
+
+      const toMillis = (value) => {
+        if (!value) return 0;
+        const ms = new Date(value).getTime();
+        return Number.isNaN(ms) ? 0 : ms;
+      };
+
+      merged.sort((a, b) => {
+        const aTs = a?.timestamp || a?.time || a?.createdAt || a?.date;
+        const bTs = b?.timestamp || b?.time || b?.createdAt || b?.date;
+        return toMillis(bTs) - toMillis(aTs);
+      });
+
+      setEvents(merged);
       // eslint-disable-next-line no-console
-      console.debug("ActivityHistory: loaded", (parsed && parsed.length) || 0);
+      console.debug("ActivityHistory: loaded", merged.length);
     } catch (e) {
       setEvents([]);
       // eslint-disable-next-line no-console
       console.error("ActivityHistory: failed to load activity_log", e);
     }
-  }, []);
+  }, [activityKey, legacyKeys, currentUser, userMeta]);
+
+  const formatTimestamp = useCallback(
+    (ts) => {
+      if (!ts) return "--";
+      try {
+        const dateObj = new Date(ts);
+        if (Number.isNaN(dateObj.getTime())) return ts;
+        const datePart = formatWithSetting(dateObj);
+        const timePart = dateObj.toLocaleTimeString("vi-VN", {
+          timeZone: "Asia/Ho_Chi_Minh",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        });
+        return `${timePart} ${datePart}`.trim();
+      } catch (_err) {
+        return ts;
+      }
+    },
+    [formatWithSetting]
+  );
 
   useEffect(() => {
     loadEvents();

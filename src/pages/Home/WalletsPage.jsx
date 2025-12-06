@@ -1800,15 +1800,6 @@ export default function WalletsPage() {
       } else {
         showToast(t('wallets.toast.merged'));
       }
-      try {
-        logActivity({
-          type: "wallet.merge",
-          message: `Gộp ví ${sourceWallet?.name || sourceWallet?.id} vào ${targetWallet?.name || targetWallet?.id}`,
-          data: { sourceId, targetId },
-        });
-      } catch (e) {
-        // ignore logging errors
-      }
       setSelectedId(targetId);
       setActiveDetailTab("view");
     } catch (error) {
