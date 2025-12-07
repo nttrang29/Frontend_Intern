@@ -219,8 +219,36 @@ export default function LoginPage() {
       // Kiểm tra nếu cần xác thực 2FA
       if (res.data?.requires2FA) {
         // Với Google login, cần lấy email từ token hoặc response
-        // Tạm thời dùng null, sẽ lấy từ profile sau
-        setLoginEmail(null);
+        // Lưu token tạm thời để có thể lấy profile sau
+        const tempToken = extractToken(res.data);
+        if (tempToken) {
+          localStorage.setItem("accessToken", tempToken);
+          // Lấy email từ profile ngay lập tức
+          try {
+            const meRes = await getProfile();
+            let me = meRes.data || meRes;
+            if (me.user) {
+              me = me.user;
+            }
+            const googleEmail = me.email || me.userEmail || me.username || "";
+            if (googleEmail) {
+              setLoginEmail(googleEmail.trim().toLowerCase());
+            } else {
+              // Nếu không lấy được từ profile, thử lấy từ response
+              const emailFromResponse = res.data?.email || res.data?.user?.email || "";
+              setLoginEmail(emailFromResponse.trim().toLowerCase() || null);
+            }
+          } catch (profileError) {
+            console.error("Error getting profile for 2FA:", profileError);
+            // Nếu không lấy được từ profile, thử lấy từ response
+            const emailFromResponse = res.data?.email || res.data?.user?.email || "";
+            setLoginEmail(emailFromResponse.trim().toLowerCase() || null);
+          }
+        } else {
+          // Nếu không có token, thử lấy email từ response
+          const emailFromResponse = res.data?.email || res.data?.user?.email || "";
+          setLoginEmail(emailFromResponse.trim().toLowerCase() || null);
+        }
         setShow2FA(true);
         setError("");
         return;
@@ -431,11 +459,13 @@ export default function LoginPage() {
       setTwoFAError("");
 
       // Lấy email từ form hoặc từ state
-      const email = loginEmail || form.email;
-      if (!email) {
+      // Với Google login, không dùng form.email vì có thể là email chưa đăng ký
+      // Chỉ dùng loginEmail (email từ Google account thực tế)
+      if (!loginEmail) {
         setTwoFAError("Không tìm thấy email. Vui lòng đăng nhập lại.");
         return;
       }
+      const email = loginEmail;
 
       const res = await verify2FA(email, twoFACode);
 
@@ -685,11 +715,13 @@ export default function LoginPage() {
                         type="button"
                         className="btn btn-warning"
                         onClick={async () => {
-                          const email = loginEmail || form.email;
-                          if (!email) {
+                          // Với Google login, không dùng form.email vì có thể là email chưa đăng ký
+                          // Chỉ dùng loginEmail (email từ Google account thực tế)
+                          if (!loginEmail) {
                             setTwoFAError("Không tìm thấy email. Vui lòng đăng nhập lại.");
                             return;
                           }
+                          const email = loginEmail;
 
                           setReset2FALoading(true);
                           setTwoFAError("");
