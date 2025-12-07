@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { getProfile, updateProfile, changePassword } from "../../services/profile.service";
 import { logoutAllDevices } from "../../services/auth.service";
 import { getMyLoginLogs } from "../../services/loginLogApi";
+import { get2FAStatus, setup2FA, enable2FA, disable2FA, change2FA } from "../../services/2fa.service";
 import "../../styles/pages/SettingsPage.css";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
@@ -29,6 +30,19 @@ export default function SettingsPage() {
   const [loginLogs, setLoginLogs] = useState([]);
   const [loginLogLoading, setLoginLogLoading] = useState(false);
   const [loginLogError, setLoginLogError] = useState("");
+  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
+  const [twoFAHasSecret, setTwoFAHasSecret] = useState(false);
+  const [twoFALoading, setTwoFALoading] = useState(false);
+  const [show2FASetupModal, setShow2FASetupModal] = useState(false);
+  const [twoFASetupCode, setTwoFASetupCode] = useState("");
+  const [twoFASetupError, setTwoFASetupError] = useState("");
+  const [twoFASetupLoading, setTwoFASetupLoading] = useState(false);
+  const [show2FAChangeModal, setShow2FAChangeModal] = useState(false);
+  const [twoFAOldCode, setTwoFAOldCode] = useState("");
+  const [twoFANewCode, setTwoFANewCode] = useState("");
+  const [twoFAConfirmCode, setTwoFAConfirmCode] = useState("");
+  const [twoFAChangeError, setTwoFAChangeError] = useState("");
+  const [twoFAChangeLoading, setTwoFAChangeLoading] = useState(false);
 
   const { t, changeLanguage, language } = useLanguage();
   const { showToast } = useToast();
@@ -119,6 +133,7 @@ export default function SettingsPage() {
   useEffect(() => {
     loadProfile();
     fetchLoginLogs();
+    load2FAStatus();
     // Load và áp dụng theme khi component mount
     const savedTheme = localStorage.getItem("theme") || "light";
     setSelectedTheme(savedTheme);
@@ -171,6 +186,18 @@ export default function SettingsPage() {
       setError(t('settings.error.network_load'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const load2FAStatus = async () => {
+    try {
+      const { response, data } = await get2FAStatus();
+      if (response.ok) {
+        setTwoFAEnabled(data.enabled || false);
+        setTwoFAHasSecret(data.hasSecret || false);
+      }
+    } catch (err) {
+      console.error("Lỗi load 2FA status:", err);
     }
   };
 
@@ -259,6 +286,141 @@ export default function SettingsPage() {
       });
     } finally {
       setLogoutAllLoading(false);
+    }
+  };
+
+  const handle2FAToggle = async () => {
+    if (twoFALoading) return;
+
+    setTwoFALoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      if (twoFAEnabled) {
+        // Tắt 2FA
+        const { response, data } = await disable2FA();
+        if (response?.ok) {
+          setTwoFAEnabled(false);
+          setSuccess(data.message || "Đã tắt xác thực 2 lớp thành công");
+          showToast(data.message || "Đã tắt xác thực 2 lớp thành công", {
+            type: "success",
+            ...toastPosition,
+          });
+        } else {
+          setError(data?.error || "Không thể tắt xác thực 2 lớp");
+        }
+      } else {
+        // Bật 2FA
+        if (!twoFAHasSecret) {
+          // Chưa có secret, cần setup trước
+          setShow2FASetupModal(true);
+          setTwoFALoading(false);
+          return;
+        }
+
+        // Đã có secret, bật trực tiếp
+        const { response, data } = await enable2FA();
+        if (response?.ok) {
+          setTwoFAEnabled(true);
+          setSuccess(data.message || "Đã bật xác thực 2 lớp thành công");
+          showToast(data.message || "Đã bật xác thực 2 lớp thành công", {
+            type: "success",
+            ...toastPosition,
+          });
+        } else {
+          setError(data?.error || "Không thể bật xác thực 2 lớp");
+        }
+      }
+    } catch (error) {
+      setError("Lỗi kết nối đến server. Vui lòng thử lại sau.");
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const handle2FASetup = async () => {
+    if (!twoFASetupCode || twoFASetupCode.length !== 6) {
+      setTwoFASetupError("Vui lòng nhập mã pin 6 số");
+      return;
+    }
+
+    setTwoFASetupLoading(true);
+    setTwoFASetupError("");
+
+    try {
+      // Setup 2FA với mã pin do user tự tạo
+      const { response, data } = await setup2FA(twoFASetupCode);
+      if (response?.ok) {
+        setTwoFAHasSecret(true);
+        setShow2FASetupModal(false);
+        setTwoFASetupCode("");
+        setSuccess(data.message || "Đã tạo mã pin 2FA thành công");
+        showToast(data.message || "Đã tạo mã pin 2FA thành công. .", {
+          type: "success",
+          ...toastPosition,
+        });
+        // Tự động bật 2FA sau khi setup
+        await enable2FA();
+        await load2FAStatus();
+      } else {
+        setTwoFASetupError(data?.error || "Không thể tạo mã pin 2FA");
+      }
+    } catch (error) {
+      setTwoFASetupError("Lỗi kết nối đến server. Vui lòng thử lại sau.");
+    } finally {
+      setTwoFASetupLoading(false);
+    }
+  };
+
+  const handle2FAChange = async () => {
+    if (!twoFAOldCode || twoFAOldCode.length !== 6) {
+      setTwoFAChangeError("Vui lòng nhập mã xác thực cũ");
+      return;
+    }
+
+    if (!twoFANewCode || twoFANewCode.length !== 6) {
+      setTwoFAChangeError("Vui lòng nhập mã xác thực mới");
+      return;
+    }
+
+    if (!twoFAConfirmCode || twoFAConfirmCode.length !== 6) {
+      setTwoFAChangeError("Vui lòng nhập lại mã xác thực mới");
+      return;
+    }
+
+    if (twoFANewCode !== twoFAConfirmCode) {
+      setTwoFAChangeError("Mã xác thực mới và nhập lại không khớp");
+      return;
+    }
+
+    setTwoFAChangeLoading(true);
+    setTwoFAChangeError("");
+
+    try {
+      const { response, data } = await change2FA({
+        oldCode: twoFAOldCode,
+        newCode: twoFANewCode,
+        confirmCode: twoFAConfirmCode
+      });
+
+      if (response?.ok) {
+        setShow2FAChangeModal(false);
+        setTwoFAOldCode("");
+        setTwoFANewCode("");
+        setTwoFAConfirmCode("");
+        setSuccess(data.message || "Đã đổi mã xác thực 2 lớp thành công");
+        showToast(data.message || "Đã đổi mã xác thực 2 lớp thành công", {
+          type: "success",
+          ...toastPosition,
+        });
+      } else {
+        setTwoFAChangeError(data?.error || "Không thể đổi mã xác thực");
+      }
+    } catch (error) {
+      setTwoFAChangeError("Lỗi kết nối đến server. Vui lòng thử lại sau.");
+    } finally {
+      setTwoFAChangeLoading(false);
     }
   };
   // Sửa trong file SettingsPage.jsx
@@ -513,12 +675,45 @@ export default function SettingsPage() {
 <div className="settings-toggle-row">
 <span>{t('settings.2fa.status_label')}</span>
 <label className="settings-switch">
-<input type="checkbox" />
+<input 
+  type="checkbox" 
+  checked={twoFAEnabled}
+  onChange={handle2FAToggle}
+  disabled={twoFALoading}
+/>
 <span className="settings-switch__slider" />
 </label>
 </div>
 <p className="settings-detail__hint">{t('settings.2fa.hint')}</p>
-<button className="settings-btn settings-btn--primary">{t('settings.2fa.configure')}</button>
+{!twoFAHasSecret && (
+  <button 
+    className="settings-btn settings-btn--primary"
+    onClick={() => setShow2FASetupModal(true)}
+    disabled={twoFALoading}
+  >
+    {t('settings.2fa.configure')}
+  </button>
+)}
+{twoFAHasSecret && twoFAEnabled && (
+  <button 
+    className="settings-btn settings-btn--primary"
+    onClick={() => setShow2FAChangeModal(true)}
+    disabled={twoFALoading}
+    style={{ marginTop: '10px' }}
+  >
+    Đổi mã xác thực
+  </button>
+)}
+{error && activeKey === "2fa" && (
+  <div className="settings-error" style={{color: 'red', marginBottom: '10px', padding: '10px', backgroundColor: '#ffe6e6', borderRadius: '4px'}}>
+    {error}
+  </div>
+)}
+{success && activeKey === "2fa" && (
+  <div className="settings-success" style={{color: 'green', marginBottom: '10px', padding: '10px', backgroundColor: '#e6ffe6', borderRadius: '4px'}}>
+    {success}
+  </div>
+)}
 </div>
 
         );
@@ -922,8 +1117,226 @@ export default function SettingsPage() {
 </div>
 </div>
 </div>
-  </div>
 
+      {/* Modal setup 2FA */}
+      {show2FASetupModal && (
+        <div className="modal-overlay" style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div className="modal-content" style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: "8px",
+            maxWidth: "400px",
+            width: "90%"
+          }}>
+            <h3 className="text-center mb-3">Cấu hình xác thực 2 lớp</h3>
+            <p className="text-center text-muted mb-4">
+              Vui lòng tạo mã pin 6 số cho xác thực 2 lớp. Mã này sẽ được sử dụng mỗi khi đăng nhập.
+            </p>
+            <form onSubmit={(e) => { e.preventDefault(); handle2FASetup(); }}>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control text-center"
+                  placeholder="Nhập mã 6 số"
+                  value={twoFASetupCode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setTwoFASetupCode(value);
+                    setTwoFASetupError("");
+                  }}
+                  maxLength={6}
+                  style={{
+                    fontSize: twoFASetupCode ? "1.5rem" : "1rem",
+                    letterSpacing: twoFASetupCode ? "0.5rem" : "normal",
+                    fontWeight: "600",
+                    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                    color: "#1a1a1a",
+                    padding: "0.75rem 1rem",
+                    border: "2px solid #d1d5db",
+                    borderRadius: "8px"
+                  }}
+                  disabled={twoFASetupLoading}
+                />
+              </div>
+              {twoFASetupError && (
+                <div className="alert alert-danger mb-3" role="alert">
+                  {twoFASetupError}
+                </div>
+              )}
+              <div className="d-grid gap-2">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={twoFASetupLoading}
+                >
+                  {twoFASetupLoading ? "Đang xử lý..." : "Kích hoạt"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => {
+                    setShow2FASetupModal(false);
+                    setTwoFASetupCode("");
+                    setTwoFASetupError("");
+                  }}
+                  disabled={twoFASetupLoading}
+                >
+                  Hủy
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal đổi mã 2FA */}
+      {show2FAChangeModal && (
+        <div className="modal-overlay" style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div className="modal-content" style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: "8px",
+            maxWidth: "450px",
+            width: "90%"
+          }}>
+            <h3 className="text-center mb-3">Đổi mã xác thực 2 lớp</h3>
+            <p className="text-center text-muted mb-4">
+              Vui lòng nhập mã xác thực cũ và mã xác thực mới (6 số).
+            </p>
+            <form onSubmit={(e) => { e.preventDefault(); handle2FAChange(); }}>
+              <div className="mb-3">
+                <label className="form-label">Mã xác thực cũ</label>
+                <input
+                  type="text"
+                  className="form-control text-center"
+                  placeholder="Nhập mã cũ 6 số"
+                  value={twoFAOldCode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setTwoFAOldCode(value);
+                    setTwoFAChangeError("");
+                  }}
+                  maxLength={6}
+                  style={{
+                    fontSize: twoFAOldCode ? "1.5rem" : "1rem",
+                    letterSpacing: twoFAOldCode ? "0.5rem" : "normal",
+                    fontWeight: "600",
+                    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                    color: "#1a1a1a",
+                    padding: "0.75rem 1rem",
+                    border: "2px solid #d1d5db",
+                    borderRadius: "8px"
+                  }}
+                  disabled={twoFAChangeLoading}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Mã xác thực mới</label>
+                <input
+                  type="text"
+                  className="form-control text-center"
+                  placeholder="Nhập mã mới 6 số"
+                  value={twoFANewCode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setTwoFANewCode(value);
+                    setTwoFAChangeError("");
+                  }}
+                  maxLength={6}
+                  style={{
+                    fontSize: twoFANewCode ? "1.5rem" : "1rem",
+                    letterSpacing: twoFANewCode ? "0.5rem" : "normal",
+                    fontWeight: "600",
+                    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                    color: "#1a1a1a",
+                    padding: "0.75rem 1rem",
+                    border: "2px solid #d1d5db",
+                    borderRadius: "8px"
+                  }}
+                  disabled={twoFAChangeLoading}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Nhập lại mã xác thực mới</label>
+                <input
+                  type="text"
+                  className="form-control text-center"
+                  placeholder="Nhập lại mã mới 6 số"
+                  value={twoFAConfirmCode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setTwoFAConfirmCode(value);
+                    setTwoFAChangeError("");
+                  }}
+                  maxLength={6}
+                  style={{
+                    fontSize: twoFAConfirmCode ? "1.5rem" : "1rem",
+                    letterSpacing: twoFAConfirmCode ? "0.5rem" : "normal",
+                    fontWeight: "600",
+                    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                    color: "#1a1a1a",
+                    padding: "0.75rem 1rem",
+                    border: "2px solid #d1d5db",
+                    borderRadius: "8px"
+                  }}
+                  disabled={twoFAChangeLoading}
+                />
+              </div>
+              {twoFAChangeError && (
+                <div className="alert alert-danger mb-3" role="alert">
+                  {twoFAChangeError}
+                </div>
+              )}
+              <div className="d-grid gap-2">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={twoFAChangeLoading}
+                >
+                  {twoFAChangeLoading ? "Đang xử lý..." : "Đổi mã xác thực"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => {
+                    setShow2FAChangeModal(false);
+                    setTwoFAOldCode("");
+                    setTwoFANewCode("");
+                    setTwoFAConfirmCode("");
+                    setTwoFAChangeError("");
+                  }}
+                  disabled={twoFAChangeLoading}
+                >
+                  Hủy
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+  </div>
   );
 
 }
