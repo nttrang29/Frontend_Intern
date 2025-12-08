@@ -45,10 +45,40 @@ loadTheme();
 
 // Global error handlers
 window.addEventListener("unhandledrejection", (event) => {
-  console.error("Unhandled promise rejection:", event.reason);
+  const reason = event.reason;
+  
+  // Không hiển thị lỗi timeout ra UI, chỉ log
+  if (reason && (
+    reason.message?.includes("Timeout") ||
+    reason.message?.includes("thời gian chờ") ||
+    reason.message?.includes("timeout") ||
+    reason.code === "ECONNABORTED" ||
+    reason.name === "AbortError"
+  )) {
+    console.warn("Request timeout (đã được xử lý):", reason.message || reason);
+    event.preventDefault(); // Ngăn không cho hiển thị lỗi ra UI
+    return;
+  }
+  
+  // Log các lỗi khác nhưng không prevent default để có thể debug
+  console.error("Unhandled promise rejection:", reason);
 });
+
 window.addEventListener("error", (event) => {
-  console.error("Global error:", event.error);
+  const error = event.error;
+  
+  // Không hiển thị lỗi timeout ra UI
+  if (error && (
+    error.message?.includes("Timeout") ||
+    error.message?.includes("thời gian chờ") ||
+    error.message?.includes("timeout")
+  )) {
+    console.warn("Error timeout (đã được xử lý):", error.message);
+    event.preventDefault();
+    return;
+  }
+  
+  console.error("Global error:", error);
 });
 
 createRoot(document.getElementById("root")).render(

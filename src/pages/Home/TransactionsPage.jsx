@@ -609,18 +609,29 @@ export default function TransactionsPage() {
 
     const dateValue = ensureIsoDateWithTimezone(rawDateValue);
 
+    // Sử dụng amount đã chuyển đổi (nếu có) hoặc amount gốc
+    // Backend trả về amount đã được chuyển đổi theo currency của wallet hiện tại
+    const displayAmount = parseFloat(tx.amount || 0);
+    
+    // Currency hiện tại của wallet (sau khi merge)
+    const currentCurrency = tx.wallet?.currencyCode || tx.currencyCode || "VND";
+
     return {
       id: tx.transactionId,
       code: `TX-${String(tx.transactionId).padStart(4, "0")}`,
       type,
       walletName,
-      amount: parseFloat(tx.amount || 0),
-      currency: tx.wallet?.currencyCode || tx.currencyCode || "VND",
+      amount: displayAmount,
+      currency: currentCurrency,
       date: dateValue,
       category: categoryName,
       note: tx.note || "",
       creatorCode: `USR${String(tx.user?.userId || 0).padStart(3, "0")}`,
       attachment: resolveAttachmentFromTransaction(tx),
+      // Lưu thông tin gốc để hiển thị nếu cần
+      originalAmount: tx.originalAmount ? parseFloat(tx.originalAmount) : null,
+      originalCurrency: tx.originalCurrency || null,
+      exchangeRate: tx.exchangeRate ? parseFloat(tx.exchangeRate) : null,
     };
   }, [wallets]);
 
@@ -766,9 +777,19 @@ export default function TransactionsPage() {
     };
     window.addEventListener("storage", handleStorageChange);
 
+    // Refresh transactions sau khi merge wallet
+    const handleWalletMerged = () => {
+      // Delay một chút để đảm bảo backend đã hoàn tất merge
+      setTimeout(() => {
+        runInitialLoad();
+      }, 500);
+    };
+    window.addEventListener("walletMerged", handleWalletMerged);
+
     return () => {
       window.removeEventListener("userChanged", handleUserChange);
       window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("walletMerged", handleWalletMerged);
     };
   }, [runInitialLoad]);
 

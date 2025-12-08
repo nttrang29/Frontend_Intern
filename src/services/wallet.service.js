@@ -10,6 +10,7 @@ const API_BASE_URL = "http://localhost:8080/wallets";
 // Tạo axios instance với cấu hình mặc định
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 60000, // 60 giây timeout
   headers: {
     "Content-Type": "application/json",
   },
@@ -25,6 +26,27 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Interceptor để xử lý response errors (bao gồm timeout)
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Xử lý timeout errors
+    if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
+      console.warn("Request timeout:", error.config?.url);
+      // Trả về error object với format tương tự các error khác
+      return Promise.reject({
+        ...error,
+        response: {
+          status: 408,
+          statusText: "Request Timeout",
+          data: { error: "Yêu cầu quá thời gian chờ. Vui lòng thử lại." },
+        },
+      });
+    }
     return Promise.reject(error);
   }
 );
