@@ -7,6 +7,7 @@ import React, {
   useEffect,
 } from "react";
 import { categoryAPI } from "../services/category.service";
+import { logActivity } from "../utils/activityLogger";
 
 const CategoryDataContext = createContext(null);
 
@@ -418,8 +419,7 @@ export function CategoryDataProvider({ children }) {
           parsedDescription = parts[1] || "";
         }
 
-        // Return the created category
-        return {
+        const createdCategory = {
           id: response.categoryId,
           categoryId: response.categoryId,
           name: response.categoryName,
@@ -432,6 +432,24 @@ export function CategoryDataProvider({ children }) {
             response.isSystem === "true" ||
             String(response.isSystem).toLowerCase() === "true",
         };
+
+        try {
+          logActivity({
+            type: "category.create",
+            message: `Tạo danh mục ${createdCategory.name} (Chi tiêu)`,
+            data: {
+              categoryId: createdCategory.categoryId,
+              categoryName: createdCategory.name,
+              transactionType: "expense",
+              icon: createdCategory.icon,
+              isSystem: createdCategory.isSystem,
+            },
+          });
+        } catch (e) {
+          // ignore logging errors
+        }
+
+        return createdCategory;
       } catch (err) {
         console.error("Error creating expense category:", err);
         throw err;
@@ -483,8 +501,7 @@ export function CategoryDataProvider({ children }) {
           parsedDescription = parts[1] || "";
         }
 
-        // Return the created category
-        return {
+        const createdCategory = {
           id: response.categoryId,
           categoryId: response.categoryId,
           name: response.categoryName,
@@ -497,6 +514,24 @@ export function CategoryDataProvider({ children }) {
             response.isSystem === "true" ||
             String(response.isSystem).toLowerCase() === "true",
         };
+
+        try {
+          logActivity({
+            type: "category.create",
+            message: `Tạo danh mục ${createdCategory.name} (Thu nhập)`,
+            data: {
+              categoryId: createdCategory.categoryId,
+              categoryName: createdCategory.name,
+              transactionType: "income",
+              icon: createdCategory.icon,
+              isSystem: createdCategory.isSystem,
+            },
+          });
+        } catch (e) {
+          // ignore logging errors
+        }
+
+        return createdCategory;
       } catch (err) {
         console.error("Error creating income category:", err);
         throw err;
@@ -547,8 +582,7 @@ export function CategoryDataProvider({ children }) {
           parsedDescription = parts[1] || "";
         }
 
-        // Return the updated category
-        return {
+        const updatedCategory = {
           id: response.categoryId,
           categoryId: response.categoryId,
           name: response.categoryName,
@@ -561,6 +595,24 @@ export function CategoryDataProvider({ children }) {
             response.isSystem === "true" ||
             String(response.isSystem).toLowerCase() === "true",
         };
+
+        try {
+          logActivity({
+            type: "category.update",
+            message: `Cập nhật danh mục ${updatedCategory.name} (Chi tiêu)`,
+            data: {
+              categoryId: updatedCategory.categoryId,
+              categoryName: updatedCategory.name,
+              transactionType: "expense",
+              icon: updatedCategory.icon,
+              isSystem: updatedCategory.isSystem,
+            },
+          });
+        } catch (e) {
+          // ignore logging errors
+        }
+
+        return updatedCategory;
       } catch (err) {
         console.error("Error updating expense category:", err);
         throw err;
@@ -611,8 +663,7 @@ export function CategoryDataProvider({ children }) {
           parsedDescription = parts[1] || "";
         }
 
-        // Return the updated category
-        return {
+        const updatedCategory = {
           id: response.categoryId,
           categoryId: response.categoryId,
           name: response.categoryName,
@@ -625,6 +676,24 @@ export function CategoryDataProvider({ children }) {
             response.isSystem === "true" ||
             String(response.isSystem).toLowerCase() === "true",
         };
+
+        try {
+          logActivity({
+            type: "category.update",
+            message: `Cập nhật danh mục ${updatedCategory.name} (Thu nhập)`,
+            data: {
+              categoryId: updatedCategory.categoryId,
+              categoryName: updatedCategory.name,
+              transactionType: "income",
+              icon: updatedCategory.icon,
+              isSystem: updatedCategory.isSystem,
+            },
+          });
+        } catch (e) {
+          // ignore logging errors
+        }
+
+        return updatedCategory;
       } catch (err) {
         console.error("Error updating income category:", err);
         throw err;
@@ -636,47 +705,77 @@ export function CategoryDataProvider({ children }) {
   // Delete expense category
   const deleteExpenseCategory = useCallback(
     async (id) => {
+      const targetCategory = expenseCategories.find(
+        (cat) => cat.id === id || cat.categoryId === id
+      );
       try {
         await categoryAPI.deleteCategory(id);
 
-        // Optimistic update: Xóa ngay khỏi state sau khi xóa thành công
         setExpenseCategories((prev) =>
           prev.filter((cat) => cat.id !== id && cat.categoryId !== id)
         );
 
-        // Reload categories to get the latest data from server
+        try {
+          const name = targetCategory?.name || targetCategory?.categoryName || `#${id}`;
+          logActivity({
+            type: "category.delete",
+            message: `Xóa danh mục ${name} (Chi tiêu)`,
+            data: {
+              categoryId: id,
+              categoryName: name,
+              transactionType: "expense",
+            },
+          });
+        } catch (e) {
+          // ignore logging errors
+        }
+
         await reloadCategories();
       } catch (err) {
         console.error("Error deleting expense category:", err);
-        // Nếu lỗi, reload lại để đảm bảo state đúng (không xóa optimistic vì đã có lỗi)
         await reloadCategories();
         throw err;
       }
     },
-    [reloadCategories]
+    [reloadCategories, expenseCategories]
   );
 
   // Delete income category
   const deleteIncomeCategory = useCallback(
     async (id) => {
+      const targetCategory = incomeCategories.find(
+        (cat) => cat.id === id || cat.categoryId === id
+      );
       try {
         await categoryAPI.deleteCategory(id);
 
-        // Optimistic update: Xóa ngay khỏi state sau khi xóa thành công
         setIncomeCategories((prev) =>
           prev.filter((cat) => cat.id !== id && cat.categoryId !== id)
         );
 
-        // Reload categories to get the latest data from server
+        try {
+          const name = targetCategory?.name || targetCategory?.categoryName || `#${id}`;
+          logActivity({
+            type: "category.delete",
+            message: `Xóa danh mục ${name} (Thu nhập)`,
+            data: {
+              categoryId: id,
+              categoryName: name,
+              transactionType: "income",
+            },
+          });
+        } catch (e) {
+          // ignore logging errors
+        }
+
         await reloadCategories();
       } catch (err) {
         console.error("Error deleting income category:", err);
-        // Nếu lỗi, reload lại để đảm bảo state đúng (không xóa optimistic vì đã có lỗi)
         await reloadCategories();
         throw err;
       }
     },
-    [reloadCategories]
+    [reloadCategories, incomeCategories]
   );
 
   // Get category by name and type

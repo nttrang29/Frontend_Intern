@@ -1,0 +1,116 @@
+/* Activity History specific theming */
+
+.page-activity {
+	background: var(--color-bg-primary);
+	color: var(--color-text);
+	min-height: 100vh;
+}
+
+.page-activity .cat-table-card {
+	background: var(--color-bg-secondary);
+	border: 1px solid var(--color-border);
+	border-radius: 16px;
+	box-shadow: var(--shadow-md);
+	color: var(--color-text);
+}
+
+.page-activity .cat-table-card .card-body,
+.page-activity .cat-table-card .card-footer {
+	background: transparent;
+	color: inherit;
+}
+
+.page-activity .search-card {
+	background: var(--color-bg-secondary);
+	border: 1px solid var(--color-border);
+	border-radius: 16px;
+	box-shadow: var(--shadow-sm);
+}
+
+.page-activity .search-card .form-control,
+.page-activity .search-card .date-input {
+	background: var(--color-bg-tertiary);
+	border: 1px solid var(--color-border);
+	color: var(--color-text);
+}
+
+.page-activity .search-card .form-control::placeholder {
+	color: var(--color-text-muted);
+}
+
+.page-activity .search-card .category-search-clear-btn,
+.page-activity .search-card .category-search-submit,
+.page-activity .search-card .btn-chip {
+	color: var(--color-text);
+}
+
+.page-activity .search-card .category-search-submit {
+	background: var(--color-primary);
+	border: none;
+	color: var(--color-text-inverse);
+	border-radius: 999px;
+	padding: 8px 18px;
+}
+
+.page-activity .search-card .category-search-clear-btn,
+.page-activity .search-card .btn-chip {
+	border: 1px solid var(--color-border);
+	background: transparent;
+	border-radius: 999px;
+}
+
+.page-activity .cat-table-card table {
+	--bs-table-color: var(--color-text);
+	--bs-table-bg: var(--color-bg-tertiary);
+	--bs-table-striped-bg: var(--color-bg-secondary);
+	--bs-table-hover-bg: var(--color-primary-soft);
+	color: var(--color-text);
+	border-color: var(--color-border);
+	border-radius: 12px;
+	overflow: hidden;
+}
+
+.page-activity .cat-table-card table > :not(caption) > * > * {
+	background-color: var(--color-bg-tertiary);
+	color: var(--color-text);
+	border-color: var(--color-border);
+}
+
+.page-activity .cat-table-card table > :not(caption) > *:nth-child(even) > * {
+	background-color: var(--color-bg-secondary);
+}
+
+.page-activity .cat-table-card table thead th {
+	background: var(--color-bg-secondary);
+	color: var(--color-text);
+	border-bottom: 1px solid var(--color-border);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.page-activity .cat-table-card table tbody tr:hover {
+	background: var(--color-primary-soft);
+}
+
+.page-activity .activity-highlight {
+	color: var(--color-primary);
+	font-weight: 600;
+}
+
+.page-activity .category-pagination-bar {
+	background: transparent;
+	border-top: 1px solid var(--color-border);
+}
+
+.page-activity .page-number,
+.page-activity .page-arrow {
+	background: var(--color-bg-tertiary);
+	border: 1px solid var(--color-border);
+	color: var(--color-text);
+}
+
+.page-activity .page-number.active {
+	background: var(--color-primary);
+	border-color: var(--color-primary);
+	color: var(--color-text-inverse);
+}

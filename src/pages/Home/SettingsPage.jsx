@@ -34,6 +34,9 @@ export default function SettingsPage() {
   const { showToast } = useToast();
   const [selectedLang, setSelectedLang] = useState(language || "vi");
 
+  const LOGIN_LOG_PAGE_SIZE = 50;
+  const LOGIN_LOG_MAX_PAGES = 20;
+
   const toastPosition = {
     anchorSelector: "body",
     topbarSelector: ".no-topbar",
@@ -216,21 +219,114 @@ export default function SettingsPage() {
     setLoginLogLoading(true);
     setLoginLogError("");
     try {
-      const { response, data } = await getMyLoginLogs({ page: 0, size: 10 });
-      if (response?.ok) {
-        const logs = Array.isArray(data?.logs)
-          ? data.logs
-          : Array.isArray(data?.data)
-            ? data.data
-            : Array.isArray(data)
-              ? data
-              : [];
-        setLoginLogs(logs);
-      } else {
-        setLoginLogError(data?.error || t("settings.login_log.error"));
+      const newLogs = [];
+      const seenKeys = new Set();
+
+      const extractLogs = (payload) => {
+        if (!payload) return [];
+        const candidates = [
+          payload.logs,
+          payload.loginLogs,
+          payload.items,
+          payload.entries,
+          payload.records,
+          payload.results,
+          payload.content,
+          payload.list,
+          payload.rows,
+          payload.data,
+        ];
+        for (const candidate of candidates) {
+          if (Array.isArray(candidate)) return candidate;
+        }
+        if (payload.page && Array.isArray(payload.page.content)) {
+          return payload.page.content;
+        }
+        if (Array.isArray(payload)) return payload;
+        return [];
+      };
+
+      const getTimestamp = (log) => {
+        const raw =
+          log?.time ||
+          log?.loginTime ||
+          log?.createdAt ||
+          log?.loginAt ||
+          log?.timestamp;
+        if (!raw) return 0;
+        const millis = new Date(raw).getTime();
+        return Number.isNaN(millis) ? 0 : millis;
+      };
+
+      const getLogKey = (log) => {
+        if (log?.id != null) return `id:${log.id}`;
+        const ts = getTimestamp(log);
+        const ip = log?.ipAddress || log?.ip || log?.clientIp || "";
+        const device = log?.device || log?.deviceInfo || log?.userAgent || "";
+        return `ts:${ts}|ip:${ip}|device:${device}`;
+      };
+
+      const shouldContinue = (payload, batchLength, currentPage) => {
+        if (!payload) return false;
+        if (typeof payload.hasNext === "boolean") return payload.hasNext;
+        if (typeof payload.nextPage === "number") return true;
+        if (typeof payload.last === "boolean") return payload.last === false;
+        const pageMeta = payload.page || payload.metadata || payload.meta || null;
+        if (pageMeta) {
+          if (typeof pageMeta.hasNext === "boolean") return pageMeta.hasNext;
+          if (typeof pageMeta.last === "boolean") return pageMeta.last === false;
+          if (
+            typeof pageMeta.totalPages === "number" &&
+            typeof pageMeta.number === "number"
+          ) {
+            return pageMeta.number + 1 < pageMeta.totalPages;
+          }
+        }
+        if (
+          typeof payload.totalPages === "number" &&
+          typeof payload.page === "number"
+        ) {
+          return payload.page + 1 < payload.totalPages;
+        }
+        if (
+          typeof payload.total === "number" &&
+          typeof payload.pageSize === "number" &&
+          typeof payload.page === "number"
+        ) {
+          return (payload.page + 1) * payload.pageSize < payload.total;
+        }
+        return batchLength >= LOGIN_LOG_PAGE_SIZE && currentPage + 1 < LOGIN_LOG_MAX_PAGES;
+      };
+
+      let page = 0;
+      let keepFetching = true;
+      while (keepFetching && page < LOGIN_LOG_MAX_PAGES) {
+        const { response, data } = await getMyLoginLogs({
+          page,
+          size: LOGIN_LOG_PAGE_SIZE,
+          limit: LOGIN_LOG_PAGE_SIZE,
+        });
+        if (!response?.ok) {
+          throw new Error(data?.error || t("settings.login_log.error"));
+        }
+        const batch = extractLogs(data);
+        batch.forEach((log) => {
+          const key = getLogKey(log);
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            newLogs.push(log);
+          }
+        });
+        keepFetching = shouldContinue(data, batch.length, page);
+        if (!keepFetching) break;
+        page += 1;
       }
+
+      newLogs.sort((a, b) => getTimestamp(b) - getTimestamp(a));
+      setLoginLogs(newLogs);
     } catch (err) {
-      setLoginLogError(t("settings.login_log.error"));
+      setLoginLogs([]);
+      setLoginLogError(err?.message || t("settings.login_log.error"));
     } finally {
       setLoginLogLoading(false);
     }
