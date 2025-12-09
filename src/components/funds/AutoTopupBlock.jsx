@@ -16,6 +16,7 @@ export default function AutoTopupBlock({
   lockMode = false, // nếu true: không cho thay đổi chế độ auto/manual, chỉ hiển thị
   initialValues = null,
   baseStartDate = null,
+  hideToggle = false, // nếu true: ẩn nút bật/tắt, luôn hiển thị nội dung
 }) {
   const [autoTime, setAutoTime] = useState("");
   const [autoWeekDay, setAutoWeekDay] = useState("2");
@@ -61,7 +62,8 @@ export default function AutoTopupBlock({
       return;
     }
 
-    if (!autoTopupOn) {
+    const effectiveOn = hideToggle ? true : autoTopupOn;
+    if (!effectiveOn) {
       onDataChange(null);
       return;
     }
@@ -84,7 +86,7 @@ export default function AutoTopupBlock({
     }
 
     onDataChange(autoTopupData);
-  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, autoStartAt, periodAmount, onDataChange]);
+  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, autoStartAt, periodAmount, onDataChange, hideToggle]);
 
   const freqLabel = {
     DAILY: "Theo ngày",
@@ -228,7 +230,7 @@ export default function AutoTopupBlock({
       <div className="funds-fieldset__legend">Tự động nạp tiền</div>
 
       {/* Nếu lockMode: chỉ hiển thị chế độ hiện tại, không cho toggle */}
-      {!lockMode ? (
+      {!hideToggle && !lockMode && (
         <div className="funds-toggle-line">
           <span>Bật tự động nạp tiền vào quỹ</span>
           <label className="switch">
@@ -240,19 +242,21 @@ export default function AutoTopupBlock({
             <span className="switch__slider" />
           </label>
         </div>
-      ) : (
+      )}
+
+      {!hideToggle && lockMode && (
         <div style={{ marginBottom: '0.5rem' }}>
           <strong>Chế độ nạp:</strong> {autoTopupOn ? 'Nạp tự động' : 'Nạp thủ công'}
         </div>
       )}
 
-      {!autoTopupOn && (
+      {!hideToggle && !autoTopupOn && (
         <div className="funds-hint">
           Khi bật, hệ thống sẽ tự động nạp tiền vào quỹ theo tần xuất gửi quỹ.
         </div>
       )}
 
-      {autoTopupOn && (
+      {(hideToggle || autoTopupOn) && (
         <>
           <div className="funds-hint">
             Hệ thống sẽ tự động nạp tiền theo tần xuất gửi quỹ ({freqLabel}). Chọn giờ/ngày cụ thể.

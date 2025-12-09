@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import "../../styles/components/funds/FundForms.css";
 
-export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTHLY", onDataChange }) {
+export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTHLY", onDataChange, hideToggle = false, initialValues = null }) {
   const [followTime, setFollowTime] = useState("");
   const [followWeekDay, setFollowWeekDay] = useState("2");
   const [followMonthDay, setFollowMonthDay] = useState("");
@@ -12,9 +12,27 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTH
     "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "1": 1
   };
   
+  // Initialize from initialValues
+  useEffect(() => {
+    if (!initialValues) return;
+
+    if (initialValues.reminderTime) {
+      setFollowTime(initialValues.reminderTime.slice(0, 5));
+    }
+
+    if (initialValues.reminderDayOfWeek) {
+      setFollowWeekDay(String(initialValues.reminderDayOfWeek));
+    }
+
+    if (initialValues.reminderDayOfMonth) {
+      setFollowMonthDay(initialValues.reminderDayOfMonth);
+    }
+  }, [initialValues]);
+  
   // Export data when anything changes
   useEffect(() => {
-    if (!reminderOn || !onDataChange) return;
+    const effectiveOn = hideToggle ? true : reminderOn;
+    if (!effectiveOn || !onDataChange) return;
     
     const reminderData = {};
     
@@ -29,7 +47,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTH
     }
     
     onDataChange(reminderData);
-  }, [reminderOn, freq, followTime, followWeekDay, followMonthDay, onDataChange]);
+  }, [reminderOn, freq, followTime, followWeekDay, followMonthDay, onDataChange, hideToggle]);
 
   const freqLabel =
     {
@@ -170,25 +188,27 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTH
     <div className="funds-fieldset">
       <div className="funds-fieldset__legend">Nhắc nhở</div>
 
-      <div className="funds-toggle-line">
-        <span>Bật nhắc nhở cho quỹ này</span>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={reminderOn}
-            onChange={(e) => setReminderOn(e.target.checked)}
-          />
-          <span className="switch__slider" />
-        </label>
-      </div>
+      {!hideToggle && (
+        <div className="funds-toggle-line">
+          <span>Bật nhắc nhở cho quỹ này</span>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={reminderOn}
+              onChange={(e) => setReminderOn(e.target.checked)}
+            />
+            <span className="switch__slider" />
+          </label>
+        </div>
+      )}
 
-      {!reminderOn && (
+      {!hideToggle && !reminderOn && (
         <div className="funds-hint">
           Khi cần, bạn có thể bật lại để hệ thống nhắc theo tần suất mong muốn.
         </div>
       )}
 
-      {reminderOn && (
+      {(hideToggle || reminderOn) && (
         <>
           <div className="funds-hint">
             Hệ thống sẽ nhắc nhở theo tần suất gửi quỹ ({freqLabel}). 
