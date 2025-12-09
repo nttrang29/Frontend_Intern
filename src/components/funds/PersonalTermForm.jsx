@@ -52,17 +52,20 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
   const [calculatedEndDate, setCalculatedEndDate] = useState("");
   const [estimateText, setEstimateText] = useState("");
   
-  // Ngày hôm nay (ISO yyyy-MM-dd) để validate
-  const today = new Date().toISOString().split('T')[0];
+  // Ngày hôm nay (ISO yyyy-MM-dd) - tính động mỗi lần render để đảm bảo luôn là ngày hiện tại
+  const getToday = () => new Date().toISOString().split('T')[0];
   
   // Handler để validate startDate
   const handleStartDateChange = (e) => {
     const value = e.target.value;
-    setStartDate(value);
+    const today = getToday();
     
     if (value && value < today) {
       setStartDateError("Ngày bắt đầu phải từ hôm nay trở đi.");
+      setStartDate(today); // Reset về hôm nay nếu chọn ngày quá khứ
+      showToast("Không thể chọn ngày trong quá khứ!", "error");
     } else {
+      setStartDate(value);
       setStartDateError("");
     }
   };
@@ -180,6 +183,15 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     }
     if (!startDate) {
       showToast("Vui lòng chọn ngày bắt đầu.", "error");
+      return;
+    }
+    
+    // Validate lại ngày bắt đầu trước khi submit
+    const today = getToday();
+    if (startDate < today) {
+      setStartDateError("Ngày bắt đầu phải từ hôm nay trở đi.");
+      setStartDate(today);
+      showToast("Ngày bắt đầu không thể là ngày trong quá khứ!", "error");
       return;
     }
     
@@ -504,12 +516,14 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
               onChange={handleStartDateChange}
               onBlur={(e) => {
                 // Double check khi blur
+                const today = getToday();
                 if (e.target.value && e.target.value < today) {
-                  setStartDate("");
+                  setStartDate(today);
+                  setStartDateError("Ngày bắt đầu phải từ hôm nay trở đi.");
                   showToast("Không thể chọn ngày trong quá khứ!", "error");
                 }
               }}
-              min={today}
+              min={getToday()}
               style={startDateError ? { borderColor: '#ef4444', boxShadow: '0 0 0 0.2rem rgba(239, 68, 68, 0.25)' } : {}}
             />
             <div className="funds-hint" style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.25rem' }}>

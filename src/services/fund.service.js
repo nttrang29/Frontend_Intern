@@ -290,6 +290,27 @@ export const closeFund = async (fundId) => {
   }
 };
 
+// ========================= SETTLE FUND =========================
+
+/**
+ * 💰 TẤT TOÁN QUỸ - Rút toàn bộ số tiền còn lại về ví nguồn và đóng quỹ
+ * @param {number} fundId - ID của quỹ
+ * @returns {Promise<Object>} - { message: string, fund: Object }
+ */
+export const settleFund = async (fundId) => {
+  try {
+    console.log(`fund.service: Calling POST /funds/${fundId}/settle`);
+    const response = await apiClient.post(`/${fundId}/settle`);
+    console.log(`fund.service: POST /funds/${fundId}/settle response:`, {
+      status: response.status,
+      data: response.data,
+    });
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleAxiosError(error, `POST /funds/${fundId}/settle`);
+  }
+};
+
 // ========================= DELETE FUND =========================
 
 /**
@@ -414,6 +435,7 @@ export default {
   deleteFund,
   depositToFund,
   withdrawFromFund,
+  settleFund,
   checkWalletUsed,
   getFundTransactions,
 };

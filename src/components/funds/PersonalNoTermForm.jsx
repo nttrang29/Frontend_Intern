@@ -112,6 +112,16 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
       }
     }
 
+    // Validate startDate không được là ngày quá khứ
+    if (startDate) {
+      const today = new Date().toISOString().split('T')[0];
+      if (startDate < today) {
+        showToast("Ngày bắt đầu không thể là ngày trong quá khứ!", "error");
+        setStartDate(today); // Reset về hôm nay
+        return;
+      }
+    }
+
     setSaving(true);
 
     try {
