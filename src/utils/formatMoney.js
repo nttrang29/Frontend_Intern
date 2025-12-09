@@ -6,17 +6,26 @@ import { getMoneyFormatSettings } from "./moneyFormatSettings";
  * @param {string} currency - Mã tiền tệ (VND, USD, ...)
  * @returns {string}
  */
-export function formatMoney(amount = 0, currency = "VND") {
+export function formatMoney(amount = 0, currency = "VND", digitsOverride) {
   const { thousand, decimal, decimalDigits } = getMoneyFormatSettings();
   const normalizedCurrency = (currency || "VND").toUpperCase();
-  let digits = decimalDigits;
-  if (normalizedCurrency === "USD") {
-    digits = 2; // USD luôn hiển thị tối đa 2 chữ số thập phân
-  }
 
+  // Normalize incoming amount as string to detect original fractional precision
+  const rawAmountStr = typeof amount === 'number' ? String(amount) : (amount || '0');
   const numericAmount = Number(amount) || 0;
   const isNegative = numericAmount < 0;
   let value = Math.abs(numericAmount);
+
+  // Determine digits: explicit override -> use it; otherwise
+  // for USD: default to 8 decimals (can be overridden by digitsOverride)
+  let digits;
+  if (typeof digitsOverride === 'number') {
+    digits = digitsOverride;
+  } else if (normalizedCurrency === 'USD') {
+    digits = 8;
+  } else {
+    digits = decimalDigits;
+  }
 
   if (digits === 0 && normalizedCurrency !== "USD") {
     value = Math.trunc(value);

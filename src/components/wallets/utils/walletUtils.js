@@ -5,45 +5,67 @@
 // Helper function để tính tỷ giá (dùng chung cho tất cả components)
 export function getRate(from, to) {
   if (!from || !to || from === to) return 1;
-  
-  // Tỷ giá cố định (theo ExchangeRateServiceImpl)
-  // rates[currency] = tỷ giá 1 VND = ? currency
+  // Try to use cached exchange rate from Exchange Rate service (localStorage)
+  // exchange-rate.service stores `{ vndToUsd: 1 USD = X VND, usdToVnd: 1 VND = X USD, lastUpdate, ... }`
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      const cachedRaw = localStorage.getItem("exchange_rate_cache");
+      if (cachedRaw) {
+        try {
+          const parsed = JSON.parse(cachedRaw);
+          // Cache structure: vndToUsd = how many VND per 1 USD (e.g., 24390)
+          // which means: 1 USD = 24390 VND, so 1 VND = 1/24390 USD
+          const vndToUsd = parsed && parsed.vndToUsd ? Number(parsed.vndToUsd) : null;
+          const usdToVnd = parsed && parsed.usdToVnd ? Number(parsed.usdToVnd) : null;
+          
+          if ((vndToUsd || usdToVnd) && !Number.isNaN(vndToUsd || usdToVnd) && (vndToUsd || usdToVnd) > 0) {
+            const fromU = String(from).toUpperCase();
+            const toU = String(to).toUpperCase();
+            // Direct rates: USD <-> VND
+            if (fromU === "USD" && toU === "VND") {
+              // 1 USD = vndToUsd VND
+              return vndToUsd || 24390;
+            }
+            if (fromU === "VND" && toU === "USD") {
+              // 1 VND = usdToVnd USD (or 1 / vndToUsd)
+              return usdToVnd || (1 / (vndToUsd || 24390));
+            }
+            // For other currency pairs, we would need more data; fallthrough to fallback
+          }
+        } catch (e) {
+          // ignore parse errors and fall back
+        }
+      }
+    }
+  } catch (e) {
+    // ignore localStorage access errors
+  }
+
+  // Fallback: Tỷ giá cố định (original implementation)
   const ratesToVND = {
     VND: 1,
-    USD: 0.000041, // 1 VND = 0.000041 USD
+    USD: 0.000041, // 1 VND = 0.000041 USD (inverse of 1 USD = 24390 VND)
     EUR: 0.000038,
     JPY: 0.0063,
     GBP: 0.000032,
     CNY: 0.00030,
   };
-  
-  // Tỷ giá ngược lại: 1 currency = ? VND (để tránh phép chia)
+
   const ratesFromVND = {
     VND: 1,
-    USD: 24390.243902439024, // 1 USD = 24390.243902439024 VND (1/0.000041)
-    EUR: 26315.78947368421, // 1 EUR = 26315.78947368421 VND (1/0.000038)
-    JPY: 158.73015873015873, // 1 JPY = 158.73015873015873 VND (1/0.0063)
-    GBP: 31250, // 1 GBP = 31250 VND (1/0.000032)
-    CNY: 3333.3333333333335, // 1 CNY = 3333.3333333333335 VND (1/0.00030)
+    USD: 24390.243902439024, // 1 USD = 24390 VND
+    EUR: 26315.78947368421,
+    JPY: 158.73015873015873,
+    GBP: 31250,
+    CNY: 3333.3333333333335,
   };
-  
-  if (!ratesToVND[from] || !ratesToVND[to]) return 1;
-  
-  // Nếu from là VND, tỷ giá đơn giản là ratesToVND[to]
-  if (from === "VND") {
-    return ratesToVND[to];
-  }
-  // Nếu to là VND, tỷ giá là ratesFromVND[from] (tránh phép chia)
-  if (to === "VND") {
-    return ratesFromVND[from];
-  }
-  // Tính tỷ giá: from → VND → to
-  // 1 from = ratesFromVND[from] VND
-  // ratesFromVND[from] VND = ratesFromVND[from] * ratesToVND[to] to
-  // VD: USD → EUR: 1 USD = 24390.243902439024 VND = 24390.243902439024 * 0.000038 EUR
-  // Tỷ giá from → to = ratesFromVND[from] * ratesToVND[to]
-  const rate = ratesFromVND[from] * ratesToVND[to];
-  // Sử dụng toFixed(8) rồi parseFloat để giảm sai số tích lũy
+
+  const fromU = String(from).toUpperCase();
+  const toU = String(to).toUpperCase();
+  if (!ratesToVND[fromU] || !ratesToVND[toU]) return 1;
+  if (fromU === "VND") return ratesToVND[toU];
+  if (toU === "VND") return ratesFromVND[fromU];
+  const rate = ratesFromVND[fromU] * ratesToVND[toU];
   return parseFloat(rate.toFixed(8));
 }
 
