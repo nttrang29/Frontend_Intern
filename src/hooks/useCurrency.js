@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { getMoneyFormatSettings } from "../utils/moneyFormatSettings";
 
-// Tỉ giá cố định
-const USD_TO_VND = 25000;
+// Tỉ giá cố định (giống Backend - ExchangeRateServiceImpl.java)
+// Backend: FALLBACK_RATES.put("USD", new BigDecimal("0.000041"))
+// Tính: 1 USD = 1 / 0.000041 = 24390.243902439024 VND
+const USD_TO_VND = 24390.243902439024;
 
 export function useCurrency() {
   const [currency, setCurrency] = useState(() => localStorage.getItem("defaultCurrency") || "VND");

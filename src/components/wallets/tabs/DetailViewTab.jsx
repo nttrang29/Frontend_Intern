@@ -172,18 +172,25 @@ export default function DetailViewTab({
               ) : (
                 <ul className="wallets-detail__history-list">
                   {demoTransactions.map((tx) => {
-                    const txCurrency = tx.currency || wallet?.currency || "VND";
+                    // FIXED: Luôn dùng currency của wallet (không dùng currency của transaction)
+                    // Vì transaction.amount đã được chuyển đổi sang currency của wallet rồi
+                    const walletCurrency = wallet?.currency || "VND";
                     const absAmount = Math.abs(tx.amount);
                     
-                    // Format số tiền theo currency
+                    // Format số tiền theo currency của wallet với độ chính xác cao
                     let formattedAmount = "";
-                    if (txCurrency === "USD") {
+                    if (walletCurrency === "USD") {
+                      // USD: hiển thị với 8 chữ số thập phân để khớp với tỷ giá
                       formattedAmount = absAmount.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
+                        minimumFractionDigits: 0,
                         maximumFractionDigits: 8
                       });
                     } else {
-                      formattedAmount = absAmount.toLocaleString("vi-VN");
+                      // VND: hiển thị số nguyên (không có phần thập phân)
+                      formattedAmount = absAmount.toLocaleString("vi-VN", {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                      });
                     }
                     
                     return (
@@ -200,7 +207,7 @@ export default function DetailViewTab({
                             }
                           >
                             {tx.amount >= 0 ? "+" : "-"}
-                            {txCurrency === "USD" ? `$${formattedAmount}` : `${formattedAmount} ${txCurrency}`}
+                            {walletCurrency === "USD" ? `$${formattedAmount}` : `${formattedAmount} ${walletCurrency}`}
                           </span>
                         </div>
 
