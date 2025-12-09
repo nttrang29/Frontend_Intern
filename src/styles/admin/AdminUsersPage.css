@@ -122,6 +122,24 @@
   font-size: 13px;
 }
 
+.admin-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.admin-table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-table-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+}
+
 .admin-table thead th {
   text-align: left;
   padding: 8px 6px;
