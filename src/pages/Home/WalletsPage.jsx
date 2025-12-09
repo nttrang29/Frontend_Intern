@@ -19,6 +19,7 @@ import Toast from "../../components/common/Toast/Toast";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
+import { getMoneyValue } from "../../utils/formatMoneyInput";
 // Removed: import { getExchangeRate } from "../../services/exchange-rate.service";
 // Using fixed exchange rate: 24390.24 VND = 1 USD (same as Backend - ExchangeRateServiceImpl.java)
 
@@ -1552,7 +1553,14 @@ export default function WalletsPage() {
       setSelectedId(selectedWallet.id);
       setActiveDetailTab("view");
       // Reload wallets in background to update data
-      loadWallets().catch((err) => console.debug("loadWallets failed after edit:", err));
+      loadWallets()
+        .catch((err) => console.debug("loadWallets failed after edit:", err))
+        .finally(() => {
+          // Nếu đổi đơn vị tiền tệ, cần refresh lại lịch sử giao dịch để hiển thị đúng currency mới
+          if (currencyChanged) {
+            refreshTransactions();
+          }
+        });
     } catch (error) {
       showToast(error.message || t('wallets.toast.update_error'), "error");
     }
@@ -1648,7 +1656,8 @@ export default function WalletsPage() {
   const handleSubmitTopup = async (e) => {
     e.preventDefault();
     if (!selectedWallet) return;
-    const amountNum = Number(topupAmount);
+    // Parse số tiền từ format Việt Nam (dấu chấm mỗi 3 số, dấu phẩy thập phân)
+    const amountNum = getMoneyValue(topupAmount);
     if (!amountNum || amountNum <= 0 || !topupCategoryId) {
       return;
     }
@@ -1680,7 +1689,8 @@ export default function WalletsPage() {
   const handleSubmitWithdraw = async (e) => {
     e.preventDefault();
     if (!selectedWallet) return;
-    const amountNum = Number(withdrawAmount);
+    // Parse số tiền từ format Việt Nam (dấu chấm mỗi 3 số, dấu phẩy thập phân)
+    const amountNum = getMoneyValue(withdrawAmount);
     if (!amountNum || amountNum <= 0 || !withdrawCategoryId) {
       return;
     }
@@ -1712,7 +1722,8 @@ export default function WalletsPage() {
   const handleSubmitTransfer = async (e) => {
     e.preventDefault();
     if (!selectedWallet || !transferTargetId) return;
-    const amountNum = Number(transferAmount);
+    // Parse số tiền từ format Việt Nam (dấu chấm mỗi 3 số, dấu phẩy thập phân)
+    const amountNum = getMoneyValue(transferAmount);
     if (!amountNum || amountNum <= 0) {
       return;
     }
@@ -1780,52 +1791,17 @@ export default function WalletsPage() {
         targetId,
         keepCurrency,
         targetCurrency,
+        setTargetAsDefault: payload.setTargetAsDefault,
       });
-
-      let defaultAction = null;
-      let defaultError = null;
-
-      if (payload.setTargetAsDefault) {
-        let setSucceeded = false;
-        if (setDefaultWallet) {
-          try {
-            await setDefaultWallet(targetId);
-            setSucceeded = true;
-            defaultAction = "set";
-          } catch (err) {
-            defaultError = err;
-          }
-        }
-        if (!setSucceeded && updateWallet) {
-          try {
-            await updateWallet({ id: targetId, isDefault: true });
-            setSucceeded = true;
-            defaultAction = "set";
-            defaultError = null;
-          } catch (err) {
-            defaultError = err;
-          }
-        }
-      } else if (sourceWasDefault && updateWallet) {
-        try {
-          await updateWallet({ id: targetId, isDefault: false });
-          defaultAction = "cleared";
-        } catch (err) {
-          defaultError = err;
-        }
-      }
 
       await loadWallets();
       refreshTransactions();
 
-      if (defaultError) {
-        showToast(defaultError.message || t('wallets.toast.merge_default_error'), "warning");
-      } else if (defaultAction === "set") {
-        showToast(t('wallets.toast.merge_set_default'));
-      } else if (defaultAction === "cleared") {
-        showToast(t('wallets.toast.merge_cleared_default'));
+      // Backend đã xử lý việc đặt/bỏ ví mặc định, chỉ cần hiển thị thông báo thành công
+      if (payload.setTargetAsDefault) {
+        showToast(t('wallets.toast.merge_set_default') || 'Gộp ví thành công. Ví đích đã được đặt làm ví mặc định.');
       } else {
-        showToast(t('wallets.toast.merged'));
+        showToast(t('wallets.toast.merged') || 'Gộp ví thành công.');
       }
       setSelectedId(targetId);
       setActiveDetailTab("view");

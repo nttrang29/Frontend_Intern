@@ -5,24 +5,39 @@ import "../../styles/components/wallets/WalletList.css";
 const formatWalletBalance = (amount = 0, currency = "VND") => {
   const numAmount = Number(amount) || 0;
   if (currency === "USD") {
+    // USD: hiển thị kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân)
+    // Loại bỏ số 0 ở cuối phần thập phân
+    let formatted = "";
     if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      const formatted = numAmount.toLocaleString("en-US", {
-        minimumFractionDigits: 2,
+      formatted = numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 0,
         maximumFractionDigits: 8,
       });
-      return `$${formatted}`;
+    } else if (numAmount % 1 === 0) {
+      formatted = numAmount.toLocaleString("vi-VN");
+    } else {
+      formatted = numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 8,
+      });
     }
-    const formatted =
-      numAmount % 1 === 0
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 8,
-          });
+    // Loại bỏ số 0 ở cuối phần thập phân (sau dấu phẩy)
+    formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
+      return digits ? `,${digits}` : "";
+    }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
     return `$${formatted}`;
   }
   if (currency === "VND") {
-    return `${numAmount.toLocaleString("vi-VN")} VND`;
+    // VND: hiển thị với 8 chữ số thập phân để không làm tròn số dư
+    let formatted = numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 8
+    });
+    // Loại bỏ số 0 ở cuối phần thập phân
+    formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
+      return digits ? `,${digits}` : "";
+    }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
+    return `${formatted} VND`;
   }
   if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
     return `${numAmount.toLocaleString("vi-VN", {

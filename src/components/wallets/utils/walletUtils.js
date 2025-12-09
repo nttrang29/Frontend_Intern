@@ -59,24 +59,27 @@ export function formatConvertedBalance(amount = 0, currency = "VND") {
   const numAmount = Number(amount) || 0;
   if (currency === "VND") {
     // VND: hiển thị với 8 chữ số thập phân để khớp với tỷ giá (không làm tròn về số nguyên)
-    // Kiểm tra xem có phần thập phân không
-    const hasDecimal = numAmount % 1 !== 0;
-    if (hasDecimal) {
-      const formatted = numAmount.toLocaleString("vi-VN", { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 8 
-      });
-      return `${formatted} VND`;
-    }
-    // Nếu là số nguyên, hiển thị bình thường
-    return `${numAmount.toLocaleString("vi-VN")} VND`;
-  }
-  if (currency === "USD") {
-    // USD: hiển thị với 8 chữ số thập phân để khớp với tỷ giá
-    const formatted = numAmount.toLocaleString("en-US", { 
+    let formatted = numAmount.toLocaleString("vi-VN", { 
       minimumFractionDigits: 0, 
       maximumFractionDigits: 8 
     });
+    // Loại bỏ số 0 ở cuối phần thập phân
+    formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
+      return digits ? `,${digits}` : "";
+    }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
+    return `${formatted} VND`;
+  }
+  if (currency === "USD") {
+    // USD: hiển thị với 8 chữ số thập phân để khớp với tỷ giá
+    // Dùng kiểu Việt: dấu chấm ngăn nghìn, dấu phẩy thập phân
+    let formatted = numAmount.toLocaleString("vi-VN", { 
+      minimumFractionDigits: 0, 
+      maximumFractionDigits: 8 
+    });
+    // Loại bỏ số 0 ở cuối phần thập phân
+    formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
+      return digits ? `,${digits}` : "";
+    }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
     return `$${formatted}`;
   }
   // Các currency khác
@@ -90,12 +93,7 @@ export function formatConvertedBalance(amount = 0, currency = "VND") {
 // Format tỷ giá với độ chính xác cao
 export function formatExchangeRate(rate = 0, toCurrency = "VND") {
   const numRate = Number(rate) || 0;
-  if (toCurrency === "USD") {
-    return numRate.toLocaleString("en-US", { 
-      minimumFractionDigits: 0, 
-      maximumFractionDigits: 8 
-    });
-  }
+  // Tất cả currency đều format theo kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân)
   return numRate.toLocaleString("vi-VN", { 
     minimumFractionDigits: 0, 
     maximumFractionDigits: 8 

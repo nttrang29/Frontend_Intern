@@ -49,19 +49,27 @@ export default function TransferTab({
   const formatConvertedAmount = (amount = 0, currency = "VND") => {
     const numAmount = Number(amount) || 0;
     if (currency === "VND") {
-      // VND: hiển thị với 6 chữ số thập phân để khớp với tỷ giá
-      const formatted = numAmount.toLocaleString("vi-VN", { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 0 
-      });
-      return `${formatted} VND`;
-    }
-    if (currency === "USD") {
-      // USD: hiển thị lên tới 8 chữ số thập phân
-      const formatted = numAmount.toLocaleString("en-US", { 
+      // VND: hiển thị với 8 chữ số thập phân để khớp với tỷ giá và không làm tròn số dư
+      let formatted = numAmount.toLocaleString("vi-VN", { 
         minimumFractionDigits: 0, 
         maximumFractionDigits: 8 
       });
+      // Loại bỏ số 0 ở cuối phần thập phân
+      formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
+        return digits ? `,${digits}` : "";
+      }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
+      return `${formatted} VND`;
+    }
+    if (currency === "USD") {
+      // USD: hiển thị kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân) lên tới 8 chữ số thập phân
+      let formatted = numAmount.toLocaleString("vi-VN", { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 8 
+      });
+      // Loại bỏ số 0 ở cuối phần thập phân
+      formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
+        return digits ? `,${digits}` : "";
+      }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
       return `$${formatted}`;
     }
     // Các currency khác
@@ -109,7 +117,8 @@ export default function TransferTab({
     return getRate(sourceCurrency, targetCurrency);
   }, [currencyMismatch, sourceCurrency, targetCurrency]);
 
-  const transferAmountNum = Number(transferAmount || 0);
+  // Parse số tiền từ format Việt Nam (dấu chấm mỗi 3 số, dấu phẩy thập phân)
+  const transferAmountNum = getMoneyValue(transferAmount || "");
   const convertedAmount = useMemo(() => {
     if (!currencyMismatch || !transferAmountNum) return 0;
     // Không làm tròn để giữ đúng giá như tỷ giá (giữ 6 chữ số thập phân)
@@ -192,13 +201,49 @@ export default function TransferTab({
             Số tiền chuyển (theo {sourceCurrency})
             <input
               type="text"
-              value={formatMoneyInput(transferAmount)}
+              value={transferAmount || ""}
               onChange={(e) => {
-                const parsed = getMoneyValue(e.target.value);
-                setTransferAmount(parsed ? String(parsed) : "");
+                // Format kiểu Việt Nam:
+                // - Dấu chấm (.) mỗi 3 số từ bên phải cho phần nguyên
+                // - Dấu phẩy (,) là dấu thập phân (phần sau không format)
+                const inputValue = e.target.value;
+                // Chỉ lưu giá trị hợp lệ (số, dấu chấm và dấu phẩy)
+                let cleaned = inputValue.replace(/[^\d.,]/g, "");
+                
+                // Chỉ cho phép một dấu phẩy (dấu thập phân)
+                const commaIndex = cleaned.indexOf(",");
+                const lastCommaIndex = cleaned.lastIndexOf(",");
+                
+                if (commaIndex !== -1) {
+                  // Có dấu phẩy (dấu thập phân)
+                  // Chỉ cho phép một dấu phẩy
+                  if (commaIndex !== lastCommaIndex) {
+                    // Nếu có nhiều dấu phẩy, chỉ giữ dấu phẩy đầu tiên
+                    cleaned = cleaned.substring(0, commaIndex + 1) + cleaned.substring(commaIndex + 1).replace(/,/g, "");
+                  }
+                  
+                  // Tách phần nguyên và phần thập phân
+                  const integerPart = cleaned.substring(0, commaIndex).replace(/\./g, ""); // Loại bỏ dấu chấm cũ
+                  const decimalPart = cleaned.substring(commaIndex + 1);
+                  
+                  // Format phần nguyên với dấu chấm mỗi 3 số
+                  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                  
+                  // Kết hợp: phần nguyên đã format + dấu phẩy + phần thập phân (không format)
+                  setTransferAmount(`${formattedInteger},${decimalPart}`);
+                } else {
+                  // Không có dấu phẩy, chỉ format phần nguyên
+                  const integerPart = cleaned.replace(/\./g, ""); // Loại bỏ dấu chấm cũ
+                  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                  setTransferAmount(formattedInteger);
+                }
               }}
-              placeholder={`Nhập số tiền bằng ${sourceCurrency}`}
-              inputMode="numeric"
+              onBlur={(e) => {
+                // Khi blur, giữ nguyên format (đã format rồi)
+                // Không cần làm gì thêm
+              }}
+              placeholder={`Nhập số tiền (VD: 1.000.000,5 hoặc 20,5) bằng ${sourceCurrency}`}
+              inputMode="decimal"
             />
             {currencyMismatch && transferAmountNum > 0 && (
               <>

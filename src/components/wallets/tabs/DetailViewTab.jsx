@@ -180,11 +180,15 @@ export default function DetailViewTab({
                     // Format số tiền theo currency của wallet với độ chính xác cao
                     let formattedAmount = "";
                     if (walletCurrency === "USD") {
-                      // USD: hiển thị với 8 chữ số thập phân để khớp với tỷ giá
-                      formattedAmount = absAmount.toLocaleString("en-US", {
+                      // USD: hiển thị kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân) với 8 chữ số thập phân
+                      formattedAmount = absAmount.toLocaleString("vi-VN", {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 8
                       });
+                      // Loại bỏ số 0 ở cuối phần thập phân
+                      formattedAmount = formattedAmount.replace(/,(\d*?)0+$/, (match, digits) => {
+                        return digits ? `,${digits}` : "";
+                      }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
                     } else {
                       // VND: hiển thị số nguyên (không có phần thập phân)
                       formattedAmount = absAmount.toLocaleString("vi-VN", {

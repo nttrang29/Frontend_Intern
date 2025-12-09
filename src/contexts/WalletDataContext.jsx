@@ -579,6 +579,7 @@ export function WalletDataProvider({ children }) {
       const { response, data } = await mergeWalletsAPI(targetIdNum, {
         sourceWalletId: sourceIdNum,
         targetCurrency: targetCurrency,
+        setTargetAsDefault: mergeData.setTargetAsDefault,
       });
 
       console.log("mergeWallets - API response:", {
