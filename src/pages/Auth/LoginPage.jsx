@@ -9,6 +9,7 @@ import "../../styles/AuthForms.css";
 // API
 import { login, loginWithGoogle } from "../../services/auth.service";
 import { getProfile } from "../../services/profile.service";
+import { verify2FA, resetTemporary2FA } from "../../services/2fa.service";
 
 // AUTH CONTEXT
 import { useAuth } from "../../contexts/AuthContext";
@@ -27,6 +28,17 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [redirectPath, setRedirectPath] = useState("/home");
+  const [show2FA, setShow2FA] = useState(false);
+  const [twoFACode, setTwoFACode] = useState("");
+  const [twoFAError, setTwoFAError] = useState("");
+  const [twoFALoading, setTwoFALoading] = useState(false);
+  const [twoFAAttempts, setTwoFAAttempts] = useState(0);
+  const [twoFALockedUntil, setTwoFALockedUntil] = useState(null);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [countdown, setCountdown] = useState(0);
+  const [showForgot2FA, setShowForgot2FA] = useState(false);
+  const [reset2FALoading, setReset2FALoading] = useState(false);
+  const [reset2FASuccess, setReset2FASuccess] = useState(false);
 
   const onChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -204,6 +216,44 @@ export default function LoginPage() {
         return setError(msg || "Lỗi đăng nhập Google. Vui lòng thử lại sau.");
       }
 
+      // Kiểm tra nếu cần xác thực 2FA
+      if (res.data?.requires2FA) {
+        // Với Google login, cần lấy email từ token hoặc response
+        // Lưu token tạm thời để có thể lấy profile sau
+        const tempToken = extractToken(res.data);
+        if (tempToken) {
+          localStorage.setItem("accessToken", tempToken);
+          // Lấy email từ profile ngay lập tức
+          try {
+            const meRes = await getProfile();
+            let me = meRes.data || meRes;
+            if (me.user) {
+              me = me.user;
+            }
+            const googleEmail = me.email || me.userEmail || me.username || "";
+            if (googleEmail) {
+              setLoginEmail(googleEmail.trim().toLowerCase());
+            } else {
+              // Nếu không lấy được từ profile, thử lấy từ response
+              const emailFromResponse = res.data?.email || res.data?.user?.email || "";
+              setLoginEmail(emailFromResponse.trim().toLowerCase() || null);
+            }
+          } catch (profileError) {
+            console.error("Error getting profile for 2FA:", profileError);
+            // Nếu không lấy được từ profile, thử lấy từ response
+            const emailFromResponse = res.data?.email || res.data?.user?.email || "";
+            setLoginEmail(emailFromResponse.trim().toLowerCase() || null);
+          }
+        } else {
+          // Nếu không có token, thử lấy email từ response
+          const emailFromResponse = res.data?.email || res.data?.user?.email || "";
+          setLoginEmail(emailFromResponse.trim().toLowerCase() || null);
+        }
+        setShow2FA(true);
+        setError("");
+        return;
+      }
+
       // Nếu thành công, lấy token và đăng nhập
       const token = extractToken(res.data);
       if (!token) {
@@ -218,6 +268,28 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  // Đếm ngược khi bị khóa
+  useEffect(() => {
+    if (twoFALockedUntil && new Date() < new Date(twoFALockedUntil)) {
+      const interval = setInterval(() => {
+        const remaining = Math.ceil((new Date(twoFALockedUntil) - new Date()) / 1000);
+        if (remaining > 0) {
+          setCountdown(remaining);
+        } else {
+          setCountdown(0);
+          // Không reset attempts khi hết thời gian khóa, chỉ reset lock
+          setTwoFALockedUntil(null);
+          setTwoFAError("");
+          clearInterval(interval);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    } else {
+      setCountdown(0);
+    }
+  }, [twoFALockedUntil]);
 
   // Load Google Identity Script
   useEffect(() => {
@@ -349,6 +421,14 @@ export default function LoginPage() {
         return setError(msg || "Không kết nối được máy chủ (cổng 8080).");
       }
 
+      // Kiểm tra nếu cần xác thực 2FA
+      if (res.data?.requires2FA) {
+        setLoginEmail(form.email);
+        setShow2FA(true);
+        setError("");
+        return;
+      }
+
       // Nếu thành công, lấy token và đăng nhập
       const token = extractToken(res.data);
       await handleLoginSuccess(token);
@@ -357,6 +437,100 @@ export default function LoginPage() {
       setError("Lỗi kết nối đến server. Vui lòng thử lại sau.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Xử lý xác thực 2FA
+  const handle2FASubmit = async (e) => {
+    e.preventDefault();
+
+    // Kiểm tra nếu bị khóa
+    if (twoFALockedUntil && new Date() < new Date(twoFALockedUntil)) {
+      return;
+    }
+
+    if (!twoFACode || twoFACode.length !== 6) {
+      setTwoFAError("Vui lòng nhập mã xác thực 6 số");
+      return;
+    }
+
+    try {
+      setTwoFALoading(true);
+      setTwoFAError("");
+
+      // Lấy email từ form hoặc từ state
+      // Với Google login, không dùng form.email vì có thể là email chưa đăng ký
+      // Chỉ dùng loginEmail (email từ Google account thực tế)
+      if (!loginEmail) {
+        setTwoFAError("Không tìm thấy email. Vui lòng đăng nhập lại.");
+        return;
+      }
+      const email = loginEmail;
+
+      const res = await verify2FA(email, twoFACode);
+
+      if (!res.response?.ok) {
+        const newAttempts = twoFAAttempts + 1;
+        setTwoFAAttempts(newAttempts);
+
+        // Tính số lần sai trong chu kỳ hiện tại (mỗi chu kỳ 3 lần)
+        const attemptsInCycle = ((newAttempts - 1) % 3) + 1;
+        const remainingInCycle = 3 - attemptsInCycle;
+
+        // Kiểm tra nếu đã sai đủ 3 lần trong chu kỳ hiện tại
+        if (attemptsInCycle === 3) {
+          // Tính thời gian khóa dựa trên tổng số lần sai
+          let lockDurationMs;
+          let lockDurationSeconds;
+          let lockMessage;
+
+          if (newAttempts <= 3) {
+            // Lần 1-3: 60 giây
+            lockDurationMs = 60000;
+            lockDurationSeconds = 60;
+            lockMessage = "Bạn đã nhập sai quá 3 lần. Vui lòng đợi 1 phút.";
+          } else if (newAttempts <= 6) {
+            // Lần 4-6: 5 phút
+            lockDurationMs = 300000;
+            lockDurationSeconds = 300;
+            lockMessage = "Bạn đã nhập sai quá 6 lần. Vui lòng đợi 5 phút.";
+          } else if (newAttempts <= 9) {
+            // Lần 7-9: 15 phút
+            lockDurationMs = 900000;
+            lockDurationSeconds = 900;
+            lockMessage = "Bạn đã nhập sai quá 9 lần. Vui lòng đợi 15 phút.";
+          } else {
+            // Lần 10-12: 30 phút
+            lockDurationMs = 1800000;
+            lockDurationSeconds = 1800;
+            lockMessage = "Bạn đã nhập sai quá 12 lần. Vui lòng đợi 30 phút.";
+          }
+
+          const lockUntil = new Date(Date.now() + lockDurationMs);
+          setTwoFALockedUntil(lockUntil);
+          setCountdown(lockDurationSeconds);
+          setTwoFAError(lockMessage);
+        } else {
+          // Chưa đủ 3 lần trong chu kỳ, hiển thị số lần còn lại
+          setTwoFAError(`Mã pin không đúng. Bạn còn ${remainingInCycle} lần nhập.`);
+        }
+        return;
+      }
+
+      // Thành công, lấy token và đăng nhập
+      const token = extractToken(res.data);
+      await handleLoginSuccess(token);
+      setShow2FA(false);
+      setTwoFACode("");
+      // Reset attempts khi đăng nhập thành công
+      setTwoFAAttempts(0);
+      setTwoFALockedUntil(null);
+      setCountdown(0);
+    } catch (err) {
+      console.error("Lỗi verify 2FA:", err);
+      setTwoFAError("Lỗi kết nối đến server. Vui lòng thử lại sau.");
+    } finally {
+      setTwoFALoading(false);
     }
   };
 
@@ -444,6 +618,197 @@ export default function LoginPage() {
         title="Đăng nhập"
         message="Sai email hoặc mật khẩu!"
       />
+
+      {/* Modal xác thực 2FA */}
+      {show2FA && (
+        <div className="modal-overlay" style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div className="modal-content" style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: "8px",
+            maxWidth: "400px",
+            width: "90%"
+          }}>
+            <h3 className="text-center mb-3">Xác thực 2 lớp</h3>
+            <p className="text-center text-muted mb-4">
+              Vui lòng nhập mã pin 6 số bạn đã tạo trong cài đặt.
+            </p>
+            <form onSubmit={handle2FASubmit}>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control text-center"
+                  placeholder="Nhập mã 6 số"
+                  value={twoFACode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setTwoFACode(value);
+                    setTwoFAError("");
+                  }}
+                  maxLength={6}
+                  style={{
+                    fontSize: twoFACode ? "1.75rem" : "1rem",
+                    letterSpacing: twoFACode ? "0.6rem" : "normal",
+                    fontWeight: "600",
+                    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                    color: "#1a1a1a",
+                    padding: "1rem 1.25rem",
+                    border: "2px solid #d1d5db",
+                    borderRadius: "12px",
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    backgroundColor: "#ffffff",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)"
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#3b82f6";
+                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#d1d5db";
+                    e.target.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)";
+                  }}
+                  disabled={twoFALoading || countdown > 0}
+                />
+              </div>
+              
+              {/* Link "Bạn quên mã xác thực?" */}
+              {!showForgot2FA && (
+                <div className="text-center mb-3">
+                  <button
+                    type="button"
+                    className="btn btn-link p-0"
+                    onClick={() => setShowForgot2FA(true)}
+                    style={{
+                      color: "#6c757d",
+                      textDecoration: "none",
+                      fontSize: "0.9rem"
+                    }}
+                    onMouseEnter={(e) => e.target.style.color = "#495057"}
+                    onMouseLeave={(e) => e.target.style.color = "#6c757d"}
+                  >
+                    Bạn quên mã xác thực?
+                  </button>
+                </div>
+              )}
+
+              {/* Nút khi bấm "Bạn quên mã xác thực?" */}
+              {showForgot2FA && (
+                <div className="d-grid gap-2 mb-3">
+                  {reset2FASuccess ? (
+                    <div className="alert alert-success mb-0" role="alert">
+                      Đã gửi mã xác thực tạm thời tới email của bạn. Vui lòng kiểm tra hộp thư.
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-warning"
+                        onClick={async () => {
+                          // Với Google login, không dùng form.email vì có thể là email chưa đăng ký
+                          // Chỉ dùng loginEmail (email từ Google account thực tế)
+                          if (!loginEmail) {
+                            setTwoFAError("Không tìm thấy email. Vui lòng đăng nhập lại.");
+                            return;
+                          }
+                          const email = loginEmail;
+
+                          setReset2FALoading(true);
+                          setTwoFAError("");
+                          try {
+                            const res = await resetTemporary2FA(email);
+                            if (res.response?.ok) {
+                              setReset2FASuccess(true);
+                              setTwoFAError("");
+                            } else {
+                              setTwoFAError(res.data?.error || "Không thể lấy mã xác thực tạm thời");
+                            }
+                          } catch (error) {
+                            setTwoFAError("Lỗi kết nối đến server. Vui lòng thử lại sau.");
+                          } finally {
+                            setReset2FALoading(false);
+                          }
+                        }}
+                        disabled={reset2FALoading}
+                      >
+                        {reset2FALoading ? "Đang xử lý..." : "Lấy mã xác thực tạm thời"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={() => {
+                          setShowForgot2FA(false);
+                          setReset2FASuccess(false);
+                        }}
+                        disabled={reset2FALoading}
+                      >
+                        Quay lại
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {twoFAError && (
+                <div className="alert alert-danger mb-3" role="alert">
+                  {twoFAError}
+                  {countdown > 0 && (
+                    <div className="mt-2">
+                      <strong>
+                        Thời gian còn lại: {
+                          countdown >= 60 
+                            ? `${Math.floor(countdown / 60)} phút ${countdown % 60} giây`
+                            : `${countdown} giây`
+                        }
+                      </strong>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="d-grid gap-2">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={twoFALoading || countdown > 0}
+                >
+                  {twoFALoading 
+                    ? "Đang xử lý..." 
+                    : countdown > 0 
+                      ? `Vui lòng đợi ${countdown >= 60 ? `${Math.floor(countdown / 60)}p ${countdown % 60}s` : `${countdown}s`}`
+                      : "Xác thực"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShow2FA(false);
+                    setTwoFACode("");
+                    setTwoFAError("");
+                    setTwoFAAttempts(0);
+                    setTwoFALockedUntil(null);
+                    setCountdown(0);
+                    setShowForgot2FA(false);
+                    setReset2FASuccess(false);
+                  }}
+                  disabled={twoFALoading || countdown > 0}
+                >
+                  Hủy
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AuthLayout>
   );
 }

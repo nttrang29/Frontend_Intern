@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
 
 import { useLocation } from "react-router-dom";
@@ -445,31 +445,18 @@ export default function TransactionsPage() {
   const [budgetWarning, setBudgetWarning] = useState(null);
   const [pendingTransaction, setPendingTransaction] = useState(null);
 
+  // Memoize currentUser identifiers - chỉ thay đổi khi giá trị thực sự thay đổi
+  const currentUserId = currentUser?.userId || currentUser?.id || currentUser?.accountId || currentUser?.userID || currentUser?.accountID || null;
+  const currentUserEmail = (currentUser?.email || currentUser?.userEmail || currentUser?.username || currentUser?.login || currentUser?.accountEmail || "").trim().toLowerCase();
+  
   const currentUserIdentifiers = useMemo(() => {
-    if (!currentUser) {
-      return { id: null, email: "" };
-    }
-    const idCandidates = [
-      currentUser.userId,
-      currentUser.id,
-      currentUser.accountId,
-      currentUser.userID,
-      currentUser.accountID,
-    ];
-    const chosenId = idCandidates.find((val) => val !== null && val !== undefined) ?? null;
-    const emailCandidate =
-      (currentUser.email ||
-        currentUser.userEmail ||
-        currentUser.username ||
-        currentUser.login ||
-        currentUser.accountEmail ||
-        "") + "";
     return {
-      id: chosenId !== null ? String(chosenId) : null,
-      email: emailCandidate.trim().toLowerCase(),
+      id: currentUserId !== null ? String(currentUserId) : null,
+      email: currentUserEmail,
     };
-  }, [currentUser]);
+  }, [currentUserId, currentUserEmail]);
 
+  // Memoize matchesCurrentUser - chỉ tạo lại khi identifiers thay đổi
   const matchesCurrentUser = useCallback(
     (entity) => {
       if (!entity) return false;
@@ -542,7 +529,7 @@ export default function TransactionsPage() {
 
       return false;
     },
-    [currentUserIdentifiers]
+    [currentUserIdentifiers.id, currentUserIdentifiers.email]
   );
 
   const showViewerRestrictionToast = useCallback(() => {
@@ -582,11 +569,31 @@ export default function TransactionsPage() {
     [wallets]
   );
 
+  // Memoize wallets map để tránh tìm kiếm lại mỗi lần
+  const walletsMap = useMemo(() => {
+    const map = new Map();
+    (wallets || []).forEach(w => {
+      const id = w.walletId || w.id;
+      if (id) {
+        map.set(id, w);
+      }
+    });
+    return map;
+  }, [wallets]);
+
+  // Memoize wallets IDs string để so sánh thay đổi
+  const walletsIds = useMemo(() => {
+    return (wallets || []).map(w => w.walletId || w.id).filter(Boolean).sort().join(',');
+  }, [wallets]);
+
   // Helper function to map Transaction entity to frontend format
   const mapTransactionToFrontend = useCallback((tx) => {
     if (!tx) return null;
+    const walletId = tx.wallet?.walletId || tx.walletId;
+    const wallet = walletId ? walletsMap.get(walletId) : null;
     const walletName =
-          wallets.find((w) => w.walletId === tx.wallet?.walletId)?.walletName ||
+          wallet?.walletName ||
+          wallet?.name ||
           tx.wallet?.walletName ||
           tx.wallet?.name ||
           tx.walletName ||
@@ -622,16 +629,23 @@ export default function TransactionsPage() {
       creatorCode: `USR${String(tx.user?.userId || 0).padStart(3, "0")}`,
       attachment: resolveAttachmentFromTransaction(tx),
     };
-  }, [wallets]);
+  }, [walletsMap]);
 
   const mapTransferToFrontend = useCallback((transfer) => {
     if (!transfer) return null;
+    const fromWalletId = transfer.fromWallet?.walletId;
+    const toWalletId = transfer.toWallet?.walletId;
+    const fromWallet = fromWalletId ? walletsMap.get(fromWalletId) : null;
+    const toWallet = toWalletId ? walletsMap.get(toWalletId) : null;
+    
     const sourceWalletName =
-      wallets.find((w) => w.walletId === transfer.fromWallet?.walletId)?.walletName ||
+      fromWallet?.walletName ||
+      fromWallet?.name ||
       transfer.fromWallet?.walletName ||
       "Unknown";
     const targetWalletName =
-      wallets.find((w) => w.walletId === transfer.toWallet?.walletId)?.walletName ||
+      toWallet?.walletName ||
+      toWallet?.name ||
       transfer.toWallet?.walletName ||
       "Unknown";
 
@@ -659,16 +673,11 @@ export default function TransactionsPage() {
       creatorCode: `USR${String(transfer.user?.userId || 0).padStart(3, "0")}`,
       attachment: "",
     };
-  }, [wallets]);
+  }, [walletsMap]);
 
   const refreshTransactionsData = useCallback(async () => {
-    const walletIds = Array.from(
-      new Set(
-        (wallets || [])
-          .map((wallet) => wallet?.walletId ?? wallet?.id)
-          .filter((id) => id !== undefined && id !== null)
-      )
-    );
+    // Lấy walletIds từ walletsIds string
+    const walletIds = walletsIds ? walletsIds.split(',').filter(Boolean) : [];
 
     const fetchScopedHistory = async () => {
       if (!walletIds.length) {
@@ -730,37 +739,129 @@ export default function TransactionsPage() {
       const scoped = await fetchScopedHistory();
       const filteredScopedExternal = scoped.external.filter(matchesCurrentUser);
       const filteredScopedInternal = scoped.internal.filter(matchesCurrentUser);
-      setExternalTransactions(filteredScopedExternal.map(mapTransactionToFrontend));
-      setInternalTransactions(filteredScopedInternal.map(mapTransferToFrontend));
+      const mappedExternal = filteredScopedExternal.map(mapTransactionToFrontend);
+      const mappedInternal = filteredScopedInternal.map(mapTransferToFrontend);
+      
+      // Chỉ update state nếu dữ liệu thực sự thay đổi
+      setExternalTransactions((prev) => {
+        const prevIds = new Set(prev.map(t => t.id || t.transactionId || t.code));
+        const newIds = new Set(mappedExternal.map(t => t.id || t.transactionId || t.code));
+        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
+          // Kiểm tra xem có transaction nào thay đổi không (so sánh bằng amount, date, category)
+          const hasChanged = mappedExternal.some(tx => {
+            const prevTx = prev.find(p => (p.id || p.transactionId || p.code) === (tx.id || tx.transactionId || tx.code));
+            if (!prevTx) return true;
+            return prevTx.amount !== tx.amount || prevTx.date !== tx.date || prevTx.category !== tx.category;
+          });
+          if (!hasChanged) {
+            return prev; // Không thay đổi, giữ nguyên
+          }
+        }
+        return mappedExternal;
+      });
+      
+      setInternalTransactions((prev) => {
+        const prevIds = new Set(prev.map(t => t.id || t.transferId || t.code));
+        const newIds = new Set(mappedInternal.map(t => t.id || t.transferId || t.code));
+        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
+          const hasChanged = mappedInternal.some(tx => {
+            const prevTx = prev.find(p => (p.id || p.transferId || p.code) === (tx.id || tx.transferId || tx.code));
+            if (!prevTx) return true;
+            return prevTx.amount !== tx.amount || prevTx.date !== tx.date;
+          });
+          if (!hasChanged) {
+            return prev; // Không thay đổi, giữ nguyên
+          }
+        }
+        return mappedInternal;
+      });
     } catch (scopedError) {
       console.warn("TransactionsPage: scoped history fetch failed, using legacy APIs", scopedError);
       const legacy = await fetchLegacyHistory();
       const filteredLegacyExternal = legacy.external.filter(matchesCurrentUser);
       const filteredLegacyInternal = legacy.internal.filter(matchesCurrentUser);
-      setExternalTransactions(filteredLegacyExternal.map(mapTransactionToFrontend));
-      setInternalTransactions(filteredLegacyInternal.map(mapTransferToFrontend));
+      const mappedExternal = filteredLegacyExternal.map(mapTransactionToFrontend);
+      const mappedInternal = filteredLegacyInternal.map(mapTransferToFrontend);
+      
+      // Chỉ update state nếu dữ liệu thực sự thay đổi
+      setExternalTransactions((prev) => {
+        const prevIds = new Set(prev.map(t => t.id || t.transactionId || t.code));
+        const newIds = new Set(mappedExternal.map(t => t.id || t.transactionId || t.code));
+        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
+          const hasChanged = mappedExternal.some(tx => {
+            const prevTx = prev.find(p => (p.id || p.transactionId || p.code) === (tx.id || tx.transactionId || tx.code));
+            if (!prevTx) return true;
+            return prevTx.amount !== tx.amount || prevTx.date !== tx.date || prevTx.category !== tx.category;
+          });
+          if (!hasChanged) {
+            return prev;
+          }
+        }
+        return mappedExternal;
+      });
+      
+      setInternalTransactions((prev) => {
+        const prevIds = new Set(prev.map(t => t.id || t.transferId || t.code));
+        const newIds = new Set(mappedInternal.map(t => t.id || t.transferId || t.code));
+        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
+          const hasChanged = mappedInternal.some(tx => {
+            const prevTx = prev.find(p => (p.id || p.transferId || p.code) === (tx.id || tx.transferId || tx.code));
+            if (!prevTx) return true;
+            return prevTx.amount !== tx.amount || prevTx.date !== tx.date;
+          });
+          if (!hasChanged) {
+            return prev;
+          }
+        }
+        return mappedInternal;
+      });
     }
-  }, [wallets, mapTransactionToFrontend, mapTransferToFrontend, matchesCurrentUser]);
+  }, [walletsIds, mapTransactionToFrontend, mapTransferToFrontend, matchesCurrentUser]);
+
+  // Ref để track lần cuối cùng refresh
+  const lastRefreshRef = useRef({ walletsIds: '', timestamp: 0 });
+  const isRefreshingRef = useRef(false);
 
   const runInitialLoad = useCallback(async () => {
+    // Tránh refresh nếu đang refresh hoặc wallets không thay đổi
+    const currentWalletsIds = walletsIds;
+    if (isRefreshingRef.current) {
+      return;
+    }
+    
+    // Chỉ refresh nếu wallets thực sự thay đổi hoặc chưa từng refresh
+    if (lastRefreshRef.current.walletsIds === currentWalletsIds && lastRefreshRef.current.timestamp > 0) {
+      return;
+    }
+
+    isRefreshingRef.current = true;
     setLoading(true);
     try {
       await refreshTransactionsData();
+      lastRefreshRef.current = {
+        walletsIds: currentWalletsIds,
+        timestamp: Date.now()
+      };
     } finally {
       setLoading(false);
+      isRefreshingRef.current = false;
     }
-  }, [refreshTransactionsData]);
+  }, [walletsIds, refreshTransactionsData]);
 
   useEffect(() => {
     runInitialLoad();
 
     const handleUserChange = () => {
+      // Reset last refresh khi user thay đổi
+      lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
       runInitialLoad();
     };
     window.addEventListener("userChanged", handleUserChange);
 
     const handleStorageChange = (e) => {
       if (e.key === "accessToken" || e.key === "user" || e.key === "auth_user") {
+        // Reset last refresh khi storage thay đổi
+        lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
         runInitialLoad();
       }
     };
@@ -1249,33 +1350,61 @@ export default function TransactionsPage() {
     [findWalletByDisplayName, showViewerRestrictionToast, setConfirmDel]
   );
 
-  // Update budget data when transactions change
+  // Update budget data when transactions change - với debounce và so sánh dữ liệu
+  const categoryMapRef = useRef({});
+  const externalTransactionsRef = useRef([]);
+  const updateTimeoutRef = useRef(null);
+  
   useEffect(() => {
-    // Build transaction map keyed by category:wallet and category:all
-    // category:walletName = spent for transactions of that category in that specific wallet
-    // category:all = sum of all wallets for that category (for "apply to all wallets" budgets)
-    const categoryMap = {};
-    const categoryAllTotals = {}; // Temp to sum by category
+    // Clear timeout trước đó nếu có
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
 
-    externalTransactions.forEach((t) => {
-      if (t.type === "expense" && t.category && t.walletName) {
-        // Add to specific wallet key
-        const walletKey = `${t.category}:${t.walletName}`;
-        categoryMap[walletKey] = (categoryMap[walletKey] || 0) + t.amount;
+    // Debounce để tránh update quá nhiều
+    updateTimeoutRef.current = setTimeout(() => {
+      // Build transaction map keyed by category:wallet and category:all
+      const categoryMap = {};
+      const categoryAllTotals = {}; // Temp to sum by category
 
-        // Track total for category:all calculation
-        categoryAllTotals[t.category] = (categoryAllTotals[t.category] || 0) + t.amount;
+      externalTransactions.forEach((t) => {
+        if (t.type === "expense" && t.category && t.walletName) {
+          // Add to specific wallet key
+          const walletKey = `${t.category}:${t.walletName}`;
+          categoryMap[walletKey] = (categoryMap[walletKey] || 0) + t.amount;
+
+          // Track total for category:all calculation
+          categoryAllTotals[t.category] = (categoryAllTotals[t.category] || 0) + t.amount;
+        }
+      });
+
+      // Add category:all totals to map
+      Object.entries(categoryAllTotals).forEach(([category, total]) => {
+        categoryMap[`${category}:all`] = total;
+      });
+
+      // Chỉ update nếu categoryMap thực sự thay đổi
+      const categoryMapStr = JSON.stringify(categoryMap);
+      const prevCategoryMapStr = JSON.stringify(categoryMapRef.current);
+      if (categoryMapStr !== prevCategoryMapStr) {
+        categoryMapRef.current = categoryMap;
+        updateTransactionsByCategory(categoryMap);
       }
-    });
 
-    // Add category:all totals to map
-    Object.entries(categoryAllTotals).forEach(([category, total]) => {
-      categoryMap[`${category}:all`] = total;
-    });
+      // Chỉ update external transactions list nếu thực sự thay đổi (so sánh bằng IDs)
+      const currentIds = new Set(externalTransactions.map(t => t.id || t.transactionId || t.code));
+      const prevIds = new Set(externalTransactionsRef.current.map(t => t.id || t.transactionId || t.code));
+      if (currentIds.size !== prevIds.size || [...currentIds].some(id => !prevIds.has(id))) {
+        externalTransactionsRef.current = externalTransactions;
+        updateAllExternalTransactions(externalTransactions);
+      }
+    }, 200); // Debounce 200ms
 
-    updateTransactionsByCategory(categoryMap);
-    // also provide the full transactions list to budget context for period-based calculations
-    updateAllExternalTransactions(externalTransactions);
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
   }, [externalTransactions, updateTransactionsByCategory, updateAllExternalTransactions]);
 
   const currentTransactions = useMemo(

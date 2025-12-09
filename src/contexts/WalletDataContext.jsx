@@ -191,9 +191,35 @@ export function WalletDataProvider({ children }) {
             );
             return normalizeWallet(apiWallet, existingWallet);
           });
-          return normalizedWallets;
+          
+          // Chỉ update state nếu dữ liệu thực sự thay đổi
+          // So sánh bằng IDs và các key properties
+          const prevIds = new Set(prev.map(w => w.id || w.walletId));
+          const newIds = new Set(normalizedWallets.map(w => w.id || w.walletId));
+          
+          // Nếu số lượng hoặc IDs khác nhau, chắc chắn có thay đổi
+          if (prevIds.size !== newIds.size || [...newIds].some(id => !prevIds.has(id))) {
+            return normalizedWallets;
+          }
+          
+          // Kiểm tra xem có wallet nào thay đổi properties không
+          const hasChanged = normalizedWallets.some(newWallet => {
+            const oldWallet = prev.find(w => w.id === newWallet.id);
+            if (!oldWallet) return true;
+            // So sánh các key properties
+            return oldWallet.name !== newWallet.name ||
+                   oldWallet.walletName !== newWallet.walletName ||
+                   oldWallet.balance !== newWallet.balance ||
+                   oldWallet.currency !== newWallet.currency ||
+                   oldWallet.currencyCode !== newWallet.currencyCode ||
+                   oldWallet.isDefault !== newWallet.isDefault ||
+                   oldWallet.isShared !== newWallet.isShared;
+          });
+          
+          return hasChanged ? normalizedWallets : prev;
         });
-        // Trả về wallets đã được normalize để có thể sử dụng ngay
+        
+        // Trả về wallets đã được normalize
         return normalizedWallets;
       } else {
         console.error("Failed to load wallets:", data.error);
