@@ -8,15 +8,35 @@ import "../../styles/AuthForms.css";
 
 // API
 import { login, loginWithGoogle } from "../../services/auth.service";
-import { getProfile } from "../../services/profile.service";
+import { getProfile, updateProfile } from "../../services/profile.service";
 import { verify2FA, resetTemporary2FA } from "../../services/2fa.service";
 
 // AUTH CONTEXT
 import { useAuth } from "../../contexts/AuthContext";
+import { normalizeUserProfile } from "../../utils/userProfile";
 
 // 🔥 CLIENT_ID phải TRÙNG với BE (spring.security.oauth2.client.registration.google.client-id)
 const GOOGLE_CLIENT_ID =
   "418846497154-r9s0e5pgls2ucrnulgjeuk3v3uja1a6u.apps.googleusercontent.com";
+
+const decodeJwtPayload = (token) => {
+  if (!token) return null;
+  try {
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((char) => `%${("00" + char.charCodeAt(0).toString(16)).slice(-2)}`)
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.warn("Không thể giải mã Google ID token:", error);
+    return null;
+  }
+};
 
 export default function LoginPage() {
   const { login: authLogin } = useAuth();
@@ -55,7 +75,7 @@ export default function LoginPage() {
   }
 
   // Sau khi có token (dùng chung login thường & Google)
-  async function handleLoginSuccess(token) {
+  async function handleLoginSuccess(token, options = {}) {
     if (!token) {
       setShowInvalid(true);
       return;
@@ -64,6 +84,7 @@ export default function LoginPage() {
     localStorage.setItem("accessToken", token);
 
     let targetPath = "/home";
+    const { fallbackAvatarUrl, fallbackFullName } = options;
 
     try {
       const meRes = await getProfile();
@@ -80,26 +101,62 @@ export default function LoginPage() {
       if (!me.userId && !me.id) {
         console.warn("Profile response không có userId:", me);
       }
+      let normalizedUser = normalizeUserProfile(me, {
+        fallbackAvatarUrl,
+        fallbackFullName,
+      });
 
-      localStorage.setItem("user", JSON.stringify(me));
+      if ((!normalizedUser || !normalizedUser.avatar) && fallbackAvatarUrl) {
+        try {
+          const avatarUpdateRes = await updateProfile({
+            fullName:
+              normalizedUser?.fullName ||
+              normalizedUser?.name ||
+              fallbackFullName,
+            avatar: fallbackAvatarUrl,
+          });
+
+          if (avatarUpdateRes?.response?.ok && avatarUpdateRes.data?.user) {
+            normalizedUser = normalizeUserProfile(avatarUpdateRes.data.user);
+          } else {
+            normalizedUser = {
+              ...(normalizedUser || me),
+              avatar: fallbackAvatarUrl,
+            };
+          }
+        } catch (avatarSyncError) {
+          console.warn("Không thể đồng bộ avatar Google:", avatarSyncError);
+          normalizedUser = {
+            ...(normalizedUser || me),
+            avatar: fallbackAvatarUrl,
+          };
+        }
+      }
+
+      const userToPersist = normalizedUser || me;
+      if (!userToPersist) {
+        throw new Error("Không lấy được thông tin người dùng sau khi đăng nhập");
+      }
+      localStorage.setItem("user", JSON.stringify(userToPersist));
 
       const rawRoles = [];
-      if (me.role) rawRoles.push(me.role);
-      if (me.roleName) rawRoles.push(me.roleName);
-      if (Array.isArray(me.roles)) rawRoles.push(...me.roles);
-      if (Array.isArray(me.authorities)) {
+      if (userToPersist?.role) rawRoles.push(userToPersist.role);
+      if (userToPersist?.roleName) rawRoles.push(userToPersist.roleName);
+      if (Array.isArray(userToPersist?.roles))
+        rawRoles.push(...userToPersist.roles);
+      if (Array.isArray(userToPersist?.authorities)) {
         rawRoles.push(
-          ...me.authorities.map((a) =>
+          ...userToPersist.authorities.map((a) =>
             typeof a === "string" ? a : a.authority
           )
         );
       }
 
       const primaryRole =
-        me.role ||
-        me.roleName ||
-        (Array.isArray(me.roles) && me.roles.length > 0
-          ? me.roles[0]
+        userToPersist?.role ||
+        userToPersist?.roleName ||
+        (Array.isArray(userToPersist?.roles) && userToPersist.roles.length > 0
+          ? userToPersist.roles[0]
           : "USER");
 
       const isAdmin = rawRoles.some(
@@ -110,9 +167,14 @@ export default function LoginPage() {
 
       // update AuthContext
       authLogin({
-        id: me.id || me.userId,
-        fullName: me.fullName || me.name || me.username || "",
-        email: me.email,
+        id: userToPersist?.id || userToPersist?.userId,
+        fullName:
+          userToPersist?.fullName ||
+          userToPersist?.name ||
+          userToPersist?.username ||
+          fallbackFullName ||
+          "",
+        email: userToPersist?.email,
         role: primaryRole,
         accessToken: token,
       });
@@ -147,6 +209,16 @@ export default function LoginPage() {
       if (!idToken) {
         return setError("Không lấy được idToken từ Google.");
       }
+
+      const googleClaims = decodeJwtPayload(idToken);
+      const googleAvatarUrl =
+        googleClaims?.picture ||
+        googleClaims?.pictureUrl ||
+        googleClaims?.picture_url ||
+        googleClaims?.image ||
+        googleClaims?.imageUrl;
+      const googleFullName = googleClaims?.name;
+      const googleEmailClaim = googleClaims?.email;
 
       const res = await loginWithGoogle({ idToken });
       
@@ -235,18 +307,30 @@ export default function LoginPage() {
               setLoginEmail(googleEmail.trim().toLowerCase());
             } else {
               // Nếu không lấy được từ profile, thử lấy từ response
-              const emailFromResponse = res.data?.email || res.data?.user?.email || "";
+              const emailFromResponse =
+                res.data?.email ||
+                res.data?.user?.email ||
+                googleEmailClaim ||
+                "";
               setLoginEmail(emailFromResponse.trim().toLowerCase() || null);
             }
           } catch (profileError) {
             console.error("Error getting profile for 2FA:", profileError);
             // Nếu không lấy được từ profile, thử lấy từ response
-            const emailFromResponse = res.data?.email || res.data?.user?.email || "";
+            const emailFromResponse =
+              res.data?.email ||
+              res.data?.user?.email ||
+              googleEmailClaim ||
+              "";
             setLoginEmail(emailFromResponse.trim().toLowerCase() || null);
           }
         } else {
           // Nếu không có token, thử lấy email từ response
-          const emailFromResponse = res.data?.email || res.data?.user?.email || "";
+          const emailFromResponse =
+            res.data?.email ||
+            res.data?.user?.email ||
+            googleEmailClaim ||
+            "";
           setLoginEmail(emailFromResponse.trim().toLowerCase() || null);
         }
         setShow2FA(true);
@@ -260,7 +344,10 @@ export default function LoginPage() {
         return setError("Không nhận được token từ server. Vui lòng thử lại.");
       }
 
-      await handleLoginSuccess(token);
+      await handleLoginSuccess(token, {
+        fallbackAvatarUrl: googleAvatarUrl,
+        fallbackFullName: googleFullName,
+      });
     } catch (err) {
       console.error("Login Google lỗi:", err);
       setError("Lỗi kết nối đến server. Vui lòng thử lại sau.");

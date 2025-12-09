@@ -4,6 +4,7 @@ import UserMenu from "./UserMenu";
 import GlobalSearch from "../../common/GlobalSearch";
 import { useEffect, useState } from "react";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { normalizeUserProfile } from "../../../utils/userProfile";
 
 export default function HomeTopbar() {
   const [userName, setUserName] = useState("Người dùng");
@@ -18,12 +19,16 @@ export default function HomeTopbar() {
         const raw = localStorage.getItem("user");
         if (!raw) return;
         
-        const u = JSON.parse(raw) || {};
-        const newFullName = u.fullName || u.username || u.email || "Người dùng";
-        
-        // 2. Đọc 'u.avatar' (đã bao gồm ảnh Google hoặc ảnh Base64)
+        const normalizedUser = normalizeUserProfile(JSON.parse(raw) || {});
+        const newFullName =
+          normalizedUser?.fullName ||
+          normalizedUser?.username ||
+          normalizedUser?.email ||
+          "Người dùng";
+
+        // 2. Đọc avatar với fallback đã normalize
         const newAvatar =
-          u.avatar || // 👈 Đọc avatar đã thống nhất
+          normalizedUser?.avatar ||
           "https://www.gravatar.com/avatar/?d=mp&s=40"; // Ảnh dự phòng
         
         // Cập nhật state để trigger re-render

@@ -8,6 +8,7 @@ import { get2FAStatus, setup2FA, enable2FA, disable2FA, change2FA } from "../../
 import "../../styles/pages/SettingsPage.css";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
+import { normalizeUserProfile } from "../../utils/userProfile";
 
 export default function SettingsPage() {
   const [activeKey, setActiveKey] = useState(null);
@@ -181,7 +182,8 @@ export default function SettingsPage() {
       setLoading(true);
       const { response, data } = await getProfile();
       if (response.ok && data.user) {
-        setUser(data.user);
+        const normalizedUser = normalizeUserProfile(data.user);
+        setUser(normalizedUser);
       } else {
         setError(data.error || t('settings.error.load_profile'));
       }
@@ -549,11 +551,12 @@ export default function SettingsPage() {
       });
 
       if (response.ok && data.user) {
+        const normalizedUser = normalizeUserProfile(data.user);
         // 1. Cập nhật state cục bộ (như cũ)
-        setUser(data.user);
+        setUser(normalizedUser);
 
         // 2. ✅ Cập nhật localStorage với user mới nhất từ API
-        localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.setItem("user", JSON.stringify(normalizedUser));
 
         // 3. ✅ Bắn tín hiệu "storageUpdated" để HomeTopbar cập nhật avatar
         // Sử dụng setTimeout nhỏ để đảm bảo localStorage đã được cập nhật

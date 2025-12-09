@@ -3,6 +3,8 @@ import Modal from "../common/Modal/Modal";
 import SearchableSelectInput from "../common/SearchableSelectInput";
 import { mapWalletsToSelectOptions, WALLET_TYPE_ICON_CONFIG } from "../../utils/walletSelectHelpers";
 import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../utils/formatMoneyInput";
+
+const ALL_WALLETS_LABEL = "Tất cả ví";
  
 export default function BudgetFormModal({
   open,
@@ -15,6 +17,7 @@ export default function BudgetFormModal({
 }) {
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [selectedWalletId, setSelectedWalletId] = useState("");
+  const [selectedWalletLabel, setSelectedWalletLabel] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
   const [walletCurrency, setWalletCurrency] = useState("VND");
   const [startDate, setStartDate] = useState("");
@@ -36,10 +39,13 @@ export default function BudgetFormModal({
       setSelectedCategoryId(initialData.categoryId ? String(initialData.categoryId) : "");
       if (initialData.walletId !== null && initialData.walletId !== undefined) {
         setSelectedWalletId(String(initialData.walletId));
+        setSelectedWalletLabel(initialData.walletName || "");
       } else if (initialData.walletName) {
         setSelectedWalletId("__legacy__");
+        setSelectedWalletLabel(initialData.walletName || ALL_WALLETS_LABEL);
       } else {
         setSelectedWalletId("");
+        setSelectedWalletLabel("");
       }
       setLimitAmount(
         initialData.limitAmount !== undefined && initialData.limitAmount !== null
@@ -58,6 +64,7 @@ export default function BudgetFormModal({
     } else {
       setSelectedCategoryId("");
       setSelectedWalletId("");
+      setSelectedWalletLabel("");
       setLimitAmount("");
       setStartDate("");
       setEndDate("");
@@ -76,8 +83,11 @@ export default function BudgetFormModal({
   const handleWalletChange = (value) => {
     setSelectedWalletId(value);
     if (value) {
+      const matchedOption = walletOptions.find((opt) => opt.value === String(value));
+      setSelectedWalletLabel(matchedOption?.label || "");
       setWalletCurrency(resolveWalletCurrency(value));
     } else {
+      setSelectedWalletLabel("");
       const defaultCurrency = walletList.length === 1
         ? resolveWalletCurrency(walletList[0].id)
         : "VND";
@@ -108,6 +118,13 @@ export default function BudgetFormModal({
     if (walletRequired && !selectedWalletId) {
       newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
     }
+
+    if (selectedWalletId) {
+      const currencyCode = resolveWalletCurrency(selectedWalletId);
+      if (currencyCode !== "VND") {
+        newErrors.wallet = "Chỉ được chọn ví có đơn vị tiền tệ VND";
+      }
+    }
     if (!limitNumeric || limitNumeric <= 0) {
       newErrors.limit = "Vui lòng nhập hạn mức lớn hơn 0";
     }
@@ -136,7 +153,7 @@ export default function BudgetFormModal({
     const walletObj =
       wallets.find((w) => String(w.id) === String(selectedWalletId)) ||
       (mode === "edit" && (initialData?.walletId === null || initialData?.walletId === undefined)
-        ? { id: null, name: initialData?.walletName || "Tất cả ví" }
+        ? { id: null, name: initialData?.walletName || ALL_WALLETS_LABEL }
         : null);
  
     const resolvedWalletId =
@@ -145,7 +162,9 @@ export default function BudgetFormModal({
         : null;
  
     const resolvedWalletName =
-      walletObj?.name || walletObj?.walletName || initialData?.walletName || (resolvedWalletId === null ? "Tất cả ví" : "");
+      resolvedWalletId === null
+        ? (initialData?.walletName || ALL_WALLETS_LABEL)
+        : (walletObj?.name || walletObj?.walletName || selectedWalletLabel || initialData?.walletName || "");
  
     const payload = {
       categoryId: categoryObj.id || null,
@@ -182,6 +201,14 @@ export default function BudgetFormModal({
  
   const categoryList = categories || [];
   const walletList = wallets || [];
+  const vndWallets = useMemo(
+    () =>
+      walletList.filter((w) => {
+        const code = (w?.currency || w?.currencyCode || "").toUpperCase();
+        return code === "VND";
+      }),
+    [walletList]
+  );
  
   const categoryOptions = useMemo(() => {
     const defaults = categoryList.map((cat) => ({
@@ -219,7 +246,7 @@ export default function BudgetFormModal({
  
   const walletOptions = useMemo(() => {
     const options = mapWalletsToSelectOptions(
-      walletList,
+      vndWallets,
       walletTypeLabels,
       (wallet) => (wallet?.id !== undefined && wallet?.id !== null ? wallet.id : "")
     );
@@ -242,7 +269,7 @@ export default function BudgetFormModal({
     }
  
     return normalized;
-  }, [walletList, walletTypeLabels, mode, selectedWalletId, initialData]);
+  }, [walletList, walletTypeLabels, mode, selectedWalletId, initialData, vndWallets]);
  
   return (
     <Modal open={open} onClose={onClose} width={500}>

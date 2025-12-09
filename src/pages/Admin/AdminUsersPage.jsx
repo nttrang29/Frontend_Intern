@@ -379,113 +379,115 @@ export default function AdminUsersPage() {
             ) : filteredUsers.length === 0 ? (
               <div className="admin-empty">{t("admin.users.empty")}</div>
             ) : (
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>{t("admin.users.table.name")}</th>
-                    <th>{t("admin.users.table.email")}</th>
-                    <th>{t("admin.users.table.role")}</th>
-                    <th>{t("admin.users.table.status")}</th>
-                    <th>{t("admin.users.table.created_at")}</th>
-                    <th>{t("admin.users.table.last_login")}</th>
-                    <th>{t("admin.users.table.action")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map((u) => (
-                    <tr
-                      key={u.id}
-                      className={
-                        u.id === selectedUserId ? "admin-row--active" : ""
-                      }
-                      onClick={() => handleSelectUser(u.id)}
-                    >
-                      <td>{u.fullName}</td>
-                      <td>{u.email}</td>
-                      <td>
-                        <select
-                          value={u.role}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            updateUserRole(u.id, e.target.value);
-                          }}
-                          disabled={
-                            u.id === currentUser?.id ||
-                            (!isSystemAdmin && u.role === ROLES.ADMIN)
-                          }
-                          title={
-                            u.id === currentUser?.id
-                              ? "Không thể thay đổi vai trò của chính mình"
-                              : !isSystemAdmin && u.role === ROLES.ADMIN
-                              ? "Chỉ admin hệ thống mới có thể thay đổi vai trò của admin khác"
-                              : ""
-                          }
-                        >
-                          <option value={ROLES.ADMIN}>Admin</option>
-                          <option value={ROLES.USER}>User</option>
-                        </select>
-                      </td>
-                      <td>
-                        <span
-                          className={
-                            u.status === "ACTIVE"
-                              ? "badge badge--active"
-                              : "badge badge--locked"
-                          }
-                        >
-                          {getStatusLabel(u.status)}
-                        </span>
-                      </td>
-                      <td>{u.createdAt || t("admin.users.info.no_data")}</td>
-                      <td>{u.lastLogin || t("admin.users.info.no_data")}</td>
-                      <td className="admin-actions-cell">
-                        <button
-                          className="btn-chip btn-chip--ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleUserStatus(u.id);
-                          }}
-                          disabled={
-                            u.id === currentUser?.id ||
-                            (!isSystemAdmin && u.role === ROLES.ADMIN)
-                          }
-                          title={
-                            u.id === currentUser?.id
-                              ? "Không thể khóa/mở khóa chính mình"
-                              : !isSystemAdmin && u.role === ROLES.ADMIN
-                              ? "Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác"
-                              : ""
-                          }
-                        >
-                          {u.status === "ACTIVE" ? t("admin.users.btn.lock") : t("admin.users.btn.unlock")}
-                        </button>
-                        <button
-                          className="btn-chip btn-chip--danger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteUser(u.id);
-                          }}
-                          disabled={
-                            u.id === currentUser?.id ||
-                            (!isSystemAdmin && u.role === ROLES.ADMIN)
-                          }
-                          title={
-                            u.id === currentUser?.id
-                              ? "Không thể xóa chính mình"
-                              : !isSystemAdmin && u.role === ROLES.ADMIN
-                              ? "Chỉ admin hệ thống mới có thể xóa admin khác"
-                              : ""
-                          }
-                        >
-                          {t("admin.users.btn.delete")}
-                        </button>
-                      </td>
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>{t("admin.users.table.name")}</th>
+                      <th>{t("admin.users.table.email")}</th>
+                      <th>{t("admin.users.table.role")}</th>
+                      <th>{t("admin.users.table.status")}</th>
+                      <th>{t("admin.users.table.created_at")}</th>
+                      <th>{t("admin.users.table.last_login")}</th>
+                      <th>{t("admin.users.table.action")}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                  </thead>
+                    <tbody>
+                      {filteredUsers.map((u) => (
+                        <tr
+                          key={u.id}
+                          className={
+                            u.id === selectedUserId ? "admin-row--active" : ""
+                          }
+                          onClick={() => handleSelectUser(u.id)}
+                        >
+                          <td>{u.fullName}</td>
+                          <td>{u.email}</td>
+                          <td>
+                            <select
+                              value={u.role}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                updateUserRole(u.id, e.target.value);
+                              }}
+                              disabled={
+                                u.id === currentUser?.id ||
+                                (!isSystemAdmin && u.role === ROLES.ADMIN)
+                              }
+                              title={
+                                u.id === currentUser?.id
+                                  ? "Không thể thay đổi vai trò của chính mình"
+                                  : !isSystemAdmin && u.role === ROLES.ADMIN
+                                  ? "Chỉ admin hệ thống mới có thể thay đổi vai trò của admin khác"
+                                  : ""
+                              }
+                            >
+                              <option value={ROLES.ADMIN}>Admin</option>
+                              <option value={ROLES.USER}>User</option>
+                            </select>
+                          </td>
+                          <td>
+                            <span
+                              className={
+                                u.status === "ACTIVE"
+                                  ? "badge badge--active"
+                                  : "badge badge--locked"
+                              }
+                            >
+                              {getStatusLabel(u.status)}
+                            </span>
+                          </td>
+                          <td>{u.createdAt || t("admin.users.info.no_data")}</td>
+                          <td>{u.lastLogin || t("admin.users.info.no_data")}</td>
+                          <td className="admin-actions-cell">
+                            <button
+                              className="btn-chip btn-chip--ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleUserStatus(u.id);
+                              }}
+                              disabled={
+                                u.id === currentUser?.id ||
+                                (!isSystemAdmin && u.role === ROLES.ADMIN)
+                              }
+                              title={
+                                u.id === currentUser?.id
+                                  ? "Không thể khóa/mở khóa chính mình"
+                                  : !isSystemAdmin && u.role === ROLES.ADMIN
+                                  ? "Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác"
+                                  : ""
+                              }
+                            >
+                              {u.status === "ACTIVE" ? t("admin.users.btn.lock") : t("admin.users.btn.unlock")}
+                            </button>
+                            <button
+                              className="btn-chip btn-chip--danger"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteUser(u.id);
+                              }}
+                              disabled={
+                                u.id === currentUser?.id ||
+                                (!isSystemAdmin && u.role === ROLES.ADMIN)
+                              }
+                              title={
+                                u.id === currentUser?.id
+                                  ? "Không thể xóa chính mình"
+                                  : !isSystemAdmin && u.role === ROLES.ADMIN
+                                  ? "Chỉ admin hệ thống mới có thể xóa admin khác"
+                                  : ""
+                              }
+                            >
+                              {t("admin.users.btn.delete")}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
           </div>
         </div>
 

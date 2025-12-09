@@ -5,11 +5,11 @@ import { useLanguage } from "../../contexts/LanguageContext";
 
 import "../../styles/pages/DashboardPage.css";
 import { useBudgetData } from "../../contexts/BudgetDataContext";
+import { transactionAPI } from "../../services/transaction.service";
 import CalendarWidget from "../../components/dashboard/CalendarWidget";
 import WeatherWidget from "../../components/dashboard/WeatherWidget";
 import ExchangeRateWidget from "../../components/dashboard/ExchangeRateWidget";
 
-const STORAGE_EXTERNAL = "app_external_transactions_v1";
 const DONUT_COLORS = ["#0C5776", "#2D99AE", "#58D3F7", "#BCFEFE"];
 const DONUT_OTHER_COLOR = "#F8DAD0";
 
@@ -59,71 +59,6 @@ const normalizeTransaction = (tx) => {
   };
 };
 
-const createMockData = () => {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-  const currentDay = now.getDate();
-
-  return [
-    {
-      id: 1,
-      code: "TX-0001",
-      type: "expense",
-      walletName: "Tiền mặt",
-      amount: 50000,
-      currency: "VND",
-      date: new Date(currentYear, currentMonth, currentDay, 12, 0).toISOString(),
-      category: "Ăn uống",
-      note: "Bữa trưa",
-    },
-    {
-      id: 2,
-      code: "TX-0002",
-      type: "income",
-      walletName: "Ngân hàng A",
-      amount: 15000000,
-      currency: "VND",
-      date: new Date(currentYear, currentMonth, currentDay - 1, 9, 0).toISOString(),
-      category: "Lương",
-      note: "Lương tháng",
-    },
-    {
-      id: 3,
-      code: "TX-0003",
-      type: "expense",
-      walletName: "Momo",
-      amount: 120000,
-      currency: "VND",
-      date: new Date(currentYear, currentMonth, currentDay - 2, 18, 30).toISOString(),
-      category: "Giải trí",
-      note: "Xem phim",
-    },
-    {
-      id: 4,
-      code: "TX-0004",
-      type: "expense",
-      walletName: "Tiền mặt",
-      amount: 3500000,
-      currency: "VND",
-      date: new Date(currentYear, currentMonth, 3, 8, 0).toISOString(),
-      category: "Hóa đơn",
-      note: "Tiền phòng",
-    },
-    {
-      id: 5,
-      code: "TX-0005",
-      type: "expense",
-      walletName: "Techcombank",
-      amount: 2000000,
-      currency: "VND",
-      date: new Date(currentYear, currentMonth, 1, 9, 0).toISOString(),
-      category: "Tiết kiệm",
-      note: "Gửi tiết kiệm",
-    },
-  ];
-};
-
 const getPeriodRange = (period) => {
   const now = new Date();
   const start = new Date(now);
@@ -163,7 +98,9 @@ export default function DashboardPage() {
   const { t } = useLanguage();
   const { externalTransactionsList = [] } = useBudgetData();
   const [period, setPeriod] = useState("tuan");
-  const [localTransactions, setLocalTransactions] = useState([]);
+  const [apiTransactions, setApiTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [historyFilter, setHistoryFilter] = useState("all");
 
@@ -180,31 +117,44 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    const loadData = () => {
+    let cancelled = false;
+    const fetchTransactions = async () => {
+      setLoading(true);
+      setLoadError("");
       try {
-        const raw = localStorage.getItem(STORAGE_EXTERNAL);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            setLocalTransactions(parsed);
-            return;
-          }
+        const response = await transactionAPI.getAllTransactions();
+        const list = Array.isArray(response)
+          ? response
+          : Array.isArray(response?.transactions)
+          ? response.transactions
+          : Array.isArray(response?.data?.transactions)
+          ? response.data.transactions
+          : Array.isArray(response?.data)
+          ? response.data
+          : [];
+        if (!cancelled) {
+          setApiTransactions(list);
         }
-        setLocalTransactions(createMockData());
       } catch (err) {
-        console.error("DashboardPage: loadData", err);
-        setLocalTransactions(createMockData());
+        console.error("DashboardPage: fetchTransactions", err);
+        if (!cancelled) {
+          setApiTransactions([]);
+          setLoadError(t("common.error") || "Không thể tải giao dịch");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
 
-    loadData();
-    window.addEventListener("storage", loadData);
-    return () => window.removeEventListener("storage", loadData);
-  }, []);
+    fetchTransactions();
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
 
-  const transactions = externalTransactionsList.length
-    ? externalTransactionsList
-    : localTransactions;
+  const transactions = apiTransactions.length
+    ? apiTransactions
+    : externalTransactionsList;
 
   const normalizedTransactions = useMemo(
     () => transactions.map(normalizeTransaction).filter(Boolean),

@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "./contexts/AuthContext";
 import { getProfile } from "./services/profile.service";
+import { normalizeUserProfile } from "./utils/userProfile";
 
 export default function ProtectedRoute({ requiredRoles }) {
   const { currentUser, loading: authLoading, hasRole, login } = useAuth();
@@ -44,23 +45,29 @@ export default function ProtectedRoute({ requiredRoles }) {
           }
 
           // Cập nhật AuthContext với user data
+          const normalizedUser = normalizeUserProfile(userData) || userData;
+
           const primaryRole =
-            userData.role ||
-            userData.roleName ||
-            (Array.isArray(userData.roles) && userData.roles.length > 0
-              ? userData.roles[0]
+            normalizedUser.role ||
+            normalizedUser.roleName ||
+            (Array.isArray(normalizedUser.roles) && normalizedUser.roles.length > 0
+              ? normalizedUser.roles[0]
               : "USER");
 
           login({
-            id: userData.id || userData.userId,
-            fullName: userData.fullName || userData.name || userData.username || "",
-            email: userData.email,
+            id: normalizedUser.id || normalizedUser.userId,
+            fullName:
+              normalizedUser.fullName ||
+              normalizedUser.name ||
+              normalizedUser.username ||
+              "",
+            email: normalizedUser.email,
             role: primaryRole,
             accessToken: token,
           });
 
           // Lưu user vào localStorage để đồng bộ
-          localStorage.setItem("user", JSON.stringify(userData));
+          localStorage.setItem("user", JSON.stringify(normalizedUser));
 
           setIsAuthenticated(true);
         } else {

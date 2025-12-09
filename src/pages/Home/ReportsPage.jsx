@@ -895,6 +895,11 @@ export default function ReportsPage() {
                 ) : (
                   filteredWallets.map((wallet) => {
                     const isPersonal = !wallet.isShared && !(wallet.walletRole || wallet.sharedRole || wallet.role);
+                    const ownerId = wallet.ownerUserId || wallet.ownerId || wallet.createdBy || wallet.userId;
+                    const isOwnedByCurrentUser = ownerId && currentUserId
+                      ? String(ownerId) === String(currentUserId)
+                      : !wallet.isShared;
+                    const showDefaultBadge = wallet.isDefault && isOwnedByCurrentUser;
                     return (
                       <button
                         key={wallet.id}
@@ -905,7 +910,7 @@ export default function ReportsPage() {
                         <div>
                           <p className="wallet-name mb-1">{wallet.name}</p>
                           <div className="wallet-tags">
-                            {wallet.isDefault && <span className="badge rounded-pill text-bg-primary">Mặc định</span>}
+                            {showDefaultBadge && <span className="badge rounded-pill text-bg-primary">Mặc định</span>}
                             {isPersonal && <span className="badge rounded-pill text-bg-secondary">Ví cá nhân</span>}
                             {wallet.isShared && <span className="badge rounded-pill text-bg-info">Ví nhóm</span>}
                           </div>

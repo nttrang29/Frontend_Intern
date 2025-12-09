@@ -11,6 +11,7 @@ import { useLocation } from "react-router-dom";
 import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
 import { useWalletData } from "../../contexts/WalletDataContext";
+import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
@@ -389,6 +390,7 @@ const getVietnamDateTime = () => {
 
 export default function WalletsPage() {
   const { t } = useLanguage();
+  const { budgets = [] } = useBudgetData();
   const {
     wallets = [],
     createWallet,
@@ -458,21 +460,32 @@ export default function WalletsPage() {
     const isWalletOwnedByMe = useCallback(
       (wallet) => {
         if (!wallet) return false;
-        if (!(wallet.isShared || walletHasSharedMembers(wallet))) return false;
+
+        const hasSharedContext = wallet.isShared || walletHasSharedMembers(wallet);
         const role = (
           wallet.walletRole ||
           wallet.sharedRole ||
           wallet.role ||
           ""
         ).toUpperCase();
+
         if (role) {
           if (["OWNER", "MASTER", "ADMIN"].includes(role)) return true;
-          if (["MEMBER", "VIEW", "VIEWER", "USER", "USE"].includes(role))
+          if (["MEMBER", "VIEW", "VIEWER", "USER", "USE"].includes(role)) {
             return false;
+          }
         }
+
         if (wallet.ownerUserId && currentUserId) {
           return String(wallet.ownerUserId) === String(currentUserId);
         }
+
+        // Plain personal wallets (no shared context) belong to the current user by default
+        if (!hasSharedContext) {
+          return true;
+        }
+
+        // Shared wallet without explicit metadata: assume owner to keep controls available
         return true;
       },
       [currentUserId, walletHasSharedMembers]
@@ -1520,6 +1533,12 @@ export default function WalletsPage() {
   const handleSubmitEdit = async (e) => {
     e.preventDefault();
     if (!selectedWallet || !updateWallet) return;
+    const isBudgetWallet = budgets.some((b) => Number(b.walletId) === Number(selectedWallet.id));
+    const currencyChanged = selectedWallet?.currency !== editForm.currency;
+    if (isBudgetWallet && currencyChanged) {
+      showToast("Ví này đang được dùng làm nguồn cho ngân sách nên không thể đổi đơn vị tiền tệ", "error");
+      return;
+    }
     try {
       await updateWallet({
         id: selectedWallet.id,
