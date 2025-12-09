@@ -376,6 +376,30 @@ export const checkWalletUsed = async (walletId) => {
   }
 };
 
+// ========================= GET FUND TRANSACTIONS =========================
+
+/**
+ * 📜 LẤY LỊCH SỬ GIAO DỊCH CỦA QUỸ
+ * @param {number} fundId - ID của quỹ
+ * @param {number} limit - Số lượng giao dịch tối đa (mặc định 50)
+ * @returns {Promise<Object>} - { transactions: Array }
+ */
+export const getFundTransactions = async (fundId, limit = 50) => {
+  try {
+    console.log(`fund.service: Calling GET /funds/${fundId}/transactions?limit=${limit}`);
+    const response = await apiClient.get(`/${fundId}/transactions`, {
+      params: { limit }
+    });
+    console.log(`fund.service: GET /funds/${fundId}/transactions response:`, {
+      status: response.status,
+      data: response.data,
+    });
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleAxiosError(error, `GET /funds/${fundId}/transactions`);
+  }
+};
+
 // ========================= EXPORT ALL =========================
 
 export default {
@@ -391,5 +415,6 @@ export default {
   depositToFund,
   withdrawFromFund,
   checkWalletUsed,
+  getFundTransactions,
 };
 

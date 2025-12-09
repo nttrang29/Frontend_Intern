@@ -8,6 +8,7 @@ import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDate } from "../../utils/dateFormat";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
+import { getFundTransactions } from "../../services/fund.service";
 import "../../styles/components/funds/FundDetail.css";
 import "../../styles/components/funds/FundForms.css";
 
@@ -74,6 +75,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       reminderDayOfMonth: fund.reminderDayOfMonth,
     };
   }, [fund]);
+
+  // Fund history
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [historyError, setHistoryError] = useState(null);
   
   // State for delete confirmation modal
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -346,13 +352,71 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     }
   };
 
-  // Transaction history - Sẽ được lấy từ API khi backend implement
-  // TODO: Implement API để lấy fund transaction history
-  const transactionHistory = [];
+  // Load fund transaction history
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!fund.id) return;
+      
+      setHistoryLoading(true);
+      setHistoryError(null);
+      
+      try {
+        const result = await getFundTransactions(fund.id, 50);
+        if (result.response.ok && result.data) {
+          const transactions = Array.isArray(result.data) ? result.data : (result.data.transactions || []);
+          setHistoryItems(transactions);
+        } else {
+          setHistoryError("Không thể tải lịch sử giao dịch");
+          setHistoryItems([]);
+        }
+      } catch (error) {
+        console.error("Error loading fund history:", error);
+        setHistoryError("Lỗi khi tải lịch sử giao dịch");
+        setHistoryItems([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    loadHistory();
+  }, [fund.id]);
+
+  // Transaction history for chart (from historyItems)
+  const transactionHistory = useMemo(() => {
+    if (!historyItems || historyItems.length === 0) return [];
+    
+    // Sort by date descending, then map to chart format
+    return historyItems
+      .filter(tx => tx.status === 'SUCCESS' && (tx.type === 'DEPOSIT' || tx.type === 'AUTO_DEPOSIT' || tx.type === 'AUTO_DEPOSIT_RECOVERY'))
+      .sort((a, b) => new Date(b.createdAt || b.transactionDate) - new Date(a.createdAt || a.transactionDate))
+      .map(tx => ({
+        date: tx.createdAt || tx.transactionDate,
+        amount: Number(tx.amount || 0)
+      }));
+  }, [historyItems]);
+
   const maxAmount = Math.max(fund.target || 0, fund.current || 1);
   
-  // Transaction history list - Sẽ được lấy từ API khi backend implement
-  const mockTransactionHistory = [];
+  // Map historyItems to display format
+  const displayHistory = useMemo(() => {
+    return historyItems.map(tx => {
+      const isSuccess = tx.status === 'SUCCESS';
+      const txType = tx.type || 'DEPOSIT';
+      const isAuto = txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY';
+      const isRecovery = txType === 'AUTO_DEPOSIT_RECOVERY';
+      
+      return {
+        id: tx.id || tx.transactionId,
+        type: isAuto ? 'auto' : 'manual',
+        typeLabel: isRecovery ? 'Nạp bù tự động' : (isAuto ? 'Nạp tự động' : 'Nạp thủ công'),
+        amount: Number(tx.amount || 0),
+        status: isSuccess ? 'success' : 'failed',
+        date: tx.createdAt || tx.transactionDate || tx.transactionAt,
+        message: tx.message || (isRecovery ? 'Nạp bù tự động thành công' : (isAuto ? 'Nạp tự động thành công' : 'Nạp tiền thành công')),
+        walletBalance: tx.walletBalance
+      };
+    }).sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [historyItems]);
 
   const handleDeposit = async (e) => {
     e.preventDefault();
@@ -1938,7 +2002,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                 marginBottom: '1rem'
               }}>
                 <h6 className="mb-0 text-muted">Lịch sử giao dịch nạp tiền</h6>
-                {mockTransactionHistory.length > 0 && (
+                {historyLoading ? (
                   <span style={{ 
                     fontSize: '0.875rem', 
                     color: '#6c757d',
@@ -1946,12 +2010,47 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                     backgroundColor: '#f8f9fa',
                     borderRadius: '12px'
                   }}>
-                    {mockTransactionHistory.length} giao dịch
+                    <i className="bi bi-arrow-repeat bi-spin me-1"></i>
+                    Đang tải...
+                  </span>
+                ) : displayHistory.length > 0 && (
+                  <span style={{ 
+                    fontSize: '0.875rem', 
+                    color: '#6c757d',
+                    padding: '0.25rem 0.75rem',
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '12px'
+                  }}>
+                    {displayHistory.length} giao dịch
                   </span>
                 )}
               </div>
               
-              {mockTransactionHistory.length === 0 ? (
+              {historyLoading ? (
+                <div style={{
+                  padding: '3rem 2rem',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '12px',
+                  textAlign: 'center'
+                }}>
+                  <i className="bi bi-arrow-repeat bi-spin" style={{ fontSize: '3rem', color: '#6c757d', marginBottom: '1rem' }}></i>
+                  <h6 style={{ color: '#6c757d' }}>Đang tải lịch sử...</h6>
+                </div>
+              ) : historyError ? (
+                <div style={{
+                  padding: '2rem',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '12px',
+                  textAlign: 'center'
+                }}>
+                  <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: '2rem', color: '#ef4444', marginBottom: '0.5rem' }}></i>
+                  <h6 style={{ color: '#dc2626', marginBottom: '0.5rem' }}>Lỗi tải lịch sử</h6>
+                  <p className="text-muted mb-0" style={{ fontSize: '0.875rem' }}>
+                    {historyError}
+                  </p>
+                </div>
+              ) : displayHistory.length === 0 ? (
                 <div style={{
                   padding: '3rem 2rem',
                   backgroundColor: '#f8f9fa',
@@ -1973,7 +2072,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                   overflowY: 'auto',
                   paddingRight: '0.5rem'
                 }}>
-                  {mockTransactionHistory.slice(0, 5).map((tx) => {
+                  {displayHistory.map((tx) => {
                     const isSuccess = tx.status === 'success';
                     const bgColor = isSuccess ? '#f0fdf4' : '#fef2f2';
                     const borderColor = isSuccess ? '#10b981' : '#ef4444';
@@ -2033,7 +2132,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                                 color: '#6c757d'
                               }}></i>
                               <span style={{ fontWeight: '600', fontSize: '1rem', color: '#111827' }}>
-                                {tx.type === 'auto' ? 'Nạp tự động' : 'Nạp thủ công'}
+                                {tx.typeLabel}
                               </span>
                             </div>
                             
@@ -2075,7 +2174,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                             
                             <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
                               <i className="bi bi-clock me-1"></i>
-                              {new Date(tx.date).toLocaleString('vi-VN')}
+                              {tx.date ? new Date(tx.date).toLocaleString('vi-VN') : 'N/A'}
                             </div>
                           </div>
                           
