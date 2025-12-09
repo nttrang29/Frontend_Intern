@@ -121,6 +121,8 @@ export function WalletDataProvider({ children }) {
     // users who are not the owner are treated as VIEW (viewer) regardless of
     // what the backend returned. This enforces the product rule that personal
     // wallets shared to others must be viewer-only.
+    // Additionally, if no role is provided and current user is the owner (or no owner info),
+    // default to OWNER role to ensure the creator can manage their wallet.
     let enforcedRole = resolvedRole;
     try {
       const curUserRaw = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
@@ -135,6 +137,16 @@ export function WalletDataProvider({ children }) {
       }
       const ownerId = apiWallet.ownerId || apiWallet.ownerUserId || apiWallet.createdBy || existingWallet?.ownerUserId || null;
       const isPersonalWallet = rawIsShared === false;
+      
+      // FIX: Nếu không có role từ backend VÀ (user là owner HOẶC không có thông tin owner)
+      // thì mặc định gán OWNER để user có thể quản lý ví của mình
+      if (!resolvedRole || resolvedRole === "") {
+        // Nếu currentUserId === ownerId hoặc không có ownerId (ví mới tạo), user là OWNER
+        if (!ownerId || (currentUserId && String(ownerId) === String(currentUserId))) {
+          enforcedRole = 'OWNER';
+        }
+      }
+      
       if (isPersonalWallet && ownerId && currentUserId && String(ownerId) !== String(currentUserId)) {
         enforcedRole = 'VIEW';
       }
@@ -249,9 +261,26 @@ export function WalletDataProvider({ children }) {
       if (response.ok && data.wallet) {
         // Giữ lại color từ payload nếu có (vì API có thể không trả về)
         const newWallet = normalizeWallet(data.wallet);
+        
+        // Lấy currentUserId để gán làm owner (người tạo ví chính là owner)
+        let currentUserId = null;
+        try {
+          const curUserRaw = localStorage.getItem('user');
+          if (curUserRaw) {
+            const u = JSON.parse(curUserRaw);
+            currentUserId = u.userId || u.id || null;
+          }
+        } catch (e) {
+          // ignore
+        }
+        
         const finalWallet = {
           ...newWallet,
           color: payload.color || newWallet.color || DEFAULT_WALLET_COLOR,
+          // FIX: Đảm bảo người tạo ví có quyền OWNER
+          walletRole: newWallet.walletRole || 'OWNER',
+          sharedRole: newWallet.sharedRole || 'OWNER',
+          ownerUserId: newWallet.ownerUserId || currentUserId,
         };
         setWallets(prev => {
           let next = [finalWallet, ...prev];
