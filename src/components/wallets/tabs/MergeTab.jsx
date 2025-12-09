@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { formatConvertedBalance, formatExchangeRate, getRate } from "../utils/walletUtils";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useBudgetData } from "../../../contexts/BudgetDataContext";
 
 const getLocalUserId = () => {
   if (typeof window === "undefined") return null;
@@ -51,6 +52,7 @@ export default function MergeTab({
   const [searchTerm, setSearchTerm] = useState("");
   const [makeTargetDefault, setMakeTargetDefault] = useState(false);
   const { currentUser } = useAuth();
+  const { budgets } = useBudgetData();
 
   const currentUserId = useMemo(() => {
     const contextId =
@@ -114,6 +116,19 @@ export default function MergeTab({
     });
   }, [allWallets, currentWallet, currentUserId, currentWalletOwnerId]);
 
+  const budgetWalletIds = useMemo(
+    () =>
+      (budgets || [])
+        .map((b) => (b?.walletId !== null && b?.walletId !== undefined ? Number(b.walletId) : null))
+        .filter((id) => id !== null && !Number.isNaN(id)),
+    [budgets]
+  );
+
+  const isBudgetWallet = (w) => {
+    if (!w || w.id === undefined || w.id === null) return false;
+    return budgetWalletIds.includes(Number(w.id));
+  };
+
   useEffect(() => {
     if (!targetId) return;
     const exists = selectableWallets.some(
@@ -147,6 +162,16 @@ export default function MergeTab({
     if (!currentWallet) return null;
     return direction === "this_into_other" ? selectedWallet || null : currentWallet;
   }, [currentWallet, direction, selectedWallet]);
+
+  const budgetBlocking = useMemo(() => {
+    if (isBudgetWallet(currentWallet)) {
+      return "Ví này đang được dùng làm nguồn cho ngân sách và không thể gộp.";
+    }
+    if (isBudgetWallet(selectedWallet)) {
+      return "Ví đích đang được dùng làm nguồn cho ngân sách và không thể gộp.";
+    }
+    return null;
+  }, [currentWallet, selectedWallet]);
 
   const srcCurrency = sourceWallet?.currency || "VND";
   const srcName = sourceWallet?.name || "Ví nguồn";
@@ -229,6 +254,20 @@ export default function MergeTab({
     }
     return tgtBalance + convertedSourceAmount;
   }, [targetWallet, sourceWallet, srcBalance, tgtBalance, differentCurrency, currencyMode, convertedSourceAmount, convertedTargetAmount]);
+
+  if (budgetBlocking) {
+    return (
+      <div className="wallets-section">
+        <div className="wallets-section__header">
+          <h3>Gộp ví</h3>
+          <span>Không thể gộp vì ví đang được dùng cho ngân sách.</span>
+        </div>
+        <div className="alert alert-warning" role="alert">
+          {budgetBlocking}
+        </div>
+      </div>
+    );
+  }
 
   // Early return sau khi tất cả hooks đã được gọi
   if (!wallet) {

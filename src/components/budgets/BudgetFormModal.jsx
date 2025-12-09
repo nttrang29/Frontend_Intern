@@ -118,6 +118,13 @@ export default function BudgetFormModal({
     if (walletRequired && !selectedWalletId) {
       newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
     }
+
+    if (selectedWalletId) {
+      const currencyCode = resolveWalletCurrency(selectedWalletId);
+      if (currencyCode !== "VND") {
+        newErrors.wallet = "Chỉ được chọn ví có đơn vị tiền tệ VND";
+      }
+    }
     if (!limitNumeric || limitNumeric <= 0) {
       newErrors.limit = "Vui lòng nhập hạn mức lớn hơn 0";
     }
@@ -194,6 +201,14 @@ export default function BudgetFormModal({
  
   const categoryList = categories || [];
   const walletList = wallets || [];
+  const vndWallets = useMemo(
+    () =>
+      walletList.filter((w) => {
+        const code = (w?.currency || w?.currencyCode || "").toUpperCase();
+        return code === "VND";
+      }),
+    [walletList]
+  );
  
   const categoryOptions = useMemo(() => {
     const defaults = categoryList.map((cat) => ({
@@ -231,7 +246,7 @@ export default function BudgetFormModal({
  
   const walletOptions = useMemo(() => {
     const options = mapWalletsToSelectOptions(
-      walletList,
+      vndWallets,
       walletTypeLabels,
       (wallet) => (wallet?.id !== undefined && wallet?.id !== null ? wallet.id : "")
     );
@@ -254,7 +269,7 @@ export default function BudgetFormModal({
     }
  
     return normalized;
-  }, [walletList, walletTypeLabels, mode, selectedWalletId, initialData]);
+  }, [walletList, walletTypeLabels, mode, selectedWalletId, initialData, vndWallets]);
  
   return (
     <Modal open={open} onClose={onClose} width={500}>

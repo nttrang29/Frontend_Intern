@@ -11,6 +11,7 @@ import { useLocation } from "react-router-dom";
 import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
 import { useWalletData } from "../../contexts/WalletDataContext";
+import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
@@ -389,6 +390,7 @@ const getVietnamDateTime = () => {
 
 export default function WalletsPage() {
   const { t } = useLanguage();
+  const { budgets = [] } = useBudgetData();
   const {
     wallets = [],
     createWallet,
@@ -1531,6 +1533,12 @@ export default function WalletsPage() {
   const handleSubmitEdit = async (e) => {
     e.preventDefault();
     if (!selectedWallet || !updateWallet) return;
+    const isBudgetWallet = budgets.some((b) => Number(b.walletId) === Number(selectedWallet.id));
+    const currencyChanged = selectedWallet?.currency !== editForm.currency;
+    if (isBudgetWallet && currencyChanged) {
+      showToast("Ví này đang được dùng làm nguồn cho ngân sách nên không thể đổi đơn vị tiền tệ", "error");
+      return;
+    }
     try {
       await updateWallet({
         id: selectedWallet.id,

@@ -598,7 +598,7 @@ export default function BudgetsPage() {
               <button className="btn btn-primary" onClick={handleAddBudget}>Thiết lập Hạn mức Chi tiêu đầu tiên</button>
             </div>
           ) : (
-            <div className="row g-4">
+            <div className="budget-card-grid">
               {visibleBudgets.map((budget) => {
                 const usage = budgetUsageMap.get(budget.id) || computeBudgetUsage(budget);
                 const { spent, remaining, percent, status } = usage;
@@ -619,7 +619,7 @@ export default function BudgetsPage() {
                 const isWarning = status === "warning";
  
                 return (
-                  <div className="col-xl-6" key={budget.id}>
+                  <div className="budget-card-item" key={budget.id}>
                     <div
                       className={`budget-card ${selectedBudgetId === budget.id ? 'budget-card--selected' : ''}`}
                       onClick={() => setSelectedBudgetId(budget.id)}
