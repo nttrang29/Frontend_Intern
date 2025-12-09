@@ -934,7 +934,7 @@ export default function TransactionFormModal({
                         <div className="small text-muted mt-1">
                         {t("transactions.form.converted_amount")} {" "}
                         <strong>
-                          {formatMoney(convertedAmount, targetWallet?.currency || "VND")}
+                          {formatMoney(convertedAmount, targetWallet?.currency || "VND", targetWallet?.currency === 'USD' ? 8 : undefined)}
                         </strong>
                       </div>
                     )}
@@ -943,7 +943,7 @@ export default function TransactionFormModal({
                         <div className="small text-muted mt-1">
                         {t("transactions.form.exchange_rate_prefix")} 1 {sourceWallet.currency || "VND"} ={" "}
                         {new Intl.NumberFormat("vi-VN", {
-                          maximumFractionDigits: 6,
+                          maximumFractionDigits: 8,
                         }).format(transferRate)}{" "}
                         {targetWallet.currency || "VND"}
                       </div>

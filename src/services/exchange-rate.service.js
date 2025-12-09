@@ -2,8 +2,10 @@
  * Exchange Rate Service - Lấy tỉ giá VND/USD từ API
  */
 
-const EXCHANGE_API_URL = "https://api.exchangerate-api.com/v4/latest/USD";
-const EXCHANGE_HISTORICAL_API = "https://api.exchangerate-api.com/v4/history/USD";
+// Use backend API as primary source. Backend exposes /api/exchange?from=USD&to=VND
+const BACKEND_EXCHANGE_API = "http://localhost:8080/api/exchange";
+// Historical endpoint (exchangerate.host supports date-based queries)
+const EXCHANGE_HISTORICAL_API = "https://api.exchangerate.host/"; // append YYYY-MM-DD when used
 const FALLBACK_RATE = 24500; // Tỉ giá fallback
 
 /**
@@ -16,78 +18,126 @@ export async function getExchangeRate() {
     return cached;
   }
 
+  // Nếu người dùng cấu hình nguồn tỉ giá tuỳ chỉnh (ví dụ: Google Finance),
+  // thử fetch và parse trước khi dùng API mặc định.
   try {
-    // Thử dùng exchangerate-api.com (miễn phí, không cần API key)
-    const response = await fetch(EXCHANGE_API_URL, {
+    const custom = localStorage.getItem("exchange_rate_custom_source");
+    if (custom) {
+      try {
+        const parsed = await fetchCustomSourceRate(custom);
+        if (parsed && parsed.vndToUsd) {
+          cacheRate(parsed);
+          return parsed;
+        }
+      } catch (e) {
+        console.warn("Failed to fetch custom exchange source:", e);
+        // fallthrough to default API
+      }
+    }
+  } catch (e) {
+    // ignore localStorage access problems
+  }
+
+  try {
+    // Call backend API
+    const resp = await fetch(`${BACKEND_EXCHANGE_API}?from=USD&to=VND`, {
       method: "GET",
       headers: {
         "Accept": "application/json",
       },
     });
 
-    if (!response.ok) {
-      throw new Error(`Exchange rate API error: ${response.status}`);
-    }
+    if (resp && resp.ok) {
+      const body = await resp.json();
+      const rate = Number(body.rate);
+      if (rate && !Number.isNaN(rate)) {
+        const vndToUsd = Math.round(rate);
+        const usdToVnd = 1 / rate;
 
-    const data = await response.json();
-    
-    // Lấy tỉ giá VND từ API (1 USD = ? VND)
-    const vndRate = data.rates?.VND || FALLBACK_RATE;
-    
-    // Tính toán
-    const vndToUsd = Math.round(vndRate); // 1 USD = ? VND
-    const usdToVnd = 1 / vndRate; // 1 VND = ? USD
-    
-    // Lấy giá trị cũ để tính thay đổi
-    const oldCached = localStorage.getItem("exchange_rate_previous");
-    let change = 0;
-    let changePercent = 0;
-    
-    if (oldCached) {
-      try {
-        const oldData = JSON.parse(oldCached);
-        const oldRate = oldData.vndToUsd || vndToUsd;
-        change = vndToUsd - oldRate;
-        changePercent = (change / oldRate) * 100;
-      } catch (e) {
-        // Ignore parse error
+        const oldCached = localStorage.getItem("exchange_rate_previous");
+        let change = 0;
+        let changePercent = 0;
+        if (oldCached) {
+          try {
+            const oldData = JSON.parse(oldCached);
+            const oldRate = oldData.vndToUsd || vndToUsd;
+            change = vndToUsd - oldRate;
+            changePercent = (change / oldRate) * 100;
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        localStorage.setItem("exchange_rate_previous", JSON.stringify({ vndToUsd, lastUpdate: new Date().toISOString() }));
+
+        const rateData = {
+          vndToUsd,
+          usdToVnd,
+          change,
+          changePercent,
+          lastUpdate: new Date().toISOString(),
+          source: 'server'
+        };
+
+        cacheRate(rateData);
+        return rateData;
       }
     }
-    
-    // Lưu giá trị hiện tại làm giá trị cũ cho lần sau
-    localStorage.setItem("exchange_rate_previous", JSON.stringify({
-      vndToUsd,
-      lastUpdate: new Date().toISOString(),
-    }));
 
-    const rateData = {
-      vndToUsd,
-      usdToVnd,
-      change,
-      changePercent,
-      lastUpdate: new Date().toISOString(),
-    };
-
-    // Cache kết quả
-    cacheRate(rateData);
-    
-    return rateData;
-  } catch (error) {
-    console.error("Error fetching exchange rate:", error);
-    
-    // Fallback: dùng tỉ giá cố định hoặc cache
-    if (cached) {
-      return cached;
-    }
-    
-    return {
-      vndToUsd: FALLBACK_RATE,
-      usdToVnd: 1 / FALLBACK_RATE,
-      change: 0,
-      changePercent: 0,
-      lastUpdate: new Date().toISOString(),
-    };
+    // If backend failed, fallback to existing logic (try custom source or exchangerate)
+  } catch (e) {
+    console.warn("Backend exchange fetch failed, falling back to client logic:", e);
   }
+
+  // Fallback: try custom source or external APIs as before
+  try {
+    // If person configured custom source, try that
+    const custom = localStorage.getItem("exchange_rate_custom_source");
+    if (custom) {
+      try {
+        const parsed = await fetchCustomSourceRate(custom);
+        if (parsed && parsed.vndToUsd) {
+          cacheRate(parsed);
+          return parsed;
+        }
+      } catch (e) {
+        console.warn("Failed to fetch custom exchange source:", e);
+      }
+    }
+
+    // Fall back to exchangerate.host
+    const response = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=VND", {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const vndRate = data.rates?.VND || FALLBACK_RATE;
+      const vndToUsd = Math.round(vndRate);
+      const usdToVnd = 1 / vndRate;
+      const oldCached = localStorage.getItem("exchange_rate_previous");
+      let change = 0;
+      let changePercent = 0;
+      if (oldCached) {
+        try {
+          const oldData = JSON.parse(oldCached);
+          const oldRate = oldData.vndToUsd || vndToUsd;
+          change = vndToUsd - oldRate;
+          changePercent = (change / oldRate) * 100;
+        } catch (e) {}
+      }
+      localStorage.setItem("exchange_rate_previous", JSON.stringify({ vndToUsd, lastUpdate: new Date().toISOString() }));
+      const rateData = { vndToUsd, usdToVnd, change, changePercent, lastUpdate: new Date().toISOString(), source: 'external' };
+      cacheRate(rateData);
+      return rateData;
+    }
+  } catch (error) {
+    console.error("Error fetching exchange rate fallback:", error);
+  }
+
+  // Final fallback
+  if (cached) return cached;
+  return { vndToUsd: FALLBACK_RATE, usdToVnd: 1 / FALLBACK_RATE, change: 0, changePercent: 0, lastUpdate: new Date().toISOString(), source: 'fallback' };
 }
 
 /**
@@ -284,6 +334,95 @@ export async function fetchRateHistory() {
 /**
  * Lấy tất cả lịch sử từ localStorage
  */
+
+// Helper: parse HTML of Google Finance (or similar) to extract VND per USD.
+// Google Finance tends to put the numeric price inside an element with class
+// name that includes "YMlKec" (e.g. <div class="YMlKec fxKbKc">24,500</div>).
+function parseVndFromGoogleFinance(html) {
+  if (!html || typeof html !== 'string') return null;
+  try {
+    // Try common Google Finance class
+    const classMatch = html.match(/class="([^"]*YMlKec[^"]*)"[^>]*>([^<]+)</i);
+    if (classMatch && classMatch[2]) {
+      const txt = classMatch[2].replace(/[^0-9.,]/g, '').trim();
+      const normalized = txt.replace(/,/g, '');
+      const n = Number(normalized);
+      if (!Number.isNaN(n) && n > 0) return n;
+    }
+
+    // Fallback: search for a pattern like "VND" nearby a number
+    const fallbackMatch = html.match(/([0-9\.,]{3,})\s*VND/i);
+    if (fallbackMatch && fallbackMatch[1]) {
+      const normalized = fallbackMatch[1].replace(/,/g, '');
+      const n = Number(normalized);
+      if (!Number.isNaN(n) && n > 0) return n;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
+async function fetchCustomSourceRate(url) {
+  if (!url) throw new Error('No custom exchange source URL provided');
+  // Try to fetch the HTML page and parse the VND rate
+  const resp = await fetch(url, { method: 'GET', headers: { Accept: 'text/html' } });
+  if (!resp.ok) throw new Error(`Custom source fetch failed: ${resp.status}`);
+  const html = await resp.text();
+  const vndRate = parseVndFromGoogleFinance(html);
+  if (!vndRate) throw new Error('Unable to parse VND rate from custom source HTML');
+
+  // Build rate data in the same shape as the rest of the service
+  const vndToUsd = Math.round(vndRate);
+  const usdToVnd = 1 / vndRate;
+
+  // Compute change relative to previous cached value if any
+  let change = 0;
+  let changePercent = 0;
+  try {
+    const oldCached = localStorage.getItem('exchange_rate_previous');
+    if (oldCached) {
+      const oldData = JSON.parse(oldCached);
+      const oldRate = oldData.vndToUsd || vndToUsd;
+      change = vndToUsd - oldRate;
+      changePercent = (change / oldRate) * 100;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // Save previous snapshot
+  try {
+    localStorage.setItem('exchange_rate_previous', JSON.stringify({ vndToUsd, lastUpdate: new Date().toISOString() }));
+  } catch (e) {}
+
+  return {
+    vndToUsd,
+    usdToVnd,
+    change,
+    changePercent,
+    lastUpdate: new Date().toISOString(),
+  };
+}
+
+/**
+ * Cho phép lưu URL nguồn tỉ giá tuỳ chỉnh (ví dụ Google Finance) vào localStorage.
+ * Frontend có thể gọi `setCustomExchangeSource(url)` để thiết lập.
+ */
+export function setCustomExchangeSource(url) {
+  try {
+    if (!url) {
+      localStorage.removeItem('exchange_rate_custom_source');
+    } else {
+      localStorage.setItem('exchange_rate_custom_source', String(url));
+    }
+    return true;
+  } catch (e) {
+    console.error('Error setting custom exchange source:', e);
+    return false;
+  }
+}
+
 function getAllCachedHistory() {
   try {
     const history = localStorage.getItem("exchange_rate_history");

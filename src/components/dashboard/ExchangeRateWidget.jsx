@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "../../styles/components/dashboard/ExchangeRateWidget.css";
-import { getExchangeRate, getRateHistory, fetchRateHistory } from "../../services/exchange-rate.service";
+import { getExchangeRate, getRateHistory, fetchRateHistory, setCustomExchangeSource } from "../../services/exchange-rate.service";
 
 export default function ExchangeRateWidget() {
   const [rate, setRate] = useState({
@@ -14,6 +14,13 @@ export default function ExchangeRateWidget() {
   const [error, setError] = useState(null);
   const [showChart, setShowChart] = useState(false);
   const [chartData, setChartData] = useState([]);
+  const [showCustomSourceModal, setShowCustomSourceModal] = useState(false);
+  const [customSourceInput, setCustomSourceInput] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('exchange_rate_custom_source') || '';
+    }
+    return '';
+  });
 
   const fetchExchangeRate = async () => {
     try {
@@ -37,6 +44,36 @@ export default function ExchangeRateWidget() {
     const interval = setInterval(fetchExchangeRate, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleSaveCustomSource = () => {
+    const trimmed = customSourceInput.trim();
+    if (!trimmed) {
+      // Clear custom source
+      setCustomExchangeSource(null);
+      setShowCustomSourceModal(false);
+      return;
+    }
+    // Validate basic URL format
+    try {
+      new URL(trimmed);
+    } catch (e) {
+      alert('URL không hợp lệ. Vui lòng nhập URL đầy đủ (ví dụ: https://...)');
+      return;
+    }
+    // Save to localStorage via the service function
+    setCustomExchangeSource(trimmed);
+    setShowCustomSourceModal(false);
+    // Re-fetch to apply the new source
+    fetchExchangeRate();
+  };
+
+  const handleClearCustomSource = () => {
+    setCustomExchangeSource(null);
+    setCustomSourceInput('');
+    setShowCustomSourceModal(false);
+    // Re-fetch with default source
+    fetchExchangeRate();
+  };
 
   useEffect(() => {
     if (showChart) {
@@ -130,6 +167,13 @@ export default function ExchangeRateWidget() {
             <i className={`bi ${showChart ? "bi-graph-up-arrow" : "bi-graph-up"}`} />
           </button>
           <button
+            className="exchange-rate-widget__settings-btn"
+            onClick={() => setShowCustomSourceModal(true)}
+            title="Thiết lập nguồn tỉ giá tuỳ chỉnh"
+          >
+            <i className="bi bi-gear" />
+          </button>
+          <button
             className="exchange-rate-widget__refresh"
             onClick={fetchExchangeRate}
             disabled={loading}
@@ -176,8 +220,8 @@ export default function ExchangeRateWidget() {
               <div className="exchange-rate-widget__rate-value">
                 <span className="exchange-rate-widget__rate-number">
                   {rate.usdToVnd.toLocaleString("vi-VN", {
-                    minimumFractionDigits: 6,
-                    maximumFractionDigits: 6,
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 8,
                   })}
                 </span>
                 <span className="exchange-rate-widget__rate-unit">USD</span>
@@ -200,6 +244,7 @@ export default function ExchangeRateWidget() {
             <div className="exchange-rate-widget__update-time">
               <i className="bi bi-clock me-1" />
               <span>Cập nhật: {formatTime(rate.lastUpdate)}</span>
+              <small style={{marginLeft: 8, color: '#6c757d'}}>Nguồn: {rate.source ? (rate.source === 'server' ? 'Server' : (rate.source === 'external' ? 'Public API' : (rate.source === 'custom' ? 'Tùy chỉnh' : 'Fallback'))) : 'Client'}</small>
             </div>
           </div>
 
@@ -271,6 +316,56 @@ export default function ExchangeRateWidget() {
             </div>
           )}
         </>
+      )}
+
+      {/* Modal for setting custom exchange rate source */}
+      {showCustomSourceModal && (
+        <div className="exchange-rate-widget__modal-overlay">
+          <div className="exchange-rate-widget__modal">
+            <div className="exchange-rate-widget__modal-header">
+              <h3>Thiết lập nguồn tỉ giá tuỳ chỉnh</h3>
+              <button
+                className="exchange-rate-widget__modal-close"
+                onClick={() => setShowCustomSourceModal(false)}
+              >
+                <i className="bi bi-x" />
+              </button>
+            </div>
+            <div className="exchange-rate-widget__modal-body">
+              <p className="exchange-rate-widget__modal-hint">
+                Nhập URL nguồn tỉ giá (ví dụ: Google Finance, hoặc API JSON).
+                Để sử dụng nguồn mặc định, để trống và nhấn "Xoá".
+              </p>
+              <input
+                type="text"
+                className="exchange-rate-widget__modal-input"
+                placeholder="https://www.google.com/finance/quote/USD-VND..."
+                value={customSourceInput}
+                onChange={(e) => setCustomSourceInput(e.target.value)}
+              />
+              <div className="exchange-rate-widget__modal-actions">
+                <button
+                  className="exchange-rate-widget__modal-btn exchange-rate-widget__modal-btn--save"
+                  onClick={handleSaveCustomSource}
+                >
+                  Lưu
+                </button>
+                <button
+                  className="exchange-rate-widget__modal-btn exchange-rate-widget__modal-btn--clear"
+                  onClick={handleClearCustomSource}
+                >
+                  Xoá / Dùng mặc định
+                </button>
+                <button
+                  className="exchange-rate-widget__modal-btn exchange-rate-widget__modal-btn--cancel"
+                  onClick={() => setShowCustomSourceModal(false)}
+                >
+                  Huỷ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

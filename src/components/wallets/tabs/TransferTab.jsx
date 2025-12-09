@@ -52,13 +52,14 @@ export default function TransferTab({
       // VND: hiển thị với 6 chữ số thập phân để khớp với tỷ giá
       const formatted = numAmount.toLocaleString("vi-VN", { 
         minimumFractionDigits: 0, 
-        maximumFractionDigits: 6 
+        maximumFractionDigits: 0 
       });
       return `${formatted} VND`;
     }
     if (currency === "USD") {
+      // USD: hiển thị lên tới 8 chữ số thập phân
       const formatted = numAmount.toLocaleString("en-US", { 
-        minimumFractionDigits: 2, 
+        minimumFractionDigits: 0, 
         maximumFractionDigits: 8 
       });
       return `$${formatted}`;
@@ -216,7 +217,7 @@ export default function TransferTab({
                   color: "#6b7280",
                   marginTop: "4px"
                 }}>
-                  Tỷ giá: 1 {sourceCurrency} = {exchangeRate.toLocaleString("vi-VN", { maximumFractionDigits: 6 })} {targetCurrency}
+                  Tỷ giá: 1 {sourceCurrency} = {exchangeRate.toLocaleString("vi-VN", { maximumFractionDigits: 8 })} {targetCurrency}
                 </div>
               </>
             )}

@@ -12,93 +12,185 @@
 
 export const API_BASE_URL = "http://localhost:8080";
 
+// Biến để track việc đang refresh token (tránh refresh nhiều lần cùng lúc)
+let isRefreshing = false;
+let refreshPromise = null;
+
 /**
- * Helper function để gọi API với timeout
+ * Helper function để refresh token
  */
-async function apiCall(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const token = localStorage.getItem("accessToken");
-
-  const defaultHeaders = {
-    "Content-Type": "application/json",
-  };
-
-  if (token) {
-    defaultHeaders["Authorization"] = `Bearer ${token}`;
+async function refreshAccessToken() {
+  // Nếu đang refresh, đợi promise hiện tại
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
   }
 
-  // Timeout mặc định: 30 giây
-  const timeout = options.timeout || 30000;
-
-  // Tạo AbortController để có thể cancel request
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-  const config = {
-    ...options,
-    signal: controller.signal,
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-  };
-
-  // Xóa timeout khỏi options để không gửi lên fetch
-  delete config.timeout;
-
-  try {
-    const response = await fetch(url, config);
-    clearTimeout(timeoutId);
-
-    // Handle non-JSON responses
-    let data;
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        throw new Error("Phản hồi từ server không hợp lệ");
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (!refreshToken) {
+        throw new Error("Không có refresh token");
       }
-    } else {
-      const text = await response.text();
-      throw new Error(text || "Có lỗi xảy ra");
+
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Refresh token thất bại");
+      }
+
+      const data = await response.json();
+      if (data.accessToken) {
+        localStorage.setItem("accessToken", data.accessToken);
+        return data.accessToken;
+      }
+      throw new Error("Không nhận được access token mới");
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+/**
+ * Helper function để gọi API với timeout và tự động refresh token khi 401
+ */
+async function apiCall(endpoint, options = {}) {
+  // Không tự động refresh cho các endpoint auth (tránh vòng lặp vô hạn)
+  const isAuthEndpoint = endpoint.startsWith("/auth/");
+  const skipAutoRefresh = options.skipAutoRefresh || isAuthEndpoint;
+
+  const makeRequest = async (token) => {
+    const url = `${API_BASE_URL}${endpoint}`;
+
+    const defaultHeaders = {
+      "Content-Type": "application/json",
+    };
+
+    if (token) {
+      defaultHeaders["Authorization"] = `Bearer ${token}`;
     }
 
-    if (!response.ok) {
-      const errorMessage =
-        data.error ||
-        data.message ||
-        `HTTP ${response.status}: ${response.statusText}`;
-      // Tạo error object với status code để có thể check sau
-      const error = new Error(errorMessage);
-      error.status = response.status;
-      error.data = data;
-      throw error;
-    }
+    // Timeout mặc định: 60 giây (tăng lên để tránh timeout với các query phức tạp)
+    const timeout = options.timeout || 60000;
 
-    return data;
-  } catch (error) {
-    clearTimeout(timeoutId);
+    // Tạo AbortController để có thể cancel request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-    // Xử lý các loại lỗi khác nhau
-    if (error.name === "AbortError") {
-      throw new Error("Yêu cầu quá thời gian chờ. Vui lòng thử lại.");
-    }
+    const config = {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers,
+      },
+    };
 
-    if (error.name === "TypeError" && error.message.includes("fetch")) {
+    // Xóa timeout khỏi options để không gửi lên fetch
+    delete config.timeout;
+
+    try {
+      const response = await fetch(url, config);
+      clearTimeout(timeoutId);
+
+      // Handle non-JSON responses
+      let data;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          throw new Error("Phản hồi từ server không hợp lệ");
+        }
+      } else {
+        const text = await response.text();
+        throw new Error(text || "Có lỗi xảy ra");
+      }
+
+      if (!response.ok) {
+        const errorMessage =
+          data.error ||
+          data.message ||
+          `HTTP ${response.status}: ${response.statusText}`;
+        // Tạo error object với status code để có thể check sau
+        const error = new Error(errorMessage);
+        error.status = response.status;
+        error.data = data;
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      // Xử lý các loại lỗi khác nhau
+      if (error.name === "AbortError") {
+        throw new Error("Yêu cầu quá thời gian chờ. Vui lòng thử lại.");
+      }
+
+      if (error.name === "TypeError" && error.message.includes("fetch")) {
+        throw new Error(
+          "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng hoặc đảm bảo backend đang chạy."
+        );
+      }
+
+      // Re-throw với message gốc nếu đã có
+      if (error.message) {
+        throw error;
+      }
+
       throw new Error(
-        "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng hoặc đảm bảo backend đang chạy."
+        "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng."
       );
     }
+  };
 
-    // Re-throw với message gốc nếu đã có
-    if (error.message) {
-      throw error;
+  // Lấy token hiện tại
+  let token = localStorage.getItem("accessToken");
+
+  try {
+    // Thử request với token hiện tại
+    return await makeRequest(token);
+  } catch (error) {
+    // Nếu nhận 401 và không phải auth endpoint, thử refresh token
+    if (
+      error.status === 401 &&
+      !skipAutoRefresh &&
+      localStorage.getItem("refreshToken")
+    ) {
+      try {
+        // Refresh token
+        const newToken = await refreshAccessToken();
+
+        // Retry request với token mới
+        return await makeRequest(newToken);
+      } catch (refreshError) {
+        // Refresh thất bại - xóa tokens và logout
+        console.error("Refresh token thất bại:", refreshError);
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("auth_user");
+        localStorage.removeItem("user");
+
+        // Trigger event để các component biết user đã logout
+        window.dispatchEvent(new CustomEvent("userChanged"));
+
+        // Throw error gốc
+        throw error;
+      }
     }
 
-    throw new Error(
-      "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng."
-    );
+    // Nếu không phải 401 hoặc không có refresh token, throw error gốc
+    throw error;
   }
 }
 
@@ -227,13 +319,14 @@ export const authAPI = {
   },
 
   /**
-   * Làm mới token
+   * Làm mới token (manual refresh - không tự động retry)
    */
   refreshToken: async () => {
     const refreshToken = localStorage.getItem("refreshToken");
     const data = await apiCall("/auth/refresh", {
       method: "POST",
       body: JSON.stringify({ refreshToken }),
+      skipAutoRefresh: true, // Không tự động refresh khi gọi endpoint này
     });
 
     if (data.accessToken) {

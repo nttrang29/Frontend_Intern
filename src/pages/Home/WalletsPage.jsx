@@ -19,6 +19,7 @@ import Toast from "../../components/common/Toast/Toast";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
+import { getExchangeRate } from "../../services/exchange-rate.service";
 
 import "../../styles/pages/WalletsPage.css";
 import "../../styles/components/wallets/WalletList.css";
@@ -407,6 +408,17 @@ export default function WalletsPage() {
   const [currentUserId, setCurrentUserId] = useState(() => getLocalUserId());
 
   useEffect(() => {
+    // Ensure we have a recent exchange rate cached for conversions
+    // so transfer/merge UIs show consistent rates even if the dashboard widget
+    // is not mounted on this page.
+    (async () => {
+      try {
+        await getExchangeRate();
+      } catch (e) {
+        // ignore errors - we'll fall back to cached/static rates
+      }
+    })();
+
     if (typeof window === "undefined") return;
     const handleUserChange = () => {
       setCurrentUserId(getLocalUserId());
@@ -1098,15 +1110,18 @@ export default function WalletsPage() {
   // Helper function để tính tỷ giá
   const getRate = (from, to) => {
     if (!from || !to || from === to) return 1;
-    // Prefer using cached exchange rate (vndPerUsd) if available to keep
+    // Prefer using cached exchange rate if available to keep
     // all conversions consistent with the dashboard cache.
     try {
       const cachedRaw = typeof window !== 'undefined' ? localStorage.getItem('exchange_rate_cache') : null;
       const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
-      const vndPerUsd = cached && Number(cached.vndToUsd) ? Number(cached.vndToUsd) : null;
-      if (vndPerUsd) {
-        if (from === 'USD' && to === 'VND') return vndPerUsd;
-        if (from === 'VND' && to === 'USD') return 1 / vndPerUsd;
+      // Cache structure: vndToUsd = how many VND per 1 USD (e.g., 24390)
+      const vndToUsd = cached && cached.vndToUsd ? Number(cached.vndToUsd) : null;
+      const usdToVnd = cached && cached.usdToVnd ? Number(cached.usdToVnd) : null;
+      
+      if ((vndToUsd || usdToVnd) && !Number.isNaN(vndToUsd || usdToVnd)) {
+        if (from === 'USD' && to === 'VND') return vndToUsd || 24390;
+        if (from === 'VND' && to === 'USD') return usdToVnd || (1 / (vndToUsd || 24390));
         // If neither side is USD, fall through to fallback rates below
       }
     } catch (e) {
@@ -1116,7 +1131,7 @@ export default function WalletsPage() {
     // Fallback static rates (used only if cache not available)
     const rates = {
       VND: 1,
-      USD: 0.000041, // 1 VND = 0.000041 USD (fallback)
+      USD: 0.000041, // 1 VND = 0.000041 USD (inverse of 1 USD = 24390 VND)
       EUR: 0.000038,
       JPY: 0.0063,
       GBP: 0.000032,
@@ -1717,11 +1732,19 @@ export default function WalletsPage() {
       return;
     }
     try {
+      // Get the target wallet to know its currency for proper conversion tracking
+      const targetWallet = wallets.find(
+        (w) => Number(w.id) === Number(transferTargetId)
+      );
+      const sourceCurrency = selectedWallet.currency || "VND";
+      const targetCurrency = targetWallet?.currency || "VND";
+
       await transferMoney({
         sourceId: selectedWallet.id,
         targetId: Number(transferTargetId),
         amount: amountNum,
         note: transferNote || "",
+        targetCurrencyCode: targetCurrency, // Pass target currency to backend/service
         mode: "this_to_other",
       });
       await loadWallets();
@@ -2298,7 +2321,7 @@ export default function WalletsPage() {
               <i className="bi bi-arrow-repeat"></i>
             </button>
           </div>
-          <div className="budget-metric-value">{formatMoney(totalDisplayedValue, totalCurrency || "VND")}</div>
+          <div className="budget-metric-value">{formatMoney(totalDisplayedValue, totalCurrency || "VND", totalCurrency === 'USD' ? 8 : undefined)}</div>
           <div id="tooltip-total" role="tooltip" className="budget-metric-tooltip">
             <strong>Tổng số dư</strong>
             <div className="budget-metric-tooltip__body">
@@ -2310,7 +2333,7 @@ export default function WalletsPage() {
 
         <div className="budget-metric-card budget-metric-card--personal" tabIndex={0} aria-describedby="tooltip-personal">
           <div className="budget-metric-label">{t('wallets.metric.personal_balance')}</div>
-          <div className="budget-metric-value">{formatMoney(personalDisplayedValue, totalCurrency || "VND")}</div>
+          <div className="budget-metric-value">{formatMoney(personalDisplayedValue, totalCurrency || "VND", totalCurrency === 'USD' ? 8 : undefined)}</div>
           <div id="tooltip-personal" role="tooltip" className="budget-metric-tooltip">
             <strong>Ví cá nhân</strong>
             <div className="budget-metric-tooltip__body">Tổng số dư của các ví cá nhân (ví thuộc sở hữu và quản lý trực tiếp bởi bạn).</div>
@@ -2320,7 +2343,7 @@ export default function WalletsPage() {
 
         <div className="budget-metric-card budget-metric-card--group" tabIndex={0} aria-describedby="tooltip-group">
           <div className="budget-metric-label">{t('wallets.metric.group_balance')}</div>
-          <div className="budget-metric-value">{formatMoney(groupDisplayedValue, totalCurrency || "VND")}</div>
+          <div className="budget-metric-value">{formatMoney(groupDisplayedValue, totalCurrency || "VND", totalCurrency === 'USD' ? 8 : undefined)}</div>
           <div id="tooltip-group" role="tooltip" className="budget-metric-tooltip">
             <strong>Ví nhóm</strong>
             <div className="budget-metric-tooltip__body">Tổng số dư của các ví nhóm mà bạn sở hữu hoặc tham gia quản lý. Bao gồm các ví bạn đã chia sẻ cho nhóm.</div>
@@ -2330,7 +2353,7 @@ export default function WalletsPage() {
 
         <div className="budget-metric-card budget-metric-card--shared-with-me" tabIndex={0} aria-describedby="tooltip-shared-with-me">
           <div className="budget-metric-label">{t('wallets.metric.shared_with_me_balance')}</div>
-          <div className="budget-metric-value">{formatMoney(sharedWithMeDisplayedValue, totalCurrency || "VND")}</div>
+          <div className="budget-metric-value">{formatMoney(sharedWithMeDisplayedValue, totalCurrency || "VND", totalCurrency === 'USD' ? 8 : undefined)}</div>
           <div id="tooltip-shared-with-me" role="tooltip" className="budget-metric-tooltip">
             <strong>Được chia sẻ cho tôi</strong>
             <div className="budget-metric-tooltip__body">Tổng số dư các ví mà người khác chia sẻ cho bạn — bạn có thể xem hoặc thao tác theo quyền được cấp.</div>

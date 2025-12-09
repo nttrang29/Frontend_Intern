@@ -464,7 +464,7 @@ export default function TransactionForm({
                   }}>
                     Tỷ giá: 1 {sourceCurrency} = {exchangeRate.toLocaleString("vi-VN", { 
                       minimumFractionDigits: 0, 
-                      maximumFractionDigits: 6 
+                      maximumFractionDigits: 8 
                     })} {targetCurrency}
                   </div>
                 </>
