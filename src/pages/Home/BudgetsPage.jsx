@@ -162,11 +162,18 @@ export default function BudgetsPage() {
     if (!year || !month || !day) return null;
     return new Date(year, month - 1, day);
   };
- 
-  const budgetStatusLabel = {
-    healthy: "healthy",
-    warning: "warning",
-    over: "over",
+
+  const getTimelineStatus = (budget) => {
+    if (!budget) return "active";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const start = budget.startDate ? parseDateOnly(budget.startDate) : null;
+    const end = budget.endDate ? parseDateOnly(budget.endDate) : null;
+
+    if (start && today < start) return "upcoming";
+    if (end && today > end) return "ended";
+    return "active";
   };
  
   const budgetStatusTone = {
@@ -595,6 +602,19 @@ export default function BudgetsPage() {
               {visibleBudgets.map((budget) => {
                 const usage = budgetUsageMap.get(budget.id) || computeBudgetUsage(budget);
                 const { spent, remaining, percent, status } = usage;
+                const timelineStatus = getTimelineStatus(budget);
+                const isUpcoming = timelineStatus === "upcoming";
+                const isEnded = timelineStatus === "ended";
+                const displayStatusKey = isUpcoming
+                  ? "not_started"
+                  : isEnded
+                  ? "ended"
+                  : status;
+                const chipTone = isUpcoming
+                  ? "neutral"
+                  : isEnded
+                  ? "muted"
+                  : budgetStatusTone[status] || "";
                 const isOver = status === "over";
                 const isWarning = status === "warning";
  
@@ -615,8 +635,8 @@ export default function BudgetsPage() {
                             {budget.walletName && <div className="text-muted small">Ví: {budget.walletName}</div>}
                           </div>
                         </div>
-                        <span className={`budget-status-chip ${budgetStatusTone[status] || ""}`}>
-                          {t(`budgets.status.${status}`)}
+                        <span className={`budget-status-chip ${chipTone}`}>
+                          {t(`budgets.status.${displayStatusKey}`)}
                         </span>
                       </div>
  

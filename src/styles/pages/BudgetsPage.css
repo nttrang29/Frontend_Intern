@@ -613,6 +613,16 @@
   color: var(--color-error);
 }
 
+.budget-status-chip.neutral {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.budget-status-chip.muted {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+}
+
 .budget-status-chip.compact {
   text-transform: none;
   font-size: 0.8rem;

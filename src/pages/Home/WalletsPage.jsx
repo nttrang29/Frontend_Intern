@@ -458,21 +458,32 @@ export default function WalletsPage() {
     const isWalletOwnedByMe = useCallback(
       (wallet) => {
         if (!wallet) return false;
-        if (!(wallet.isShared || walletHasSharedMembers(wallet))) return false;
+
+        const hasSharedContext = wallet.isShared || walletHasSharedMembers(wallet);
         const role = (
           wallet.walletRole ||
           wallet.sharedRole ||
           wallet.role ||
           ""
         ).toUpperCase();
+
         if (role) {
           if (["OWNER", "MASTER", "ADMIN"].includes(role)) return true;
-          if (["MEMBER", "VIEW", "VIEWER", "USER", "USE"].includes(role))
+          if (["MEMBER", "VIEW", "VIEWER", "USER", "USE"].includes(role)) {
             return false;
+          }
         }
+
         if (wallet.ownerUserId && currentUserId) {
           return String(wallet.ownerUserId) === String(currentUserId);
         }
+
+        // Plain personal wallets (no shared context) belong to the current user by default
+        if (!hasSharedContext) {
+          return true;
+        }
+
+        // Shared wallet without explicit metadata: assume owner to keep controls available
         return true;
       },
       [currentUserId, walletHasSharedMembers]

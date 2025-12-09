@@ -954,6 +954,8 @@ const translations = {
     "budgets.status.healthy": "Đang hoạt động",
     "budgets.status.warning": "Vượt ngưỡng cảnh báo",
     "budgets.status.over": "Vượt hạn mức",
+    "budgets.status.not_started": "Chưa bắt đầu",
+    "budgets.status.ended": "Đã kết thúc",
 
     // Admin Users Page
     "admin.users.title": "Quản lý người dùng",
@@ -2002,6 +2004,8 @@ const translations = {
     "budgets.status.healthy": "Healthy",
     "budgets.status.warning": "Warning Threshold Exceeded",
     "budgets.status.over": "Over",
+    "budgets.status.not_started": "Not started",
+    "budgets.status.ended": "Ended",
 
     // Admin Users Page
     "admin.users.title": "User Management",

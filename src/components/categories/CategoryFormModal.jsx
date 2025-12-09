@@ -118,7 +118,7 @@ export default function CategoryFormModal({
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 2147483647;
+            z-index: 2100; /* Keep below confirmation modal (z-index 2200) so warnings can overlay */
           }
 
           /* Hộp trắng bên trong */
