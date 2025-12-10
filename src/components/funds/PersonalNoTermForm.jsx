@@ -340,7 +340,8 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
             <label>Số tiền gửi mỗi kỳ</label>
             <input 
               type="number" 
-              min={0} 
+              // USD yêu cầu tối thiểu 1 USD, các loại tiền khác có thể để trống/0
+              min={selectedCurrency === "USD" ? 1 : 0} 
               placeholder="Tuỳ chọn"
               value={periodAmount}
               onChange={(e) => setPeriodAmount(e.target.value)}

@@ -172,6 +172,13 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     fund.target && fund.target > 0
       ? Math.min(100, Math.round((fund.current / fund.target) * 100))
       : null;
+  const progressValue = progress ?? 0;
+  const ringRadius = 40;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringOffset = ringCircumference * (1 - progressValue / 100);
+  const ringOuterRadius = ringRadius + 30;
+  const ringOuterCircumference = 2 * Math.PI * ringOuterRadius;
+  const ringOuterOffset = ringOuterCircumference * (1 - progressValue / 100);
 
   // Trạng thái quỹ từ backend (ACTIVE, CLOSED, COMPLETED)
   const fundStatus = fund.status || fund.fundStatus || null;
@@ -344,6 +351,90 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         amount: Number(tx.amount || 0)
       }));
   }, [historyItems]);
+
+  // Sparkline data (lấy tối đa 10 giao dịch nạp gần nhất)
+  const sparkline = useMemo(() => {
+    if (!transactionHistory || transactionHistory.length === 0) {
+      return { points: "", max: 0, lastAmount: 0 };
+    }
+    const slice = transactionHistory.slice(0, 10).reverse(); // mới nhất lên cuối để vẽ trái->phải
+    const maxVal = Math.max(...slice.map((p) => p.amount), 1);
+    const pts = slice.map((p, idx) => {
+      const x = (idx / Math.max(slice.length - 1, 1)) * 100;
+      const y = 70 - (p.amount / maxVal) * 60; // padding 10px top/bot
+      return `${x},${y}`;
+    });
+    return {
+      points: pts.join(" "),
+      max: maxVal,
+      lastAmount: slice[slice.length - 1]?.amount || 0,
+    };
+  }, [transactionHistory]);
+
+  // Bar chart data (tối đa 12 giao dịch gần nhất)
+  const barChart = useMemo(() => {
+    if (!transactionHistory || transactionHistory.length === 0) {
+      return { bars: [], max: 0 };
+    }
+    const slice = transactionHistory.slice(0, 12).reverse(); // trái->phải
+    const maxVal = Math.max(...slice.map((p) => p.amount), 1);
+    const bars = slice.map((p, idx) => ({
+      key: `${p.date || idx}`,
+      height: Math.max(8, Math.round((p.amount / maxVal) * 100)),
+      label: idx % 2 === 0 ? `${idx + 1}` : "",
+      amount: p.amount,
+    }));
+    return { bars, max: maxVal };
+  }, [transactionHistory]);
+
+  // Thống kê giao dịch
+  const txStats = useMemo(() => {
+    const total = historyItems.length;
+    const success = historyItems.filter((tx) => tx.status === "SUCCESS").length;
+    const auto = historyItems.filter(
+      (tx) => tx.status === "SUCCESS" && (tx.type === "AUTO_DEPOSIT" || tx.type === "AUTO_DEPOSIT_RECOVERY")
+    ).length;
+    const manual = historyItems.filter(
+      (tx) => tx.status === "SUCCESS" && (tx.type === "DEPOSIT" || tx.type === "MANUAL_DEPOSIT")
+    ).length;
+    return {
+      total,
+      success,
+      auto,
+      manual,
+      autoPct: total ? Math.round((auto / total) * 100) : 0,
+      manualPct: total ? Math.round((manual / total) * 100) : 0,
+    };
+  }, [historyItems]);
+
+  // Line chart: tiến độ tiến gần mục tiêu theo tháng (cumulative %)
+  const monthlyProgress = useMemo(() => {
+    if (!historyItems || historyItems.length === 0) return { labels: [], progress: [], max: 100 };
+    const target = fund.target || fund.targetAmount || 0;
+    const map = new Map();
+    historyItems.forEach((tx) => {
+      const d = new Date(tx.createdAt || tx.transactionDate || tx.transactionAt);
+      if (Number.isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const amount = Number(tx.amount || 0);
+      const entry = map.get(key) || { total: 0, month: d.getMonth() };
+      if (tx.status === "SUCCESS") {
+        entry.total += amount;
+      }
+      map.set(key, entry);
+    });
+    const sorted = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    let cumulative = 0;
+    const labels = [];
+    const progress = [];
+    sorted.forEach(([, v]) => {
+      cumulative += v.total;
+      labels.push(new Date(2020, v.month, 1).toLocaleString("en-US", { month: "short" }));
+      const pct = target > 0 ? Math.min(100, Math.round((cumulative / target) * 100)) : 0;
+      progress.push(pct);
+    });
+    return { labels, progress, max: 100 };
+  }, [historyItems, fund.target, fund.targetAmount]);
 
   const maxAmount = Math.max(fund.target || 0, fund.current || 1);
   
@@ -1053,805 +1144,169 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         </div>
       </div>
 
-      {/* CONFIRM DELETE MODAL */}
-      <ConfirmModal
-        open={confirmDeleteOpen}
-        title="Xác nhận xóa quỹ"
-        message={`Bạn có chắc chắn muốn xóa quỹ "${fund.name}"?\n\nHành động này sẽ xóa vĩnh viễn quỹ và không thể hoàn tác!`}
-        okText="Xóa quỹ"
-        cancelText="Hủy"
-        danger={true}
-        onOk={confirmDeleteFund}
-        onClose={() => setConfirmDeleteOpen(false)}
-      />
-
-      {/* CONFIRM SETTLE MODAL */}
-      <ConfirmModal
-        open={confirmSettleOpen}
-        title="Xác nhận tất toán quỹ"
-        message={`Bạn có chắc chắn muốn tất toán quỹ "${fund.name}"?\n\nSố tiền ${formatMoney(fund.current, fund.currency)} sẽ được rút toàn bộ về ví nguồn và quỹ sẽ bị xóa sau khi tất toán thành công.\n\nHành động này không thể hoàn tác!`}
-        okText="Tất toán"
-        cancelText="Hủy"
-        danger={false}
-        onOk={confirmSettle}
-        onClose={() => setConfirmSettleOpen(false)}
-      />
-    </div>
-  );
-}
-                      `}</style>
-                      
-                      {/* Pulse rings */}
-                      <div className="pulse-ring" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}></div>
-                      <div className="pulse-ring" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', animationDelay: '0.5s' }}></div>
-                      
-                      <div style={{ position: 'relative', zIndex: 1 }}>
-                        {/* Success Icon */}
-                        <div style={{
-                          width: '100px',
-                          height: '100px',
-                          margin: '0 auto 1.5rem',
-                          borderRadius: '50%',
-                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          animation: 'bounce-icon 2s ease-in-out infinite'
-                        }}>
-                          <i className="bi bi-trophy-fill" style={{ fontSize: '3rem', color: '#fff' }}></i>
-                        </div>
-                        
-                        <h3 style={{ color: '#fff', fontWeight: '700', marginBottom: '0.75rem' }}>
-                          🎉 Chúc mừng! Hoàn thành mục tiêu!
-                        </h3>
-                        
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.75rem',
-                          padding: '0.75rem 1.5rem',
-                          backgroundColor: 'rgba(255, 255, 255, 0.25)',
-                          borderRadius: '20px',
-                          marginBottom: '1rem'
-                        }}>
-                          <i className="bi bi-check-circle-fill" style={{ fontSize: '1.25rem', color: '#fff' }}></i>
-                          <span style={{ color: '#fff', fontSize: '1.125rem', fontWeight: '600' }}>
-                            {progress}% hoàn thành
-                          </span>
-                        </div>
-                        
-                        <p style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '1rem', marginBottom: '0' }}>
-                          Số dư quỹ: <strong>{formatMoney(fund.current, fund.currency)}</strong>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* FORM RÚT TOÀN BỘ */}
-                    <form onSubmit={handleWithdraw}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        
-                        {/* Card: Ví nguồn */}
-                        <div style={{
-                          padding: '1.5rem',
-                          backgroundColor: '#fff',
-                          border: '1px solid #e5e7eb',
-                          borderLeft: '5px solid #10b981',
-                          borderRadius: '12px',
-                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'start', gap: '1rem' }}>
-                            {/* Icon Circle */}
-                            <div style={{
-                              width: '48px',
-                              height: '48px',
-                              borderRadius: '50%',
-                              backgroundColor: '#d1fae5',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0
-                            }}>
-                              <i className="bi bi-wallet2 float-icon" style={{ fontSize: '1.25rem', color: '#10b981' }}></i>
-                            </div>
-                            
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Rút về ví nguồn
-                              </div>
-                              <div style={{ fontSize: '1.125rem', fontWeight: '600', color: '#111827', marginBottom: '0.5rem' }}>
-                                {fund.sourceWalletName || "Ví nguồn"}
-                              </div>
-                              <div style={{ 
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '0.375rem 0.75rem',
-                                backgroundColor: '#ecfdf5',
-                                borderRadius: '12px',
-                                fontSize: '0.875rem',
-                                color: '#065f46'
-                              }}>
-                                <i className="bi bi-cash-stack pulsing-icon" style={{ animationDuration: '2.5s' }}></i>
-                                {(() => {
-                                  const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
-                                  return sourceWallet 
-                                    ? formatMoney(sourceWallet.balance, sourceWallet.currency)
-                                    : 'Không tìm thấy';
-                                })()}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Card: Số tiền rút */}
-                        <div style={{
-                          padding: '1.5rem',
-                          backgroundColor: '#fff',
-                          border: '1px solid #e5e7eb',
-                          borderLeft: '5px solid #ef4444',
-                          borderRadius: '12px',
-                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'start', gap: '1rem' }}>
-                            {/* Icon Circle */}
-                            <div style={{
-                              width: '48px',
-                              height: '48px',
-                              borderRadius: '50%',
-                              backgroundColor: '#fee2e2',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0
-                            }}>
-                              <i className="bi bi-arrow-down-circle-fill float-icon" style={{ fontSize: '1.25rem', color: '#ef4444', animationDuration: '2s' }}></i>
-                            </div>
-                            
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Số tiền sẽ rút
-                              </div>
-                              <div style={{ fontSize: '0.875rem', color: '#991b1b', marginBottom: '0.5rem', fontWeight: '600' }}>
-                                Toàn bộ số dư quỹ
-                              </div>
-                              <div style={{ fontSize: '2rem', fontWeight: '700', color: '#ef4444' }}>
-                                {formatMoney(fund.current, fund.currency)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Card: Sau khi rút */}
-                        <div style={{
-                          padding: '1.5rem',
-                          backgroundColor: '#fff',
-                          border: '1px solid #e5e7eb',
-                          borderLeft: '5px solid #0d6efd',
-                          borderRadius: '12px',
-                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'start', gap: '1rem' }}>
-                            {/* Icon Circle */}
-                            <div style={{
-                              width: '48px',
-                              height: '48px',
-                              borderRadius: '50%',
-                              backgroundColor: '#dbeafe',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0
-                            }}>
-                              <i className="bi bi-arrow-right-circle-fill pulsing-icon" style={{ fontSize: '1.25rem', color: '#0d6efd', animationDuration: '2s' }}></i>
-                            </div>
-                            
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Sau khi rút
-                              </div>
-                              
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
-                                {/* Số dư quỹ */}
-                                <div style={{
-                                  padding: '0.75rem',
-                                  backgroundColor: '#f8fafc',
-                                  borderRadius: '8px',
-                                  border: '1px solid #e2e8f0'
-                                }}>
-                                  <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.25rem' }}>
-                                    Số dư quỹ
-                                  </div>
-                                  <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#64748b' }}>
-                                    0 {fund.currency}
-                                  </div>
-                                </div>
-                                
-                                {/* Số dư ví */}
-                                <div style={{
-                                  padding: '0.75rem',
-                                  backgroundColor: '#ecfdf5',
-                                  borderRadius: '8px',
-                                  border: '1px solid #a7f3d0'
-                                }}>
-                                  <div style={{ fontSize: '0.75rem', color: '#065f46', marginBottom: '0.25rem' }}>
-                                    Số dư ví nguồn
-                                  </div>
-                                  <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#10b981' }}>
-                                    {(() => {
-                                      const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
-                                      return sourceWallet 
-                                        ? formatMoney(sourceWallet.balance + fund.current, fund.currency)
-                                        : 'N/A';
-                                    })()}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Card: Thông báo */}
-                        <div style={{
-                          padding: '1.5rem',
-                          backgroundColor: '#fff',
-                          border: '1px solid #e5e7eb',
-                          borderLeft: '5px solid #f59e0b',
-                          borderRadius: '12px',
-                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'start', gap: '1rem' }}>
-                            {/* Icon Circle */}
-                            <div style={{
-                              width: '48px',
-                              height: '48px',
-                              borderRadius: '50%',
-                              backgroundColor: '#fef3c7',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0
-                            }}>
-                              <i className="bi bi-info-circle-fill pulsing-icon" style={{ fontSize: '1.25rem', color: '#f59e0b', animationDuration: '3s' }}></i>
-                            </div>
-                            
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#92400e', marginBottom: '0.5rem' }}>
-                                Lưu ý quan trọng
-                              </div>
-                              <div style={{ fontSize: '0.875rem', color: '#78350f', lineHeight: '1.6' }}>
-                                Sau khi rút tiền thành công, quỹ sẽ được <strong>đóng</strong> và chuyển sang trạng thái <strong>hoàn thành</strong>. 
-                                Bạn vẫn có thể xem lại lịch sử quỹ này trong mục "Quỹ đã hoàn thành".
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Progress Bar khi đang rút */}
-                      {saving && withdrawProgress > 0 && (
-                        <div style={{
-                          marginTop: '1rem',
-                          padding: '1rem',
-                          backgroundColor: '#f0fdf4',
-                          border: '1px solid #86efac',
-                          borderRadius: '8px'
-                        }}>
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'space-between',
-                            marginBottom: '0.5rem'
-                          }}>
-                            <span style={{ fontSize: '0.875rem', color: '#065f46', fontWeight: '600' }}>
-                              <i className="bi bi-arrow-down-circle me-1"></i>
-                              Đang rút tiền...
-                            </span>
-                            <span style={{ fontSize: '1.125rem', color: '#10b981', fontWeight: '700' }}>
-                              {withdrawProgress}%
-                            </span>
-                          </div>
-                          <div style={{
-                            width: '100%',
-                            height: '8px',
-                            backgroundColor: '#d1fae5',
-                            borderRadius: '4px',
-                            overflow: 'hidden'
-                          }}>
-                            <div style={{
-                              width: `${withdrawProgress}%`,
-                              height: '100%',
-                              backgroundColor: '#10b981',
-                              transition: 'width 0.3s ease',
-                              borderRadius: '4px'
-                            }}></div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="funds-actions mt-3" style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          onClick={() => setActiveTab("info")}
-                          disabled={saving}
-                          style={{ flex: 1 }}
-                        >
-                          Hủy
-                        </button>
-                        <button type="submit" className="btn-primary" disabled={saving} style={{ flex: 1 }}>
-                          <i className="bi bi-wallet2 me-1"></i>
-                          {saving ? "Đang xử lý..." : "Rút toàn bộ"}
-              </button>
-            </div>
-          </form>
-                  </>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* TAB 5: LỊCH SỬ */}
-          {activeTab === "history" && (
-            <div>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                marginBottom: '1rem'
-              }}>
-                <h6 className="mb-0 text-muted">Lịch sử giao dịch nạp tiền</h6>
-                {historyLoading ? (
-                  <span style={{ 
-                    fontSize: '0.875rem', 
-                    color: '#6c757d',
-                    padding: '0.25rem 0.75rem',
-                    backgroundColor: '#f8f9fa',
-                    borderRadius: '12px'
-                  }}>
-                    <i className="bi bi-arrow-repeat bi-spin me-1"></i>
-                    Đang tải...
-                  </span>
-                ) : displayHistory.length > 0 && (
-                  <span style={{ 
-                    fontSize: '0.875rem', 
-                    color: '#6c757d',
-                    padding: '0.25rem 0.75rem',
-                    backgroundColor: '#f8f9fa',
-                    borderRadius: '12px'
-                  }}>
-                    {displayHistory.length} giao dịch
-                  </span>
-                )}
+      {/* CỘT PHẢI: CHỈ HIỂN THỊ BIỂU ĐỒ QUẠT (DONUT) */}
+      <div className="fund-detail-summary">
+        <div
+          className="card border-0 shadow-sm"
+          style={{
+            background: "linear-gradient(145deg, #f8fbff 0%, #eef4ff 100%)",
+            overflow: "hidden",
+            position: "relative",
+          }}
+        >
+          {/* Glow background */}
+          <div
+            style={{
+              position: "absolute",
+              width: 220,
+              height: 220,
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(13,110,253,0.25) 0%, rgba(13,110,253,0) 60%)",
+              top: -40,
+              right: -50,
+              filter: "blur(6px)",
+            }}
+          ></div>
+          <div className="card-header bg-transparent fw-semibold d-flex justify-content-between align-items-center border-0">
+            <span style={{ color: "#0d6efd" }}>Tiến độ quỹ</span>
+            <span className="badge bg-primary-subtle text-primary text-uppercase">
+              {fund.status || fund.fundStatus || "ACTIVE"}
+            </span>
+          </div>
+          <div className="card-body">
+            <div className="d-flex flex-column align-items-center">
+              <div className="position-relative" style={{ width: 220, height: 220 }}>
+                <svg width="220" height="220">
+                  <defs>
+                    <linearGradient id="fundRing" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#0d6efd" />
+                      <stop offset="100%" stopColor="#4dabf7" />
+                    </linearGradient>
+                  </defs>
+                  <circle
+                    cx="110"
+                    cy="110"
+                    r={ringOuterRadius}
+                    stroke="#e9ecef"
+                    strokeWidth="18"
+                    fill="none"
+                  />
+                  <circle
+                    cx="110"
+                    cy="110"
+                    r={ringOuterRadius}
+                    stroke="url(#fundRing)"
+                    strokeWidth="18"
+                    fill="none"
+                    strokeDasharray={`${ringOuterCircumference} ${ringOuterCircumference}`}
+                    strokeDashoffset={ringOuterOffset}
+                    strokeLinecap="round"
+                    transform="rotate(-90 110 110)"
+                    style={{ transition: "stroke-dashoffset 0.6s ease, stroke 0.3s ease" }}
+                  />
+                </svg>
+                <div className="position-absolute top-50 start-50 translate-middle text-center">
+                  <div
+                    className="fw-bold"
+                    style={{
+                      fontSize: "1.8rem",
+                      color: "#0d6efd",
+                      textShadow: "0 4px 12px rgba(13,110,253,0.3)",
+                    }}
+                  >
+                    {progressValue}%
+                  </div>
+                  <div className="text-muted small">Hoàn thành mục tiêu</div>
+                  <div className="mt-1 text-muted small">
+                    {formatMoney(fund.current, fund.currency)} /{" "}
+                    {fund.target ? formatMoney(fund.target, fund.currency) : "—"}
+                  </div>
+                </div>
               </div>
-              
-              {historyLoading ? (
-                <div style={{
-                  padding: '3rem 2rem',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '12px',
-                  textAlign: 'center'
-                }}>
-                  <i className="bi bi-arrow-repeat bi-spin" style={{ fontSize: '3rem', color: '#6c757d', marginBottom: '1rem' }}></i>
-                  <h6 style={{ color: '#6c757d' }}>Đang tải lịch sử...</h6>
-                </div>
-              ) : historyError ? (
-                <div style={{
-                  padding: '2rem',
-                  backgroundColor: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  borderRadius: '12px',
-                  textAlign: 'center'
-                }}>
-                  <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: '2rem', color: '#ef4444', marginBottom: '0.5rem' }}></i>
-                  <h6 style={{ color: '#dc2626', marginBottom: '0.5rem' }}>Lỗi tải lịch sử</h6>
-                  <p className="text-muted mb-0" style={{ fontSize: '0.875rem' }}>
-                    {historyError}
-                  </p>
-                </div>
-              ) : displayHistory.length === 0 ? (
-                <div style={{
-                  padding: '3rem 2rem',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '12px',
-                  textAlign: 'center'
-                }}>
-                  <i className="bi bi-inbox" style={{ fontSize: '3rem', color: '#6c757d', marginBottom: '1rem' }}></i>
-                  <h6 style={{ color: '#6c757d' }}>Chưa có giao dịch nào</h6>
-                  <p className="text-muted mb-0" style={{ fontSize: '0.875rem' }}>
-                    Lịch sử nạp tiền sẽ được hiển thị tại đây.
-                  </p>
-                </div>
-              ) : (
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '0.75rem',
-                  maxHeight: '600px',
-                  overflowY: 'auto',
-                  paddingRight: '0.5rem'
-                }}>
-                  {displayHistory.map((tx) => {
-                    const isSuccess = tx.status === 'success';
-                    const bgColor = isSuccess ? '#f0fdf4' : '#fef2f2';
-                    const borderColor = isSuccess ? '#10b981' : '#ef4444';
-                    const iconColor = isSuccess ? '#10b981' : '#ef4444';
-                    const iconName = isSuccess ? 'bi-check-circle-fill' : 'bi-x-circle-fill';
-                    
+
+              {/* Legend chips */}
+              <div className="d-flex gap-2 mt-3 flex-wrap justify-content-center">
+                <span className="badge rounded-pill bg-white text-primary border">
+                  Số dư: {formatMoney(fund.current, fund.currency)}
+                </span>
+                <span className="badge rounded-pill bg-white text-success border">
+                  Mục tiêu: {fund.target ? formatMoney(fund.target, fund.currency) : "—"}
+                </span>
+                <span className="badge rounded-pill bg-white text-secondary border">
+                  Tự động nạp: {fund.autoDepositEnabled ? "Bật" : "Tắt"}
+                </span>
+                <span className="badge rounded-pill bg-white text-secondary border">
+                  Nhắc nhở: {fund.reminderEnabled ? "Bật" : "Tắt"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* LINE CHART KIỂU MẪU */}
+        <div className="card shadow-sm mt-3">
+          <div className="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+            <span>Tiến độ theo tháng</span>
+            <span className="badge bg-light text-muted">Cumulative vs Target</span>
+          </div>
+          <div className="card-body">
+            {monthlyProgress.labels.length ? (
+              <div style={{ width: "100%", height: 220 }}>
+                <svg width="100%" height="220" viewBox="0 0 100 60" preserveAspectRatio="none">
+                  {/* Grid */}
+                  {[0, 20, 40, 60, 80, 100].map((y) => (
+                    <line
+                      key={y}
+                      x1="0"
+                      y1={60 - (y / 100) * 50}
+                      x2="100"
+                      y2={60 - (y / 100) * 50}
+                      stroke="#f1f3f5"
+                      strokeWidth="0.2"
+                    />
+                  ))}
+                  {/* Path progress */}
+                  {(() => {
+                    const arr = monthlyProgress.progress;
+                    const d = arr
+                      .map((val, idx) => {
+                        const x = (idx / Math.max(arr.length - 1, 1)) * 100;
+                        const y = 55 - (val / monthlyProgress.max) * 50;
+                        return `${idx === 0 ? "M" : "L"} ${x},${y}`;
+                      })
+                      .join(" ");
                     return (
-                      <div key={tx.id} style={{
-                        padding: '1.25rem',
-                        backgroundColor: '#fff',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        gap: '1rem',
-                        alignItems: 'start',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                        transition: 'all 0.2s ease',
-                        cursor: 'pointer'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}>
-                        {/* Icon Circle */}
-                        <div style={{ 
-                          flexShrink: 0,
-                          width: '48px',
-                          height: '48px',
-                          borderRadius: '50%',
-                          backgroundColor: isSuccess ? '#d1fae5' : '#fee2e2',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
-                          <i className={`bi ${iconName}`} style={{ 
-                            fontSize: '1.25rem', 
-                            color: iconColor 
-                          }}></i>
-                        </div>
-                        
-                        {/* Content */}
-                        <div style={{ flex: 1 }}>
-                          {/* Header Row */}
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            alignItems: 'center',
-                            marginBottom: '0.5rem'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <i className={tx.type === 'auto' ? 'bi bi-arrow-repeat' : 'bi bi-hand-thumbs-up'} style={{ 
-                                fontSize: '1rem',
-                                color: '#6c757d'
-                              }}></i>
-                              <span style={{ fontWeight: '600', fontSize: '1rem', color: '#111827' }}>
-                                {tx.typeLabel}
-                              </span>
-                            </div>
-                            
-                            {/* Amount Badge */}
-                            <div style={{ 
-                              padding: '0.375rem 0.75rem',
-                              backgroundColor: isSuccess ? '#d1fae5' : '#fee2e2',
-                              borderRadius: '20px',
-                              fontSize: '0.875rem', 
-                              fontWeight: '700', 
-                              color: iconColor 
-                            }}>
-                              {isSuccess ? '+' : ''}{formatMoney(tx.amount, fund.currency)}
-                            </div>
-                          </div>
-                          
-                          {/* Status Row */}
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '0.5rem',
-                            marginBottom: '0.25rem'
-                          }}>
-                            <div style={{ 
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.375rem',
-                              padding: '0.25rem 0.625rem',
-                              backgroundColor: isSuccess ? '#ecfdf5' : '#fef2f2',
-                              border: `1px solid ${borderColor}`,
-                              borderRadius: '12px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
-                              color: iconColor
-                            }}>
-                              <i className={`bi ${isSuccess ? 'bi-check2' : 'bi-x'}`} style={{ fontSize: '0.875rem' }}></i>
-                              {isSuccess ? 'Thành công' : 'Thất bại'}
-                            </div>
-                            
-                            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                              <i className="bi bi-clock me-1"></i>
-                              {tx.date ? new Date(tx.date).toLocaleString('vi-VN') : 'N/A'}
-                            </div>
-                          </div>
-                          
-                          {/* Message */}
-                          <div style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '0.5rem' }}>
-                            {tx.message}
-                          </div>
-                          
-                          {/* Failed transaction details */}
-                          {!isSuccess && tx.walletBalance !== undefined && (
-                            <div style={{
-                              marginTop: '0.75rem',
-                              padding: '0.75rem',
-                              backgroundColor: '#fef2f2',
-                              border: '1px solid #fecaca',
-                              borderRadius: '8px',
-                              fontSize: '0.75rem'
-                            }}>
-                              <div style={{ fontWeight: '600', color: '#dc2626', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                <i className="bi bi-info-circle-fill"></i>
-                                Chi tiết lỗi
-                              </div>
-                              <div style={{ color: '#991b1b', lineHeight: '1.6' }}>
-                                <div>• Số tiền cần: <strong>{formatMoney(tx.amount, fund.currency)}</strong></div>
-                                <div>• Số dư ví: <strong>{formatMoney(tx.walletBalance, fund.currency)}</strong></div>
-                                <div>• Thiếu: <strong>{formatMoney(tx.amount - tx.walletBalance, fund.currency)}</strong></div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke="#0d6efd"
+                        strokeWidth="1.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    );
+                  })()}
+                  {/* Dots */}
+                  {monthlyProgress.progress.map((val, idx) => {
+                    const x = (idx / Math.max(monthlyProgress.progress.length - 1, 1)) * 100;
+                    const y = 55 - (val / monthlyProgress.max) * 50;
+                    return (
+                      <circle key={`prog-${idx}`} cx={x} cy={y} r="1.4" fill="#0d6efd" />
                     );
                   })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* CỘT PHẢI: BIỂU ĐỒ & THỐNG KÊ */}
-      <div className="fund-detail-card">
-        <div className="mb-3">
-          <h4 className="fund-detail-title mb-1">{fund.name}</h4>
-          <div className="fund-detail-chip">
-            Quỹ tiết kiệm cá nhân
-            <span className="mx-1">•</span>
-            {fund.hasTerm ? "Có kỳ hạn" : "Không kỳ hạn"}
-          </div>
-        </div>
-
-        {/* BIỂU ĐỒ LỊCH SỬ NẠP TIỀN */}
-        <div style={{ 
-          padding: '1.5rem',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '12px',
-          marginBottom: '1rem'
-        }}>
-          <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '0.25rem' }}>
-              BIỂU ĐỒ SỐ DƯ
-            </div>
-            {progress !== null && (
-              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#0d6efd' }}>
-                {progress}% hoàn thành
+                </svg>
               </div>
+            ) : (
+              <div className="text-muted small">Chưa có dữ liệu giao dịch để vẽ biểu đồ.</div>
             )}
-          </div>
-
-          {/* LINE CHART */}
-          <div style={{ position: 'relative', height: '180px', paddingTop: '10px' }}>
-            <svg width="100%" height="180" style={{ overflow: 'visible' }}>
-              {/* Grid lines */}
-              {[0, 25, 50, 75, 100].map((percent) => (
-                <line
-                  key={percent}
-                  x1="0"
-                  y1={180 - (percent / 100) * 160}
-                  x2="100%"
-                  y2={180 - (percent / 100) * 160}
-                  stroke="#e9ecef"
-                  strokeWidth="1"
-                  strokeDasharray="4,4"
-                />
-              ))}
-
-              {/* Area under curve */}
-              <path
-                d={`M 0 180 
-                    ${transactionHistory.map((item, idx) => {
-                      const x = (idx / (transactionHistory.length - 1)) * 100;
-                      const y = 180 - ((item.amount / maxAmount) * 160);
-                      return `L ${x}% ${y}`;
-                    }).join(' ')} 
-                    L 100% 180 Z`}
-                fill="url(#gradient)"
-                opacity="0.2"
-              />
-
-              {/* Line */}
-              <polyline
-                points={transactionHistory.map((item, idx) => {
-                  const x = (idx / (transactionHistory.length - 1)) * 100;
-                  const y = 180 - ((item.amount / maxAmount) * 160);
-                  return `${x}%,${y}`;
-                }).join(' ')}
-                fill="none"
-                stroke="#0d6efd"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {/* Data points với màu sắc theo loại nạp tiền */}
-              {transactionHistory.map((item, idx) => {
-                const x = (idx / (transactionHistory.length - 1)) * 100;
-                const y = 180 - ((item.amount / maxAmount) * 160);
-                const pointColor = item.type === 'manual' ? '#10b981' :      // Xanh lá - Thủ công
-                                   item.type === 'auto' ? '#0d6efd' :        // Xanh dương - Tự động
-                                   '#9ca3af';                                 // Xám - Initial
-                return (
-                  <g key={idx}>
-                    {/* Outer circle (white border) */}
-                    <circle
-                      cx={`${x}%`}
-                      cy={y}
-                      r="6"
-                      fill="#fff"
-                      stroke={pointColor}
-                      strokeWidth="3"
-                    />
-                    {/* Inner dot (colored) */}
-                    {item.type !== 'initial' && (
-                      <circle
-                        cx={`${x}%`}
-                        cy={y}
-                        r="3"
-                        fill={pointColor}
-                      />
-                    )}
-                  </g>
-                );
-              })}
-
-              {/* Gradient definition */}
-              <defs>
-                <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#0d6efd" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#0d6efd" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-            </svg>
-
-            {/* X-axis labels - chỉ hiện một số ngày chọn lọc */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between',
-              marginTop: '0.5rem',
-              fontSize: '0.75rem',
-              color: '#6c757d'
-            }}>
-              {transactionHistory.filter((_, idx) => idx % 3 === 0 || idx === transactionHistory.length - 1).map((item, idx, arr) => (
-                <div key={item.date} style={{ 
-                  flex: 1, 
-                  textAlign: idx === 0 ? 'left' : idx === arr.length - 1 ? 'right' : 'center' 
-                }}>
-                  {item.date}
-                </div>
-              ))}
+            {/* Legend */}
+            <div className="d-flex gap-3 align-items-center mt-2">
+              <span className="d-flex align-items-center gap-1 text-muted small">
+                <span style={{ width: 10, height: 2, background: "#0d6efd", display: "inline-block" }}></span>
+                % tiến tới mục tiêu
+              </span>
             </div>
           </div>
-        </div>
-
-        {/* THỐNG KÊ CHI TIẾT */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* Số dư hiện tại */}
-          <div style={{
-            padding: '1rem',
-            backgroundColor: '#e7f3ff',
-            borderRadius: '8px',
-            borderLeft: '4px solid #0d6efd'
-          }}>
-            <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.25rem' }}>
-              SỐ DƯ HIỆN TẠI
-            </div>
-            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0d6efd' }}>
-              {formatMoney(fund.current, fund.currency)}
-            </div>
-          </div>
-
-          {/* Mục tiêu */}
-          {fund.target && (
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#fff7ed',
-              borderRadius: '8px',
-              borderLeft: '4px solid #f59e0b'
-            }}>
-              <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.25rem' }}>
-                MỤC TIÊU
-              </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#f59e0b' }}>
-                {formatMoney(fund.target, fund.currency)}
-              </div>
-            </div>
-          )}
-
-          {/* Còn thiếu */}
-          {fund.target && (
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#fef2f2',
-              borderRadius: '8px',
-              borderLeft: '4px solid #ef4444'
-            }}>
-              <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.25rem' }}>
-                CÒN THIẾU
-              </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ef4444' }}>
-                {formatMoney(fund.target - fund.current, fund.currency)}
-              </div>
-            </div>
-          )}
-
-          {/* Tần suất & Số tiền mỗi kỳ */}
-          {fund.frequency && fund.amountPerPeriod && (
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#f0fdf4',
-              borderRadius: '8px',
-              borderLeft: '4px solid #10b981'
-            }}>
-              <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.5rem' }}>
-                TẦN SUẤT GỬI
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#10b981' }}>
-                    {fund.frequency === 'DAILY' ? 'Hàng ngày' :
-                     fund.frequency === 'WEEKLY' ? 'Hàng tuần' :
-                     fund.frequency === 'MONTHLY' ? 'Hàng tháng' :
-                     fund.frequency === 'YEARLY' ? 'Hàng năm' : fund.frequency}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#10b981' }}>
-                    {formatMoney(fund.amountPerPeriod, fund.currency)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Ngày bắt đầu & kết thúc */}
-          {(fund.startDate || fund.endDate) && (
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#faf5ff',
-              borderRadius: '8px',
-              borderLeft: '4px solid #a855f7'
-            }}>
-              <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.5rem' }}>
-                THỜI GIAN
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#374151' }}>
-                {fund.startDate && (
-                  <div style={{ marginBottom: '0.25rem' }}>
-                    <strong>Bắt đầu:</strong> {formatVietnamDate(fund.startDate)}
-                  </div>
-                )}
-                {fund.endDate && (
-                  <div>
-                    <strong>Kết thúc:</strong> {formatVietnamDate(fund.endDate)}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
         </div>
       </div>
 

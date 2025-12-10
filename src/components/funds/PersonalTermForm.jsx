@@ -79,6 +79,9 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
   const pillColor = "rgba(45, 153, 174, 0.9)";
   const pillBg = "rgba(45, 153, 174, 0.1)";
 
+  // Mức tối thiểu cho mục tiêu tùy theo loại tiền
+  const targetMin = selectedCurrency === "USD" ? 1 : 1000;
+
   // Validate target money
   useEffect(() => {
     if (!targetAmount) {
@@ -92,13 +95,16 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
       return;
     }
 
-    if (t < 1000) {
-      setTargetError("Số tiền mục tiêu phải lớn hơn hoặc bằng 1,000đ.");
+    if (t < targetMin) {
+      const minLabel = targetMin.toLocaleString("en-US");
+      setTargetError(
+        `Số tiền mục tiêu phải lớn hơn hoặc bằng ${minLabel}${selectedCurrency ? " " + selectedCurrency : ""}.`
+      );
       return;
     }
 
     setTargetError("");
-  }, [targetAmount]);
+  }, [targetAmount, targetMin]);
 
   // Tính ngày kết thúc tự động
   useEffect(() => {
@@ -111,7 +117,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
       Number.isNaN(t) ||
       Number.isNaN(p) ||
       p <= 0 ||
-      t < 1000
+      t < targetMin
     ) {
       setCalculatedEndDate("");
       setEstimateText("");
@@ -157,7 +163,14 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     setEstimateText(
       `Dự kiến hoàn thành sau khoảng ${unitText}, vào ngày ${dateStr}.`
     );
-  }, [targetAmount, periodAmount, freq, startDate]);
+  }, [targetAmount, periodAmount, freq, startDate, targetMin]);
+
+  // Khi đổi loại tiền tệ, reset lỗi/ước tính cũ để tránh hiển thị thông báo sai currency
+  useEffect(() => {
+    setTargetError("");
+    setCalculatedEndDate("");
+    setEstimateText("");
+  }, [selectedCurrency]);
 
   const handleSave = async () => {
     // Validation
@@ -260,6 +273,9 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
       const fundData = {
         fundName: fundName.trim(),
         sourceWalletId: Number(sourceWalletId),
+        // Backend có nơi dùng currencyCode, nơi dùng currency: gửi cả hai để đảm bảo
+        currencyCode: selectedCurrency,
+        currency: selectedCurrency,
         fundType: "PERSONAL",
         hasDeadline: true,
         targetAmount: Number(targetAmount),
@@ -467,13 +483,14 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
           </label>
           <input
             type="number"
-            min={1000}
-            placeholder={`Nhập số tiền mục tiêu (tối thiểu 1,000${selectedCurrency ? ' ' + selectedCurrency : ''})`}
+            min={targetMin}
+            placeholder={`Nhập số tiền mục tiêu (tối thiểu ${targetMin.toLocaleString("en-US")}${selectedCurrency ? ' ' + selectedCurrency : ''})`}
             value={targetAmount}
             onChange={(e) => setTargetAmount(e.target.value)}
           />
           <div className="funds-hint">
-            Số tiền bạn muốn đạt được, tối thiểu 1,000. Quỹ bắt đầu từ 0.
+            Số tiền bạn muốn đạt được, tối thiểu {targetMin.toLocaleString("en-US")}.
+            Quỹ bắt đầu từ 0.
           </div>
           {targetError && <div className="funds-error">{targetError}</div>}
         </div>
@@ -491,7 +508,8 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             <label>Số tiền gửi mỗi kỳ</label>
             <input
               type="number"
-              min={0}
+              // Nếu ví là USD thì tối thiểu 1 USD, các loại tiền khác giữ 0
+              min={selectedCurrency === "USD" ? 1 : 0}
               placeholder="Nhập số tiền mỗi kỳ"
               value={periodAmount}
               onChange={(e) => setPeriodAmount(e.target.value)}

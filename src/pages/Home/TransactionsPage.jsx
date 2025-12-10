@@ -2018,7 +2018,6 @@ const SCHEDULE_TABS = [
   { value: "pending", label: "Chờ chạy" },
   { value: "recurring", label: "Định kỳ" },
 ];
-
 const MOCK_SCHEDULES = [
   {
     id: 101,
