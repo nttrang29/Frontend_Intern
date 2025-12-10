@@ -133,8 +133,13 @@ async function apiCall(endpoint, options = {}) {
       clearTimeout(timeoutId);
 
       // Xử lý các loại lỗi khác nhau
-      if (error.name === "AbortError") {
-        throw new Error("Yêu cầu quá thời gian chờ. Vui lòng thử lại.");
+      if (error.name === "AbortError" || error.name === "TimeoutError" || 
+          error.message?.includes("timeout") || error.message?.includes("Timeout") ||
+          error.message?.includes("thời gian chờ") || error.message?.includes("quá thời gian")) {
+        const timeoutError = new Error("Yêu cầu quá thời gian chờ. Vui lòng thử lại.");
+        timeoutError.name = "TimeoutError";
+        timeoutError.code = "ECONNABORTED";
+        throw timeoutError;
       }
 
       if (error.name === "TypeError" && error.message.includes("fetch")) {

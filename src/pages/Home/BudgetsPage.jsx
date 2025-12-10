@@ -69,16 +69,22 @@ export default function BudgetsPage() {
   const formatMoneyWithCurrency = useCallback((amount, currency) => {
     const numAmount = Number(amount) || 0;
     if (currency === "USD") {
+      // USD: hiển thị kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân)
+      let formatted = "";
       if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", {
-          minimumFractionDigits: 2,
+        formatted = numAmount.toLocaleString("vi-VN", {
+          minimumFractionDigits: 0,
           maximumFractionDigits: 8
         });
-        return `$${formatted}`;
+      } else if (numAmount % 1 === 0) {
+        formatted = numAmount.toLocaleString("vi-VN");
+      } else {
+        formatted = numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 8 });
       }
-      const formatted = numAmount % 1 === 0
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      // Loại bỏ số 0 ở cuối phần thập phân
+      formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
+        return digits ? `,${digits}` : "";
+      }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
       return `$${formatted}`;
     }
     return `${numAmount.toLocaleString("vi-VN")} VND`;

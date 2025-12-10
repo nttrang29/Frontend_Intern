@@ -47,16 +47,24 @@ export default function TransactionList({
     
     // Format tương tự formatMoney nhưng không có ký hiệu tiền tệ
     if (currency === "USD") {
+      // USD: hiển thị kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân)
+      let formatted = "";
       // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
       if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        return numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
+        formatted = numAmount.toLocaleString("vi-VN", { 
+          minimumFractionDigits: 0, 
           maximumFractionDigits: 8 
         });
+      } else if (numAmount % 1 === 0) {
+        formatted = numAmount.toLocaleString("vi-VN");
+      } else {
+        formatted = numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 8 });
       }
-      return numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      // Loại bỏ số 0 ở cuối phần thập phân
+      formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
+        return digits ? `,${digits}` : "";
+      }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
+      return formatted;
     }
     
     // Format cho VND và các currency khác

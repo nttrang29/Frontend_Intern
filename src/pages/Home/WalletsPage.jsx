@@ -19,7 +19,9 @@ import Toast from "../../components/common/Toast/Toast";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
-import { getExchangeRate } from "../../services/exchange-rate.service";
+import { getMoneyValue } from "../../utils/formatMoneyInput";
+// Removed: import { getExchangeRate } from "../../services/exchange-rate.service";
+// Using fixed exchange rate: 24390.24 VND = 1 USD (same as Backend - ExchangeRateServiceImpl.java)
 
 import "../../styles/pages/WalletsPage.css";
 import "../../styles/components/wallets/WalletList.css";
@@ -408,16 +410,13 @@ export default function WalletsPage() {
   const [currentUserId, setCurrentUserId] = useState(() => getLocalUserId());
 
   useEffect(() => {
-    // Ensure we have a recent exchange rate cached for conversions
-    // so transfer/merge UIs show consistent rates even if the dashboard widget
-    // is not mounted on this page.
-    (async () => {
-      try {
-        await getExchangeRate();
-      } catch (e) {
-        // ignore errors - we'll fall back to cached/static rates
-      }
-    })();
+    // Removed: No longer fetching exchange rate from API
+    // Using fixed exchange rate: 24390.24 VND = 1 USD (same as Backend - ExchangeRateServiceImpl.java)
+    // Clear old exchange rate cache to ensure we use fixed rate
+    if (typeof window !== "undefined" && window.localStorage) {
+      // Optionally clear old cache (commented out to preserve other data)
+      // localStorage.removeItem('exchange_rate_cache');
+    }
 
     if (typeof window === "undefined") return;
     const handleUserChange = () => {
@@ -1107,31 +1106,23 @@ export default function WalletsPage() {
     }
   }, [currentList, selectedId]);
 
-  // Helper function để tính tỷ giá
+  // Helper function để tính tỷ giá (sử dụng tỷ giá fix cứng giống Backend - ExchangeRateServiceImpl.java)
   const getRate = (from, to) => {
     if (!from || !to || from === to) return 1;
-    // Prefer using cached exchange rate if available to keep
-    // all conversions consistent with the dashboard cache.
-    try {
-      const cachedRaw = typeof window !== 'undefined' ? localStorage.getItem('exchange_rate_cache') : null;
-      const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
-      // Cache structure: vndToUsd = how many VND per 1 USD (e.g., 24390)
-      const vndToUsd = cached && cached.vndToUsd ? Number(cached.vndToUsd) : null;
-      const usdToVnd = cached && cached.usdToVnd ? Number(cached.usdToVnd) : null;
-      
-      if ((vndToUsd || usdToVnd) && !Number.isNaN(vndToUsd || usdToVnd)) {
-        if (from === 'USD' && to === 'VND') return vndToUsd || 24390;
-        if (from === 'VND' && to === 'USD') return usdToVnd || (1 / (vndToUsd || 24390));
-        // If neither side is USD, fall through to fallback rates below
-      }
-    } catch (e) {
-      // ignore parse errors and fall back to built-in rates
-    }
+    
+    // Fixed exchange rate: 24390.24 VND = 1 USD (same as Backend ExchangeRateServiceImpl)
+    // Backend: FALLBACK_RATES.put("USD", new BigDecimal("0.000041"))
+    // Tính: 1 USD = 1 / 0.000041 = 24390.243902439024 VND
+    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
+    const FIXED_USD_TO_VND = 0.000041; // 1 VND = 0.000041 USD (giống Backend)
+    
+    if (from === 'USD' && to === 'VND') return FIXED_VND_TO_USD;
+    if (from === 'VND' && to === 'USD') return FIXED_USD_TO_VND;
 
-    // Fallback static rates (used only if cache not available)
+    // Fallback static rates for other currencies (giống Backend FALLBACK_RATES)
     const rates = {
       VND: 1,
-      USD: 0.000041, // 1 VND = 0.000041 USD (inverse of 1 USD = 24390 VND)
+      USD: FIXED_USD_TO_VND, // 1 VND = 0.000041 USD (giống Backend)
       EUR: 0.000038,
       JPY: 0.0063,
       GBP: 0.000032,
@@ -1247,12 +1238,11 @@ export default function WalletsPage() {
   }, [totalCurrency]);
   const toggleTotalCurrency = () => setTotalCurrency((c) => (c === "VND" ? "USD" : "VND"));
 
-  // Value to display on the total card (uses cached dashboard rate if USD selected)
+  // Value to display on the total card (uses fixed exchange rate: 24390.24 VND = 1 USD - same as Backend)
   const totalDisplayedValue = useMemo(() => {
-    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
-    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
+    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
     if (totalCurrency === "USD") {
-      return totalInVND / vndToUsd;
+      return totalInVND / FIXED_VND_TO_USD;
     }
     return totalInVND;
   }, [totalInVND, totalCurrency]);
@@ -1282,9 +1272,8 @@ export default function WalletsPage() {
   }, [personalWallets]);
 
   const personalDisplayedValue = useMemo(() => {
-    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
-    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
-    return totalCurrency === "USD" ? personalInVND / vndToUsd : personalInVND;
+    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
+    return totalCurrency === "USD" ? personalInVND / FIXED_VND_TO_USD : personalInVND;
   }, [personalInVND, totalCurrency]);
 
   // Số dư ví nhóm: tổng số dư các ví nhóm mà bản thân sở hữu (bao gồm ví nhóm đã chia sẻ đi)
@@ -1304,9 +1293,8 @@ export default function WalletsPage() {
   }, [groupWallets]);
 
   const groupDisplayedValue = useMemo(() => {
-    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
-    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
-    return totalCurrency === "USD" ? groupInVND / vndToUsd : groupInVND;
+    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
+    return totalCurrency === "USD" ? groupInVND / FIXED_VND_TO_USD : groupInVND;
   }, [groupInVND, totalCurrency]);
 
   // Số dư các ví được chia sẻ với tôi (sharedWithMe): bao gồm các ví sharedWithMe nhưng KHÔNG tính những ví nơi tôi chỉ ở quyền VIEW/VIEWER
@@ -1330,9 +1318,8 @@ export default function WalletsPage() {
   }, [sharedWithMeDisplayWallets, isViewerRole]);
 
   const sharedWithMeDisplayedValue = useMemo(() => {
-    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
-    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
-    return totalCurrency === "USD" ? sharedWithMeInVND / vndToUsd : sharedWithMeInVND;
+    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
+    return totalCurrency === "USD" ? sharedWithMeInVND / FIXED_VND_TO_USD : sharedWithMeInVND;
   }, [sharedWithMeInVND, totalCurrency]);
 
   // Số dư các ví tôi đã chia sẻ cho người khác (sharedByMe)
@@ -1352,9 +1339,8 @@ export default function WalletsPage() {
   }, [sharedByMeWallets]);
 
   const sharedByMeDisplayedValue = useMemo(() => {
-    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
-    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
-    return totalCurrency === "USD" ? sharedByMeInVND / vndToUsd : sharedByMeInVND;
+    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
+    return totalCurrency === "USD" ? sharedByMeInVND / FIXED_VND_TO_USD : sharedByMeInVND;
   }, [sharedByMeInVND, totalCurrency]);
 
   const handleSelectWallet = (id) => {
@@ -1567,7 +1553,14 @@ export default function WalletsPage() {
       setSelectedId(selectedWallet.id);
       setActiveDetailTab("view");
       // Reload wallets in background to update data
-      loadWallets().catch((err) => console.debug("loadWallets failed after edit:", err));
+      loadWallets()
+        .catch((err) => console.debug("loadWallets failed after edit:", err))
+        .finally(() => {
+          // Nếu đổi đơn vị tiền tệ, cần refresh lại lịch sử giao dịch để hiển thị đúng currency mới
+          if (currencyChanged) {
+            refreshTransactions();
+          }
+        });
     } catch (error) {
       showToast(error.message || t('wallets.toast.update_error'), "error");
     }
@@ -1663,7 +1656,8 @@ export default function WalletsPage() {
   const handleSubmitTopup = async (e) => {
     e.preventDefault();
     if (!selectedWallet) return;
-    const amountNum = Number(topupAmount);
+    // Parse số tiền từ format Việt Nam (dấu chấm mỗi 3 số, dấu phẩy thập phân)
+    const amountNum = getMoneyValue(topupAmount);
     if (!amountNum || amountNum <= 0 || !topupCategoryId) {
       return;
     }
@@ -1695,7 +1689,8 @@ export default function WalletsPage() {
   const handleSubmitWithdraw = async (e) => {
     e.preventDefault();
     if (!selectedWallet) return;
-    const amountNum = Number(withdrawAmount);
+    // Parse số tiền từ format Việt Nam (dấu chấm mỗi 3 số, dấu phẩy thập phân)
+    const amountNum = getMoneyValue(withdrawAmount);
     if (!amountNum || amountNum <= 0 || !withdrawCategoryId) {
       return;
     }
@@ -1727,7 +1722,8 @@ export default function WalletsPage() {
   const handleSubmitTransfer = async (e) => {
     e.preventDefault();
     if (!selectedWallet || !transferTargetId) return;
-    const amountNum = Number(transferAmount);
+    // Parse số tiền từ format Việt Nam (dấu chấm mỗi 3 số, dấu phẩy thập phân)
+    const amountNum = getMoneyValue(transferAmount);
     if (!amountNum || amountNum <= 0) {
       return;
     }
@@ -1795,52 +1791,17 @@ export default function WalletsPage() {
         targetId,
         keepCurrency,
         targetCurrency,
+        setTargetAsDefault: payload.setTargetAsDefault,
       });
-
-      let defaultAction = null;
-      let defaultError = null;
-
-      if (payload.setTargetAsDefault) {
-        let setSucceeded = false;
-        if (setDefaultWallet) {
-          try {
-            await setDefaultWallet(targetId);
-            setSucceeded = true;
-            defaultAction = "set";
-          } catch (err) {
-            defaultError = err;
-          }
-        }
-        if (!setSucceeded && updateWallet) {
-          try {
-            await updateWallet({ id: targetId, isDefault: true });
-            setSucceeded = true;
-            defaultAction = "set";
-            defaultError = null;
-          } catch (err) {
-            defaultError = err;
-          }
-        }
-      } else if (sourceWasDefault && updateWallet) {
-        try {
-          await updateWallet({ id: targetId, isDefault: false });
-          defaultAction = "cleared";
-        } catch (err) {
-          defaultError = err;
-        }
-      }
 
       await loadWallets();
       refreshTransactions();
 
-      if (defaultError) {
-        showToast(defaultError.message || t('wallets.toast.merge_default_error'), "warning");
-      } else if (defaultAction === "set") {
-        showToast(t('wallets.toast.merge_set_default'));
-      } else if (defaultAction === "cleared") {
-        showToast(t('wallets.toast.merge_cleared_default'));
+      // Backend đã xử lý việc đặt/bỏ ví mặc định, chỉ cần hiển thị thông báo thành công
+      if (payload.setTargetAsDefault) {
+        showToast(t('wallets.toast.merge_set_default') || 'Gộp ví thành công. Ví đích đã được đặt làm ví mặc định.');
       } else {
-        showToast(t('wallets.toast.merged'));
+        showToast(t('wallets.toast.merged') || 'Gộp ví thành công.');
       }
       setSelectedId(targetId);
       setActiveDetailTab("view");

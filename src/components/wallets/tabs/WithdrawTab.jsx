@@ -48,13 +48,49 @@ export default function WithdrawTab({
             Số tiền rút
             <input
               type="text"
-              value={formatMoneyInput(withdrawAmount)}
+              value={withdrawAmount || ""}
               onChange={(e) => {
-                const parsed = getMoneyValue(e.target.value);
-                setWithdrawAmount(parsed ? String(parsed) : "");
+                // Format kiểu Việt Nam:
+                // - Dấu chấm (.) mỗi 3 số từ bên phải cho phần nguyên
+                // - Dấu phẩy (,) là dấu thập phân (phần sau không format)
+                const inputValue = e.target.value;
+                // Chỉ lưu giá trị hợp lệ (số, dấu chấm và dấu phẩy)
+                let cleaned = inputValue.replace(/[^\d.,]/g, "");
+                
+                // Chỉ cho phép một dấu phẩy (dấu thập phân)
+                const commaIndex = cleaned.indexOf(",");
+                const lastCommaIndex = cleaned.lastIndexOf(",");
+                
+                if (commaIndex !== -1) {
+                  // Có dấu phẩy (dấu thập phân)
+                  // Chỉ cho phép một dấu phẩy
+                  if (commaIndex !== lastCommaIndex) {
+                    // Nếu có nhiều dấu phẩy, chỉ giữ dấu phẩy đầu tiên
+                    cleaned = cleaned.substring(0, commaIndex + 1) + cleaned.substring(commaIndex + 1).replace(/,/g, "");
+                  }
+                  
+                  // Tách phần nguyên và phần thập phân
+                  const integerPart = cleaned.substring(0, commaIndex).replace(/\./g, ""); // Loại bỏ dấu chấm cũ
+                  const decimalPart = cleaned.substring(commaIndex + 1);
+                  
+                  // Format phần nguyên với dấu chấm mỗi 3 số
+                  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                  
+                  // Kết hợp: phần nguyên đã format + dấu phẩy + phần thập phân (không format)
+                  setWithdrawAmount(`${formattedInteger},${decimalPart}`);
+                } else {
+                  // Không có dấu phẩy, chỉ format phần nguyên
+                  const integerPart = cleaned.replace(/\./g, ""); // Loại bỏ dấu chấm cũ
+                  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                  setWithdrawAmount(formattedInteger);
+                }
               }}
-              placeholder="Nhập số tiền..."
-              inputMode="numeric"
+              onBlur={(e) => {
+                // Khi blur, giữ nguyên format (đã format rồi)
+                // Không cần làm gì thêm
+              }}
+              placeholder="Nhập số tiền (VD: 1.000.000,5 hoặc 20,5)"
+              inputMode="decimal"
             />
             <div style={{ 
               fontSize: "0.875rem", 
@@ -89,7 +125,7 @@ export default function WithdrawTab({
                 Vui lòng chọn danh mục.
               </div>
             )}
-            {withdrawCategoryId && Number(withdrawAmount) > currentBalance && (
+            {withdrawCategoryId && getMoneyValue(withdrawAmount) > currentBalance && (
               <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
                 Số tiền không hợp lệ hoặc vượt quá số dư.
               </div>
@@ -101,7 +137,7 @@ export default function WithdrawTab({
           <button
             type="submit"
             className="wallets-btn wallets-btn--primary"
-            disabled={!withdrawAmount || !withdrawCategoryId || Number(withdrawAmount) > currentBalance}
+            disabled={!withdrawAmount || !withdrawCategoryId || getMoneyValue(withdrawAmount) > currentBalance || getMoneyValue(withdrawAmount) <= 0}
           >
             <span style={{ marginRight: "6px" }}>✔</span>
             Xác nhận rút

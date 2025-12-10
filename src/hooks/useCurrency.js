@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { getMoneyFormatSettings } from "../utils/moneyFormatSettings";
 
-// Tỉ giá cố định
-const USD_TO_VND = 25000;
+// Tỉ giá cố định (giống Backend - ExchangeRateServiceImpl.java)
+// Backend: FALLBACK_RATES.put("USD", new BigDecimal("0.000041"))
+// Tính: 1 USD = 1 / 0.000041 = 24390.243902439024 VND
+const USD_TO_VND = 24390.243902439024;
 
 export function useCurrency() {
   const [currency, setCurrency] = useState(() => localStorage.getItem("defaultCurrency") || "VND");
@@ -32,6 +34,9 @@ export function useCurrency() {
     // display currency.
     const hasTarget = typeof targetCurrency === "string" && targetCurrency.trim() !== "";
     const cur = (hasTarget ? targetCurrency : currency || "").toString().toUpperCase();
+    // USD và VND: luôn hiển thị kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân)
+    const thousandSep = (cur === "USD" || cur === "VND") ? "." : thousand;
+    const decimalSep = (cur === "USD" || cur === "VND") ? "," : decimal;
     let value = Number(amount);
     let formatted = "";
     if (!hasTarget) {
@@ -42,23 +47,25 @@ export function useCurrency() {
       }
     }
     // Format number with custom thousand/decimal separators
-    let digits = decimalDigits;
-    if (cur === "USD") {
-      digits = 2;
+    // Sử dụng toLocaleString để chỉ hiển thị số thập phân thực tế (không ép số 0)
+    let maxDigits = decimalDigits;
+    if (cur === "USD" || cur === "VND") {
+      // USD và VND: hiển thị tối đa 8 chữ số thập phân, nhưng chỉ hiển thị số thực tế có
+      maxDigits = 8;
     }
-    if (digits === 0 && cur !== "USD") {
+    if (maxDigits === 0 && cur !== "USD" && cur !== "VND") {
       value = Math.trunc(value);
     }
-    formatted = value
-      .toFixed(digits)
-      .replace(/\B(?=(\d{3})+(?!\d))/g, thousand);
-    // Replace decimal point if needed
-    if (digits > 0 && decimal !== ".") {
-      const parts = formatted.split(".");
-      if (parts.length === 2) {
-        formatted = parts[0] + decimal + parts[1];
-      }
-    }
+    
+    // Dùng toLocaleString với maximumFractionDigits để tự động loại bỏ số 0 ở cuối
+    formatted = value.toLocaleString("en-US", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: maxDigits
+    });
+    
+    // Thay thế dấu ngăn nghìn và dấu thập phân theo format Việt
+    formatted = formatted.replace(/,/g, "THOUSAND_SEP").replace(/\./g, "DECIMAL_SEP");
+    formatted = formatted.replace(/THOUSAND_SEP/g, thousandSep).replace(/DECIMAL_SEP/g, decimalSep);
     // Add currency symbol
     if (cur === "USD") {
       // Place symbol in front for USD (common format)

@@ -16,6 +16,7 @@ import { ToastProvider } from "./components/common/Toast/ToastContext";
 import { FeedbackProvider } from "./contexts/FeedbackDataContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 
 // Load và áp dụng theme ngay khi app khởi động
 const loadTheme = () => {
@@ -47,14 +48,21 @@ loadTheme();
 window.addEventListener("unhandledrejection", (event) => {
   const reason = event.reason;
   
-  // Không hiển thị lỗi timeout ra UI, chỉ log
-  if (reason && (
+  // Kiểm tra nhiều pattern để catch timeout errors
+  const isTimeoutError = reason && (
     reason.message?.includes("Timeout") ||
-    reason.message?.includes("thời gian chờ") ||
     reason.message?.includes("timeout") ||
+    reason.message?.includes("thời gian chờ") ||
+    reason.message?.includes("quá thời gian") ||
+    reason.message?.toLowerCase().includes("timeout") ||
     reason.code === "ECONNABORTED" ||
-    reason.name === "AbortError"
-  )) {
+    reason.name === "AbortError" ||
+    reason.name === "TimeoutError" ||
+    (typeof reason === "string" && reason.toLowerCase().includes("timeout")) ||
+    (reason?.toString && reason.toString().toLowerCase().includes("timeout"))
+  );
+  
+  if (isTimeoutError) {
     console.warn("Request timeout (đã được xử lý):", reason.message || reason);
     event.preventDefault(); // Ngăn không cho hiển thị lỗi ra UI
     return;
@@ -65,15 +73,23 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 window.addEventListener("error", (event) => {
-  const error = event.error;
+  const error = event.error || event;
   
-  // Không hiển thị lỗi timeout ra UI
-  if (error && (
+  // Kiểm tra nhiều pattern để catch timeout errors
+  const isTimeoutError = error && (
     error.message?.includes("Timeout") ||
+    error.message?.includes("timeout") ||
     error.message?.includes("thời gian chờ") ||
-    error.message?.includes("timeout")
-  )) {
-    console.warn("Error timeout (đã được xử lý):", error.message);
+    error.message?.includes("quá thời gian") ||
+    error.message?.toLowerCase().includes("timeout") ||
+    error.name === "AbortError" ||
+    error.name === "TimeoutError" ||
+    (typeof error === "string" && error.toLowerCase().includes("timeout")) ||
+    (error?.toString && error.toString().toLowerCase().includes("timeout"))
+  );
+  
+  if (isTimeoutError) {
+    console.warn("Error timeout (đã được xử lý):", error.message || error);
     event.preventDefault();
     return;
   }
@@ -83,24 +99,26 @@ window.addEventListener("error", (event) => {
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <AuthProvider>
-      <ToastProvider>
-        <NotificationProvider>
-          <LanguageProvider>
-            <FeedbackProvider>
-              <CategoryDataProvider>
-                <WalletDataProvider>
-                  <BudgetDataProvider>
-                    <FundDataProvider>
-                      <App />
-                    </FundDataProvider>
-                  </BudgetDataProvider>
-                </WalletDataProvider>
-              </CategoryDataProvider>
-            </FeedbackProvider>
-          </LanguageProvider>
-        </NotificationProvider>
-      </ToastProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ToastProvider>
+          <NotificationProvider>
+            <LanguageProvider>
+              <FeedbackProvider>
+                <CategoryDataProvider>
+                  <WalletDataProvider>
+                    <BudgetDataProvider>
+                      <FundDataProvider>
+                        <App />
+                      </FundDataProvider>
+                    </BudgetDataProvider>
+                  </WalletDataProvider>
+                </CategoryDataProvider>
+              </FeedbackProvider>
+            </LanguageProvider>
+          </NotificationProvider>
+        </ToastProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

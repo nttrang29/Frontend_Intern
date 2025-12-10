@@ -105,7 +105,7 @@ export default function EditTab({
                   marginTop: "4px"
                 }}>
                   Tỷ giá: 1 {oldCurrency} = {newCurrency === "USD" 
-                    ? exchangeRate.toLocaleString("en-US", { 
+                    ? exchangeRate.toLocaleString("vi-VN", { 
                         minimumFractionDigits: 0, 
                         maximumFractionDigits: 8 
                       })

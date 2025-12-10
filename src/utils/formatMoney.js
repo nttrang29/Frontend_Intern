@@ -17,30 +17,34 @@ export function formatMoney(amount = 0, currency = "VND", digitsOverride) {
   let value = Math.abs(numericAmount);
 
   // Determine digits: explicit override -> use it; otherwise
-  // for USD: default to 8 decimals (can be overridden by digitsOverride)
-  let digits;
+  // for USD và VND: hiển thị tối đa 8 chữ số thập phân, nhưng chỉ hiển thị số thực tế có
+  let maxDigits = 8;
   if (typeof digitsOverride === 'number') {
-    digits = digitsOverride;
-  } else if (normalizedCurrency === 'USD') {
-    digits = 8;
-  } else {
-    digits = decimalDigits;
+    maxDigits = digitsOverride;
+  } else if (normalizedCurrency !== 'USD' && normalizedCurrency !== 'VND') {
+    maxDigits = decimalDigits;
   }
 
-  if (digits === 0 && normalizedCurrency !== "USD") {
+  // USD và VND luôn hiển thị theo kiểu Việt: dấu chấm ngăn nghìn, dấu phẩy thập phân
+  const thousandSep = (normalizedCurrency === "USD" || normalizedCurrency === "VND") ? "." : thousand;
+  const decimalSep = (normalizedCurrency === "USD" || normalizedCurrency === "VND") ? "," : decimal;
+
+  if (maxDigits === 0 && normalizedCurrency !== "USD" && normalizedCurrency !== "VND") {
     value = Math.trunc(value);
   }
 
-  const fixed = value.toFixed(digits);
-  let [integerPart, decimalPart] = fixed.split(".");
-  integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousand);
-  if (isNegative) {
-    integerPart = `-${integerPart}`;
-  }
-
-  let formatted = integerPart;
-  if (digits > 0 && decimalPart) {
-    formatted += decimal + decimalPart;
+  // Dùng toLocaleString với maximumFractionDigits để tự động loại bỏ số 0 ở cuối
+  let formatted = value.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDigits
+  });
+  
+  // Thay thế dấu ngăn nghìn và dấu thập phân theo format Việt
+  formatted = formatted.replace(/,/g, "THOUSAND_SEP").replace(/\./g, "DECIMAL_SEP");
+  formatted = formatted.replace(/THOUSAND_SEP/g, thousandSep).replace(/DECIMAL_SEP/g, decimalSep);
+  
+  if (isNegative && !formatted.startsWith("-")) {
+    formatted = "-" + formatted;
   }
 
   if (normalizedCurrency === "USD") {
