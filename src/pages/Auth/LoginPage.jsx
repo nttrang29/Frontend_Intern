@@ -394,10 +394,14 @@ export default function LoginPage() {
 
         const btn = document.getElementById("googleSignInDiv");
         if (btn) {
+          const availableWidth = btn.offsetWidth || btn.clientWidth || 0;
+          const normalizedWidth = availableWidth
+            ? Math.min(380, Math.max(220, availableWidth))
+            : 320;
           window.google.accounts.id.renderButton(btn, {
             theme: "outline",
             size: "large",
-            width: "100%",
+            width: normalizedWidth,
           });
         }
       }

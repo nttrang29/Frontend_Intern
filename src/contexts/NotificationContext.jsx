@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import * as NotificationService from "../services/notification.service";
 import { formatVietnamDate } from "../utils/dateFormat";
+import { useAuth } from "./AuthContext";
 
 const NotificationContext = createContext(null);
 
@@ -20,11 +21,37 @@ const NotificationContext = createContext(null);
  */
 
 export function NotificationProvider({ children }) {
+  const { currentUser } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSession, setHasSession] = useState(() => Boolean(localStorage.getItem("accessToken")));
+
+  const syncSessionState = useCallback(() => {
+    setHasSession(Boolean(localStorage.getItem("accessToken")));
+  }, []);
+
+  useEffect(() => {
+    syncSessionState();
+  }, [currentUser, syncSessionState]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return () => {};
+    const handler = () => {
+      syncSessionState();
+    };
+    window.addEventListener("userChanged", handler);
+    return () => window.removeEventListener("userChanged", handler);
+  }, [syncSessionState]);
 
   // Load notifications từ API
   const loadNotifications = useCallback(async () => {
+    const tokenExists = Boolean(localStorage.getItem("accessToken"));
+    if (!tokenExists) {
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const result = await NotificationService.fetchNotifications();
@@ -62,7 +89,11 @@ export function NotificationProvider({ children }) {
       });
       setNotifications(notifs);
     } catch (error) {
-      console.error("Failed to load notifications:", error);
+      if (error?.status === 401) {
+        setNotifications([]);
+      } else {
+        console.error("Failed to load notifications:", error);
+      }
     } finally {
       setLoading(false);
     }
@@ -70,15 +101,17 @@ export function NotificationProvider({ children }) {
 
   // Load notifications khi mount
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      loadNotifications();
-      
-      // Polling mỗi 30 giây để cập nhật notification mới
-      const interval = setInterval(loadNotifications, 30000);
-      return () => clearInterval(interval);
+    if (!hasSession) {
+      setNotifications([]);
+      return () => {};
     }
-  }, [loadNotifications]);
+
+    loadNotifications();
+
+    // Polling mỗi 30 giây để cập nhật notification mới
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [hasSession, loadNotifications]);
 
   const pushNotification = (payload) => {
     const notif = {
