@@ -3,11 +3,19 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useFundData } from "../../contexts/FundDataContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useToast } from "../common/Toast/ToastContext";
+import { useNotifications } from "../../contexts/NotificationContext";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import AutoTopupBlock from "./AutoTopupBlock";
+import ReminderBlock from "./ReminderBlock";
+import FundInfoTab from "./tabs/FundInfoTab";
+import FundEditTab from "./tabs/FundEditTab";
+import FundDepositTab from "./tabs/FundDepositTab";
+import FundWithdrawTab from "./tabs/FundWithdrawTab";
+import FundHistoryTab from "./tabs/FundHistoryTab";
 import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDate } from "../../utils/dateFormat";
 import { getFundTransactions } from "../../services/fund.service";
+import { calcEstimateDate } from "./utils/fundUtils";
 import "../../styles/components/funds/FundDetail.css";
 import "../../styles/components/funds/FundForms.css";
 
@@ -38,6 +46,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   const { updateFund, depositToFund, withdrawFromFund, deleteFund, closeFund, settleFund } = useFundData();
   const { wallets, loadWallets } = useWalletData();
   const { showToast } = useToast();
+  const { notifications } = useNotifications();
   
   const [activeTab, setActiveTab] = useState(defaultTab); // info | edit | deposit | withdraw | history
   const [depositAmount, setDepositAmount] = useState("");
@@ -53,6 +62,8 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   // State for auto deposit data (for editing)
   const [autoDepositData, setAutoDepositData] = useState(null);
   
+  // State for reminder data (for editing)
+  const [reminderData, setReminderData] = useState(null);
 
   // Fund history
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -252,11 +263,19 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       } else {
         updateData.reminderEnabled = true;
         updateData.autoDepositEnabled = false;
-        // Giữ nguyên các thông tin reminder hiện có
-        updateData.reminderType = fund.reminderType;
-        updateData.reminderTime = fund.reminderTime;
-        updateData.reminderDayOfWeek = fund.reminderDayOfWeek;
-        updateData.reminderDayOfMonth = fund.reminderDayOfMonth;
+        // Cập nhật thông tin reminder từ form (cho phép sửa thời gian)
+        if (reminderData) {
+          updateData.reminderType = reminderData.reminderType || fund.reminderType;
+          updateData.reminderTime = reminderData.reminderTime || fund.reminderTime;
+          updateData.reminderDayOfWeek = reminderData.reminderDayOfWeek || fund.reminderDayOfWeek;
+          updateData.reminderDayOfMonth = reminderData.reminderDayOfMonth || fund.reminderDayOfMonth;
+        } else {
+          // Giữ nguyên nếu chưa có thay đổi
+          updateData.reminderType = fund.reminderType;
+          updateData.reminderTime = fund.reminderTime;
+          updateData.reminderDayOfWeek = fund.reminderDayOfWeek;
+          updateData.reminderDayOfMonth = fund.reminderDayOfMonth;
+        }
       }
 
       console.log("Updating fund:", fund.id, updateData);
@@ -328,6 +347,41 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
 
   const maxAmount = Math.max(fund.target || 0, fund.current || 1);
   
+  // Tính toán trạng thái nạp tiền thủ công hôm nay
+  const todayManualDepositStatus = useMemo(() => {
+    if (fund.autoDepositEnabled) return null;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+    
+    // Kiểm tra lịch sử giao dịch hôm nay (manual deposit)
+    const todayDeposits = historyItems.filter(tx => {
+      const txDate = new Date(tx.createdAt || tx.transactionDate || tx.transactionAt);
+      const isToday = txDate >= today && txDate <= todayEnd;
+      const isManualDeposit = tx.type === 'DEPOSIT' || tx.type === 'MANUAL_DEPOSIT';
+      return isToday && isManualDeposit && tx.status === 'SUCCESS';
+    });
+    
+    if (todayDeposits.length > 0) {
+      // Đã nạp hôm nay
+      const totalDeposited = todayDeposits.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+      return {
+        status: 'deposited',
+        message: 'Hôm nay đã nạp',
+        amount: totalDeposited,
+        time: todayDeposits[0].createdAt || todayDeposits[0].transactionDate
+      };
+    } else {
+      // Chưa nạp hôm nay
+      return {
+        status: 'not_deposited',
+        message: 'Chưa nạp hôm nay'
+      };
+    }
+  }, [fund.autoDepositEnabled, historyItems]);
+
   // Tính toán trạng thái nạp tiền tự động hôm nay
   const todayAutoDepositStatus = useMemo(() => {
     if (!fund.autoDepositEnabled) return null;
@@ -422,6 +476,91 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     return candidate;
   }, [fund.autoDepositEnabled, fund.frequency, fund.autoDepositDayOfWeek, fund.autoDepositDayOfMonth, fund.autoDepositScheduleType, hasTodayAutoDeposit]);
   
+  // Kiểm tra xem đã có reminder notification trong chu kỳ hiện tại chưa
+  const hasTodayReminder = useMemo(() => {
+    if (!fund.reminderEnabled || !fund.fundId) return false;
+    
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Tìm notification reminder cho quỹ này
+    const reminderNotifications = notifications.filter(n => 
+      n.type === 'fund_reminder' && n.fundId === fund.fundId
+    );
+    
+    if (reminderNotifications.length === 0) return false;
+    
+    // Tìm notification mới nhất
+    const latestReminder = reminderNotifications.reduce((latest, current) => {
+      const latestDate = new Date(latest.createdAt);
+      const currentDate = new Date(current.createdAt);
+      return currentDate > latestDate ? current : latest;
+    });
+    
+    const reminderDate = new Date(latestReminder.createdAt);
+    const reminderType = fund.reminderType || fund.frequency || 'MONTHLY';
+    
+    if (reminderType === 'DAILY') {
+      // Kiểm tra xem có notification trong ngày hôm nay không
+      return reminderDate >= today;
+    }
+    
+    if (reminderType === 'WEEKLY') {
+      // Kiểm tra xem có notification trong tuần này không
+      const startOfWeek = new Date(today);
+      const dayOfWeek = today.getDay();
+      startOfWeek.setDate(today.getDate() - ((dayOfWeek + 6) % 7)); // Thứ 2 đầu tuần
+      startOfWeek.setHours(0, 0, 0, 0);
+      return reminderDate >= startOfWeek;
+    }
+    
+    // MONTHLY
+    // Kiểm tra xem có notification trong tháng này không
+    return reminderDate.getFullYear() === now.getFullYear() && 
+           reminderDate.getMonth() === now.getMonth();
+  }, [fund.reminderEnabled, fund.fundId, fund.reminderType, fund.frequency, notifications]);
+  
+  // Tính toán ngày nhắc nhở tiếp theo
+  const nextReminderDate = useMemo(() => {
+    if (!fund.reminderEnabled) return null;
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const addDays = (date, days) => {
+      const d = new Date(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    };
+
+    const reminderType = fund.reminderType || fund.frequency || 'MONTHLY';
+
+    if (reminderType === 'DAILY') {
+      return addDays(today, hasTodayReminder ? 1 : 0);
+    }
+
+    if (reminderType === 'WEEKLY') {
+      const targetDow = fund.reminderDayOfWeek || 1; // 1=Mon, 7=Sun (backend)
+      const jsDow = today.getDay(); // 0=Sun..6
+      const todayDow1 = ((jsDow + 6) % 7) + 1; // convert to 1=Mon..7=Sun
+      let diff = (targetDow - todayDow1 + 7) % 7;
+      if (diff === 0) {
+        diff = hasTodayReminder ? 7 : 0;
+      }
+      return addDays(today, diff);
+    }
+
+    // MONTHLY (default)
+    const targetDay = fund.reminderDayOfMonth || 1;
+    const candidate = new Date(today.getFullYear(), today.getMonth(), targetDay, now.getHours(), now.getMinutes(), 0, 0);
+    if (candidate < now || hasTodayReminder) {
+      // sang tháng sau
+      return new Date(today.getFullYear(), today.getMonth() + 1, targetDay, now.getHours(), now.getMinutes(), 0, 0);
+    }
+    return candidate;
+  }, [fund.reminderEnabled, fund.reminderType, fund.frequency, fund.reminderDayOfWeek, fund.reminderDayOfMonth, hasTodayReminder]);
+  
   // Map historyItems to display format
   const displayHistory = useMemo(() => {
     return historyItems.map(tx => {
@@ -461,6 +600,15 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
 
     if (amount < 1000) {
       showToast("Số tiền nạp tối thiểu là 1,000.", "error");
+      return;
+    }
+
+    // Kiểm tra số tiền phải >= số tiền theo tần suất
+    if (fund.amountPerPeriod && amount < fund.amountPerPeriod) {
+      showToast(
+        `Số tiền nạp phải lớn hơn hoặc bằng số tiền theo tần suất: ${formatMoney(fund.amountPerPeriod, fund.currency)}.`,
+        "error"
+      );
       return;
     }
 
@@ -837,1096 +985,100 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
 
         {/* TAB CONTENT */}
         <div className="mt-3">
-          {/* TAB 1: THÔNG TIN QUỸ */}
           {activeTab === "info" && (
-            <div>
-              <h6 className="mb-3 text-muted">Xem thông tin chi tiết quỹ</h6>
-              
-              <div className="funds-fieldset">
-                <div className="funds-fieldset__legend">Thông tin cơ bản</div>
-                
-                <div className="funds-field">
-                  <label>Tên quỹ</label>
-                  <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                    {fund.name}
-                  </div>
-          </div>
-
-                <div className="funds-field funds-field--inline">
-                  <div>
-                    <label>Loại tiền tệ</label>
-                    <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                      {fund.currency}
-                    </div>
-                  </div>
-                  <div>
-                    <label>Loại quỹ</label>
-                    <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                      {fund.hasTerm ? "Có kỳ hạn" : "Không kỳ hạn"}
-                    </div>
-                  </div>
-          </div>
-
-                <div className="funds-field funds-field--inline">
-                  <div>
-                    <label>Ví nguồn</label>
-                    <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                      {fund.sourceWalletName || "Không có thông tin"}
-                    </div>
-                  </div>
-                  <div>
-                    <label>Số dư ví nguồn</label>
-                    <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                      {(() => {
-                        const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
-                        return sourceWallet 
-                          ? formatMoney(sourceWallet.balance, sourceWallet.currency)
-                          : 'Không tìm thấy ví';
-                      })()}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="funds-field">
-                  <label>Ngày tạo</label>
-                  <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                    {fund.createdAt ? new Date(fund.createdAt).toLocaleString('vi-VN') : "Không có thông tin"}
-                  </div>
-                </div>
-
-                {fund.note && (
-                  <div className="funds-field">
-                    <label>Ghi chú</label>
-                    <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
-                      {fund.note}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* MỤC TIÊU & TẦN SUẤT - Luôn hiển thị */}
-              <div className="funds-fieldset">
-                <div className="funds-fieldset__legend">Mục tiêu & Tần suất</div>
-                
-                {fund.hasTerm && fund.target ? (
-                  <>
-                    <div className="funds-field">
-                      <label>Số tiền mục tiêu</label>
-                      <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px', fontWeight: '600', color: '#0d6efd' }}>
-                        {formatMoney(fund.target, fund.currency)}
-                      </div>
-                    </div>
-
-                    {fund.frequency && (
-                      <div className="funds-field funds-field--inline">
-                        <div>
-                          <label>Tần suất gửi</label>
-                          <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                            {fund.frequency}
-                          </div>
-                        </div>
-                        {fund.amountPerPeriod && (
-                          <div>
-                            <label>Số tiền mỗi kỳ</label>
-                            <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                              {formatMoney(fund.amountPerPeriod, fund.currency)}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="funds-field funds-field--inline">
-                      <div>
-                        <label>Ngày bắt đầu</label>
-                        <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                          {fund.startDate ? formatVietnamDate(fund.startDate) : "Chưa thiết lập"}
-                        </div>
-                      </div>
-                      <div>
-                        <label>Ngày kết thúc</label>
-                        <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                          {fund.endDate ? formatVietnamDate(fund.endDate) : "Chưa thiết lập"}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="alert alert-secondary mb-0">
-                    <i className="bi bi-info-circle me-2"></i>
-                    Không sử dụng tính năng mục tiêu & tần suất cho quỹ này.
-                  </div>
-                )}
-              </div>
-
-              {/* CHẾ ĐỘ NẠP TIỀN */}
-              <div className="funds-fieldset">
-                <div className="funds-fieldset__legend">Chế độ nạp tiền</div>
-                {fund.autoDepositEnabled ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <i className="bi bi-arrow-repeat" style={{ color: '#10b981' }}></i>
-                    <span style={{ fontSize: '0.875rem' }}>Nạp tự động</span>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <i className="bi bi-hand-thumbs-up" style={{ color: '#0d6efd' }}></i>
-                    <span style={{ fontSize: '0.875rem' }}>Nạp thủ công</span>
-                  </div>
-                )}
-              </div>
-            </div>
+            <FundInfoTab fund={fund} wallets={wallets} />
           )}
 
-          {/* TAB 2: SỬA QUỸ */}
           {activeTab === "edit" && (
-            <div>
-              {isFundCompleted ? (
-                // Quỹ đã hoàn thành - Hiển thị thông báo
-                <div style={{
-                  padding: '3rem 2rem',
-                  backgroundColor: '#fff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '16px',
-                  textAlign: 'center',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
-                }}>
-                  <div style={{
-                    width: '80px',
-                    height: '80px',
-                    margin: '0 auto 1.5rem',
-                    borderRadius: '50%',
-                    backgroundColor: '#d1fae5',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <i className="bi bi-check-circle-fill" style={{ fontSize: '3rem', color: '#10b981' }}></i>
-                  </div>
-                  <h5 style={{ color: '#111827', marginBottom: '1rem', fontWeight: '600' }}>
-                    Quỹ đã hoàn thành mục tiêu
-                  </h5>
-                  <p style={{ fontSize: '1rem', color: '#6c757d', marginBottom: '0', lineHeight: '1.6' }}>
-                    Quỹ của bạn đã đạt 100% mục tiêu. Vui lòng vào mục <strong>"Rút tiền"</strong> để rút tiền về ví và sử dụng.
-                  </p>
-                </div>
-              ) : (
-                <>
-              <h6 className="mb-3 text-muted">Chỉnh sửa thông tin quỹ</h6>
-              
-              <form onSubmit={handleSubmitEdit}>
-                {/* THÔNG TIN CƠ BẢN */}
-                <div className="funds-fieldset">
-                  <div className="funds-fieldset__legend">Thông tin cơ bản</div>
-                  
-                  <div className="funds-field">
-                    <label>Tên quỹ <span className="req">*</span></label>
-                    <input
-                      type="text"
-                      value={form.name}
-                      onChange={(e) => handleFormChange("name", e.target.value)}
-                      required
-                      maxLength={50}
-                    />
-                    <div className="funds-hint">Tối đa 50 ký tự.</div>
-                  </div>
-
-                  <div className="funds-field funds-field--inline">
-                    <div>
-                      <label>Chọn loại tiền tệ <span className="req">*</span></label>
-                      <select
-                        value={selectedCurrency}
-                        onChange={(e) => setSelectedCurrency(e.target.value)}
-                      >
-                        <option value="">-- Chọn loại tiền tệ --</option>
-                        {availableCurrencies.map((currency) => (
-                          <option key={currency} value={currency}>
-                            {currency}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="funds-hint">
-                        Thay đổi loại tiền tệ của quỹ.
-                      </div>
-                    </div>
-                    <div>
-                      <label>Chọn ví nguồn <span className="req">*</span></label>
-                      <select
-                        value={selectedSourceWalletId}
-                        onChange={(e) => setSelectedSourceWalletId(e.target.value)}
-                        disabled={!selectedCurrency}
-                      >
-                        <option value="">
-                          {!selectedCurrency 
-                            ? "-- Vui lòng chọn loại tiền tệ trước --"
-                            : filteredWallets.length === 0
-                            ? "-- Không có ví nào với loại tiền tệ này --"
-                            : "-- Chọn ví nguồn --"
-                          }
-                        </option>
-                        {filteredWallets.map((w) => (
-                          <option key={w.id} value={w.id}>
-                            {w.name}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="funds-hint">
-                        Tất cả giao dịch nạp tiền sẽ từ ví này.
-                      </div>
-                      
-                      {/* Hiển thị số dư ví đã chọn */}
-                      {selectedSourceWalletId && filteredWallets.find(w => String(w.id) === String(selectedSourceWalletId)) && (
-                        <div style={{ marginTop: '0.5rem' }}>
-                          <label>Số dư ví nguồn</label>
-                          <input
-                            type="text"
-                            value={(() => {
-                              const wallet = filteredWallets.find(w => String(w.id) === String(selectedSourceWalletId));
-                              return wallet ? formatMoney(wallet.balance, wallet.currency) : 'N/A';
-                            })()}
-                            disabled
-                            style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="funds-field">
-                    <label>Ghi chú</label>
-                    <textarea
-                      rows={3}
-                      value={form.note}
-                      onChange={(e) => handleFormChange("note", e.target.value)}
-                      placeholder="Ghi chú cho quỹ này (không bắt buộc)"
-                    />
-                  </div>
-                </div>
-
-                {/* TỰ ĐỘNG NẠP TIỀN - Chỉ hiển thị nếu quỹ là auto-deposit */}
-                {fund.autoDepositEnabled && (
-                  <AutoTopupBlock
-                      autoTopupOn={true}
-                      setAutoTopupOn={() => {}}
-                      freq={form.frequency || fund.frequency || "MONTHLY"}
-                      onDataChange={(data) => {
-                        setAutoDepositData(data);
-                      }}
-                      periodAmount={form.amountPerPeriod || fund.amountPerPeriod}
-                      lockMode={false}
-                  hasTodayAutoDeposit={hasTodayAutoDeposit}
-                  nextAutoDepositDate={nextAutoDepositDate ? formatVietnamDate(nextAutoDepositDate) : null}
-                      initialValues={{
-                        autoDepositTime: fund.autoDepositTime,
-                        autoDepositDayOfWeek: fund.autoDepositDayOfWeek,
-                        autoDepositDayOfMonth: fund.autoDepositDayOfMonth,
-                        autoDepositStartAt: fund.autoDepositStartAt,
-                        autoDepositAmount: fund.autoDepositAmount,
-                        autoDepositScheduleType: fund.autoDepositScheduleType || fund.autoDepositType,
-                      }}
-                      baseStartDate={form.startDate || fund.startDate}
-                      hideToggle={true}
-                      disableStartDate={true}
-                    />
-                )}
-
-                <div className="funds-actions mt-3" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={handleCancelEdit}
-                    disabled={saving}
-                  >
-                    Hủy
-                  </button>
-                  
-                  <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    <button type="submit" className="btn-primary" disabled={saving}>
-                      <i className="bi bi-check-circle me-1"></i>
-                      {saving ? "Đang lưu..." : "Lưu thay đổi"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      onClick={handleDeleteFund}
-                      disabled={saving}
-                      style={{
-                        backgroundColor: '#dc3545',
-                        borderColor: '#dc3545'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = '#bb2d3b';
-                        e.target.style.borderColor = '#b02a37';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = '#dc3545';
-                        e.target.style.borderColor = '#dc3545';
-                      }}
-                    >
-                      <i className="bi bi-trash me-1"></i>
-                      {saving ? "Đang xóa..." : "Xóa quỹ"}
-                    </button>
-                  </div>
-                </div>
-              </form>
-                </>
-              )}
-            </div>
+            <FundEditTab
+              fund={fund}
+              form={form}
+              isFundCompleted={isFundCompleted}
+              saving={saving}
+              selectedCurrency={selectedCurrency}
+              setSelectedCurrency={setSelectedCurrency}
+              selectedSourceWalletId={selectedSourceWalletId}
+              setSelectedSourceWalletId={setSelectedSourceWalletId}
+              availableCurrencies={availableCurrencies}
+              filteredWallets={filteredWallets}
+              autoDepositData={autoDepositData}
+              setAutoDepositData={setAutoDepositData}
+              reminderData={reminderData}
+              setReminderData={setReminderData}
+              hasTodayAutoDeposit={hasTodayAutoDeposit}
+              nextAutoDepositDate={nextAutoDepositDate ? formatVietnamDate(nextAutoDepositDate) : null}
+              hasTodayReminder={hasTodayReminder}
+              nextReminderDate={nextReminderDate ? formatVietnamDate(nextReminderDate) : null}
+              handleFormChange={handleFormChange}
+              handleSubmitEdit={handleSubmitEdit}
+            />
           )}
 
-          {/* TAB 3: NẠP TIỀN */}
           {activeTab === "deposit" && (
-            <div>
-              {isFundCompleted ? (
-                // Quỹ đã hoàn thành - Hiển thị thông báo
-                <div style={{
-                  padding: '3rem 2rem',
-                  backgroundColor: '#fff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '16px',
-                  textAlign: 'center',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
-                }}>
-                  <div style={{
-                    width: '80px',
-                    height: '80px',
-                    margin: '0 auto 1.5rem',
-                    borderRadius: '50%',
-                    backgroundColor: '#d1fae5',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <i className="bi bi-check-circle-fill" style={{ fontSize: '3rem', color: '#10b981' }}></i>
-                  </div>
-                  <h5 style={{ color: '#111827', marginBottom: '1rem', fontWeight: '600' }}>
-                    Quỹ đã hoàn thành mục tiêu
-                  </h5>
-                  <p style={{ fontSize: '1rem', color: '#6c757d', marginBottom: '0', lineHeight: '1.6' }}>
-                    Quỹ của bạn đã đạt 100% mục tiêu. Vui lòng vào mục <strong>"Rút tiền"</strong> để rút tiền về ví và sử dụng.
-                  </p>
-                </div>
-              ) : fund.autoDepositEnabled ? (
-                // Đã bật auto-deposit: Hiển thị bill nạp tự động sắp tới
-                <>
-                  <h6 className="mb-3 text-muted">
-                    Thông tin nạp tiền tự động
-                  </h6>
-                  
-                  <div style={{
-                    padding: '2rem',
-                    backgroundColor: '#fff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '16px',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
-                  }}>
-                    {/* Unified Form - All Information */}
-                    <div style={{
-                      padding: '2rem',
-                      backgroundColor: '#ffffff',
-                      borderRadius: '16px',
-                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-                      border: '1px solid #e5e7eb'
-                    }}>
-                      {/* Header Section */}
-                      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                        <style>{`
-                          @keyframes rotate-icon {
-                            from { transform: rotate(0deg); }
-                            to { transform: rotate(360deg); }
-                          }
-                          @keyframes pulse-icon {
-                            0%, 100% { transform: scale(1); }
-                            50% { transform: scale(1.1); }
-                          }
-                          @keyframes bounce-icon {
-                            0%, 100% { transform: translateY(0); }
-                            50% { transform: translateY(-5px); }
-                          }
-                          .rotating-icon {
-                            animation: rotate-icon 3s linear infinite;
-                          }
-                          .pulsing-icon {
-                            animation: pulse-icon 2s ease-in-out infinite;
-                          }
-                          .bouncing-icon {
-                            animation: bounce-icon 2s ease-in-out infinite;
-                          }
-                        `}</style>
-                        <div style={{
-                          width: '80px',
-                          height: '80px',
-                          margin: '0 auto 1rem',
-                          borderRadius: '50%',
-                          backgroundColor: '#e7f3ff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: '0 2px 8px rgba(13, 110, 253, 0.15)',
-                          position: 'relative'
-                        }}>
-                          <i className="bi bi-arrow-repeat rotating-icon" style={{ fontSize: '2.5rem', color: '#0d6efd' }}></i>
-                        </div>
-                        <h5 style={{ color: '#111827', marginBottom: '0.5rem', fontSize: '1.25rem', fontWeight: '600' }}>
-                          Nạp tiền tự động đang hoạt động
-                        </h5>
-                        <p style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '0' }}>
-                          Quỹ của bạn sẽ được nạp tiền tự động theo lịch đã cài đặt
-                        </p>
-                      </div>
-
-                      {/* Main Content Grid */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                        {/* Left Column - Deposit Details */}
-                        <div style={{
-                          padding: '1.5rem',
-                          backgroundColor: '#f8f9fa',
-                          borderRadius: '12px',
-                          border: '1px solid #e9ecef'
-                        }}>
-                          <div style={{ marginBottom: '1.5rem' }}>
-                            <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              Số tiền nạp mỗi lần
-                            </div>
-                            <div style={{ fontSize: '1.75rem', fontWeight: '700', color: '#0d6efd' }}>
-                              {formatMoney(fund.autoDepositAmount || fund.amountPerPeriod || 0, fund.currency)}
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                            <div>
-                              <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Tần suất
-                              </div>
-                              <div style={{ fontSize: '1rem', fontWeight: '600', color: '#111827' }}>
-                                {fund.frequency === 'DAILY' ? 'Hàng ngày' : 
-                                 fund.frequency === 'WEEKLY' ? 'Hàng tuần' : 
-                                 fund.frequency === 'MONTHLY' ? 'Hàng tháng' : 'N/A'}
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Ví nguồn
-                              </div>
-                              <div style={{ fontSize: '1rem', fontWeight: '600', color: '#111827' }}>
-                                {fund.sourceWalletName || 'N/A'}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Thời gian tự động nạp */}
-                          {fund.autoDepositTime && (
-                            <div style={{ paddingTop: '1rem', borderTop: '1px solid #dee2e6' }}>
-                              <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Thời gian tự động nạp
-                              </div>
-                              <div style={{ fontSize: '1rem', fontWeight: '600', color: '#111827' }}>
-                                {fund.autoDepositTime.substring(0, 5)}
-                                {fund.frequency === 'WEEKLY' && fund.autoDepositDayOfWeek && (
-                                  <span style={{ fontSize: '0.875rem', color: '#6c757d', marginLeft: '0.5rem' }}>
-                                    - {['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][fund.autoDepositDayOfWeek - 1]}
-                                  </span>
-                                )}
-                                {fund.frequency === 'MONTHLY' && fund.autoDepositDayOfMonth && (
-                                  <span style={{ fontSize: '0.875rem', color: '#6c757d', marginLeft: '0.5rem' }}>
-                                    - Ngày {fund.autoDepositDayOfMonth}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Right Column - Status & Next Deposit */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                          {/* Trạng thái hôm nay */}
-                          {todayAutoDepositStatus && (
-                            <div style={{
-                              padding: '1.5rem',
-                              backgroundColor: todayAutoDepositStatus.status === 'deposited' ? '#f0fdf4' : 
-                                               todayAutoDepositStatus.status === 'pending' ? '#fef2f2' : '#fffbeb',
-                              border: `2px solid ${todayAutoDepositStatus.status === 'deposited' ? '#86efac' : 
-                                                       todayAutoDepositStatus.status === 'pending' ? '#fecaca' : '#fde68a'}`,
-                              borderRadius: '12px',
-                              flex: '1'
-                            }}>
-                              {/* Header: Icon + Title */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                                {todayAutoDepositStatus.status === 'deposited' ? (
-                                  <i className="bi bi-check-circle-fill pulsing-icon" style={{ fontSize: '1.5rem', color: '#10b981' }}></i>
-                                ) : todayAutoDepositStatus.status === 'pending' ? (
-                                  <i className="bi bi-clock-history rotating-icon" style={{ fontSize: '1.5rem', color: '#ef4444', animationDuration: '2s' }}></i>
-                                ) : (
-                                  <i className="bi bi-hourglass-split bouncing-icon" style={{ fontSize: '1.5rem', color: '#f59e0b' }}></i>
-                                )}
-                                <div style={{ fontSize: '0.75rem', color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
-                                  Trạng thái hôm nay
-                                </div>
-                              </div>
-
-                              {/* Status Message */}
-                              <div style={{ 
-                                fontSize: '1rem', 
-                                fontWeight: '600', 
-                                color: todayAutoDepositStatus.status === 'deposited' ? '#065f46' : 
-                                       todayAutoDepositStatus.status === 'pending' ? '#991b1b' : '#92400e',
-                                marginBottom: '0.75rem'
-                              }}>
-                                {todayAutoDepositStatus.message}
-                              </div>
-
-                              {/* Đã nạp */}
-                              {todayAutoDepositStatus.status === 'deposited' && (
-                                <div style={{ 
-                                  padding: '0.75rem', 
-                                  backgroundColor: 'rgba(255, 255, 255, 0.7)', 
-                                  borderRadius: '8px',
-                                  fontSize: '0.875rem',
-                                  color: '#047857',
-                                  fontWeight: '500'
-                                }}>
-                                  <strong>Số tiền đã nạp:</strong> {formatMoney(todayAutoDepositStatus.amount, fund.currency)}
-                                </div>
-                              )}
-
-                              {/* Đang chờ */}
-                              {todayAutoDepositStatus.status === 'pending' && (
-                                <div>
-                                  <div style={{ 
-                                    padding: '0.75rem', 
-                                    backgroundColor: 'rgba(255, 255, 255, 0.7)', 
-                                    borderRadius: '8px',
-                                    marginBottom: '0.75rem'
-                                  }}>
-                                    <div style={{ fontSize: '0.875rem', color: '#991b1b', marginBottom: '0.5rem', fontWeight: '500' }}>
-                                      <strong>Thiếu số tiền:</strong> {formatMoney(todayAutoDepositStatus.missingAmount, fund.currency)}
-                                    </div>
-                                    <div style={{ fontSize: '0.875rem', color: '#7f1d1d', marginBottom: '0.25rem' }}>
-                                      <strong>Số dư ví nguồn:</strong> {formatMoney(todayAutoDepositStatus.sourceWalletBalance, fund.currency)}
-                                    </div>
-                                    <div style={{ fontSize: '0.875rem', color: '#7f1d1d' }}>
-                                      <strong>Số tiền cần nạp:</strong> {formatMoney(todayAutoDepositStatus.pendingAmount, fund.currency)}
-                                    </div>
-                                  </div>
-                                  <div style={{
-                                    padding: '0.75rem',
-                                    backgroundColor: '#fee2e2',
-                                    border: '1px solid #fecaca',
-                                    borderRadius: '8px',
-                                    fontSize: '0.875rem',
-                                    color: '#991b1b',
-                                    fontWeight: '500'
-                                  }}>
-                                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                                    <strong>Vui lòng nạp {formatMoney(todayAutoDepositStatus.missingAmount, fund.currency)} vào ví "{todayAutoDepositStatus.sourceWalletName}" để hệ thống tự động nạp vào quỹ.</strong>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Chưa nạp */}
-                              {todayAutoDepositStatus.status === 'not_deposited' && (
-                                <div style={{ 
-                                  padding: '0.75rem', 
-                                  backgroundColor: 'rgba(255, 255, 255, 0.7)', 
-                                  borderRadius: '8px',
-                                  fontSize: '0.875rem',
-                                  color: '#92400e',
-                                  fontWeight: '500'
-                                }}>
-                                  Hệ thống sẽ tự động nạp tiền vào quỹ theo lịch đã cài đặt.
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Lần nạp tiếp theo */}
-                          {fund.autoDepositDayOfMonth && (
-                            <div style={{
-                              padding: '1.25rem',
-                              backgroundColor: '#f0fdf4',
-                              border: '2px solid #86efac',
-                              borderRadius: '12px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '1rem'
-                            }}>
-                              <i className="bi bi-calendar-check pulsing-icon" style={{ fontSize: '1.75rem', color: '#10b981', animationDuration: '3s' }}></i>
-                              <div>
-                                <div style={{ fontSize: '0.75rem', color: '#065f46', fontWeight: '600', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                  Lần nạp tiếp theo
-                                </div>
-                                <div style={{ fontSize: '1rem', color: '#047857', fontWeight: '600' }}>
-                                  {fund.frequency === 'MONTHLY' && `Ngày ${fund.autoDepositDayOfMonth} hàng tháng`}
-                                  {fund.frequency === 'WEEKLY' && `Mỗi tuần vào ${['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][fund.autoDepositDayOfWeek || 0]}`}
-                                  {fund.frequency === 'DAILY' && 'Hàng ngày'}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </>
-              ) : (
-                // Chưa bật auto-deposit: Cho phép nạp thủ công
-                <>
-                  <h6 className="mb-3 text-muted">Nạp tiền vào quỹ từ ví nguồn (thủ công)</h6>
-                  
-                  {/* Info banners */}
-                  {fund.reminderEnabled && depositStatus.status === 'waiting' && depositStatus.nextDepositDate && (
-                    <div style={{
-                      padding: '1rem',
-                      backgroundColor: '#f0fdf4',
-                      border: '1px solid #86efac',
-                      borderRadius: '8px',
-                      marginBottom: '1rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem'
-                    }}>
-                      <i className="bi bi-info-circle-fill" style={{ fontSize: '1.25rem', color: '#10b981' }}></i>
-                      <div style={{ fontSize: '0.875rem', color: '#065f46' }}>
-                        <strong>Lưu ý:</strong> Lần nạp tiếp theo theo lịch là <strong>{formatVietnamDate(depositStatus.nextDepositDate)}</strong>. 
-                        Bạn vẫn có thể nạp thủ công bất kỳ lúc nào.
-                      </div>
-                    </div>
-                  )}
-                  
-                  {fund.reminderEnabled && depositStatus.status === 'overdue' && (
-                    <div style={{
-                      padding: '1rem',
-                      backgroundColor: '#fff7ed',
-                      border: '1px solid #fbbf24',
-                      borderRadius: '8px',
-                      marginBottom: '1rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem'
-                    }}>
-                      <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: '1.25rem', color: '#f59e0b' }}></i>
-                      <div style={{ fontSize: '0.875rem', color: '#92400e' }}>
-                        <strong>Thông báo:</strong> Bạn đã bỏ lỡ <strong>{depositStatus.missedPeriods}</strong> kỳ nạp tiền theo lịch. 
-                        Hãy nạp để theo kịp tiến độ.
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Form nạp tiền thủ công */}
-                  <form onSubmit={handleDeposit}>
-                <div className="funds-fieldset">
-                  <div className="funds-fieldset__legend">Thông tin ví và quỹ</div>
-                  
-                  {/* Thông tin ví nguồn */}
-                  <div className="funds-field">
-                    <label>Ví nguồn</label>
-                    <div style={{ 
-                      padding: '1rem', 
-                      backgroundColor: '#f0fdf4', 
-                      borderRadius: '8px',
-                      border: '1px solid #bbf7d0'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: '600', color: '#059669', marginBottom: '0.25rem' }}>
-                            {fund.sourceWalletName || "Không có thông tin"}
-                          </div>
-                          <div style={{ fontSize: '0.875rem', color: '#6c757d' }}>
-                            {(() => {
-                              const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
-                              return sourceWallet 
-                                ? `Số dư: ${formatMoney(sourceWallet.balance, sourceWallet.currency)}`
-                                : 'Không tìm thấy ví';
-                            })()}
-                          </div>
-                        </div>
-                        <div style={{ 
-                          padding: '0.5rem 1rem',
-                          backgroundColor: '#10b981',
-                          color: '#fff',
-                          borderRadius: '6px',
-                          fontSize: '0.875rem',
-                          fontWeight: '600'
-                        }}>
-                          {fund.currency}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Số dư quỹ hiện tại */}
-                  <div className="funds-field">
-                    <label>Số dư quỹ hiện tại</label>
-                    <div style={{ padding: '1rem', backgroundColor: '#e7f3ff', borderRadius: '8px', fontSize: '1.25rem', fontWeight: '600', color: '#0d6efd' }}>
-                      {formatMoney(fund.current, fund.currency)}
-              </div>
-            </div>
-
-            <div className="funds-field">
-                    <label>
-                      Số tiền muốn nạp ({fund.currency}) <span className="req">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
-                      placeholder="Nhập số tiền muốn nạp"
-                    />
-                    <div className="funds-hint">
-                      Số tiền tối thiểu: 1,000 {fund.currency}
-                      {(() => {
-                        const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
-                        return sourceWallet 
-                          ? ` • Số dư ví nguồn: ${formatMoney(sourceWallet.balance, sourceWallet.currency)}`
-                          : '';
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* CẢNH BÁO / PREVIEW */}
-                  {depositAmount && Number(depositAmount) > 0 && (() => {
-                    const amount = Number(depositAmount);
-                    const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
-                    
-                    // Kiểm tra số tiền vượt quá số dư ví
-                    if (sourceWallet && amount > sourceWallet.balance) {
-                      return (
-                        <div style={{
-                          padding: '1rem',
-                          backgroundColor: '#fef2f2',
-                          border: '2px solid #ef4444',
-                          borderRadius: '8px',
-                          marginTop: '1rem'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                            <i className="bi bi-exclamation-triangle-fill" style={{ color: '#ef4444', fontSize: '1.25rem' }}></i>
-                            <strong style={{ color: '#ef4444' }}>Số dư ví nguồn không đủ!</strong>
-                          </div>
-                          <div style={{ fontSize: '0.875rem', color: '#dc2626' }}>
-                            Số tiền muốn nạp: <strong>{formatMoney(amount, fund.currency)}</strong>
-                          </div>
-                          <div style={{ fontSize: '0.875rem', color: '#dc2626' }}>
-                            Số dư ví nguồn: <strong>{formatMoney(sourceWallet.balance, sourceWallet.currency)}</strong>
-                          </div>
-                          <div style={{ fontSize: '0.875rem', color: '#dc2626', marginTop: '0.5rem' }}>
-                            ⚠️ Vượt quá: <strong>{formatMoney(amount - sourceWallet.balance, fund.currency)}</strong>
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    // Preview số dư sau khi nạp
-                    return (
-                      <div style={{
-                        padding: '1rem',
-                        backgroundColor: '#e7f3ff',
-                        border: '2px solid #0d6efd',
-                        borderRadius: '8px',
-                        marginTop: '1rem'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                          <i className="bi bi-info-circle-fill" style={{ color: '#0d6efd', fontSize: '1.25rem' }}></i>
-                          <strong style={{ color: '#0d6efd' }}>Xác nhận thông tin</strong>
-                        </div>
-                        <div style={{ fontSize: '0.875rem', color: '#374151' }}>
-                          Số dư quỹ hiện tại: <strong>{formatMoney(fund.current, fund.currency)}</strong>
-                        </div>
-                        <div style={{ fontSize: '0.875rem', color: '#374151' }}>
-                          Số tiền nạp: <strong>+ {formatMoney(amount, fund.currency)}</strong>
-                        </div>
-                        <div style={{ 
-                          fontSize: '1rem', 
-                          color: '#0d6efd', 
-                          marginTop: '0.75rem',
-                          paddingTop: '0.75rem',
-                          borderTop: '1px solid #bfdbfe',
-                          fontWeight: '700'
-                        }}>
-                          Số dư sau khi nạp: {formatMoney(fund.current + amount, fund.currency)}
-                        </div>
-                        
-                        {/* Prediction & Suggestions - Gợi ý dựa trên số tiền nạp */}
-                        {fund.hasTerm && fund.target && fund.amountPerPeriod && fund.frequency && (() => {
-                          const newBalance = fund.current + amount;
-                          const remaining = fund.target - newBalance;
-                          
-                          if (remaining <= 0) return null; // Đã hoàn thành
-                          
-                          let timeUnit = '';
-                          switch (fund.frequency) {
-                            case 'DAILY': timeUnit = 'ngày'; break;
-                            case 'WEEKLY': timeUnit = 'tuần'; break;
-                            case 'MONTHLY': timeUnit = 'tháng'; break;
-                          }
-                          
-                          const threshold = fund.amountPerPeriod * 0.1; // 10% tolerance
-                          
-                          // Case 1: Nạp ĐÚNG theo kế hoạch (±10%)
-                          if (Math.abs(amount - fund.amountPerPeriod) <= threshold) {
-                            return (
-                              <div style={{
-                                marginTop: '0.75rem',
-                                padding: '0.75rem',
-                                backgroundColor: '#e7f3ff',
-                                border: '1px solid #0d6efd',
-                                borderRadius: '6px'
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                                  <i className="bi bi-check-circle-fill" style={{ color: '#0d6efd' }}></i>
-                                  <strong style={{ fontSize: '0.875rem', color: '#084298' }}>Theo đúng kế hoạch</strong>
-                                </div>
-                                <div style={{ fontSize: '0.875rem', color: '#0a58ca' }}>
-                                  ✓ Bạn đang nạp đúng số tiền theo tần xuất đã đặt ra. Tiếp tục duy trì để hoàn thành mục tiêu <strong>đúng thời gian dự kiến</strong>!
-                                </div>
-                              </div>
-                            );
-                          }
-                          
-                          // Case 2: Nạp NHIỀU HƠN kế hoạch
-                          if (amount > fund.amountPerPeriod) {
-                            const periodsLeft = Math.ceil(remaining / fund.amountPerPeriod);
-                            const originalRemaining = fund.target - fund.current;
-                            const originalPeriodsLeft = Math.ceil(originalRemaining / fund.amountPerPeriod);
-                            const periodsSaved = originalPeriodsLeft - periodsLeft;
-                            
-                            if (periodsSaved > 0) {
-                              return (
-                                <div style={{
-                                  marginTop: '0.75rem',
-                                  padding: '0.75rem',
-                                  backgroundColor: '#f0fdf4',
-                                  border: '1px solid #86efac',
-                                  borderRadius: '6px'
-                                }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                                    <i className="bi bi-rocket-takeoff-fill" style={{ color: '#10b981' }}></i>
-                                    <strong style={{ fontSize: '0.875rem', color: '#047857' }}>Vượt kế hoạch</strong>
-                                  </div>
-                                  <div style={{ fontSize: '0.875rem', color: '#065f46' }}>
-                                    🎉 Nạp nhiều hơn dự kiến! Bạn sẽ hoàn thành mục tiêu <strong>sớm hơn {periodsSaved} {timeUnit}</strong> so với kế hoạch ban đầu.
-                                  </div>
-                                </div>
-                              );
-                            }
-                          }
-                          
-                          // Case 3: Nạp ÍT HƠN kế hoạch
-                          if (amount < fund.amountPerPeriod) {
-                            const shortage = fund.amountPerPeriod - amount;
-                            return (
-                              <div style={{
-                                marginTop: '0.75rem',
-                                padding: '0.75rem',
-                                backgroundColor: '#fff7ed',
-                                border: '1px solid #fbbf24',
-                                borderRadius: '6px'
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                                  <i className="bi bi-exclamation-triangle-fill" style={{ color: '#f59e0b' }}></i>
-                                  <strong style={{ fontSize: '0.875rem', color: '#92400e' }}>Cảnh báo tiến độ</strong>
-                                </div>
-                                <div style={{ fontSize: '0.875rem', color: '#78350f', marginBottom: '0.5rem' }}>
-                                  ⚠️ Bạn đang nạp <strong>ít hơn {formatMoney(shortage, fund.currency)}</strong> so với kế hoạch ({formatMoney(fund.amountPerPeriod, fund.currency)}/{timeUnit}).
-                                </div>
-                                <div style={{ fontSize: '0.875rem', color: '#92400e', padding: '0.5rem', backgroundColor: '#fef3c7', borderRadius: '4px' }}>
-                                  💡 <strong>Khuyến nghị:</strong> Nạp thêm {formatMoney(shortage, fund.currency)} để đảm bảo đúng tiến độ, hoặc điều chỉnh kế hoạch trong tab "Sửa quỹ".
-                                </div>
-                              </div>
-                            );
-                          }
-                          
-                          return null;
-                        })()}
-                      </div>
-                    );
-                  })()}
-            </div>
-
-            <div className="funds-actions mt-3">
-              <button
-                type="button"
-                className="btn-secondary"
-                    onClick={() => {
-                      setDepositAmount("");
-                      setActiveTab("info");
-                    }}
-                    disabled={saving}
-                  >
-                    Hủy
-              </button>
-                  <button 
-                    type="submit" 
-                    className="btn-primary" 
-                    disabled={saving || (() => {
-                      const amount = Number(depositAmount);
-                      const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
-                      return amount > 0 && sourceWallet && amount > sourceWallet.balance;
-                    })()}
-                  >
-                    <i className="bi bi-check-circle me-1"></i>
-                    {saving ? "Đang xử lý..." : "Xác nhận nạp tiền"}
-                  </button>
-                </div>
-              </form>
-                </>
-              )}
-            </div>
+            <FundDepositTab
+              fund={fund}
+              wallets={wallets}
+              isFundCompleted={isFundCompleted}
+              depositAmount={depositAmount}
+              setDepositAmount={setDepositAmount}
+              saving={saving}
+              todayAutoDepositStatus={todayAutoDepositStatus}
+              todayManualDepositStatus={todayManualDepositStatus}
+              depositStatus={depositStatus}
+              handleDeposit={handleDeposit}
+            />
           )}
 
-          {/* TAB 4: RÚT TIỀN */}
           {activeTab === "withdraw" && (
-            <div>
-              <h6 className="mb-3 text-muted">Rút tiền từ quỹ về ví nguồn</h6>
-              
-              {/* Kiểm tra điều kiện rút tiền */}
-              {(() => {
-                const isCompleted = progress >= 100;
-                const canWithdraw = !fund.hasTerm || isCompleted;
-                
-                if (!canWithdraw) {
-                  return (
-                    <div style={{
-                      padding: '2.5rem',
-                      backgroundColor: '#fff',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '16px',
-                      textAlign: 'center',
-                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)'
-                    }}>
-                      <style>{`
-                        @keyframes shake-icon {
-                          0%, 100% { transform: translateX(0); }
-                          25% { transform: translateX(-5px); }
-                          75% { transform: translateX(5px); }
-                        }
-                        @keyframes float-icon {
-                          0%, 100% { transform: translateY(0); }
-                          50% { transform: translateY(-8px); }
-                        }
-                        .shake-icon {
-                          animation: shake-icon 2s ease-in-out infinite;
-                        }
-                        .float-icon {
-                          animation: float-icon 3s ease-in-out infinite;
-                        }
-                      `}</style>
-                      {/* Icon Circle */}
-                      <div style={{
-                        width: '80px',
-                        height: '80px',
-                        margin: '0 auto 1.5rem',
-                        borderRadius: '50%',
-                        backgroundColor: '#fed7aa',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
-                      }}>
-                        <i className="bi bi-lock-fill shake-icon" style={{ fontSize: '2.5rem', color: '#f59e0b' }}></i>
-                      </div>
-                      
-                      <h5 style={{ color: '#111827', marginBottom: '1rem', fontWeight: '600' }}>
-                        Quỹ chưa đến hạn rút tiền
-                      </h5>
-                      
-                      <div style={{
-                        padding: '1rem',
-                        backgroundColor: '#fef3c7',
-                        borderRadius: '12px',
-                        marginBottom: '1rem'
-                      }}>
-                        <div style={{ fontSize: '0.875rem', color: '#78350f', marginBottom: '0.5rem' }}>
-                          <strong>Quỹ có kỳ hạn:</strong> Chỉ rút khi hoàn thành 100% mục tiêu <strong>hoặc có thể tất toán</strong>
-                        </div>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.5rem',
-                          marginTop: '0.75rem'
-                        }}>
-                          <i className="bi bi-graph-up pulsing-icon" style={{ color: '#f59e0b', animationDuration: '2s' }}></i>
-                          <span style={{ fontSize: '1.25rem', fontWeight: '700', color: '#f59e0b' }}>
-                            {progress}%
-                          </span>
-                          <span style={{ fontSize: '0.875rem', color: '#78350f' }}>
-                            / 100%
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '1.5rem' }}>
-                        <i className="bi bi-info-circle me-1"></i>
-                        Còn thiếu <strong>{100 - progress}%</strong> để hoàn thành mục tiêu
-                      </div>
+            <FundWithdrawTab
+              fund={fund}
+              wallets={wallets}
+              progress={progress}
+              saving={saving}
+              withdrawProgress={withdrawProgress}
+              handleWithdraw={handleWithdraw}
+              handleSettle={handleSettle}
+              setActiveTab={setActiveTab}
+            />
+          )}
 
-                      {/* Nút tất toán - cho phép tất toán bất cứ lúc nào */}
-                      {fund.current > 0 && (
-                        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={() => setActiveTab("info")}
-                            disabled={saving}
-                            style={{ flex: '0 0 auto', padding: '0.625rem 1.25rem' }}
-                          >
-                            Hủy
-                          </button>
-                          <button 
-                            type="button" 
-                            className="btn-primary" 
-                            disabled={saving}
-                            onClick={handleSettle}
-                            style={{ 
-                              flex: '0 0 auto',
-                              padding: '0.625rem 1.25rem',
-                              backgroundColor: '#10b981',
-                              borderColor: '#10b981'
-                            }}
-                          >
-                            <i className={`bi bi-check-circle me-1 ${saving ? '' : 'pulsing-icon'}`} style={saving ? {} : { animationDuration: '2s' }}></i>
-                            {saving ? "Đang xử lý..." : "Tất toán"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
+          {activeTab === "history" && (
+            <FundHistoryTab
+              fund={fund}
+              historyLoading={historyLoading}
+              historyError={historyError}
+              displayHistory={displayHistory}
+            />
+          )}
+        </div>
+      </div>
 
-                // ĐÃ HOÀN THÀNH - Hiển thị chúc mừng!
-                return (
-                  <>
-                    {/* CELEBRATION CARD */}
-                    <div style={{
-                      padding: '2.5rem',
-                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                      borderRadius: '20px',
-                      textAlign: 'center',
-                      marginBottom: '1.5rem',
-                      boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}>
-                      <style>{`
-                        @keyframes pulse-ring {
-                          0% { transform: scale(0.8); opacity: 1; }
-                          100% { transform: scale(1.5); opacity: 0; }
-                        }
-                        @keyframes bounce-icon {
-                          0%, 100% { transform: translateY(0); }
-                          50% { transform: translateY(-10px); }
-                        }
-                        .pulse-ring {
-                          position: absolute;
-                          width: 100px;
-                          height: 100px;
-                          border: 3px solid rgba(255, 255, 255, 0.6);
-                          border-radius: 50%;
-                          animation: pulse-ring 2s ease-out infinite;
-                        }
+      {/* CONFIRM DELETE MODAL */}
+      <ConfirmModal
+        open={confirmDeleteOpen}
+        title="Xác nhận xóa quỹ"
+        message={`Bạn có chắc chắn muốn xóa quỹ "${fund.name}"?\n\nHành động này sẽ xóa vĩnh viễn quỹ và không thể hoàn tác!`}
+        okText="Xóa quỹ"
+        cancelText="Hủy"
+        danger={true}
+        onOk={confirmDeleteFund}
+        onClose={() => setConfirmDeleteOpen(false)}
+      />
+
+      {/* CONFIRM SETTLE MODAL */}
+      <ConfirmModal
+        open={confirmSettleOpen}
+        title="Xác nhận tất toán quỹ"
+        message={`Bạn có chắc chắn muốn tất toán quỹ "${fund.name}"?\n\nSố tiền ${formatMoney(fund.current, fund.currency)} sẽ được rút toàn bộ về ví nguồn và quỹ sẽ bị xóa sau khi tất toán thành công.\n\nHành động này không thể hoàn tác!`}
+        okText="Tất toán"
+        cancelText="Hủy"
+        danger={false}
+        onOk={confirmSettle}
+        onClose={() => setConfirmSettleOpen(false)}
+      />
+    </div>
+  );
+}
                       `}</style>
                       
                       {/* Pulse rings */}
