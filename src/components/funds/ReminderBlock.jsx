@@ -2,19 +2,46 @@
 import React, { useState, useEffect } from "react";
 import "../../styles/components/funds/FundForms.css";
 
-export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTHLY", onDataChange }) {
-  const [followTime, setFollowTime] = useState("");
-  const [followWeekDay, setFollowWeekDay] = useState("2");
-  const [followMonthDay, setFollowMonthDay] = useState("");
-  
+export default function ReminderBlock({ 
+  reminderOn, 
+  setReminderOn, 
+  freq = "MONTHLY", 
+  onDataChange, 
+  hideToggle = false, 
+  initialValues = null,
+  hasTodayReminder = false,
+  nextReminderDate = null,
+}) {
   // Map week day string to number (1-7)
   const weekDayMap = {
     "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "1": 1
   };
   
+  // Lazy initialization - chỉ chạy một lần khi component mount
+  const getInitialTime = () => {
+    if (initialValues?.reminderTime) {
+      const timeStr = initialValues.reminderTime;
+      return timeStr.includes(':') ? timeStr.slice(0, 5) : timeStr;
+    }
+    return "";
+  };
+  
+  const getInitialWeekDay = () => {
+    return initialValues?.reminderDayOfWeek ? String(initialValues.reminderDayOfWeek) : "2";
+  };
+  
+  const getInitialMonthDay = () => {
+    return initialValues?.reminderDayOfMonth ? String(initialValues.reminderDayOfMonth) : "";
+  };
+  
+  const [followTime, setFollowTime] = useState(getInitialTime);
+  const [followWeekDay, setFollowWeekDay] = useState(getInitialWeekDay);
+  const [followMonthDay, setFollowMonthDay] = useState(getInitialMonthDay);
+  
   // Export data when anything changes
   useEffect(() => {
-    if (!reminderOn || !onDataChange) return;
+    const effectiveOn = hideToggle ? true : reminderOn;
+    if (!effectiveOn || !onDataChange) return;
     
     const reminderData = {};
     
@@ -29,7 +56,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTH
     }
     
     onDataChange(reminderData);
-  }, [reminderOn, freq, followTime, followWeekDay, followMonthDay, onDataChange]);
+  }, [reminderOn, freq, followTime, followWeekDay, followMonthDay, onDataChange, hideToggle]);
 
   const freqLabel =
     {
@@ -53,11 +80,11 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTH
       return (
         <div className="funds-field">
           <label>Giờ nhắc trong ngày</label>
-          <input
-            type="time"
-            value={followTime}
-            onChange={(e) => setFollowTime(e.target.value)}
-          />
+            <input
+              type="time"
+              value={followTime || ""}
+              onChange={(e) => setFollowTime(e.target.value)}
+            />
           <div className="funds-hint">
             Ví dụ: 08:00 mỗi ngày sẽ nhắc bạn gửi tiền vào quỹ.
           </div>
@@ -85,12 +112,19 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTH
             <label>Giờ nhắc trong ngày</label>
             <input
               type="time"
-              value={followTime}
+              value={followTime || ""}
               onChange={(e) => setFollowTime(e.target.value)}
             />
           </div>
           <div className="funds-hint">
             Ví dụ: Thứ 6 lúc 21:00 sẽ nhắc bạn gửi tiền mỗi tuần.
+            {followTime && (
+              <div style={{ marginTop: '0.5rem', color: '#f59e0b', fontWeight: '600' }}>
+                {hasTodayReminder
+                  ? `Thời gian mới sẽ áp dụng cho lần nhắc nhở tiếp theo vào ngày ${nextReminderDate || 'tuần tới'}.`
+                  : `Thời gian mới sẽ áp dụng cho lần nhắc nhở tới.`}
+              </div>
+            )}
           </div>
         </div>
       );
@@ -154,13 +188,20 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTH
             <label>Giờ nhắc trong ngày</label>
             <input
               type="time"
-              value={followTime}
+              value={followTime || ""}
               onChange={(e) => setFollowTime(e.target.value)}
             />
           </div>
         </div>
         <div className="funds-hint">
           Ví dụ: ngày 5 hàng tháng lúc 09:00 sẽ nhắc bạn gửi tiền vào quỹ.
+          {followTime && (
+            <div style={{ marginTop: '0.5rem', color: '#f59e0b', fontWeight: '600' }}>
+              {hasTodayReminder
+                ? `Thời gian mới sẽ áp dụng cho lần nhắc nhở tiếp theo vào ngày ${nextReminderDate || 'tháng tới'}.`
+                : `Thời gian mới sẽ áp dụng cho lần nhắc nhở tới.`}
+            </div>
+          )}
         </div>
       </>
     );
@@ -170,25 +211,27 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "MONTH
     <div className="funds-fieldset">
       <div className="funds-fieldset__legend">Nhắc nhở</div>
 
-      <div className="funds-toggle-line">
-        <span>Bật nhắc nhở cho quỹ này</span>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={reminderOn}
-            onChange={(e) => setReminderOn(e.target.checked)}
-          />
-          <span className="switch__slider" />
-        </label>
-      </div>
+      {!hideToggle && (
+        <div className="funds-toggle-line">
+          <span>Bật nhắc nhở cho quỹ này</span>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={reminderOn}
+              onChange={(e) => setReminderOn(e.target.checked)}
+            />
+            <span className="switch__slider" />
+          </label>
+        </div>
+      )}
 
-      {!reminderOn && (
+      {!hideToggle && !reminderOn && (
         <div className="funds-hint">
           Khi cần, bạn có thể bật lại để hệ thống nhắc theo tần suất mong muốn.
         </div>
       )}
 
-      {reminderOn && (
+      {(hideToggle || reminderOn) && (
         <>
           <div className="funds-hint">
             Hệ thống sẽ nhắc nhở theo tần suất gửi quỹ ({freqLabel}). 

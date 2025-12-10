@@ -86,6 +86,20 @@
   color: var(--color-text-muted);
 }
 
+/* Ẩn spinner trong input number */
+.funds-field input[type="number"].no-spinner,
+.funds-field input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.funds-field input[type="number"].no-spinner::-webkit-outer-spin-button,
+.funds-field input[type="number"].no-spinner::-webkit-inner-spin-button,
+.funds-field input[type="number"]::-webkit-outer-spin-button,
+.funds-field input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .funds-field--inline {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

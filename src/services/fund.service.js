@@ -311,6 +311,27 @@ export const closeFund = async (fundId) => {
   }
 };
 
+// ========================= SETTLE FUND =========================
+
+/**
+ * 💰 TẤT TOÁN QUỸ - Rút toàn bộ số tiền còn lại về ví nguồn và đóng quỹ
+ * @param {number} fundId - ID của quỹ
+ * @returns {Promise<Object>} - { message: string, fund: Object }
+ */
+export const settleFund = async (fundId) => {
+  try {
+    console.log(`fund.service: Calling POST /funds/${fundId}/settle`);
+    const response = await apiClient.post(`/${fundId}/settle`);
+    console.log(`fund.service: POST /funds/${fundId}/settle response:`, {
+      status: response.status,
+      data: response.data,
+    });
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleAxiosError(error, `POST /funds/${fundId}/settle`);
+  }
+};
+
 // ========================= DELETE FUND =========================
 
 /**
@@ -397,6 +418,30 @@ export const checkWalletUsed = async (walletId) => {
   }
 };
 
+// ========================= GET FUND TRANSACTIONS =========================
+
+/**
+ * 📜 LẤY LỊCH SỬ GIAO DỊCH CỦA QUỸ
+ * @param {number} fundId - ID của quỹ
+ * @param {number} limit - Số lượng giao dịch tối đa (mặc định 50)
+ * @returns {Promise<Object>} - { transactions: Array }
+ */
+export const getFundTransactions = async (fundId, limit = 50) => {
+  try {
+    console.log(`fund.service: Calling GET /funds/${fundId}/transactions?limit=${limit}`);
+    const response = await apiClient.get(`/${fundId}/transactions`, {
+      params: { limit }
+    });
+    console.log(`fund.service: GET /funds/${fundId}/transactions response:`, {
+      status: response.status,
+      data: response.data,
+    });
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleAxiosError(error, `GET /funds/${fundId}/transactions`);
+  }
+};
+
 // ========================= EXPORT ALL =========================
 
 export default {
@@ -411,6 +456,8 @@ export default {
   deleteFund,
   depositToFund,
   withdrawFromFund,
+  settleFund,
   checkWalletUsed,
+  getFundTransactions,
 };
 

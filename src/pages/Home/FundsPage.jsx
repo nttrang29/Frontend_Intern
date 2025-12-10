@@ -4,8 +4,6 @@ import { useLocation } from "react-router-dom";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useFundData } from "../../contexts/FundDataContext";
-import { useNotifications } from "../../contexts/NotificationContext";
-import { calculateAllFundWarnings } from "../../utils/fundWarnings";
 import "../../styles/pages/FundsPage.css";
 import "../../styles/components/funds/FundCard.css";
 import "../../styles/components/funds/FundSection.css";
@@ -22,7 +20,6 @@ export default function FundsPage() {
   const location = useLocation();
   const { wallets } = useWalletData();
   const { funds, loading, loadFunds, getFundById } = useFundData();
-  const { pushNotification } = useNotifications();
   const { t } = useLanguage();
 
   // CHỈ VÍ CÁ NHÂN (vì đã bỏ quỹ nhóm)
@@ -35,29 +32,6 @@ export default function FundsPage() {
   useEffect(() => {
     loadFunds();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Tính toán warnings và push vào notifications
-  useEffect(() => {
-    if (funds.length === 0 || wallets.length === 0) return;
-    
-    const allWarnings = calculateAllFundWarnings(funds, wallets);
-    
-    // Push warnings vào notification context
-    allWarnings.forEach(warning => {
-      pushNotification({
-        role: 'user',
-        type: 'fund_warning',
-        fundId: warning.fundId,
-        title: warning.title,
-        desc: warning.message,
-        timeLabel: 'Mới',
-        severity: warning.severity,
-        warningType: warning.type
-      });
-    });
-    
-    // TODO: Notifications for fund reminders and auto-deposits will be handled by backend
-  }, [funds, wallets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Xử lý navigate từ notification
   useEffect(() => {

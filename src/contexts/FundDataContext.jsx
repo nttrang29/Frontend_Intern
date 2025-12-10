@@ -76,6 +76,10 @@ const normalizeFund = (apiFund) => {
     autoDepositAmount: apiFund.autoDepositAmount || null,
     autoDepositStartAt: apiFund.autoDepositStartAt || null,
     
+    // Pending auto topup
+    pendingAutoTopupAmount: apiFund.pendingAutoTopupAmount ? Number(apiFund.pendingAutoTopupAmount) : 0,
+    pendingAutoTopupAt: apiFund.pendingAutoTopupAt || null,
+    
     // Thành viên (cho quỹ nhóm)
     members: apiFund.members || [],
     totalMembers: apiFund.totalMembers || apiFund.membersCount || 0,
@@ -437,6 +441,43 @@ export function FundDataProvider({ children }) {
   };
 
   /**
+   * Tất toán quỹ - rút toàn bộ số tiền còn lại về ví nguồn và đóng quỹ
+   */
+  const settleFund = async (fundId) => {
+    try {
+      console.log(`FundDataContext: Settling fund ${fundId} via API...`);
+      const normalizedId = String(fundId);
+      const targetFund = funds.find((f) => String(f.id ?? f.fundId) === normalizedId);
+      
+      const result = await FundService.settleFund(fundId);
+      
+      if (!result.response.ok) {
+        throw new Error(result.data?.error || "Không thể tất toán quỹ");
+      }
+      
+      console.log("FundDataContext: Fund settled successfully");
+      logFundActivity("fund.settle", `Tất toán quỹ ${targetFund?.fundName || normalizedId}`,
+        {
+          fundId: normalizedId,
+          fundType: targetFund?.fundType,
+          currentAmount: targetFund?.currentAmount,
+        }
+      );
+      
+      // Reload funds list để cập nhật UI
+      await loadFunds();
+      
+      return { success: true, data: result.data };
+    } catch (err) {
+      console.error("FundDataContext: Error settling fund:", err);
+      return { 
+        success: false, 
+        error: err.message || "Đã xảy ra lỗi khi tất toán quỹ"
+      };
+    }
+  };
+
+  /**
    * Kiểm tra ví có đang được sử dụng không
    */
   const checkWalletUsed = async (walletId) => {
@@ -508,6 +549,7 @@ export function FundDataProvider({ children }) {
     deleteFund,
     depositToFund,
     withdrawFromFund,
+    settleFund,
     checkWalletUsed,
     getFundById,
   };

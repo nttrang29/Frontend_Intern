@@ -47,6 +47,9 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
   
   const [autoTopupOn, setAutoTopupOn] = useState(false);
   const [autoTopupData, setAutoTopupData] = useState(null);
+  const [depositMode, setDepositMode] = useState("manual"); // manual | auto
+  const pillColor = "rgba(45, 153, 174, 0.9)";
+  const pillBg = "rgba(45, 153, 174, 0.1)";
   
   const [freq, setFreq] = useState("MONTHLY");
 
@@ -65,8 +68,28 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
       return;
     }
     
-    // Validate auto topup nếu bật
-    if (autoTopupOn) {
+    // Validate reminder nếu chế độ manual
+    if (depositMode === "manual") {
+      if (!reminderData) {
+        showToast("Vui lòng cấu hình nhắc nhở.", "error");
+        return;
+      }
+      if (!reminderData.reminderTime) {
+        showToast("Vui lòng chọn giờ nhắc nhở.", "error");
+        return;
+      }
+      if ((reminderData.reminderType === "WEEKLY" || freq === "WEEKLY") && !reminderData.reminderDayOfWeek) {
+        showToast("Vui lòng chọn ngày trong tuần cho nhắc nhở.", "error");
+        return;
+      }
+      if ((reminderData.reminderType === "MONTHLY" || freq === "MONTHLY") && !reminderData.reminderDayOfMonth) {
+        showToast("Vui lòng chọn ngày trong tháng cho nhắc nhở.", "error");
+        return;
+      }
+    }
+    
+    // Validate auto topup nếu chế độ auto
+    if (depositMode === "auto") {
       if (!autoTopupData) {
         showToast("Vui lòng cấu hình lịch tự động nạp.", "error");
         return;
@@ -89,6 +112,16 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
       }
     }
 
+    // Validate startDate không được là ngày quá khứ
+    if (startDate) {
+      const today = new Date().toISOString().split('T')[0];
+      if (startDate < today) {
+        showToast("Ngày bắt đầu không thể là ngày trong quá khứ!", "error");
+        setStartDate(today); // Reset về hôm nay
+        return;
+      }
+    }
+
     setSaving(true);
 
     try {
@@ -104,8 +137,8 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
         note: note.trim() || null,
       };
 
-      // Thêm reminder data nếu bật
-      if (reminderOn && reminderData) {
+      // Thêm reminder data nếu chế độ manual
+      if (depositMode === "manual" && reminderData) {
         fundData.reminderEnabled = true;
         fundData.reminderType = reminderData.reminderType;
         fundData.reminderTime = reminderData.reminderTime;
@@ -121,12 +154,9 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
         if (reminderData.reminderDay) {
           fundData.reminderDay = reminderData.reminderDay;
         }
-      } else {
-        fundData.reminderEnabled = false;
-      }
-
-      // Thêm auto deposit data nếu bật
-      if (autoTopupOn && autoTopupData) {
+        fundData.autoDepositEnabled = false;
+      } else if (depositMode === "auto" && autoTopupData) {
+        // Thêm auto deposit data nếu chế độ auto
         fundData.autoDepositEnabled = true;
         fundData.autoDepositScheduleType = autoTopupData.autoDepositScheduleType;
         fundData.autoDepositTime = autoTopupData.autoDepositTime;
@@ -134,9 +164,9 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
 
         fundData.autoDepositScheduleType = autoTopupData.autoDepositScheduleType || autoTopupData.autoDepositType || null;
         fundData.autoDepositTime = autoTopupData.autoDepositTime || null;
-          if (autoTopupData.autoDepositStartAt) {
-            fundData.autoDepositStartAt = autoTopupData.autoDepositStartAt;
-          }
+        if (autoTopupData.autoDepositStartAt) {
+          fundData.autoDepositStartAt = autoTopupData.autoDepositStartAt;
+        }
         if (autoTopupData.autoDepositDayOfWeek) {
           fundData.autoDepositDayOfWeek = autoTopupData.autoDepositDayOfWeek;
         }
@@ -149,7 +179,9 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
         if (autoTopupData.autoDepositDay) {
           fundData.autoDepositDay = autoTopupData.autoDepositDay;
         }
+        fundData.reminderEnabled = false;
       } else {
+        fundData.reminderEnabled = false;
         fundData.autoDepositEnabled = false;
       }
 
@@ -308,31 +340,96 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
             <label>Số tiền gửi mỗi kỳ</label>
             <input 
               type="number" 
-              min={0} 
+              // USD yêu cầu tối thiểu 1 USD, các loại tiền khác có thể để trống/0
+              min={selectedCurrency === "USD" ? 1 : 0} 
               placeholder="Tuỳ chọn"
               value={periodAmount}
               onChange={(e) => setPeriodAmount(e.target.value)}
             />
           </div>
         </div>
+
+        {/* Chế độ nạp tiền */}
+        <div className="funds-field">
+          <label>Chế độ nạp tiền</label>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              background: pillBg,
+              border: `1px solid ${pillColor}`,
+              borderRadius: "999px",
+              padding: "0.25rem",
+              width: "fit-content",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setDepositMode("manual");
+                setReminderOn(true);
+                setAutoTopupOn(false);
+              }}
+              style={{
+                border: `1px solid ${pillColor}`,
+                background: depositMode === "manual" ? pillColor : "#fff",
+                color: depositMode === "manual" ? "#fff" : pillColor,
+                padding: "0.35rem 0.85rem",
+                borderRadius: "999px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+            >
+              Thủ công (nhắc nhở)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDepositMode("auto");
+                setAutoTopupOn(true);
+                setReminderOn(false);
+              }}
+              style={{
+                border: `1px solid ${pillColor}`,
+                background: depositMode === "auto" ? pillColor : "#fff",
+                color: depositMode === "auto" ? "#fff" : pillColor,
+                padding: "0.35rem 0.85rem",
+                borderRadius: "999px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+            >
+              Tự động
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* NHẮC NHỞ & TỰ ĐỘNG NẠP */}
-      <ReminderBlock
-        reminderOn={reminderOn}
-        setReminderOn={setReminderOn}
-        freq={freq}
-        onDataChange={setReminderData}
-      />
+      {depositMode === "manual" && (
+        <ReminderBlock
+          reminderOn={reminderOn}
+          setReminderOn={setReminderOn}
+          freq={freq}
+          onDataChange={setReminderData}
+          hideToggle={true}
+        />
+      )}
 
-      <AutoTopupBlock
-        autoTopupOn={autoTopupOn}
-        setAutoTopupOn={setAutoTopupOn}
-        freq={freq}
-        onDataChange={setAutoTopupData}
-        periodAmount={periodAmount}
-        baseStartDate={startDate}
-      />
+      {depositMode === "auto" && (
+        <AutoTopupBlock
+          autoTopupOn={autoTopupOn}
+          setAutoTopupOn={setAutoTopupOn}
+          freq={freq}
+          onDataChange={setAutoTopupData}
+          periodAmount={periodAmount}
+          baseStartDate={startDate}
+          hideToggle={true}
+        />
+      )}
 
       {/* ACTIONS */}
       <div className="funds-fieldset funds-fieldset--full">

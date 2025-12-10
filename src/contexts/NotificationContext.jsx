@@ -28,21 +28,38 @@ export function NotificationProvider({ children }) {
     setLoading(true);
     try {
       const result = await NotificationService.fetchNotifications();
-      const notifs = (result.notifications || []).map(n => ({
-        id: n.notificationId,
-        role: n.receiverRole === "ADMIN" ? "admin" : "user",
-        type: n.type,
-        title: n.title,
-        desc: n.message,
-        timeLabel: formatTimeLabel(n.createdAt),
-        read: n.isRead,
-        createdAt: n.createdAt,
-        referenceId: n.referenceId,
-        referenceType: n.referenceType,
-        // Mapping cho backward compatibility
-        fundId: n.referenceType === "FUND" ? n.referenceId : null,
-        reviewId: n.referenceType === "APP_REVIEW" || n.referenceType === "FEEDBACK" ? n.referenceId : null,
-      }));
+      const notifs = (result.notifications || []).map(n => {
+        // Map referenceType thành type cho các notification liên quan đến fund
+        let mappedType = n.type;
+        if (n.referenceType === "FUND_REMINDER") {
+          mappedType = "fund_reminder";
+        } else if (n.referenceType === "FUND_AUTO_DEPOSIT_SUCCESS") {
+          mappedType = "fund_auto_deposit";
+        } else if (n.referenceType === "FUND_AUTO_DEPOSIT_FAILED") {
+          mappedType = "FUND_AUTO_DEPOSIT_FAILED";
+        } else if (n.referenceType === "FUND_COMPLETED") {
+          mappedType = "FUND_COMPLETED";
+        }
+        
+        return {
+          id: n.notificationId,
+          role: n.receiverRole === "ADMIN" ? "admin" : "user",
+          type: mappedType,
+          title: n.title,
+          desc: n.message,
+          timeLabel: formatTimeLabel(n.createdAt),
+          read: n.isRead,
+          createdAt: n.createdAt,
+          referenceId: n.referenceId,
+          referenceType: n.referenceType,
+          // Mapping cho backward compatibility
+          fundId: n.referenceType === "FUND" || n.referenceType === "FUND_REMINDER" || 
+                  n.referenceType === "FUND_AUTO_DEPOSIT_SUCCESS" || 
+                  n.referenceType === "FUND_AUTO_DEPOSIT_FAILED" || 
+                  n.referenceType === "FUND_COMPLETED" ? n.referenceId : null,
+          reviewId: n.referenceType === "APP_REVIEW" || n.referenceType === "FEEDBACK" ? n.referenceId : null,
+        };
+      });
       setNotifications(notifs);
     } catch (error) {
       console.error("Failed to load notifications:", error);

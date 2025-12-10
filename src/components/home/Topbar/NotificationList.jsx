@@ -13,11 +13,6 @@ function getIconAndLabel(type) {
         icon: "bi-reply-fill",
         label: "Phản hồi của admin",
       };
-    case "fund_warning":
-      return {
-        icon: "bi-exclamation-triangle-fill",
-        label: "Cảnh báo quỹ",
-      };
     case "fund_reminder":
       return {
         icon: "bi-bell-fill",

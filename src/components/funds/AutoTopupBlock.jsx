@@ -16,11 +16,40 @@ export default function AutoTopupBlock({
   lockMode = false, // nếu true: không cho thay đổi chế độ auto/manual, chỉ hiển thị
   initialValues = null,
   baseStartDate = null,
+  hideToggle = false, // nếu true: ẩn nút bật/tắt, luôn hiển thị nội dung
+  disableStartDate = false, // nếu true: disable trường ngày bắt đầu áp dụng
+  hasTodayAutoDeposit = false,
+  nextAutoDepositDate = null,
 }) {
-  const [autoTime, setAutoTime] = useState("");
-  const [autoWeekDay, setAutoWeekDay] = useState("2");
-  const [autoMonthDay, setAutoMonthDay] = useState("");
-  const [autoStartAt, setAutoStartAt] = useState("");
+  // Lazy initialization - chỉ chạy một lần khi component mount
+  const getInitialTime = () => {
+    if (initialValues?.autoDepositTime) {
+      const timeStr = initialValues.autoDepositTime;
+      return timeStr.includes(':') ? timeStr.slice(0, 5) : timeStr;
+    }
+    return "";
+  };
+  
+  const getInitialWeekDay = () => {
+    return initialValues?.autoDepositDayOfWeek ? String(initialValues.autoDepositDayOfWeek) : "2";
+  };
+  
+  const getInitialMonthDay = () => {
+    return initialValues?.autoDepositDayOfMonth ? String(initialValues.autoDepositDayOfMonth) : "";
+  };
+  
+  const getInitialStartAt = () => {
+    if (initialValues?.autoDepositStartAt) {
+      const startAtStr = initialValues.autoDepositStartAt;
+      return startAtStr.includes('T') ? startAtStr.slice(0, 16) : startAtStr;
+    }
+    return "";
+  };
+  
+  const [autoTime, setAutoTime] = useState(getInitialTime);
+  const [autoWeekDay, setAutoWeekDay] = useState(getInitialWeekDay);
+  const [autoMonthDay, setAutoMonthDay] = useState(getInitialMonthDay);
+  const [autoStartAt, setAutoStartAt] = useState(getInitialStartAt);
   const inputsDisabled = lockMode;
   
   // Dùng useRef để lưu onDataChange - tránh re-create function mỗi lần render
@@ -28,27 +57,6 @@ export default function AutoTopupBlock({
   useEffect(() => {
     onDataChangeRef.current = onDataChange;
   }, [onDataChange]);
-  
-  // Export data when anything changes
-  useEffect(() => {
-    if (!initialValues) return;
-
-    if (initialValues.autoDepositTime) {
-      setAutoTime(initialValues.autoDepositTime.slice(0, 5));
-    }
-
-    if (initialValues.autoDepositDayOfWeek) {
-      setAutoWeekDay(String(initialValues.autoDepositDayOfWeek));
-    }
-
-    if (initialValues.autoDepositDayOfMonth) {
-      setAutoMonthDay(initialValues.autoDepositDayOfMonth);
-    }
-
-    if (initialValues.autoDepositStartAt) {
-      setAutoStartAt(initialValues.autoDepositStartAt.slice(0, 16));
-    }
-  }, [initialValues]);
 
   useEffect(() => {
     if (!autoStartAt && baseStartDate && autoTime) {
@@ -61,7 +69,8 @@ export default function AutoTopupBlock({
       return;
     }
 
-    if (!autoTopupOn) {
+    const effectiveOn = hideToggle ? true : autoTopupOn;
+    if (!effectiveOn) {
       onDataChange(null);
       return;
     }
@@ -84,7 +93,7 @@ export default function AutoTopupBlock({
     }
 
     onDataChange(autoTopupData);
-  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, autoStartAt, periodAmount, onDataChange]);
+  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, autoStartAt, periodAmount, onDataChange, hideToggle]);
 
   const freqLabel = {
     DAILY: "Theo ngày",
@@ -104,23 +113,32 @@ export default function AutoTopupBlock({
 
   const renderAutoDepositForm = () => {
     if (freq === "DAILY") {
+      const timeHintText = hasTodayAutoDeposit
+        ? `Thời gian mới sẽ áp dụng cho lần nạp tiếp theo vào ngày ${nextAutoDepositDate || 'kỳ tới'}.`
+        : "Thời gian mới sẽ áp dụng cho lần nạp tới.";
       return (
         <div className="funds-field">
           <label>Giờ tự động nạp (hàng ngày)</label>
           <input
             type="time"
-            value={autoTime}
+            value={autoTime || ""}
             onChange={(e) => setAutoTime(e.target.value)}
             disabled={inputsDisabled}
           />
           <div className="funds-hint">
             Hệ thống sẽ tự động nạp tiền mỗi ngày vào giờ đã chọn.
           </div>
+          <div className="funds-hint" style={{ marginTop: '0.35rem', color: '#92400e' }}>
+            {timeHintText}
+          </div>
         </div>
       );
     }
 
     if (freq === "WEEKLY") {
+      const timeHintText = hasTodayAutoDeposit
+        ? `Thời gian mới sẽ áp dụng cho lần nạp tiếp theo vào ngày ${nextAutoDepositDate || 'kỳ tới'}.`
+        : "Thời gian mới sẽ áp dụng cho lần nạp tới.";
       return (
         <div className="funds-field funds-field--inline">
           <div>
@@ -141,7 +159,7 @@ export default function AutoTopupBlock({
             <label>Giờ tự động nạp</label>
             <input
               type="time"
-              value={autoTime}
+              value={autoTime || ""}
               onChange={(e) => setAutoTime(e.target.value)}
               disabled={inputsDisabled}
             />
@@ -149,11 +167,17 @@ export default function AutoTopupBlock({
           <div className="funds-hint">
             Ví dụ: Thứ 7 lúc 20:00 hệ thống sẽ tự động nạp tiền vào quỹ.
           </div>
+          <div className="funds-hint" style={{ marginTop: '0.35rem', color: '#92400e' }}>
+            {timeHintText}
+          </div>
         </div>
       );
     }
 
     if (freq === "MONTHLY") {
+      const timeHintText = hasTodayAutoDeposit
+        ? `Thời gian mới sẽ áp dụng cho lần nạp tiếp theo vào ngày ${nextAutoDepositDate || 'kỳ tới'}.`
+        : "Thời gian mới sẽ áp dụng cho lần nạp tới.";
       return (
         <>
           <div className="funds-field">
@@ -208,12 +232,15 @@ export default function AutoTopupBlock({
             <label>Giờ tự động nạp</label>
             <input
               type="time"
-              value={autoTime}
+              value={autoTime || ""}
               onChange={(e) => setAutoTime(e.target.value)}
               disabled={inputsDisabled}
             />
             <div className="funds-hint">
               Ví dụ: Ngày 5 hàng tháng lúc 20:00 hệ thống sẽ tự động nạp tiền.
+            </div>
+            <div className="funds-hint" style={{ marginTop: '0.35rem', color: '#92400e' }}>
+              {timeHintText}
             </div>
           </div>
         </>
@@ -228,7 +255,7 @@ export default function AutoTopupBlock({
       <div className="funds-fieldset__legend">Tự động nạp tiền</div>
 
       {/* Nếu lockMode: chỉ hiển thị chế độ hiện tại, không cho toggle */}
-      {!lockMode ? (
+      {!hideToggle && !lockMode && (
         <div className="funds-toggle-line">
           <span>Bật tự động nạp tiền vào quỹ</span>
           <label className="switch">
@@ -240,19 +267,21 @@ export default function AutoTopupBlock({
             <span className="switch__slider" />
           </label>
         </div>
-      ) : (
+      )}
+
+      {!hideToggle && lockMode && (
         <div style={{ marginBottom: '0.5rem' }}>
           <strong>Chế độ nạp:</strong> {autoTopupOn ? 'Nạp tự động' : 'Nạp thủ công'}
         </div>
       )}
 
-      {!autoTopupOn && (
+      {!hideToggle && !autoTopupOn && (
         <div className="funds-hint">
           Khi bật, hệ thống sẽ tự động nạp tiền vào quỹ theo tần xuất gửi quỹ.
         </div>
       )}
 
-      {autoTopupOn && (
+      {(hideToggle || autoTopupOn) && (
         <>
           <div className="funds-hint">
             Hệ thống sẽ tự động nạp tiền theo tần xuất gửi quỹ ({freqLabel}). Chọn giờ/ngày cụ thể.
@@ -267,10 +296,13 @@ export default function AutoTopupBlock({
               step="60"
               value={autoStartAt}
               onChange={(e) => setAutoStartAt(e.target.value)}
-              disabled={inputsDisabled}
+              disabled={inputsDisabled || disableStartDate}
+              style={disableStartDate ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
             />
             <div className="funds-hint">
-              Hệ thống chỉ thực hiện nạp tự động kể từ thời điểm này trở đi.
+              {disableStartDate 
+                ? "Ngày bắt đầu không thể thay đổi sau khi tạo quỹ."
+                : "Hệ thống chỉ thực hiện nạp tự động kể từ thời điểm này trở đi."}
             </div>
           </div>
 
