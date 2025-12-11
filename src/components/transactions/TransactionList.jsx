@@ -190,12 +190,11 @@ export default function TransactionList({
               <tr>
                 <th style={{ width: 60 }}>{t("transactions.table.no")}</th>
                 <th>{t("transactions.table.wallet") || "Ví"}</th>
-                <th>{t("transactions.table.time")}</th>
+                <th style={{ width: 100 }}>{t("transactions.table.time")}</th>
                 <th>{t("transactions.table.type")}</th>
                 <th className="tx-note-col">{t("transactions.table.category") || "Danh mục"}</th>
-                <th className="text-end">{t("transactions.table.amount")}</th>
-                <th>{t("transactions.table.currency")}</th>
-                <th className="text-center">{t("transactions.table.action")}</th>
+                <th className="text-end" style={{ width: 230 }}>{t("transactions.table.amount")}</th>
+                <th className="text-center" style={{ width: 100 }}>{t("transactions.table.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -235,7 +234,7 @@ export default function TransactionList({
                         </span>
                       </td>
                       <td className="tx-note-cell" title={tx.category || "-"}>{tx.category || "-"}</td>
-                      <td className="text-end">
+                      <td className="text-end" style={{ width: 230 }}>
                         <span 
                           className={tx.type === "expense" ? "tx-amount-expense" : "tx-amount-income"}
                           style={{ 
@@ -247,20 +246,17 @@ export default function TransactionList({
                           {tx.type === "expense" ? "-" : "+"}{formatAmountOnly(tx.amount, tx.currency)}
                         </span>
                       </td>
-                      <td>
-                        <span className="badge bg-light text-dark" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px", fontWeight: "500" }}>
-                          {tx.currency || "VND"}
-                        </span>
-                      </td>
                       <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                        <div className="tx-action-buttons">
-                          <button className="btn btn-link btn-sm text-muted" title={t("transactions.action.edit")} onClick={() => onEdit(tx)}>
-                            <i className="bi bi-pencil-square" />
-                          </button>
-                          <button className="btn btn-link btn-sm text-danger" title={t("transactions.action.delete")} onClick={() => onDelete(tx)}>
-                            <i className="bi bi-trash" />
-                          </button>
-                        </div>
+                        {!tx.isWalletDeleted && (
+                          <div className="tx-action-buttons">
+                            <button className="btn btn-link btn-sm text-muted" title={t("transactions.action.edit")} onClick={() => onEdit(tx)}>
+                              <i className="bi bi-pencil-square" />
+                            </button>
+                            <button className="btn btn-link btn-sm text-danger" title={t("transactions.action.delete")} onClick={() => onDelete(tx)}>
+                              <i className="bi bi-trash" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -273,19 +269,17 @@ export default function TransactionList({
             <thead>
               <tr>
                 <th style={{ width: 60 }}>{t("transactions.table.no")}</th>
-                <th>{t("transactions.table.time")}</th>
+                <th style={{ width: 100 }}>{t("transactions.table.time")}</th>
                 <th>{t("transactions.table.source_wallet")}</th>
                 <th>{t("transactions.table.target_wallet")}</th>
-                <th className="tx-note-col">{t("transactions.table.note")}</th>
-                <th className="text-end">{t("transactions.table.amount")}</th>
-                <th>{t("transactions.table.currency")}</th>
-                <th className="text-center">{t("transactions.table.action")}</th>
+                <th className="text-end" style={{ width: 230 }}>{t("transactions.table.amount")}</th>
+                <th className="text-center" style={{ width: 100 }}>{t("transactions.table.action")}</th>
               </tr>
             </thead>
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center text-muted py-4">
+                  <td colSpan={6} className="text-center text-muted py-4">
                     {t("transactions.table.empty")}
                   </td>
                 </tr>
@@ -305,8 +299,7 @@ export default function TransactionList({
                       <td className="fw-medium">{dateTimeStr}</td>
                       <td className="fw-medium">{tx.sourceWallet}</td>
                       <td className="fw-medium">{tx.targetWallet}</td>
-                      <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
-                      <td className="text-end">
+                      <td className="text-end" style={{ width: 230 }}>
                         <span 
                           className="tx-amount-transfer"
                           style={{ 
@@ -318,20 +311,17 @@ export default function TransactionList({
                           {formatAmountOnly(tx.amount, tx.currency)}
                         </span>
                       </td>
-                      <td>
-                        <span className="badge bg-light text-dark" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px", fontWeight: "500" }}>
-                          {tx.currency || "VND"}
-                        </span>
-                      </td>
                       <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                        <div className="tx-action-buttons">
-                          <button className="btn btn-link btn-sm text-muted" title={t("transactions.action.edit")} onClick={() => onEdit(tx)}>
-                            <i className="bi bi-pencil-square" />
-                          </button>
-                          <button className="btn btn-link btn-sm text-danger" title={t("transactions.action.delete")} onClick={() => onDelete(tx)}>
-                            <i className="bi bi-trash" />
-                          </button>
-                        </div>
+                        {!tx.isWalletDeleted && (
+                          <div className="tx-action-buttons">
+                            <button className="btn btn-link btn-sm text-muted" title={t("transactions.action.edit")} onClick={() => onEdit(tx)}>
+                              <i className="bi bi-pencil-square" />
+                            </button>
+                            <button className="btn btn-link btn-sm text-danger" title={t("transactions.action.delete")} onClick={() => onDelete(tx)}>
+                              <i className="bi bi-trash" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );

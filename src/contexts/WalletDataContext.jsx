@@ -186,6 +186,7 @@ export function WalletDataProvider({ children }) {
       includeGroup: apiWallet.includeGroup !== false,
       txCount: apiWallet.transactionCount || apiWallet.txCount || 0,
       transactionCount: apiWallet.transactionCount || apiWallet.txCount || 0,
+      deleted: apiWallet.deleted || false,
     };
   };
 
@@ -197,38 +198,45 @@ export function WalletDataProvider({ children }) {
         // Normalize wallets từ API format, giữ lại color từ state cũ
         let normalizedWallets = [];
         setWallets(prev => {
-          normalizedWallets = data.wallets.map(apiWallet => {
-            const existingWallet = prev.find(w => 
-              (w.id === (apiWallet.walletId || apiWallet.id))
-            );
-            return normalizeWallet(apiWallet, existingWallet);
-          });
+          normalizedWallets = data.wallets
+            .filter(apiWallet => !apiWallet.deleted) // Filter out deleted wallets
+            .map(apiWallet => {
+              const existingWallet = prev.find(w => 
+                (w.id === (apiWallet.walletId || apiWallet.id))
+              );
+              return normalizeWallet(apiWallet, existingWallet);
+            });
+          
+          // Filter out deleted wallets từ prev state trước khi so sánh
+          const prevFiltered = prev.filter(w => !w.deleted);
           
           // Chỉ update state nếu dữ liệu thực sự thay đổi
           // So sánh bằng IDs và các key properties
-          const prevIds = new Set(prev.map(w => w.id || w.walletId));
-          const newIds = new Set(normalizedWallets.map(w => w.id || w.walletId));
+          const prevFilteredIds = new Set(prevFiltered.map(w => w.id || w.walletId));
+          const newWalletIds = new Set(normalizedWallets.map(w => w.id || w.walletId));
           
-          // Nếu số lượng hoặc IDs khác nhau, chắc chắn có thay đổi
-          if (prevIds.size !== newIds.size || [...newIds].some(id => !prevIds.has(id))) {
+          if (prevFilteredIds.size !== newWalletIds.size || [...newWalletIds].some(id => !prevFilteredIds.has(id))) {
             return normalizedWallets;
           }
           
           // Kiểm tra xem có wallet nào thay đổi properties không
           const hasChanged = normalizedWallets.some(newWallet => {
-            const oldWallet = prev.find(w => w.id === newWallet.id);
+            const oldWallet = prevFiltered.find(w => w.id === newWallet.id);
             if (!oldWallet) return true;
-            // So sánh các key properties
+            // So sánh các key properties, bao gồm transactionCount
             return oldWallet.name !== newWallet.name ||
                    oldWallet.walletName !== newWallet.walletName ||
                    oldWallet.balance !== newWallet.balance ||
                    oldWallet.currency !== newWallet.currency ||
                    oldWallet.currencyCode !== newWallet.currencyCode ||
                    oldWallet.isDefault !== newWallet.isDefault ||
-                   oldWallet.isShared !== newWallet.isShared;
+                   oldWallet.isShared !== newWallet.isShared ||
+                   oldWallet.transactionCount !== newWallet.transactionCount ||
+                   oldWallet.txCount !== newWallet.txCount;
           });
           
-          return hasChanged ? normalizedWallets : prev;
+          // Đảm bảo không có ví nào bị xóa trong result
+          return hasChanged ? normalizedWallets : prevFiltered;
         });
         
         // Trả về wallets đã được normalize
@@ -380,7 +388,9 @@ export function WalletDataProvider({ children }) {
         };
         
         setWallets(prev => {
-          const updated = prev.map(w => (w.id === walletId ? finalWallet : w));
+          const updated = prev
+            .filter(w => !w.deleted) // Filter out deleted wallets
+            .map(w => (w.id === walletId ? finalWallet : w));
           // Đảm bảo chỉ có 1 ví mặc định
           if (finalWallet.isDefault) {
             return updated.map(w => (w.id === walletId ? w : { ...w, isDefault: false }));
@@ -413,7 +423,9 @@ export function WalletDataProvider({ children }) {
       const { response, data } = await deleteWalletAPI(id);
       
       if (response.ok) {
-        setWallets(prev => prev.filter(w => w.id !== id));
+        // Soft delete: chỉ đánh dấu deleted, không xóa khỏi state
+        // State sẽ được filter khi loadWallets được gọi
+        setWallets(prev => prev.filter(w => w.id !== id && !w.deleted));
         setGroups(prev => prev.map(g => ({ 
           ...g, 
           walletIds: (g.walletIds||[]).filter(wid => wid !== id), 

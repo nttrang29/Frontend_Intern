@@ -26,7 +26,6 @@ import "../../styles/pages/WalletsPage.css";
 import "../../styles/components/wallets/WalletList.css";
 import "../../styles/components/wallets/WalletHeader.css";
 
-const CURRENCIES = ["VND"];
 const NOTE_MAX_LENGTH = 60;
 const MERGE_PERSONAL_ONLY_ERROR = "WALLET_MERGE_PERSONAL_ONLY";
 
@@ -107,7 +106,7 @@ const DEMO_CATEGORIES = [
 
 const buildWalletForm = (wallet) => ({
   name: wallet?.name || "",
-  currency: wallet?.currency || "VND",
+  currency: "VND", // Currency now fixed to VND
   note: wallet?.note || "",
   isDefault: !!wallet?.isDefault,
   sharedEmails: wallet?.sharedEmails || [],
@@ -245,6 +244,76 @@ const sortWalletsByMode = (walletList = [], sortMode = "default") => {
 /**
  * Format time label cho giao dịch (ngày giờ chính xác)
  */
+// Hàm đơn giản để đảm bảo date string có timezone +07:00 (giống trang Giao dịch)
+// Hàm cho transactions (nạp/rút) - backend trả về UTC, cần convert sang GMT+7
+const ensureIsoDateWithTimezone = (rawValue) => {
+  if (!rawValue) return rawValue;
+  if (typeof rawValue !== "string") {
+    return rawValue;
+  }
+
+  let value = rawValue.trim();
+  if (!value) return value;
+
+  if (value.includes(" ")) {
+    value = value.replace(" ", "T");
+  }
+
+  const hasTimePart = /T\d{2}:\d{2}/.test(value);
+  if (!hasTimePart) {
+    return value;
+  }
+
+  const hasSeconds = /T\d{2}:\d{2}:\d{2}/.test(value);
+  if (!hasSeconds) {
+    value = value.replace(/T(\d{2}:\d{2})(?!:)/, "T$1:00");
+  }
+
+  const hasTimezone = /(Z|z|[+\-]\d{2}:?\d{2})$/.test(value);
+  if (!hasTimezone) {
+    // Transactions: backend trả về UTC (không có timezone), giả định là UTC (Z)
+    // Sau đó formatVietnamTime sẽ convert từ UTC sang GMT+7
+    value = `${value}Z`;
+  }
+
+  return value;
+};
+
+// Hàm cho transfers - backend trả về GMT+7, không cần convert
+const ensureIsoDateWithTimezoneGMT7 = (rawValue) => {
+  if (!rawValue) return rawValue;
+  if (typeof rawValue !== "string") {
+    return rawValue;
+  }
+
+  let value = rawValue.trim();
+  if (!value) return value;
+
+  if (value.includes(" ")) {
+    value = value.replace(" ", "T");
+  }
+
+  const hasTimePart = /T\d{2}:\d{2}/.test(value);
+  if (!hasTimePart) {
+    return value;
+  }
+
+  const hasSeconds = /T\d{2}:\d{2}:\d{2}/.test(value);
+  if (!hasSeconds) {
+    value = value.replace(/T(\d{2}:\d{2})(?!:)/, "T$1:00");
+  }
+
+  const hasTimezone = /(Z|z|[+\-]\d{2}:?\d{2})$/.test(value);
+  if (!hasTimezone) {
+    // Transfers: backend trả về GMT+7 (không có timezone), thêm +07:00
+    // Vì đã là GMT+7 rồi, nên không cần convert nữa (formatVietnamTime sẽ giữ nguyên)
+    value = `${value}+07:00`;
+  }
+
+  return value;
+};
+
+// Giữ lại normalizeTransactionDate cho backward compatibility (nếu có nơi khác dùng)
 function normalizeTransactionDate(rawInput) {
   if (!rawInput && rawInput !== 0) {
     return getVietnamDateTime();
@@ -252,7 +321,17 @@ function normalizeTransactionDate(rawInput) {
 
   if (rawInput instanceof Date) {
     if (!Number.isNaN(rawInput.getTime())) {
-      return rawInput.toISOString();
+      // Date object: lấy local time và format như GMT+7
+      // Vì backend lưu date theo GMT+7, nên nếu Date object được tạo từ string không có timezone,
+      // JavaScript sẽ hiểu nó là local time. Nếu browser timezone là GMT+7, thì getHours() sẽ đúng.
+      // Nhưng để chắc chắn, lấy local time và thêm +07:00
+      const year = rawInput.getFullYear();
+      const month = String(rawInput.getMonth() + 1).padStart(2, "0");
+      const day = String(rawInput.getDate()).padStart(2, "0");
+      const hours = String(rawInput.getHours()).padStart(2, "0");
+      const minutes = String(rawInput.getMinutes()).padStart(2, "0");
+      const seconds = String(rawInput.getSeconds()).padStart(2, "0");
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+07:00`;
     }
     return getVietnamDateTime();
   }
@@ -260,7 +339,14 @@ function normalizeTransactionDate(rawInput) {
   if (typeof rawInput === "number") {
     const fromNumber = new Date(rawInput);
     if (!Number.isNaN(fromNumber.getTime())) {
-      return fromNumber.toISOString();
+      // Timestamp: lấy local time và format như GMT+7
+      const year = fromNumber.getFullYear();
+      const month = String(fromNumber.getMonth() + 1).padStart(2, "0");
+      const day = String(fromNumber.getDate()).padStart(2, "0");
+      const hours = String(fromNumber.getHours()).padStart(2, "0");
+      const minutes = String(fromNumber.getMinutes()).padStart(2, "0");
+      const seconds = String(fromNumber.getSeconds()).padStart(2, "0");
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+07:00`;
     }
   }
 
@@ -273,15 +359,29 @@ function normalizeTransactionDate(rawInput) {
   const hasExplicitZone = /(Z|z|[+\-]\d{2}:?\d{2})$/.test(rawString);
   if (isoWithoutZonePattern.test(rawString) && !hasExplicitZone) {
     const isoLike = rawString.includes("T") ? rawString : rawString.replace(" ", "T");
-    const appended = `${isoLike}Z`;
-    const utcDate = new Date(appended);
-    if (!Number.isNaN(utcDate.getTime())) {
-      return utcDate.toISOString();
-    }
+    // Backend lưu date theo GMT+7 (Asia/Ho_Chi_Minh), nên thêm +07:00 thay vì Z (UTC)
+    const appended = `${isoLike}+07:00`;
+    // Return trực tiếp với timezone +07:00, không convert về UTC
+    return appended;
   }
 
+  // Nếu date string đã có timezone, return trực tiếp (không parse và convert)
+  if (hasExplicitZone) {
+    return rawString;
+  }
+
+  // Fallback: thử parse, nhưng nếu parse được thì cũng không convert về UTC
+  // Chỉ parse để validate, sau đó return với +07:00
   const isoAttempt = new Date(rawString);
   if (!Number.isNaN(isoAttempt.getTime())) {
+    // Parse để validate, nhưng extract lại từ string gốc và thêm +07:00
+    const isoLike = rawString.includes("T") ? rawString : rawString.replace(" ", "T");
+    // Tìm phần date-time trong string
+    const dateTimeMatch = isoLike.match(/^(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?)/);
+    if (dateTimeMatch) {
+      return `${dateTimeMatch[1]}+07:00`;
+    }
+    // Nếu không match, return ISO string (có thể đã có timezone)
     return isoAttempt.toISOString();
   }
 
@@ -295,10 +395,9 @@ function normalizeTransactionDate(rawInput) {
     const hour = Number(hourStr);
     const minute = Number(minuteStr);
     const second = Number(secondStr);
-    const date = new Date(year, month, day, hour, minute, second);
-    if (!Number.isNaN(date.getTime())) {
-      return date.toISOString();
-    }
+    // Format thành ISO string với +07:00 thay vì convert về UTC
+    const formattedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}+07:00`;
+    return formattedDate;
   }
 
   return getVietnamDateTime();
@@ -306,8 +405,9 @@ function normalizeTransactionDate(rawInput) {
 
 function formatTimeLabel(dateString) {
   if (!dateString) return "";
-  const normalized = normalizeTransactionDate(dateString);
-  return formatVietnamDateTime(normalized);
+  // dateString đã được normalize rồi (có +07:00), không cần normalize lại
+  // Chỉ cần format trực tiếp
+  return formatVietnamDateTime(dateString);
 }
 
 const getVietnamDateTime = () => {
@@ -502,8 +602,10 @@ export default function WalletsPage() {
 
     // Personal wallets: include non-group wallets; if a personal wallet has shares,
     // include it here only when the current user is the owner (so recipients don't see it in Personal)
+    // Filter out deleted wallets (soft delete)
     const personalWallets = useMemo(() => {
       return wallets.filter((w) => {
+        if (w.deleted) return false; // Bỏ qua ví đã bị xóa mềm
         if (w.isShared) return false;
         if (walletHasSharedMembers(w)) return isWalletOwnedByMe(w);
         return true;
@@ -511,13 +613,14 @@ export default function WalletsPage() {
     }, [wallets, walletHasSharedMembers, isWalletOwnedByMe]);
 
     // Group wallets: show group wallets that the current user owns
+    // Filter out deleted wallets (soft delete)
     const groupWallets = useMemo(
-      () => wallets.filter((w) => w.isShared && isWalletOwnedByMe(w)),
+      () => wallets.filter((w) => !w.deleted && w.isShared && isWalletOwnedByMe(w)),
       [wallets, isWalletOwnedByMe]
     );
 
   const sharedCandidates = useMemo(
-    () => wallets.filter((w) => walletHasSharedMembers(w) || w.isShared),
+    () => wallets.filter((w) => !w.deleted && (walletHasSharedMembers(w) || w.isShared)),
     [wallets, walletHasSharedMembers]
   );
   const sharedByMeWallets = useMemo(
@@ -592,14 +695,14 @@ export default function WalletsPage() {
 
   useEffect(() => {
     if (!focusWalletId || !wallets.length) return;
-    const matched = wallets.find((w) => String(w.id) === String(focusWalletId));
+    const matched = wallets.find((w) => !w.deleted && String(w.id) === String(focusWalletId));
     if (matched) {
       setSelectedId(matched.id);
     }
   }, [focusWalletId, wallets]);
 
   const selectedWallet = useMemo(
-    () => wallets.find((w) => String(w.id) === String(selectedId)) || null,
+    () => wallets.find((w) => !w.deleted && String(w.id) === String(selectedId)) || null,
     [wallets, selectedId]
   );
 
@@ -1474,33 +1577,24 @@ export default function WalletsPage() {
   const handleSubmitEdit = async (e) => {
     e.preventDefault();
     if (!selectedWallet || !updateWallet) return;
-    const isBudgetWallet = budgets.some((b) => Number(b.walletId) === Number(selectedWallet.id));
-    const currencyChanged = selectedWallet?.currency !== editForm.currency;
-    if (isBudgetWallet && currencyChanged) {
-      showToast("Ví này đang được dùng làm nguồn cho ngân sách nên không thể đổi đơn vị tiền tệ", "error");
-      return;
-    }
     try {
       await updateWallet({
         id: selectedWallet.id,
         name: editForm.name.trim(),
         note: (editForm.note || "").trim().slice(0, NOTE_MAX_LENGTH),
-        currency: editForm.currency,
+        currency: "VND",
         isDefault: !!editForm.isDefault,
       });
       // Immediately notify user and switch to detail view for this wallet
       showToast(t('wallets.toast.updated'));
       setSelectedId(selectedWallet.id);
       setActiveDetailTab("view");
-      // Reload wallets in background to update data
-      loadWallets()
-        .catch((err) => console.debug("loadWallets failed after edit:", err))
-        .finally(() => {
-          // Nếu đổi đơn vị tiền tệ, cần refresh lại lịch sử giao dịch để hiển thị đúng currency mới
-          if (currencyChanged) {
-            refreshTransactions();
-          }
-        });
+      // Reload wallets và đợi hoàn thành để đảm bảo dữ liệu được cập nhật
+      // Điều này đảm bảo khi người dùng ngay lập tức vào "Gộp ví", dữ liệu đã được cập nhật
+      await loadWallets()
+        .catch((err) => console.debug("loadWallets failed after edit:", err));
+      // Currency is fixed to VND; still refresh to ensure latest data
+      refreshTransactions();
     } catch (error) {
       showToast(error.message || t('wallets.toast.update_error'), "error");
     }
@@ -1570,7 +1664,8 @@ export default function WalletsPage() {
         return;
       }
 
-      const deletedTransactions = await purgeWalletTransactions(wallet);
+      // Soft delete: không xóa transactions, chỉ đánh dấu wallet là deleted
+      // const deletedTransactions = await purgeWalletTransactions(wallet);
 
       await deleteWallet(walletId);
       await loadWallets();
@@ -1581,13 +1676,8 @@ export default function WalletsPage() {
         setActiveDetailTab("view");
       }
 
-      if (deletedTransactions > 0) {
-        showToast(
-          `${t('wallets.toast.deleted_with_transactions', { count: deletedTransactions })} "${walletName}"`
-        );
-      } else {
-        showToast(`${t('wallets.toast.deleted')} "${walletName}"`);
-      }
+      // Transactions vẫn được giữ lại khi soft delete wallet
+      showToast(`${t('wallets.toast.deleted')} "${walletName}"`);
     } catch (error) {
       showToast(error.message || t('common.error'), "error");
     }
@@ -1937,16 +2027,19 @@ export default function WalletsPage() {
 
       const displayAmount = isExpense ? -Math.abs(amount) : Math.abs(amount);
 
+    // Ưu tiên createdAt/created_at cho cột thời gian trong lịch sử giao dịch (giống trang Giao dịch)
     const rawDateValue =
       tx.createdAt ||
+      tx.created_at ||
       tx.transactionDate ||
-      tx.transaction_at ||
-      tx.transactionDateTime ||
+      tx.transaction_date ||
       tx.date ||
       tx.time ||
-      tx.createdTime;
-    const dateValue = normalizeTransactionDate(rawDateValue);
-    const timeLabel = formatTimeLabel(dateValue);
+      tx.createdTime ||
+      new Date().toISOString(); // Fallback nếu không có date
+    // Dùng ensureIsoDateWithTimezone giống trang Giao dịch để đồng bộ
+    const dateValue = ensureIsoDateWithTimezone(rawDateValue);
+    const timeLabel = formatTimeLabel(dateValue) || formatVietnamDateTime(new Date()); // Fallback nếu format fail
 
       const creatorName = resolveActorName(tx);
 
@@ -2036,14 +2129,18 @@ export default function WalletsPage() {
 
     const displayAmount = isFromWallet ? -Math.abs(amount) : Math.abs(amount);
 
+    // Ưu tiên createdAt/created_at cho cột thời gian trong lịch sử giao dịch giữa các ví
     const rawDateValue =
       transfer.createdAt ||
+      transfer.created_at ||
       transfer.transferDate ||
-      transfer.executedAt ||
+      transfer.transfer_date ||
       transfer.date ||
-      transfer.time;
-    const dateValue = normalizeTransactionDate(rawDateValue);
-    const timeLabel = formatTimeLabel(dateValue);
+      transfer.time ||
+      new Date().toISOString(); // Fallback nếu không có date
+    // Transfers: backend trả về GMT+7, dùng hàm riêng để xử lý
+    const dateValue = ensureIsoDateWithTimezoneGMT7(rawDateValue);
+    const timeLabel = formatTimeLabel(dateValue) || formatVietnamDateTime(new Date()); // Fallback nếu format fail
 
     const actorName =
       resolveActorName(transfer) ||
@@ -2313,7 +2410,6 @@ export default function WalletsPage() {
           onSelectSharedOwnerWallet={handleSelectSharedOwnerWallet}
           onSharedWalletDemoView={handleDemoViewWallet}
           onSharedWalletDemoCancel={handleDemoCancelSelection}
-          currencies={CURRENCIES}
           incomeCategories={incomeCategoryOptions}
           expenseCategories={expenseCategoryOptions}
           showCreate={showCreate}
