@@ -15,9 +15,25 @@ import FundHistoryTab from "./tabs/FundHistoryTab";
 import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDate } from "../../utils/dateFormat";
 import { getFundTransactions } from "../../services/fund.service";
-import { calcEstimateDate } from "./utils/fundUtils";
 import "../../styles/components/funds/FundDetail.css";
 import "../../styles/components/funds/FundForms.css";
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const PACE_STATUS_LABELS = {
+  ahead: "Vượt tiến độ",
+  on_track: "Theo kế hoạch",
+  behind: "Chậm tiến độ",
+  critical: "Nguy cơ trễ hạn",
+  unknown: "Chưa xác định",
+};
+
+const PACE_STATUS_DEFINITIONS = [
+  { key: "ahead", label: "Vượt tiến độ" },
+  { key: "on_track", label: "Theo kế hoạch" },
+  { key: "behind", label: "Chậm tiến độ" },
+  { key: "critical", label: "Nguy cơ" },
+];
 
 const buildFormState = (fund) => ({
   name: fund.name || "",
@@ -158,12 +174,107 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       ? Math.min(100, Math.round((fund.current / fund.target) * 100))
       : null;
   const progressValue = progress ?? 0;
-  const ringRadius = 40;
-  const ringCircumference = 2 * Math.PI * ringRadius;
-  const ringOffset = ringCircumference * (1 - progressValue / 100);
-  const ringOuterRadius = ringRadius + 30;
-  const ringOuterCircumference = 2 * Math.PI * ringOuterRadius;
-  const ringOuterOffset = ringOuterCircumference * (1 - progressValue / 100);
+  const fundPacing = useMemo(() => {
+    const currentAmount = Number(fund.current ?? fund.currentAmount ?? 0) || 0;
+    const targetAmount = Number(fund.target ?? fund.targetAmount ?? 0) || 0;
+    const hasTarget = targetAmount > 0;
+
+    const parseDate = (value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+
+    const startDate = parseDate(fund.startDate);
+    const endDate = parseDate(fund.endDate);
+
+    let totalDays = null;
+    let elapsedDays = null;
+    let expectedPct = null;
+    let expectedAmount = null;
+
+    if (startDate && endDate && endDate.getTime() > startDate.getTime()) {
+      totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / MS_PER_DAY));
+      const today = new Date();
+      const clamped = Math.min(endDate.getTime(), Math.max(startDate.getTime(), today.getTime()));
+      elapsedDays = Math.max(0, Math.round((clamped - startDate.getTime()) / MS_PER_DAY));
+      expectedPct = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+      if (hasTarget) {
+        expectedAmount = (expectedPct / 100) * targetAmount;
+      }
+    }
+
+    let paceStatus = "unknown";
+    if (expectedPct == null) {
+      if (hasTarget && progressValue >= 100) {
+        paceStatus = "ahead";
+      }
+    } else {
+      const diff = progressValue - expectedPct;
+      if (diff >= 7) paceStatus = "ahead";
+      else if (diff >= -4) paceStatus = "on_track";
+      else if (diff >= -15) paceStatus = "behind";
+      else paceStatus = "critical";
+    }
+
+    const diffPct = expectedPct == null ? null : Math.round(progressValue - expectedPct);
+    const pctPerDay = totalDays ? 100 / totalDays : null;
+    const diffDays = diffPct != null && pctPerDay ? Math.round(diffPct / pctPerDay) : null;
+
+    return {
+      currentAmount,
+      targetAmount,
+      expectedPct,
+      expectedAmount,
+      paceStatus,
+      diffPct,
+      diffDays,
+      shortage: hasTarget ? Math.max(0, targetAmount - currentAmount) : null,
+      totalDays,
+      elapsedDays,
+    };
+  }, [fund.current, fund.currentAmount, fund.target, fund.targetAmount, fund.startDate, fund.endDate, progressValue]);
+
+  const paceStatusLabel = PACE_STATUS_LABELS[fundPacing.paceStatus] || PACE_STATUS_LABELS.unknown;
+  const paceStatusDescription = useMemo(() => {
+    if (fundPacing.diffPct == null) {
+      return "Chưa có thời hạn để so sánh với kế hoạch.";
+    }
+    if (fundPacing.diffPct === 0) {
+      return "Đang đúng với kế hoạch đề ra.";
+    }
+    const absPct = Math.abs(fundPacing.diffPct);
+    const dayHint = fundPacing.diffDays && fundPacing.diffDays !== 0
+      ? ` (~${Math.abs(fundPacing.diffDays)} ngày ${fundPacing.diffDays > 0 ? "sớm" : "trễ"})`
+      : "";
+    if (fundPacing.diffPct > 0) {
+      return `Vượt kế hoạch ${absPct}%${dayHint}.`;
+    }
+    return `Chậm hơn kế hoạch ${absPct}%${dayHint}.`;
+  }, [fundPacing.diffPct, fundPacing.diffDays]);
+
+  const actualPct = Math.max(0, Math.min(progressValue, 100));
+  const expectedPctValue = fundPacing.expectedPct != null ? Math.max(0, Math.min(fundPacing.expectedPct, 100)) : null;
+  const actualAmountLabel = formatMoney(fundPacing.currentAmount, fund.currency);
+  const planAmountLabel = fundPacing.expectedAmount != null ? formatMoney(fundPacing.expectedAmount, fund.currency) : "—";
+  const shortageLabel = fundPacing.shortage != null ? formatMoney(fundPacing.shortage, fund.currency) : "—";
+  const expectedPercentLabel = expectedPctValue != null ? `${Math.round(expectedPctValue)}%` : "--";
+  const diffPercentLabel = fundPacing.diffPct != null ? `${fundPacing.diffPct > 0 ? "+" : ""}${fundPacing.diffPct}%` : "--";
+  const remainingDaysLabel = (() => {
+    if (fundPacing.totalDays == null || fundPacing.elapsedDays == null) return "Chưa có thời hạn";
+    const remaining = Math.max(0, fundPacing.totalDays - fundPacing.elapsedDays);
+    return remaining === 0 ? "Đến hạn hôm nay" : `${remaining} ngày còn lại`;
+  })();
+  const shortagePct = useMemo(() => {
+    if (!fundPacing.targetAmount || fundPacing.targetAmount <= 0 || fundPacing.shortage == null) return null;
+    return Math.min(100, Math.max(0, (fundPacing.shortage / fundPacing.targetAmount) * 100));
+  }, [fundPacing.shortage, fundPacing.targetAmount]);
+  const hasShortage = fundPacing.shortage != null && fundPacing.shortage > 0;
+  const actualTrackHeight = Math.max(0, Math.min(100, actualPct));
+  const shortageTrackHeight = hasShortage && shortagePct != null ? Math.max(0, Math.min(100, shortagePct)) : 0;
+  const shortagePercentLabel = shortagePct != null ? `${Math.round(shortagePct)}%` : fundPacing.shortage === 0 ? "0%" : "--";
+  const targetAmountLabel = fundPacing.targetAmount ? formatMoney(fundPacing.targetAmount, fund.currency) : "—";
+  const actualPercentLabel = `${Math.round(actualPct)}%`;
 
   // Trạng thái quỹ từ backend (ACTIVE, CLOSED, COMPLETED)
   const fundStatus = fund.status || fund.fundStatus || null;
@@ -391,35 +502,6 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       manualPct: total ? Math.round((manual / total) * 100) : 0,
     };
   }, [historyItems]);
-
-  // Line chart: tiến độ tiến gần mục tiêu theo tháng (cumulative %)
-  const monthlyProgress = useMemo(() => {
-    if (!historyItems || historyItems.length === 0) return { labels: [], progress: [], max: 100 };
-    const target = fund.target || fund.targetAmount || 0;
-    const map = new Map();
-    historyItems.forEach((tx) => {
-      const d = new Date(tx.createdAt || tx.transactionDate || tx.transactionAt);
-      if (Number.isNaN(d.getTime())) return;
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      const amount = Number(tx.amount || 0);
-      const entry = map.get(key) || { total: 0, month: d.getMonth() };
-      if (tx.status === "SUCCESS") {
-        entry.total += amount;
-      }
-      map.set(key, entry);
-    });
-    const sorted = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    let cumulative = 0;
-    const labels = [];
-    const progress = [];
-    sorted.forEach(([, v]) => {
-      cumulative += v.total;
-      labels.push(new Date(2020, v.month, 1).toLocaleString("en-US", { month: "short" }));
-      const pct = target > 0 ? Math.min(100, Math.round((cumulative / target) * 100)) : 0;
-      progress.push(pct);
-    });
-    return { labels, progress, max: 100 };
-  }, [historyItems, fund.target, fund.targetAmount]);
 
   const maxAmount = Math.max(fund.target || 0, fund.current || 1);
   
@@ -1126,167 +1208,107 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         </div>
       </div>
 
-      {/* CỘT PHẢI: CHỈ HIỂN THỊ BIỂU ĐỒ QUẠT (DONUT) */}
+      {/* CỘT PHẢI: BIỂU ĐỒ TRẠNG THÁI MỚI */}
       <div className="fund-detail-summary">
-        <div
-          className="card border-0 shadow-sm"
-          style={{
-            background: "linear-gradient(145deg, #f8fbff 0%, #eef4ff 100%)",
-            overflow: "hidden",
-            position: "relative",
-          }}
-        >
-          {/* Glow background */}
-          <div
-            style={{
-              position: "absolute",
-              width: 220,
-              height: 220,
-              borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(13,110,253,0.25) 0%, rgba(13,110,253,0) 60%)",
-              top: -40,
-              right: -50,
-              filter: "blur(6px)",
-            }}
-          ></div>
-          <div className="card-header bg-transparent fw-semibold d-flex justify-content-between align-items-center border-0">
-            <span style={{ color: "#0d6efd" }}>Tiến độ quỹ</span>
-            <span className="badge bg-primary-subtle text-primary text-uppercase">
-              {fund.status || fund.fundStatus || "ACTIVE"}
-            </span>
-          </div>
-          <div className="card-body">
-            <div className="d-flex flex-column align-items-center">
-              <div className="position-relative" style={{ width: 220, height: 220 }}>
-                <svg width="220" height="220">
-                  <defs>
-                    <linearGradient id="fundRing" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#0d6efd" />
-                      <stop offset="100%" stopColor="#4dabf7" />
-                    </linearGradient>
-                  </defs>
-                  <circle
-                    cx="110"
-                    cy="110"
-                    r={ringOuterRadius}
-                    stroke="#e9ecef"
-                    strokeWidth="18"
-                    fill="none"
-                  />
-                  <circle
-                    cx="110"
-                    cy="110"
-                    r={ringOuterRadius}
-                    stroke="url(#fundRing)"
-                    strokeWidth="18"
-                    fill="none"
-                    strokeDasharray={`${ringOuterCircumference} ${ringOuterCircumference}`}
-                    strokeDashoffset={ringOuterOffset}
-                    strokeLinecap="round"
-                    transform="rotate(-90 110 110)"
-                    style={{ transition: "stroke-dashoffset 0.6s ease, stroke 0.3s ease" }}
-                  />
-                </svg>
-                <div className="position-absolute top-50 start-50 translate-middle text-center">
-                  <div
-                    className="fw-bold"
-                    style={{
-                      fontSize: "1.8rem",
-                      color: "#0d6efd",
-                      textShadow: "0 4px 12px rgba(13,110,253,0.3)",
-                    }}
-                  >
-                    {progressValue}%
+        <div className="fund-progress-card card border-0 shadow-sm">
+          <div className="fund-progress-modern">
+            <div className="fund-progress-visual">
+              <div className="fund-progress-unified">
+                <div className="fund-progress-unified-track">
+                  {hasShortage && shortageTrackHeight > 0 && (
+                    <span className="fund-progress-unified-gap" style={{ height: `${shortageTrackHeight}%` }} />
+                  )}
+                  <span className="fund-progress-unified-fill" style={{ height: `${actualTrackHeight}%` }} />
+                  {expectedPctValue != null && (
+                    <span className="fund-progress-unified-plan" style={{ bottom: `${Math.max(0, Math.min(100, expectedPctValue))}%` }} />
+                  )}
+                  <div className="fund-progress-unified-scale">
+                    <span>100%</span>
+                    <span>50%</span>
+                    <span>0%</span>
                   </div>
-                  <div className="text-muted small">Hoàn thành mục tiêu</div>
-                  <div className="mt-1 text-muted small">
-                    {formatMoney(fund.current, fund.currency)} /{" "}
-                    {fund.target ? formatMoney(fund.target, fund.currency) : "—"}
+                </div>
+                <div className="fund-progress-unified-cards">
+                  <div className="fund-progress-unified-card is-actual">
+                    <p>Thực tế</p>
+                    <strong>{actualAmountLabel}</strong>
+                    <span>{actualPercentLabel}</span>
+                  </div>
+                  <div className="fund-progress-unified-card is-plan">
+                    <p>Kế hoạch</p>
+                    <strong>{planAmountLabel}</strong>
+                    <span>{expectedPercentLabel}</span>
+                  </div>
+                  <div className="fund-progress-unified-card is-target">
+                    <p>Mục tiêu</p>
+                    <strong>{targetAmountLabel}</strong>
+                    <span>100%</span>
+                  </div>
+                  <div className="fund-progress-unified-card is-gap">
+                    <p>Còn thiếu</p>
+                    <strong>{shortageLabel}</strong>
+                    <span>{shortagePercentLabel}</span>
                   </div>
                 </div>
               </div>
-
-              {/* Legend chips */}
-              <div className="d-flex gap-2 mt-3 flex-wrap justify-content-center">
-                <span className="badge rounded-pill bg-white text-primary border">
-                  Số dư: {formatMoney(fund.current, fund.currency)}
-                </span>
-                <span className="badge rounded-pill bg-white text-success border">
-                  Mục tiêu: {fund.target ? formatMoney(fund.target, fund.currency) : "—"}
-                </span>
-                <span className="badge rounded-pill bg-white text-secondary border">
-                  Tự động nạp: {fund.autoDepositEnabled ? "Bật" : "Tắt"}
-                </span>
-                <span className="badge rounded-pill bg-white text-secondary border">
-                  Nhắc nhở: {fund.reminderEnabled ? "Bật" : "Tắt"}
-                </span>
-              </div>
             </div>
-          </div>
-        </div>
-
-        {/* LINE CHART KIỂU MẪU */}
-        <div className="card shadow-sm mt-3">
-          <div className="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-            <span>Tiến độ theo tháng</span>
-            <span className="badge bg-light text-muted">Cumulative vs Target</span>
-          </div>
-          <div className="card-body">
-            {monthlyProgress.labels.length ? (
-              <div style={{ width: "100%", height: 220 }}>
-                <svg width="100%" height="220" viewBox="0 0 100 60" preserveAspectRatio="none">
-                  {/* Grid */}
-                  {[0, 20, 40, 60, 80, 100].map((y) => (
-                    <line
-                      key={y}
-                      x1="0"
-                      y1={60 - (y / 100) * 50}
-                      x2="100"
-                      y2={60 - (y / 100) * 50}
-                      stroke="#f1f3f5"
-                      strokeWidth="0.2"
-                    />
-                  ))}
-                  {/* Path progress */}
-                  {(() => {
-                    const arr = monthlyProgress.progress;
-                    const d = arr
-                      .map((val, idx) => {
-                        const x = (idx / Math.max(arr.length - 1, 1)) * 100;
-                        const y = 55 - (val / monthlyProgress.max) * 50;
-                        return `${idx === 0 ? "M" : "L"} ${x},${y}`;
-                      })
-                      .join(" ");
-                    return (
-                      <path
-                        d={d}
-                        fill="none"
-                        stroke="#0d6efd"
-                        strokeWidth="1.4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    );
-                  })()}
-                  {/* Dots */}
-                  {monthlyProgress.progress.map((val, idx) => {
-                    const x = (idx / Math.max(monthlyProgress.progress.length - 1, 1)) * 100;
-                    const y = 55 - (val / monthlyProgress.max) * 50;
-                    return (
-                      <circle key={`prog-${idx}`} cx={x} cy={y} r="1.4" fill="#0d6efd" />
-                    );
-                  })}
-                </svg>
+            <div className="fund-progress-info">
+              <div className="fund-progress-status-head">
+                <div>
+                  <p>Trạng thái tốc độ</p>
+                  <h5>{paceStatusLabel}</h5>
+                </div>
+                <span className={`fund-progress-status-badge is-${fundPacing.paceStatus}`}>
+                  {diffPercentLabel}
+                </span>
               </div>
-            ) : (
-              <div className="text-muted small">Chưa có dữ liệu giao dịch để vẽ biểu đồ.</div>
-            )}
-            {/* Legend */}
-            <div className="d-flex gap-3 align-items-center mt-2">
-              <span className="d-flex align-items-center gap-1 text-muted small">
-                <span style={{ width: 10, height: 2, background: "#0d6efd", display: "inline-block" }}></span>
-                % tiến tới mục tiêu
-              </span>
+              <p className="fund-progress-status-desc">{paceStatusDescription}</p>
+              <div className="fund-progress-stat-grid">
+                <div className="fund-progress-stat">
+                  <p>Thực tế</p>
+                  <strong>{actualAmountLabel}</strong>
+                  <span>Đã đạt {Math.round(actualPct)}% mục tiêu</span>
+                </div>
+                <div className="fund-progress-stat">
+                  <p>Theo kế hoạch</p>
+                  <strong>{planAmountLabel}</strong>
+                  <span>{expectedPctValue != null ? `Lẽ ra đạt ${expectedPercentLabel}` : "Chưa có lịch trình"}</span>
+                </div>
+                <div className="fund-progress-stat">
+                  <p>Còn thiếu</p>
+                  <strong>{shortageLabel}</strong>
+                  <span>{fundPacing.shortage === 0 ? "Đã chạm mục tiêu" : remainingDaysLabel}</span>
+                </div>
+              </div>
+              <div className="fund-progress-meter">
+                <div className="fund-progress-meter-track">
+                  <span className="fund-progress-meter-fill" style={{ width: `${actualPct}%` }} />
+                  {expectedPctValue != null && (
+                    <span className="fund-progress-meter-plan" style={{ left: `${expectedPctValue}%` }} />
+                  )}
+                </div>
+                <div className="fund-progress-meter-legend">
+                  <span>
+                    <span className="legend-dot actual" /> Thực tế
+                  </span>
+                  {expectedPctValue != null && (
+                    <span>
+                      <span className="legend-dot plan" /> Kế hoạch
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="fund-progress-pill-row">
+                {PACE_STATUS_DEFINITIONS.map((status) => (
+                  <span
+                    key={status.key}
+                    className={`fund-progress-pill ${status.key === fundPacing.paceStatus ? "is-active" : ""}`}
+                  >
+                    <span className={`pill-dot pill-dot--${status.key}`} />
+                    {status.label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { useFundData } from "../../contexts/FundDataContext";
 import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services";
+import { getFundTransactions } from "../../services/fund.service";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -22,6 +23,48 @@ const RANGE_OPTIONS = [
 const INCOME_COLOR = "#0B63F6";
 const EXPENSE_COLOR = "#00C2FF";
 const PAGE_SIZE = 10;
+
+const FUND_FILTERS = [
+  { value: "all", labelKey: "reports.funds.filters.all" },
+  { value: "flexible", labelKey: "reports.funds.filters.non_term" },
+  { value: "term", labelKey: "reports.funds.filters.term" },
+];
+
+const FUND_FREQUENCY_LABELS = {
+  DAILY: "reports.funds.frequency.daily",
+  WEEKLY: "reports.funds.frequency.weekly",
+  MONTHLY: "reports.funds.frequency.monthly",
+  YEARLY: "reports.funds.frequency.yearly",
+  CUSTOM: "reports.funds.frequency.custom",
+};
+
+const FUND_HISTORY_LIMIT = 6;
+
+const FUND_HISTORY_TYPE_META = {
+  DEPOSIT: { labelKey: "reports.funds.detail.history.type.manual", direction: "in" },
+  MANUAL_DEPOSIT: { labelKey: "reports.funds.detail.history.type.manual", direction: "in" },
+  AUTO_DEPOSIT: { labelKey: "reports.funds.detail.history.type.auto", direction: "in" },
+  AUTO_DEPOSIT_RECOVERY: { labelKey: "reports.funds.detail.history.type.recovery", direction: "in" },
+  WITHDRAW: { labelKey: "reports.funds.detail.history.type.withdraw", direction: "out" },
+  AUTO_WITHDRAW: { labelKey: "reports.funds.detail.history.type.withdraw", direction: "out" },
+  ADJUSTMENT: { labelKey: "reports.funds.detail.history.type.adjustment", direction: "in" },
+  DEFAULT: { labelKey: "reports.funds.detail.history.type.unknown", direction: "in" },
+};
+
+const getFundHistoryTypeMeta = (type) => {
+  const normalized = (type || "").toUpperCase();
+  return FUND_HISTORY_TYPE_META[normalized] || FUND_HISTORY_TYPE_META.DEFAULT;
+};
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const isFundCompleted = (fund) => {
+  if (!fund) return false;
+  const targetValue = Number(fund?.targetAmount ?? fund?.target ?? 0) || 0;
+  if (!targetValue) return false;
+  const currentValue = Number(fund?.currentAmount ?? fund?.current ?? 0) || 0;
+  return currentValue >= targetValue;
+};
 
 const normalizeTransaction = (raw) => {
   if (!raw) return null;
@@ -245,6 +288,147 @@ const sortWalletsByMode = (walletList = [], sortMode = "default") => {
   return arr;
 };
 
+const getFundIdentity = (fund) => {
+  if (!fund) return "";
+  return String(
+    fund.id ??
+      fund.fundId ??
+      fund.fundID ??
+      fund.code ??
+      fund.targetWalletId ??
+      ""
+  );
+};
+
+const normalizeDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const buildFundGoalStats = (fund) => {
+  if (!fund) return null;
+
+  const currentValue = Number(fund.currentAmount ?? fund.current ?? 0) || 0;
+  const targetValue = Number(fund.targetAmount ?? fund.target ?? 0) || 0;
+  const progressPct = targetValue > 0 ? Math.min(100, (currentValue / targetValue) * 100) : 0;
+  const startDate = normalizeDate(fund.startDate);
+  const endDate = normalizeDate(fund.endDate);
+  const hasDeadline = !!(fund.hasDeadline || fund.hasTerm);
+
+  let totalDays = null;
+  let elapsedDays = null;
+  let remainingDays = null;
+  let expectedPct = null;
+  let expectedAmount = null;
+
+  if (startDate && endDate && endDate.getTime() > startDate.getTime()) {
+    totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / MS_PER_DAY));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const clampedToday = Math.min(endDate.getTime(), Math.max(startDate.getTime(), today.getTime()));
+    elapsedDays = Math.max(0, Math.round((clampedToday - startDate.getTime()) / MS_PER_DAY));
+    remainingDays = Math.max(0, totalDays - elapsedDays);
+
+    if (targetValue > 0) {
+      const expectedRatio = elapsedDays / totalDays;
+      expectedPct = Math.min(100, expectedRatio * 100);
+      expectedAmount = Math.min(targetValue, expectedRatio * targetValue);
+    }
+  }
+
+  const shortage = targetValue > 0 ? Math.max(0, targetValue - currentValue) : 0;
+  const neededPerDay = remainingDays && shortage > 0 ? shortage / Math.max(1, remainingDays) : 0;
+  const rawAmountPerPeriod = Number(fund.amountPerPeriod ?? 0) || 0;
+  const amountPerPeriodValue = rawAmountPerPeriod > 0 ? rawAmountPerPeriod : null;
+
+  let paceStatus = "unknown";
+  if (expectedAmount == null) {
+    paceStatus = targetValue > 0 ? (progressPct >= 100 ? "ahead" : "on_track") : "unknown";
+  } else if (currentValue >= expectedAmount * 1.05) {
+    paceStatus = "ahead";
+  } else if (currentValue >= expectedAmount * 0.9) {
+    paceStatus = "on_track";
+  } else if (currentValue >= expectedAmount * 0.6) {
+    paceStatus = "behind";
+  } else {
+    paceStatus = "critical";
+  }
+
+  return {
+    currentValue,
+    targetValue,
+    progressPct,
+    shortage,
+    startDate,
+    endDate,
+    hasDeadline,
+    totalDays,
+    elapsedDays,
+    remainingDays,
+    expectedPct,
+    expectedAmount,
+    neededPerDay,
+    paceStatus,
+    amountPerPeriodValue,
+    frequency: fund.frequency || null,
+  };
+};
+
+const FundProgressDonut = ({ progress = 0 }) => {
+  const normalized = Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0;
+  const radius = 60;
+  const stroke = 10;
+  const normalizedRadius = radius - stroke / 2;
+  const circumference = 2 * Math.PI * normalizedRadius;
+  const strokeDashoffset = circumference - (normalized / 100) * circumference;
+  const gradientId = useMemo(
+    () => `fundProgressGradient-${Math.random().toString(36).slice(2, 9)}`,
+    []
+  );
+
+  return (
+    <svg
+      className="fund-progress-donut"
+      width={radius * 2}
+      height={radius * 2}
+      viewBox={`0 0 ${radius * 2} ${radius * 2}`}
+      role="img"
+      aria-label={`Goal progress ${Math.round(normalized)}%`}
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#0b63f6" />
+          <stop offset="100%" stopColor="#00c2ff" />
+        </linearGradient>
+      </defs>
+      <circle
+        className="fund-donut-track"
+        strokeWidth={stroke}
+        fill="transparent"
+        r={normalizedRadius}
+        cx={radius}
+        cy={radius}
+      />
+      <circle
+        className="fund-donut-progress"
+        strokeWidth={stroke}
+        strokeDasharray={`${circumference} ${circumference}`}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+        stroke={`url(#${gradientId})`}
+        fill="transparent"
+        r={normalizedRadius}
+        cx={radius}
+        cy={radius}
+      />
+      <text className="fund-donut-text" x="50%" y="50%" dominantBaseline="middle" textAnchor="middle">
+        {`${Math.round(normalized)}%`}
+      </text>
+    </svg>
+  );
+};
+
 
 export default function ReportsPage() {
   const { formatCurrency } = useCurrency();
@@ -269,6 +453,13 @@ export default function ReportsPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [activeReportTab, setActiveReportTab] = useState("wallets");
+  const [fundSearch, setFundSearch] = useState("");
+  const [fundFilter, setFundFilter] = useState("all");
+  const [fundCompletionFilter, setFundCompletionFilter] = useState("active");
+  const [selectedFundId, setSelectedFundId] = useState(null);
+  const [fundHistoryItems, setFundHistoryItems] = useState([]);
+  const [fundHistoryLoading, setFundHistoryLoading] = useState(false);
+  const [fundHistoryError, setFundHistoryError] = useState(false);
 
   const formatDateSafe = useCallback(
     (value) => {
@@ -665,6 +856,111 @@ export default function ReportsPage() {
   }, [chartData]);
   const chartNet = chartSummary.income - chartSummary.expense;
 
+  const totalWalletBalance = useMemo(() => {
+    if (!wallets || !wallets.length) return 0;
+    return wallets.reduce(
+      (sum, wallet) => sum + (Number(wallet.balance ?? wallet.current ?? 0) || 0),
+      0
+    );
+  }, [wallets]);
+
+  const rangeLabel = useMemo(() => {
+    const match = RANGE_OPTIONS.find((option) => option.value === range);
+    if (!match) return "";
+    return t(`reports.range.${match.value}`);
+  }, [range, t]);
+
+  const computeTrend = useCallback(
+    (field) => {
+      if (!chartData.length) return 0;
+      const firstValue = chartData[0]?.[field] ?? 0;
+      const lastValue = chartData[chartData.length - 1]?.[field] ?? 0;
+      if (firstValue === 0) {
+        return lastValue === 0 ? 0 : 100;
+      }
+      const raw = ((lastValue - firstValue) / Math.abs(firstValue)) * 100;
+      return Math.round(Math.max(-100, Math.min(100, raw)));
+    },
+    [chartData]
+  );
+
+  const incomeTrend = useMemo(() => computeTrend("income"), [computeTrend]);
+  const expenseTrend = useMemo(() => computeTrend("expense"), [computeTrend]);
+  const netTrend = useMemo(() => {
+    if (!chartData.length) return 0;
+    const firstNet = (chartData[0]?.income || 0) - (chartData[0]?.expense || 0);
+    const lastNet =
+      (chartData[chartData.length - 1]?.income || 0) -
+      (chartData[chartData.length - 1]?.expense || 0);
+    if (firstNet === 0) {
+      return lastNet === 0 ? 0 : 100;
+    }
+    const raw = ((lastNet - firstNet) / Math.abs(firstNet)) * 100;
+    return Math.round(Math.max(-100, Math.min(100, raw)));
+  }, [chartData]);
+
+  const lineChartPoints = useMemo(() => {
+    if (!chartData.length) {
+      return { income: "", expense: "" };
+    }
+
+    const denominator = Math.max(1, chartData.length - 1);
+    const maxValue = chartMaxValue || 1;
+
+    const buildPoints = (field) =>
+      chartData
+        .map((item, index) => {
+          const x = (index / denominator) * 100;
+          const ratio = (item[field] || 0) / maxValue;
+          const y = 100 - Math.min(100, Math.max(0, ratio * 100));
+          return `${x.toFixed(2)},${y.toFixed(2)}`;
+        })
+        .join(" ");
+
+    return {
+      income: buildPoints("income"),
+      expense: buildPoints("expense"),
+    };
+  }, [chartData, chartMaxValue]);
+
+  const highlightCards = useMemo(
+    () => [
+      {
+        key: "income",
+        title: t("dashboard.income"),
+        amount: formatCurrency(chartSummary.income),
+        delta: incomeTrend,
+        positive: incomeTrend >= 0,
+        icon: "bi-cash-stack",
+      },
+      {
+        key: "expense",
+        title: t("dashboard.expense"),
+        amount: formatCurrency(chartSummary.expense),
+        delta: expenseTrend,
+        positive: expenseTrend <= 0,
+        icon: "bi-cart-check",
+      },
+      {
+        key: "net",
+        title: t("reports.remaining"),
+        amount: formatCurrency(chartNet),
+        delta: netTrend,
+        positive: netTrend >= 0,
+        icon: "bi-arrow-left-right",
+      },
+      {
+        key: "balance",
+        title: t("wallets.total_balance") || "Tổng số dư",
+        amount: formatCurrency(totalWalletBalance),
+        delta: 0,
+        positive: true,
+        icon: "bi-credit-card-2-front",
+      },
+    ],
+    [chartSummary, chartNet, expenseTrend, formatCurrency, incomeTrend, netTrend, t, totalWalletBalance]
+  );
+
   const summary = useMemo(() => {
     return walletTransactions.reduce(
       (acc, tx) => {
@@ -679,8 +975,10 @@ export default function ReportsPage() {
   const currency = selectedWallet?.currency || "VND";
   const net = summary.income - summary.expense;
 
+  const safeFunds = useMemo(() => (Array.isArray(funds) ? funds : []), [funds]);
+
   const fundSummary = useMemo(() => {
-    if (!Array.isArray(funds) || funds.length === 0) {
+    if (!safeFunds.length) {
       return {
         total: 0,
         totalCurrent: 0,
@@ -694,7 +992,7 @@ export default function ReportsPage() {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const activeFunds = funds.filter((fund) => (fund.status || "").toUpperCase() !== "CLOSED");
+    const activeFunds = safeFunds.filter((fund) => (fund.status || "").toUpperCase() !== "CLOSED");
     const totalCurrent = activeFunds.reduce(
       (sum, fund) => sum + (Number(fund.currentAmount ?? fund.current ?? 0) || 0),
       0
@@ -708,16 +1006,11 @@ export default function ReportsPage() {
       if (!fund.endDate) return count;
       const endDate = new Date(fund.endDate);
       if (Number.isNaN(endDate.getTime())) return count;
-      const diffDays = (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+      const diffDays = (endDate.getTime() - today.getTime()) / MS_PER_DAY;
       if (diffDays <= 30 && diffDays >= 0) return count + 1;
       return count;
     }, 0);
-    const completed = activeFunds.filter((fund) => {
-      const target = Number(fund.targetAmount ?? fund.target ?? 0) || 0;
-      if (!target) return false;
-      const currentValue = Number(fund.currentAmount ?? fund.current ?? 0) || 0;
-      return currentValue >= target;
-    }).length;
+    const completed = activeFunds.filter(isFundCompleted).length;
     const progressPct = totalTarget > 0 ? Math.min(100, (totalCurrent / totalTarget) * 100) : 0;
 
     return {
@@ -729,29 +1022,288 @@ export default function ReportsPage() {
       nearingDeadline,
       completed,
     };
-  }, [funds]);
+  }, [safeFunds]);
 
-  const fundProgressList = useMemo(() => {
-    if (!Array.isArray(funds) || funds.length === 0) return [];
-    return funds
-      .filter((fund) => (fund.status || "").toUpperCase() !== "CLOSED")
+  const fundFilterCounts = useMemo(() => {
+    const counts = {
+      all: safeFunds.length,
+      flexible: 0,
+      term: 0,
+    };
+
+    safeFunds.forEach((fund) => {
+      if (fund.hasDeadline || fund.hasTerm) counts.term += 1;
+      else counts.flexible += 1;
+    });
+
+    return counts;
+  }, [safeFunds]);
+
+  const fundCompletionCounts = useMemo(() => {
+    return safeFunds.reduce(
+      (acc, fund) => {
+        if (isFundCompleted(fund)) acc.completed += 1;
+        else acc.active += 1;
+        return acc;
+      },
+      { active: 0, completed: 0 }
+    );
+  }, [safeFunds]);
+
+  const fundFilterOptions = useMemo(
+    () => FUND_FILTERS.map((filter) => ({ ...filter, label: t(filter.labelKey) })),
+    [t]
+  );
+
+  const fundCompletionOptions = useMemo(
+    () => [
+      {
+        value: "active",
+        label: t("reports.funds.completion.active"),
+        count: fundCompletionCounts.active,
+      },
+      {
+        value: "completed",
+        label: t("reports.funds.completion.completed"),
+        count: fundCompletionCounts.completed,
+      },
+    ],
+    [fundCompletionCounts, t]
+  );
+
+  const filteredFundsList = useMemo(() => {
+    if (!safeFunds.length) return [];
+    const keyword = fundSearch.trim().toLowerCase();
+
+    const matchesFilter = (fund) => {
+      switch (fundFilter) {
+        case "flexible":
+          return !(fund.hasDeadline || fund.hasTerm);
+        case "term":
+          return !!(fund.hasDeadline || fund.hasTerm);
+        default:
+          return true;
+      }
+    };
+
+    const matchesCompletion = (fund) => {
+      const completed = isFundCompleted(fund);
+      if (fundCompletionFilter === "completed") return completed;
+      return !completed;
+    };
+
+    const matchesSearch = (fund) => {
+      if (!keyword) return true;
+      const name = (fund.fundName || fund.name || "").toLowerCase();
+      const note = (fund.note || "").toLowerCase();
+      return name.includes(keyword) || note.includes(keyword);
+    };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const computeDaysRemaining = (fund) => {
+      const endDate = normalizeDate(fund.endDate);
+      if (!endDate) return null;
+      return Math.ceil((endDate.getTime() - today.getTime()) / MS_PER_DAY);
+    };
+
+    return safeFunds
+      .filter((fund) => matchesFilter(fund) && matchesCompletion(fund) && matchesSearch(fund))
       .map((fund) => {
-        const currentValue = Number(fund.currentAmount ?? fund.current ?? 0) || 0;
+        const fundId = getFundIdentity(fund);
         const targetValue = Number(fund.targetAmount ?? fund.target ?? 0) || 0;
-        const progress = targetValue > 0 ? Math.min(100, (currentValue / targetValue) * 100) : null;
+        const currentValue = Number(fund.currentAmount ?? fund.current ?? 0) || 0;
+        const progressPct = targetValue > 0 ? Math.min(100, (currentValue / targetValue) * 100) : 0;
+        const daysRemaining = computeDaysRemaining(fund);
         return {
-          id: fund.id ?? fund.fundId ?? `${fund.fundName || "fund"}-${fund.targetWalletId || "0"}`,
-          name: fund.fundName || fund.name || t("sidebar.funds"),
-          currentValue,
-          targetValue,
-          progress,
+          fund,
+          progressPct,
+          daysRemaining,
           hasDeadline: !!(fund.hasDeadline || fund.hasTerm),
-          endDate: fund.endDate || null,
         };
       })
-      .sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0))
-      .slice(0, 4);
-  }, [funds, t]);
+      .sort((a, b) => {
+        const aHasDeadline = a.hasDeadline && a.daysRemaining !== null;
+        const bHasDeadline = b.hasDeadline && b.daysRemaining !== null;
+        if (aHasDeadline && bHasDeadline && a.daysRemaining !== b.daysRemaining) {
+          return a.daysRemaining - b.daysRemaining;
+        }
+        if (aHasDeadline !== bHasDeadline) {
+          return aHasDeadline ? -1 : 1;
+        }
+
+        return a.progressPct - b.progressPct;
+      })
+      .map((item) => item.fund);
+  }, [safeFunds, fundFilter, fundSearch, fundCompletionFilter]);
+
+  useEffect(() => {
+    if (!filteredFundsList.length) {
+      if (selectedFundId !== null) {
+        setSelectedFundId(null);
+      }
+      return;
+    }
+
+    const exists = filteredFundsList.some((fund) => getFundIdentity(fund) === selectedFundId);
+    if (!exists) {
+      setSelectedFundId(getFundIdentity(filteredFundsList[0]));
+    }
+  }, [filteredFundsList, selectedFundId]);
+
+  const selectedFund = useMemo(() => {
+    if (!filteredFundsList.length) return null;
+    if (selectedFundId) {
+      const match = filteredFundsList.find((fund) => getFundIdentity(fund) === selectedFundId);
+      if (match) return match;
+    }
+    return filteredFundsList[0] || null;
+  }, [filteredFundsList, selectedFundId]);
+
+  const selectedFundIdentity = useMemo(() => getFundIdentity(selectedFund), [selectedFund]);
+
+  useEffect(() => {
+    if (activeReportTab !== "funds") {
+      setFundHistoryLoading(false);
+      return;
+    }
+    if (!selectedFund || !selectedFundIdentity) {
+      setFundHistoryItems([]);
+      setFundHistoryError(false);
+      setFundHistoryLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const numericId = Number(selectedFund?.fundId ?? selectedFund?.id ?? selectedFundIdentity);
+    if (!numericId || Number.isNaN(numericId)) {
+      setFundHistoryItems([]);
+      setFundHistoryError(false);
+      setFundHistoryLoading(false);
+      return;
+    }
+
+    const fetchHistory = async () => {
+      setFundHistoryLoading(true);
+      setFundHistoryError(false);
+      try {
+        const result = await getFundTransactions(numericId, 20);
+        if (cancelled) return;
+        if (result?.response?.ok && result?.data) {
+          const list = Array.isArray(result.data)
+            ? result.data
+            : result.data.transactions || [];
+          setFundHistoryItems(list);
+        } else {
+          setFundHistoryItems([]);
+          setFundHistoryError(true);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setFundHistoryItems([]);
+          setFundHistoryError(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setFundHistoryLoading(false);
+        }
+      }
+    };
+
+    fetchHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeReportTab, selectedFund, selectedFundIdentity]);
+
+  const selectedFundGoal = useMemo(() => buildFundGoalStats(selectedFund), [selectedFund]);
+
+  const selectedFundFrequencyLabel = useMemo(() => {
+    if (!selectedFund) return null;
+    const freqKey = selectedFund.frequency ? String(selectedFund.frequency).toUpperCase() : null;
+    if (!freqKey) return null;
+    const translationKey = FUND_FREQUENCY_LABELS[freqKey] || FUND_FREQUENCY_LABELS.CUSTOM;
+    return t(translationKey);
+  }, [selectedFund, t]);
+
+  const describeRemainingDays = useCallback(
+    (days) => {
+      if (days == null) return t("reports.funds.detail.no_deadline");
+      if (days > 0) return t("reports.funds.days_left", { count: days });
+      if (days === 0) return t("reports.funds.deadline_today");
+      return t("reports.funds.days_overdue", { count: Math.abs(days) });
+    },
+    [t]
+  );
+
+  const hasSelectedFundTarget = (selectedFundGoal?.targetValue ?? 0) > 0;
+  const selectedFundProgressPct = selectedFundGoal?.progressPct ?? 0;
+  const selectedFundExpectedPct = selectedFundGoal?.expectedPct ?? null;
+  const paceStatus = selectedFundGoal?.paceStatus || "unknown";
+  const fundPaceLabel = paceStatus !== "unknown"
+    ? t(`reports.funds.detail.pace.${paceStatus}`)
+    : t("reports.funds.detail.pace.unknown");
+  const selectedFundRemainingLabel = describeRemainingDays(selectedFundGoal?.remainingDays ?? null);
+  const selectedFundCurrentLabel = formatCurrency(selectedFundGoal?.currentValue ?? 0);
+  const selectedFundTargetLabel = hasSelectedFundTarget
+    ? formatCurrency(selectedFundGoal?.targetValue ?? 0)
+    : t("reports.funds.detail.no_target");
+  const selectedFundShortageLabel = hasSelectedFundTarget
+    ? formatCurrency(selectedFundGoal?.shortage ?? 0)
+    : "--";
+  const selectedFundDailyNeeded = selectedFundGoal?.neededPerDay && selectedFundGoal.neededPerDay > 0
+    ? formatCurrency(selectedFundGoal.neededPerDay)
+    : null;
+  const selectedFundPeriodContribution = selectedFundGoal?.amountPerPeriodValue || null;
+  const selectedFundStartLabel = selectedFundGoal?.startDate
+    ? formatDateSafe(selectedFundGoal.startDate)
+    : "-";
+  const selectedFundEndLabel = selectedFundGoal?.endDate
+    ? formatDateSafe(selectedFundGoal.endDate)
+    : t("reports.funds.detail.no_deadline");
+  const selectedFundCurrency = selectedFund?.currency || "VND";
+
+  const selectedFundHistoryEntries = useMemo(() => {
+    if (!fundHistoryItems.length) return [];
+    const fallbackDate = t("reports.funds.detail.history_no_date");
+    return [...fundHistoryItems]
+      .sort((a, b) => {
+        const aDate = new Date(a?.createdAt || a?.transactionDate || a?.transactionAt || 0);
+        const bDate = new Date(b?.createdAt || b?.transactionDate || b?.transactionAt || 0);
+        return bDate - aDate;
+      })
+      .slice(0, FUND_HISTORY_LIMIT)
+      .map((tx, index) => {
+        const meta = getFundHistoryTypeMeta(tx?.type);
+        const amountValue = Math.abs(Number(tx?.amount) || 0);
+        const rawDate = tx?.createdAt || tx?.transactionDate || tx?.transactionAt || tx?.date;
+        let dateLabel = fallbackDate;
+        if (rawDate) {
+          const dateObj = new Date(rawDate);
+          if (!Number.isNaN(dateObj.getTime())) {
+            const datePart = formatDate(dateObj);
+            const timePart = formatVietnamTime(dateObj);
+            dateLabel = `${datePart} ${timePart}`.trim();
+          }
+        }
+        const note = (tx?.note || tx?.description || tx?.message || tx?.remark || "").trim();
+        const normalizedStatus = (tx?.status || "").toUpperCase();
+        const isSuccess = normalizedStatus === "SUCCESS";
+        return {
+          id: tx?.transactionId || tx?.id || `${rawDate || "history"}-${index}`,
+          typeLabel: t(meta.labelKey),
+          direction: meta.direction,
+          amountLabel: `${meta.direction === "out" ? "-" : "+"}${formatCurrency(amountValue)}`,
+          statusLabel: isSuccess
+            ? t("reports.funds.detail.history_success")
+            : t("reports.funds.detail.history_failed"),
+          status: isSuccess ? "success" : "failed",
+          dateLabel,
+          note,
+        };
+      });
+  }, [fundHistoryItems, formatCurrency, formatDate, t]);
 
   const budgetUsageList = useMemo(() => {
     if (!Array.isArray(budgets) || budgets.length === 0) return [];
@@ -822,6 +1374,42 @@ export default function ReportsPage() {
     };
   }, [budgetUsageList, budgets.length]);
 
+  const statBreakdown = useMemo(() => {
+    const slices = [
+      {
+        key: "income",
+        label: t("dashboard.income"),
+        value: chartSummary.income,
+        accent: "#0b63f6",
+      },
+      {
+        key: "expense",
+        label: t("dashboard.expense"),
+        value: chartSummary.expense,
+        accent: "#00c2ff",
+      },
+      {
+        key: "installment",
+        label: t("reports.budgets.total_spent"),
+        value: budgetSummary.totalSpent,
+        accent: "#fb923c",
+      },
+      {
+        key: "invest",
+        label: t("reports.funds.section_title"),
+        value: fundSummary.totalCurrent,
+        accent: "#7c3aed",
+      },
+    ];
+    const maxValue = slices.reduce((max, slice) => Math.max(max, slice.value || 0), 0) || 1;
+    return slices.map((slice, index) => ({
+      ...slice,
+      formatted: formatCurrency(slice.value || 0),
+      percent: Math.round(((slice.value || 0) / maxValue) * 100),
+      index,
+    }));
+  }, [budgetSummary.totalSpent, chartSummary, formatCurrency, fundSummary.totalCurrent, t]);
+
   const handleViewHistory = useCallback(() => {
     if (!selectedWalletId) return;
     setShowHistory((prev) => !prev);
@@ -867,57 +1455,488 @@ export default function ReportsPage() {
         </div>
         <div className="reports-content">
         {activeReportTab === "wallets" && (
-          <div className="reports-layout">
-          <div className="reports-wallet-card card border-0 shadow-sm">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                  <h5 className="mb-1">{t("reports.wallets.title")}</h5>
-                  <p className="text-muted mb-0 small">{t("reports.wallets.desc")}</p>
+          <div className="reports-dashboard">
+            <div className="reports-kpi-grid">
+              {highlightCards.map((card) => (
+                <article key={card.key} className={`reports-kpi-card is-${card.key}`}>
+                  <div className="kpi-icon">
+                    <i className={`bi ${card.icon}`} />
+                  </div>
+                  <div className="kpi-body">
+                    <p>{card.title}</p>
+                    <h3>{card.amount}</h3>
+                    <span className={`kpi-delta ${card.positive ? "is-up" : "is-down"}`}>
+                      {card.delta === 0 ? "Hiện tại" : `${card.delta > 0 ? "+" : ""}${card.delta}% · ${rangeLabel}`}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="reports-main-grid">
+              <article className="reports-stat-card card border-0 shadow-sm">
+                <div className="reports-stat-head">
+                  <div>
+                    <p className="text-muted mb-1">Thống kê hiện tại</p>
+                    <h5 className="mb-0">Ảnh tổng quan</h5>
+                  </div>
+                  <span className="reports-stat-pill">{rangeLabel}</span>
                 </div>
-                <span className="badge rounded-pill text-bg-light">{wallets.length} {t("wallets.count_unit")}</span>
-              </div>
-              <div className="reports-wallet-search mb-3">
-                <i className="bi bi-search" />
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder={t("wallets.search_placeholder")}
-                  value={walletSearch}
-                  onChange={(e) => setWalletSearch(e.target.value)}
-                />
-              </div>
-              <div className="reports-wallet-list">
-                {walletsLoading ? (
-                  <div className="text-center py-4 text-muted small">{t("common.loading")}</div>
-                ) : filteredWallets.length === 0 ? (
-                  <div className="text-center py-4 text-muted small">{t("reports.wallets.not_found")}</div>
+                <div className="reports-arc-stack">
+                  {statBreakdown.map((slice) => (
+                    <span
+                      key={slice.key}
+                      className={`stat-arc arc-${slice.index}`}
+                      style={{
+                        background: `conic-gradient(${slice.accent} 0 ${slice.percent}%, rgba(148,163,184,0.15) ${slice.percent}% 100%)`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="reports-stat-list">
+                  {statBreakdown.map((slice) => (
+                    <div key={slice.key} className="stat-row">
+                      <div className="stat-row-label">
+                        <span className="stat-dot" style={{ background: slice.accent }} />
+                        <p className="mb-0">{slice.label}</p>
+                      </div>
+                      <div className="stat-values">
+                        <strong>{slice.formatted}</strong>
+                        <span>{slice.percent}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="reports-market-card card border-0 shadow-sm">
+                <div className="market-card-head">
+                  <div>
+                    <p className="eyebrow mb-1">Market Overview</p>
+                    <h4 className="mb-1">{selectedWallet?.name || t("reports.no_wallet")}</h4>
+                    <small className="text-muted">Đang xem {rangeLabel}</small>
+                  </div>
+                  <div className="market-card-actions">
+                    <div className="market-chip-group">
+                      <span className="market-chip is-income">
+                        <span className="summary-dot" />
+                        {t("dashboard.income")}
+                      </span>
+                      <span className="market-chip is-expense">
+                        <span className="summary-dot" />
+                        {t("dashboard.expense")}
+                      </span>
+                      <span className="market-chip is-net">
+                        <span className="summary-dot" />
+                        {t("reports.remaining")}
+                      </span>
+                    </div>
+                    <div className="market-head-buttons">
+                      <div className="reports-range-toggle">
+                        {RANGE_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`reports-range-btn ${range === option.value ? "active" : ""}`}
+                            onClick={() => setRange(option.value)}
+                          >
+                            {t(`reports.range.${option.value}`)}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className={`reports-history-btn ${showHistory ? "active" : ""}`}
+                        onClick={handleViewHistory}
+                        disabled={!selectedWalletId}
+                      >
+                        <i className={`bi ${showHistory ? "bi-graph-up" : "bi-clock-history"}`} />
+                        {showHistory ? t("reports.view_chart") : t("reports.view_history")}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {!showHistory ? (
+                  <div className="market-chart-section">
+                    {loadingTransactions ? (
+                      <div className="reports-chart-empty text-center text-muted py-5">
+                        <div className="spinner-border text-primary mb-3" role="status" />
+                        <p className="mb-0">{t("transactions.loading.list")}</p>
+                      </div>
+                    ) : !selectedWallet ? (
+                      <div className="reports-chart-empty text-center text-muted py-5">
+                        {t("reports.select_wallet_prompt")}
+                      </div>
+                    ) : error ? (
+                      <div className="reports-chart-empty text-center text-danger py-5">{error}</div>
+                    ) : chartData.length === 0 ? (
+                      <div className="reports-chart-empty text-center text-muted py-5">
+                        {t("reports.no_transactions_in_period")}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="market-chart-wrapper">
+                          <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Income and expense lines">
+                            {Array.from({ length: 5 }).map((_, idx) => (
+                              <line
+                                key={`grid-${idx}`}
+                                x1="0"
+                                x2="100"
+                                y1={(idx * 25).toFixed(2)}
+                                y2={(idx * 25).toFixed(2)}
+                                className="market-grid-line"
+                              />
+                            ))}
+                            <polyline className="market-line income" points={lineChartPoints.income} />
+                            <polyline className="market-line expense" points={lineChartPoints.expense} />
+                          </svg>
+                        </div>
+                        <div className="market-chart-summary">
+                          <div>
+                            <span className="summary-dot income" />
+                            <div>
+                              <p className="mb-0 text-muted">{t("dashboard.income")}</p>
+                              <strong>{formatCurrency(chartSummary.income)}</strong>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="summary-dot expense" />
+                            <div>
+                              <p className="mb-0 text-muted">{t("dashboard.expense")}</p>
+                              <strong>{formatCurrency(chartSummary.expense)}</strong>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="summary-dot net" />
+                            <div>
+                              <p className="mb-0 text-muted">{t("reports.remaining")}</p>
+                              <strong>{formatCurrency(chartNet)}</strong>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="market-chart-xlabels">
+                          {chartData.map((period) => (
+                            <span key={`label-${period.label}`}>{period.label}</span>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 ) : (
-                  filteredWallets.map((wallet) => {
+                  <div className="reports-history-wrapper">
+                    {loadingTransactions ? (
+                      <div className="reports-chart-empty text-center text-muted py-5">
+                        <div className="spinner-border text-primary mb-3" role="status" />
+                        <p className="mb-0">{t("transactions.loading.list")}</p>
+                      </div>
+                    ) : !selectedWallet ? (
+                      <div className="reports-chart-empty text-center text-muted py-5">
+                        {t("reports.select_wallet_prompt")}
+                      </div>
+                    ) : error ? (
+                      <div className="reports-chart-empty text-center text-danger py-5">{error}</div>
+                    ) : walletTransactions.length === 0 ? (
+                      <div className="reports-chart-empty text-center text-muted py-5">
+                        {t("reports.no_transactions_in_period")}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="reports-history-list">
+                          <table className="table table-hover">
+                            <thead>
+                              <tr>
+                                <th style={{ width: "60px" }}>{t("transactions.table.no")}</th>
+                                <th>{t("transactions.table.time")}</th>
+                                <th>{t("transactions.table.type")}</th>
+                                <th>{t("transactions.table.note")}</th>
+                                <th className="text-end">{t("transactions.table.amount")}</th>
+                                <th>{t("transactions.table.currency")}</th>
+                                {selectedWallet?.isShared && (
+                                  <th>{t("transactions.table.member") || "Thành viên"}</th>
+                                )}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {paginatedTransactions.map((tx, index) => {
+                                const dateObj = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                                const dateTimeStr = `${formatDate(dateObj)} ${formatVietnamTime(dateObj)}`.trim();
+                                const formatAmountOnly = (amount) => {
+                                  const numAmount = Number(amount) || 0;
+                                  return numAmount.toLocaleString("vi-VN", {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2,
+                                  });
+                                };
+
+                                const txCreatedBy = tx.createdBy || tx.userId;
+                                const isCreatedByCurrentUser = currentUserId && txCreatedBy && (
+                                  String(txCreatedBy) === String(currentUserId) ||
+                                  String(txCreatedBy) === String(currentUser?.id)
+                                );
+
+                                const displayEmail = isCreatedByCurrentUser && currentUserEmail
+                                  ? currentUserEmail
+                                  : tx.createdByEmail || null;
+
+                                const walletMemberEmails = selectedWallet?.isShared && Array.isArray(selectedWallet.sharedEmails)
+                                  ? selectedWallet.sharedEmails.filter((email) => email && typeof email === "string" && email.trim())
+                                  : [];
+
+                                return (
+                                  <tr key={tx.id}>
+                                    <td className="text-muted">{(currentPage - 1) * PAGE_SIZE + index + 1}</td>
+                                    <td className="fw-medium">{dateTimeStr}</td>
+                                    <td>
+                                      {tx.type === "transfer" ? (
+                                        <span className="badge bg-info-subtle text-info" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px" }}>
+                                          {t("transactions.type.transfer")}
+                                        </span>
+                                      ) : (
+                                        <span
+                                          className={`badge ${tx.type === "income" ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger"}`}
+                                          style={{
+                                            fontSize: "0.75rem",
+                                            padding: "4px 8px",
+                                            borderRadius: "6px",
+                                            backgroundColor: tx.type === "income" ? "#d1fae5" : "#fee2e2",
+                                            color: tx.type === "income" ? "#059669" : "#dc2626",
+                                          }}
+                                        >
+                                          {tx.type === "income" ? t("transactions.type.income") : t("transactions.type.expense")}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
+                                    <td className="text-end">
+                                      {tx.type === "transfer" ? (
+                                        <span
+                                          style={{
+                                            color: "#0ea5e9",
+                                            fontWeight: "600",
+                                            fontSize: "0.95rem",
+                                          }}
+                                        >
+                                          {formatAmountOnly(tx.amount)}
+                                        </span>
+                                      ) : (
+                                        <span
+                                          style={{
+                                            color: tx.type === "expense" ? "#dc2626" : "#16a34a",
+                                            fontWeight: "600",
+                                            fontSize: "0.95rem",
+                                          }}
+                                        >
+                                          {tx.type === "expense" ? "-" : "+"}
+                                          {formatAmountOnly(tx.amount)}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      <span className="badge bg-light text-dark" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px", fontWeight: "500" }}>
+                                        {tx.currency || "VND"}
+                                      </span>
+                                    </td>
+                                    {selectedWallet?.isShared && (
+                                      <td>
+                                        {displayEmail ? (
+                                          <span
+                                            className="badge bg-primary-subtle text-primary"
+                                            style={{
+                                              fontSize: "0.7rem",
+                                              padding: "3px 6px",
+                                              borderRadius: "4px",
+                                              maxWidth: "150px",
+                                              overflow: "hidden",
+                                              textOverflow: "ellipsis",
+                                              whiteSpace: "nowrap",
+                                              fontWeight: isCreatedByCurrentUser ? "600" : "500",
+                                            }}
+                                            title={displayEmail}
+                                          >
+                                            {displayEmail}
+                                          </span>
+                                        ) : walletMemberEmails.length > 0 ? (
+                                          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                            {walletMemberEmails.slice(0, 2).map((email, idx) => (
+                                              <span
+                                                key={idx}
+                                                className="badge bg-secondary-subtle text-secondary"
+                                                style={{
+                                                  fontSize: "0.7rem",
+                                                  padding: "3px 6px",
+                                                  borderRadius: "4px",
+                                                  maxWidth: "120px",
+                                                  overflow: "hidden",
+                                                  textOverflow: "ellipsis",
+                                                  whiteSpace: "nowrap",
+                                                }}
+                                                title={email}
+                                              >
+                                                {email}
+                                              </span>
+                                            ))}
+                                            {walletMemberEmails.length > 2 && (
+                                              <span
+                                                className="badge bg-light text-muted"
+                                                style={{ fontSize: "0.7rem", padding: "3px 6px", borderRadius: "4px" }}
+                                                title={walletMemberEmails.slice(2).join(", ")}
+                                              >
+                                                +{walletMemberEmails.length - 2}
+                                              </span>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span className="text-muted" style={{ fontSize: "0.85rem" }}>-</span>
+                                        )}
+                                      </td>
+                                    )}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+
+                          {totalPages > 1 && (
+                            <div className="reports-pagination-wrapper">
+                              <div className="reports-pagination">
+                                <span className="text-muted small">
+                                  Trang {currentPage}/{totalPages}
+                                </span>
+                                <div className="tx-pagination">
+                                  <button
+                                    type="button"
+                                    className="page-arrow"
+                                    disabled={currentPage === 1}
+                                    onClick={() => handlePageChange(1)}
+                                  >
+                                    «
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="page-arrow"
+                                    disabled={currentPage === 1}
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                  >
+                                    ‹
+                                  </button>
+                                  {paginationRange.map((item, idx) =>
+                                    typeof item === "string" && item.includes("ellipsis") ? (
+                                      <span key={`${item}-${idx}`} className="page-ellipsis">…</span>
+                                    ) : (
+                                      <button
+                                        key={`reports-page-${item}`}
+                                        type="button"
+                                        className={`page-number ${currentPage === item ? "active" : ""}`}
+                                        onClick={() => handlePageChange(item)}
+                                      >
+                                        {item}
+                                      </button>
+                                    )
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="page-arrow"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                  >
+                                    ›
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="page-arrow"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => handlePageChange(totalPages)}
+                                  >
+                                    »
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {walletTransactions.length > 0 && (
+                            <div className="reports-export-pdf-wrapper">
+                              <button
+                                type="button"
+                                className="btn btn-primary reports-export-pdf-btn"
+                                onClick={() => handleExportPDF()}
+                              >
+                                <i className="bi bi-file-earmark-pdf me-2" />
+                                {t("reports.export_pdf") || "Xuất PDF"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </article>
+            </div>
+
+            <div className="reports-wallets-section card border-0 shadow-sm">
+              <div className="reports-wallets-head">
+                <div>
+                  <p className="text-muted mb-1">Danh sách ví</p>
+                  <h5 className="mb-0">Chọn ví để xem chi tiết</h5>
+                </div>
+                <div className="reports-wallets-actions">
+                  <div className="reports-wallet-search">
+                    <i className="bi bi-search" />
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder={t("wallets.search_placeholder")}
+                      value={walletSearch}
+                      onChange={(e) => setWalletSearch(e.target.value)}
+                    />
+                  </div>
+                  <button type="button" className="reports-filter-btn">
+                    <i className="bi bi-funnel" />
+                    Filter Periode
+                  </button>
+                </div>
+              </div>
+              <div className="reports-wallets-grid">
+                {walletsLoading ? (
+                  <div className="text-center text-muted py-4 w-100">{t("common.loading")}</div>
+                ) : filteredWallets.length === 0 ? (
+                  <div className="text-center text-muted py-4 w-100">{t("reports.wallets.not_found")}</div>
+                ) : (
+                  filteredWallets.map((wallet, index) => {
                     const isPersonal = !wallet.isShared && !(wallet.walletRole || wallet.sharedRole || wallet.role);
                     const ownerId = wallet.ownerUserId || wallet.ownerId || wallet.createdBy || wallet.userId;
                     const isOwnedByCurrentUser = ownerId && currentUserId
                       ? String(ownerId) === String(currentUserId)
                       : !wallet.isShared;
                     const showDefaultBadge = wallet.isDefault && isOwnedByCurrentUser;
+                    const memberCount = Array.isArray(wallet.sharedEmails) ? wallet.sharedEmails.length : 0;
                     return (
                       <button
                         key={wallet.id}
                         type="button"
-                        className={`reports-wallet-item ${selectedWalletId === wallet.id ? "active" : ""}`}
+                        className={`wallet-pill wallet-pill--${index % 4} ${selectedWalletId === wallet.id ? "active" : ""}`}
                         onClick={() => setSelectedWalletId(wallet.id)}
                       >
-                        <div>
-                          <p className="wallet-name mb-1">{wallet.name}</p>
-                          <div className="wallet-tags">
-                            {showDefaultBadge && <span className="badge rounded-pill text-bg-primary">Mặc định</span>}
-                            {isPersonal && <span className="badge rounded-pill text-bg-secondary">Ví cá nhân</span>}
-                            {wallet.isShared && <span className="badge rounded-pill text-bg-info">Ví nhóm</span>}
-                          </div>
+                        <div className="wallet-pill-top">
+                          <span className="wallet-pill-label">
+                            {wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
+                          </span>
+                          {showDefaultBadge && <span className="wallet-pill-chip">Mặc định</span>}
                         </div>
-                        <div className="wallet-balance text-end">
-                          <p className="mb-0 fw-semibold">{formatCurrency(Number(wallet.balance) || 0)}</p>
-                          <small className="text-muted">{wallet.currency || "VND"}</small>
+                        <h3>{formatCurrency(Number(wallet.balance) || 0)}</h3>
+                        <div className="wallet-pill-meta">
+                          <span>{wallet.currency || "VND"}</span>
+                          <span>{wallet.name}</span>
+                        </div>
+                        <div className="wallet-pill-footer">
+                          <span>{isPersonal ? "Sở hữu" : "Chia sẻ"}</span>
+                          {wallet.isShared ? (
+                            <small>{memberCount} thành viên</small>
+                          ) : (
+                            <small>{showDefaultBadge ? "Ví chính" : "Cá nhân"}</small>
+                          )}
                         </div>
                       </button>
                     );
@@ -926,489 +1945,341 @@ export default function ReportsPage() {
               </div>
             </div>
           </div>
-
-          <div className="reports-chart-card card border-0 shadow-sm">
-            <div className="card-body">
-              <div className="reports-chart-header-card">
-                <div className="reports-chart-header">
-                  <div>
-                    <p className="text-muted mb-1">{t("reports.selected_wallet_label")}</p>
-                    <h4 className="mb-1">{selectedWallet?.name || t("reports.no_wallet")}</h4>
-                    <div className="reports-summary-row">
-                      <div>
-                        <span className="summary-dot" style={{ background: INCOME_COLOR }} />
-                        {t("dashboard.income")}: <strong>{formatCurrency(summary.income)}</strong>
-                      </div>
-                      <div>
-                        <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
-                        {t("dashboard.expense")}: <strong>{formatCurrency(summary.expense)}</strong>
-                      </div>
-                      <div>
-                        <span className="summary-dot" style={{ background: net >= 0 ? "#16a34a" : "#dc2626" }} />
-                        {t("reports.remaining")}: <strong>{formatCurrency(net)}</strong>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="reports-header-actions">
-                    <div className="reports-range-toggle">
-                      {RANGE_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`reports-range-btn ${range === option.value ? "active" : ""}`}
-                          onClick={() => setRange(option.value)}
-                        >
-                          {t(`reports.range.${option.value}`)}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      className={`reports-history-btn ${showHistory ? "active" : ""}`}
-                      onClick={handleViewHistory}
-                      disabled={!selectedWalletId}
-                    >
-                      <i className={`bi ${showHistory ? "bi-graph-up" : "bi-clock-history"}`} /> 
-                      {showHistory ? t("reports.view_chart") : t("reports.view_history")}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {!showHistory ? (
-                <div className="reports-chart-area">
-                  {loadingTransactions ? (
-                    <div className="reports-chart-empty text-center text-muted py-5">
-                      <div className="spinner-border text-primary mb-3" role="status" />
-                      <p className="mb-0">{t("transactions.loading.list")}</p>
-                    </div>
-                  ) : !selectedWallet ? (
-                    <div className="reports-chart-empty text-center text-muted py-5">
-                      {t("reports.select_wallet_prompt")}
-                    </div>
-                  ) : error ? (
-                    <div className="reports-chart-empty text-center text-danger py-5">
-                      {error}
-                    </div>
-                  ) : chartData.length === 0 ? (
-                    <div className="reports-chart-empty text-center text-muted py-5">
-                      {t("reports.no_transactions_in_period")}
-                    </div>
-                  ) : (
-                    <div className="reports-chart-viewport">
-                      <div className="reports-chart-axis">
-                        {yAxisTicks.map((value) => (
-                          <div key={`tick-${value}`} className="axis-row">
-                            <span className="axis-value">{formatCompactNumber(value)}</span>
-                            <span className="axis-guide" />
-                          </div>
-                        ))}
-                      </div>
-                    <div
-                      className="reports-chart-grid"
-                      style={{
-                        gridTemplateColumns:
-                          range === "day"
-                            ? `repeat(${chartData.length}, minmax(32px, 1fr))`
-                            : range === "week"
-                              ? `repeat(${chartData.length}, minmax(48px, 1fr))`
-                              : range === "month"
-                                ? `repeat(${chartData.length}, minmax(60px, 1fr))`
-                                : `repeat(${chartData.length}, minmax(36px, 1fr))`,
-                      }}
-                    >
-                        {chartData.map((period, index) => {
-                          const scale = chartMaxValue || 1;
-                          const incomeHeight = Math.round((period.income / scale) * 100);
-                          const expenseHeight = Math.round((period.expense / scale) * 100);
-                          return (
-                            <div
-                              key={period.label}
-                              className="reports-chart-column"
-                              onMouseEnter={() => setHoveredColumnIndex(index)}
-                              onMouseLeave={() => setHoveredColumnIndex(null)}
-                              onFocus={() => setHoveredColumnIndex(index)}
-                              onBlur={() => setHoveredColumnIndex(null)}
-                              tabIndex={0}
-                            >
-                              {hoveredColumnIndex === index && (
-                                <div className="reports-chart-tooltip">
-                                  <div>
-                                    <span className="summary-dot" style={{ background: INCOME_COLOR }} />
-                                    {formatCompactNumber(period.income)}
-                                  </div>
-                                  <div>
-                                    <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
-                                    {formatCompactNumber(period.expense)}
-                                  </div>
-                                </div>
-                              )}
-                              <div className="reports-chart-bars">
-                                <div className="reports-chart-bar-wrapper">
-                                  <div
-                                    className="reports-chart-bar income"
-                                    style={{ height: `${incomeHeight}%`, background: INCOME_COLOR }}
-                                  />
-                                </div>
-                                <div className="reports-chart-bar-wrapper">
-                                  <div
-                                    className="reports-chart-bar expense"
-                                    style={{ height: `${expenseHeight}%`, background: EXPENSE_COLOR }}
-                                  />
-                                </div>
-                              </div>
-                              <p className="reports-chart-label">{period.label}</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="reports-history-area">
-                  {loadingTransactions ? (
-                    <div className="reports-chart-empty text-center text-muted py-5">
-                      <div className="spinner-border text-primary mb-3" role="status" />
-                      <p className="mb-0">{t("transactions.loading.list")}</p>
-                    </div>
-                  ) : !selectedWallet ? (
-                    <div className="reports-chart-empty text-center text-muted py-5">
-                      {t("reports.select_wallet_prompt")}
-                    </div>
-                  ) : error ? (
-                    <div className="reports-chart-empty text-center text-danger py-5">
-                      {error}
-                    </div>
-                  ) : walletTransactions.length === 0 ? (
-                    <div className="reports-chart-empty text-center text-muted py-5">
-                      {t("reports.no_transactions_in_period")}
-                    </div>
-                  ) : (
-                    <div className="reports-history-list">
-                      <table className="table table-hover">
-                        <thead>
-                          <tr>
-                            <th style={{ width: "60px" }}>{t("transactions.table.no")}</th>
-                            <th>{t("transactions.table.time")}</th>
-                            <th>{t("transactions.table.type")}</th>
-                            <th>{t("transactions.table.note")}</th>
-                            <th className="text-end">{t("transactions.table.amount")}</th>
-                            <th>{t("transactions.table.currency")}</th>
-                            {selectedWallet?.isShared && (
-                              <th>{t("transactions.table.member") || "Thành viên"}</th>
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {paginatedTransactions.map((tx, index) => {
-                            const dateObj = tx.date instanceof Date ? tx.date : new Date(tx.date);
-                            const dateTimeStr = `${formatDate(dateObj)} ${formatVietnamTime(dateObj)}`.trim();
-                            const formatAmountOnly = (amount) => {
-                              const numAmount = Number(amount) || 0;
-                              return numAmount.toLocaleString("vi-VN", {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 2,
-                              });
-                            };
-                            
-                            // Kiểm tra xem giao dịch có được tạo bởi user hiện tại không
-                            const txCreatedBy = tx.createdBy || tx.userId;
-                            const isCreatedByCurrentUser = currentUserId && txCreatedBy && (
-                              String(txCreatedBy) === String(currentUserId) ||
-                              String(txCreatedBy) === String(currentUser?.id)
-                            );
-                            
-                            // Nếu là người tạo giao dịch, hiển thị email của chính mình
-                            // Nếu không, hiển thị email của người tạo (nếu có) hoặc danh sách thành viên
-                            const displayEmail = isCreatedByCurrentUser && currentUserEmail
-                              ? currentUserEmail
-                              : (tx.createdByEmail || null);
-                            
-                            // Lấy danh sách email thành viên từ wallet (nếu không phải người tạo)
-                            const walletMemberEmails = selectedWallet?.isShared && Array.isArray(selectedWallet.sharedEmails)
-                              ? selectedWallet.sharedEmails.filter(email => email && typeof email === 'string' && email.trim())
-                              : [];
-
-                            return (
-                              <tr key={tx.id}>
-                                <td className="text-muted">{(currentPage - 1) * PAGE_SIZE + index + 1}</td>
-                                <td className="fw-medium">{dateTimeStr}</td>
-                                <td>
-                                  {tx.type === "transfer" ? (
-                                    <span className="badge bg-info-subtle text-info" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px" }}>
-                                      {t("transactions.type.transfer")}
-                                    </span>
-                                  ) : (
-                                    <span
-                                      className={`badge ${tx.type === "income" ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger"}`}
-                                      style={{
-                                        fontSize: "0.75rem",
-                                        padding: "4px 8px",
-                                        borderRadius: "6px",
-                                        backgroundColor: tx.type === "income" ? "#d1fae5" : "#fee2e2",
-                                        color: tx.type === "income" ? "#059669" : "#dc2626",
-                                      }}
-                                    >
-                                      {tx.type === "income" ? t("transactions.type.income") : t("transactions.type.expense")}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
-                                <td className="text-end">
-                                  {tx.type === "transfer" ? (
-                                    <span
-                                      style={{
-                                        color: "#0ea5e9",
-                                        fontWeight: "600",
-                                        fontSize: "0.95rem",
-                                      }}
-                                    >
-                                      {formatAmountOnly(tx.amount)}
-                                    </span>
-                                  ) : (
-                                    <span
-                                      style={{
-                                        color: tx.type === "expense" ? "#dc2626" : "#16a34a",
-                                        fontWeight: "600",
-                                        fontSize: "0.95rem",
-                                      }}
-                                    >
-                                      {tx.type === "expense" ? "-" : "+"}{formatAmountOnly(tx.amount)}
-                                    </span>
-                                  )}
-                                </td>
-                                <td>
-                                  <span className="badge bg-light text-dark" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px", fontWeight: "500" }}>
-                                    {tx.currency || "VND"}
-                                  </span>
-                                </td>
-                                {selectedWallet?.isShared && (
-                                  <td>
-                                    {displayEmail ? (
-                                      <span 
-                                        className="badge bg-primary-subtle text-primary" 
-                                        style={{ 
-                                          fontSize: "0.7rem", 
-                                          padding: "3px 6px", 
-                                          borderRadius: "4px",
-                                          maxWidth: "150px",
-                                          overflow: "hidden",
-                                          textOverflow: "ellipsis",
-                                          whiteSpace: "nowrap",
-                                          fontWeight: isCreatedByCurrentUser ? "600" : "500"
-                                        }}
-                                        title={displayEmail}
-                                      >
-                                        {displayEmail}
-                                      </span>
-                                    ) : walletMemberEmails.length > 0 ? (
-                                      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                                        {walletMemberEmails.slice(0, 2).map((email, idx) => (
-                                          <span 
-                                            key={idx} 
-                                            className="badge bg-secondary-subtle text-secondary" 
-                                            style={{ 
-                                              fontSize: "0.7rem", 
-                                              padding: "3px 6px", 
-                                              borderRadius: "4px",
-                                              maxWidth: "120px",
-                                              overflow: "hidden",
-                                              textOverflow: "ellipsis",
-                                              whiteSpace: "nowrap"
-                                            }}
-                                            title={email}
-                                          >
-                                            {email}
-                                          </span>
-                                        ))}
-                                        {walletMemberEmails.length > 2 && (
-                                          <span 
-                                            className="badge bg-light text-muted" 
-                                            style={{ fontSize: "0.7rem", padding: "3px 6px", borderRadius: "4px" }}
-                                            title={walletMemberEmails.slice(2).join(", ")}
-                                          >
-                                            +{walletMemberEmails.length - 2}
-                                          </span>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <span className="text-muted" style={{ fontSize: "0.85rem" }}>-</span>
-                                    )}
-                                  </td>
-                                )}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                      
-                      {/* Pagination */}
-                      {totalPages > 1 && (
-                        <div className="reports-pagination-wrapper">
-                          <div className="reports-pagination">
-                            <span className="text-muted small">
-                              Trang {currentPage}/{totalPages}
-                            </span>
-                            <div className="tx-pagination">
-                              <button
-                                type="button"
-                                className="page-arrow"
-                                disabled={currentPage === 1}
-                                onClick={() => handlePageChange(1)}
-                              >
-                                «
-                              </button>
-                              <button
-                                type="button"
-                                className="page-arrow"
-                                disabled={currentPage === 1}
-                                onClick={() => handlePageChange(currentPage - 1)}
-                              >
-                                ‹
-                              </button>
-                              {paginationRange.map((item, idx) =>
-                                typeof item === "string" && item.includes("ellipsis") ? (
-                                  <span key={`${item}-${idx}`} className="page-ellipsis">…</span>
-                                ) : (
-                                  <button
-                                    key={`reports-page-${item}`}
-                                    type="button"
-                                    className={`page-number ${currentPage === item ? "active" : ""}`}
-                                    onClick={() => handlePageChange(item)}
-                                  >
-                                    {item}
-                                  </button>
-                                )
-                              )}
-                              <button
-                                type="button"
-                                className="page-arrow"
-                                disabled={currentPage === totalPages}
-                                onClick={() => handlePageChange(currentPage + 1)}
-                              >
-                                ›
-                              </button>
-                              <button
-                                type="button"
-                                className="page-arrow"
-                                disabled={currentPage === totalPages}
-                                onClick={() => handlePageChange(totalPages)}
-                              >
-                                »
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Export PDF Button */}
-                      {walletTransactions.length > 0 && (
-                        <div className="reports-export-pdf-wrapper">
-                          <button
-                            type="button"
-                            className="btn btn-primary reports-export-pdf-btn"
-                            onClick={() => handleExportPDF()}
-                          >
-                            <i className="bi bi-file-earmark-pdf me-2" />
-                            {t("reports.export_pdf") || "Xuất PDF"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
         )}
         {activeReportTab === "funds" && (
-          <div className="reports-single-card card border-0 shadow-sm">
-            <div className="card-body">
-              <div className="reports-section-header">
-                <div>
-                  <h5 className="mb-1">{t("reports.funds.section_title")}</h5>
-                  <p className="text-muted mb-0 small">{t("reports.funds.section_subtitle")}</p>
+          <div className="reports-layout reports-layout--funds">
+            <div className="funds-panel-card card border-0 shadow-sm">
+              <div className="card-body">
+                <div className="funds-panel-head">
+                  <div>
+                    <h5 className="mb-1">{t("reports.funds.section_title")}</h5>
+                    <p className="text-muted mb-0 small">{t("reports.funds.section_subtitle")}</p>
+                  </div>
+                  <span className="badge rounded-pill text-bg-light">{fundSummary.total}</span>
                 </div>
-              </div>
-              <div className="reports-section-summary">
-                <div>
-                  <p className="reports-section-label">{t("reports.funds.total_label")}</p>
-                  <h4 className="mb-0">{fundSummary.total}</h4>
+                <div className="funds-panel-metrics">
+                  <div className="funds-metric">
+                    <p className="funds-metric-label">{t("reports.funds.raised")}</p>
+                    <strong className="funds-metric-value">{formatCurrency(fundSummary.totalCurrent)}</strong>
+                  </div>
+                  <div className="funds-metric">
+                    <p className="funds-metric-label">{t("reports.funds.target")}</p>
+                    <strong className="funds-metric-value">{formatCurrency(fundSummary.totalTarget)}</strong>
+                  </div>
+                  <div className="funds-metric">
+                    <p className="funds-metric-label">{t("reports.funds.completed")}</p>
+                    <strong className="funds-metric-value">{fundSummary.completed}</strong>
+                  </div>
                 </div>
-                <div>
-                  <p className="reports-section-label">{t("reports.funds.raised")}</p>
-                  <h4 className="mb-0">{formatCurrency(fundSummary.totalCurrent)}</h4>
+                <div className="funds-panel-progress">
+                  <div className="funds-panel-progress-header">
+                    <span>{t("reports.funds.progress_to_target")}</span>
+                    <strong>{Math.round(fundSummary.progressPct)}%</strong>
+                  </div>
+                  <div className="funds-panel-progress-bar">
+                    <span style={{ width: `${Math.min(fundSummary.progressPct, 100)}%` }} />
+                  </div>
                 </div>
-                <div>
-                  <p className="reports-section-label">{t("reports.funds.target")}</p>
-                  <h4 className="mb-0">{formatCurrency(fundSummary.totalTarget)}</h4>
+                <div className="funds-completion-toggle" role="group" aria-label={t("reports.funds.completion.aria_label")}>
+                  {fundCompletionOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`funds-completion-btn ${fundCompletionFilter === option.value ? "active" : ""}`}
+                      onClick={() => setFundCompletionFilter(option.value)}
+                    >
+                      {option.label}
+                      <span className="funds-completion-count">{option.count}</span>
+                    </button>
+                  ))}
                 </div>
-              </div>
-              <div className="reports-section-progress">
-                <div className="reports-progress-header">
-                  <span className="text-muted small">{t("reports.funds.progress_to_target")}</span>
-                  <strong>{Math.round(fundSummary.progressPct)}%</strong>
+                <div className="funds-search-row">
+                  <div className="funds-search">
+                    <i className="bi bi-search" />
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder={t("reports.funds.search_placeholder")}
+                      value={fundSearch}
+                      onChange={(e) => setFundSearch(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="reports-section-progress-bar">
-                  <span style={{ width: `${Math.min(fundSummary.progressPct, 100)}%` }} />
+                <div className="funds-filter-chips">
+                  {fundFilterOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`funds-filter-btn ${fundFilter === option.value ? "active" : ""}`}
+                      onClick={() => setFundFilter(option.value)}
+                    >
+                      {option.label}
+                      <span className="funds-filter-count">{fundFilterCounts[option.value] ?? 0}</span>
+                    </button>
+                  ))}
                 </div>
-              </div>
-              <div className="reports-status-tags">
-                <span className="reports-status-chip">
-                  {t("reports.funds.term_funds")}: <strong>{fundSummary.termCount}</strong>
-                </span>
-                <span className="reports-status-chip warning">
-                  {t("reports.funds.near_deadline")}: <strong>{fundSummary.nearingDeadline}</strong>
-                </span>
-                <span className="reports-status-chip success">
-                  {t("reports.funds.completed")}: <strong>{fundSummary.completed}</strong>
-                </span>
-              </div>
-              <div className="reports-section-list">
-                {fundsLoading ? (
-                  <div className="text-center text-muted small py-3">{t("reports.funds.loading")}</div>
-                ) : fundProgressList.length === 0 ? (
-                  <div className="text-center text-muted small py-3">{t("reports.funds.no_data")}</div>
-                ) : (
-                  fundProgressList.map((fund) => {
-                    const deadlineLabel = fund.hasDeadline ? formatDateSafe(fund.endDate) : null;
-                    return (
-                      <div className="reports-mini-row" key={fund.id}>
-                        <div className="reports-mini-title">
-                          <div>
-                            <p className="mb-0">{fund.name}</p>
-                            <span className="reports-mini-subtitle">
-                              {fund.targetValue
-                                ? `${formatCurrency(fund.currentValue)} / ${formatCurrency(fund.targetValue)}`
-                                : formatCurrency(fund.currentValue)}
-                            </span>
-                          </div>
-                          <span className="reports-status-badge status-ok">
-                            {fund.targetValue
-                              ? `${Math.round(fund.progress ?? 0)}%`
-                              : t("reports.funds.no_target")}
-                          </span>
-                        </div>
-                        {fund.targetValue ? (
-                          <div className="reports-mini-progress">
-                            <div className="reports-mini-progress-bar">
-                              <span
-                                className="progress-fill"
-                                style={{ width: `${Math.min(fund.progress ?? 0, 100)}%` }}
-                              />
+                <div className="funds-list">
+                  {fundsLoading ? (
+                    <div className="text-center text-muted small py-4">{t("reports.funds.loading")}</div>
+                  ) : filteredFundsList.length === 0 ? (
+                    <div className="text-center text-muted small py-4">{t("reports.funds.list.empty")}</div>
+                  ) : (
+                    filteredFundsList.map((fund, idx) => {
+                      const fundId = getFundIdentity(fund);
+                      const isActive = fundId === selectedFundId;
+                      const displayName = fund.fundName || fund.name || t("reports.funds.untitled");
+                      const targetValue = Number(fund.targetAmount ?? fund.target ?? 0) || 0;
+                      const currentValue = Number(fund.currentAmount ?? fund.current ?? 0) || 0;
+                      const progressPct = targetValue > 0 ? Math.min(100, (currentValue / targetValue) * 100) : 0;
+                      const deadlineDate = normalizeDate(fund.endDate);
+                      let daysRemaining = null;
+                      if (deadlineDate) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        daysRemaining = Math.ceil((deadlineDate.getTime() - today.getTime()) / MS_PER_DAY);
+                      }
+                      const deadlineLabel = fund.hasDeadline || fund.hasTerm
+                        ? describeRemainingDays(daysRemaining)
+                        : t("reports.funds.detail.no_deadline");
+
+                      return (
+                        <button
+                          key={fundId || `${displayName}-${idx}`}
+                          type="button"
+                          className={`funds-list-item ${isActive ? "active" : ""}`}
+                          onClick={() => setSelectedFundId(fundId)}
+                        >
+                          <div className="funds-list-top">
+                            <div>
+                              <p className="funds-list-name mb-0">{displayName}</p>
+                              <div className="funds-list-tags">
+                                <span className="fund-tag">
+                                  {(fund.fundType || fund.type || "").toLowerCase() === "group"
+                                    ? t("reports.funds.filters.group")
+                                    : t("reports.funds.filters.personal")}
+                                </span>
+                                <span className="fund-tag">
+                                  {fund.hasDeadline || fund.hasTerm
+                                    ? t("reports.funds.filters.term")
+                                    : t("reports.funds.filters.flexible")}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        ) : null}
-                        {deadlineLabel && (
-                          <div className="reports-mini-meta">
-                            {t("reports.funds.deadline")}: {deadlineLabel}
+                          <div className="funds-list-progress">
+                            {targetValue > 0 ? (
+                              <>
+                                <div className="funds-progress-bar">
+                                  <span style={{ width: `${progressPct}%` }} />
+                                </div>
+                                <div className="funds-progress-values">
+                                  <span>{formatCurrency(currentValue)}</span>
+                                  <span>{formatCurrency(targetValue)}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <p className="text-muted small mb-0">{t("reports.funds.detail.no_target")}</p>
+                            )}
+                          </div>
+                          <div className="funds-list-meta">
+                            <span>{deadlineLabel}</span>
+                            {(fund.targetWalletName || fund.sourceWalletName) && (
+                              <span className="text-muted">
+                                {fund.targetWalletName || fund.sourceWalletName}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="funds-detail-card card border-0 shadow-sm">
+              <div className="card-body">
+                <div className="fund-detail-header">
+                  <div>
+                    <p className="text-muted mb-1">{t("reports.funds.detail.selected_label")}</p>
+                    <h4 className="mb-2">{selectedFund?.fundName || selectedFund?.name || t("reports.funds.detail.no_selection_short")}</h4>
+                    {selectedFund && (
+                      <div className="fund-detail-tags">
+                        <span className="fund-tag">
+                          {(selectedFund.fundType || selectedFund.type || "").toLowerCase() === "group"
+                            ? t("reports.funds.filters.group")
+                            : t("reports.funds.filters.personal")}
+                        </span>
+                        <span className={`fund-tag ${selectedFund.hasDeadline || selectedFund.hasTerm ? "fund-tag--term" : ""}`}>
+                          {selectedFund.hasDeadline || selectedFund.hasTerm
+                            ? t("reports.funds.filters.term")
+                            : t("reports.funds.filters.flexible")}
+                        </span>
+                        <span className="fund-tag">{selectedFundCurrency}</span>
+                        <span className={`fund-tag ${selectedFund.autoDepositEnabled ? "fund-tag--success" : "fund-tag--muted"}`}>
+                          {selectedFund.autoDepositEnabled
+                            ? t("reports.funds.auto_topup_on")
+                            : t("reports.funds.auto_topup_off")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {selectedFund ? (
+                  <>
+                    <div className="fund-detail-goal">
+                      <div className="fund-progress-widget">
+                        <FundProgressDonut progress={selectedFundProgressPct} />
+                        <p className="fund-progress-caption">{t("reports.funds.detail.goal_focus")}</p>
+                      </div>
+                      <div className="fund-goal-stats">
+                        <div className="fund-goal-stat fund-goal-stat--current">
+                          <p>{t("reports.funds.detail.current")}</p>
+                          <strong>{selectedFundCurrentLabel}</strong>
+                        </div>
+                        <div className="fund-goal-stat fund-goal-stat--target">
+                          <p>{t("reports.funds.detail.target")}</p>
+                          <strong>{selectedFundTargetLabel}</strong>
+                        </div>
+                        <div className="fund-goal-stat fund-goal-stat--shortage">
+                          <p>{t("reports.funds.detail.shortage")}</p>
+                          <strong>{selectedFundShortageLabel}</strong>
+                        </div>
+                        {selectedFundDailyNeeded && (
+                          <div className="fund-goal-stat fund-goal-stat--daily">
+                            <p>{t("reports.funds.detail.daily_needed")}</p>
+                            <strong>{selectedFundDailyNeeded}</strong>
+                          </div>
+                        )}
+                        {selectedFundPeriodContribution && (
+                          <div className="fund-goal-stat fund-goal-stat--period">
+                            <p>{t("reports.funds.detail.need_per_period")}</p>
+                            <strong>{formatCurrency(selectedFundPeriodContribution)}</strong>
+                            {selectedFundFrequencyLabel && <small>{selectedFundFrequencyLabel}</small>}
                           </div>
                         )}
                       </div>
-                    );
-                  })
+                    </div>
+                    <div className="fund-pace-card">
+                      <div className="fund-pace-header">
+                        <div>
+                          <p className="text-muted mb-1">{t("reports.funds.detail.pace_label")}</p>
+                          <h5 className={`fund-pace-status fund-pace-status--${paceStatus}`}>
+                            {fundPaceLabel}
+                          </h5>
+                        </div>
+                        <span className="fund-pace-days">{selectedFundRemainingLabel}</span>
+                      </div>
+                      {hasSelectedFundTarget ? (
+                        <>
+                          <div className="fund-pace-track">
+                            <span
+                              className="fund-pace-marker fund-pace-marker--actual"
+                              style={{ width: `${Math.min(selectedFundProgressPct, 100)}%` }}
+                            />
+                            {selectedFundExpectedPct != null && (
+                              <span
+                                className="fund-pace-marker fund-pace-marker--expected"
+                                style={{ width: `${Math.min(selectedFundExpectedPct, 100)}%` }}
+                              />
+                            )}
+                          </div>
+                          <div className="fund-pace-legend">
+                            <span>
+                              <span className="legend-dot legend-dot--actual" />
+                              {t("reports.funds.detail.actual_progress")}
+                            </span>
+                            {selectedFundExpectedPct != null && (
+                              <span>
+                                <span className="legend-dot legend-dot--expected" />
+                                {t("reports.funds.detail.expected_progress")}
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-muted small mb-0">{t("reports.funds.detail.no_target")}</p>
+                      )}
+                    </div>
+                    <div className="fund-detail-meta-grid">
+                      <div>
+                        <p>{t("reports.funds.detail.start_date")}</p>
+                        <strong>{selectedFundStartLabel}</strong>
+                      </div>
+                      <div>
+                        <p>{t("reports.funds.detail.deadline")}</p>
+                        <strong>{selectedFundEndLabel}</strong>
+                      </div>
+                      <div>
+                        <p>{t("reports.funds.detail.currency")}</p>
+                        <strong>{selectedFundCurrency}</strong>
+                      </div>
+                      {selectedFundFrequencyLabel && (
+                        <div>
+                          <p>{t("reports.funds.detail.frequency")}</p>
+                          <strong>{selectedFundFrequencyLabel}</strong>
+                        </div>
+                      )}
+                    </div>
+                    <div className="fund-history-card">
+                      <div className="fund-history-header">
+                        <div>
+                          <p className="fund-history-title">{t("reports.funds.detail.history_title")}</p>
+                          <span className="fund-history-subtitle">{t("reports.funds.detail.history_subtitle")}</span>
+                        </div>
+                        {fundHistoryLoading ? (
+                          <span className="fund-history-pill">{t("reports.funds.detail.history_loading")}</span>
+                        ) : selectedFundHistoryEntries.length > 0 ? (
+                          <span className="fund-history-pill">
+                            {t("reports.funds.detail.history_count", { count: selectedFundHistoryEntries.length })}
+                          </span>
+                        ) : null}
+                      </div>
+                      {fundHistoryError ? (
+                        <div className="fund-history-state fund-history-state--error">
+                          {t("reports.funds.detail.history_error")}
+                        </div>
+                      ) : fundHistoryLoading ? (
+                        <div className="fund-history-state">
+                          {t("reports.funds.detail.history_loading")}
+                        </div>
+                      ) : selectedFundHistoryEntries.length === 0 ? (
+                        <div className="fund-history-state">
+                          {t("reports.funds.detail.history_empty")}
+                        </div>
+                      ) : (
+                        <ul className="fund-history-timeline">
+                          {selectedFundHistoryEntries.map((entry) => (
+                            <li key={entry.id} className="fund-history-item">
+                              <div className="fund-history-line">
+                                <span className={`fund-history-dot fund-history-dot--${entry.direction}`} />
+                              </div>
+                              <div className="fund-history-item-content">
+                                <div className="fund-history-row">
+                                  <span className="fund-history-type">{entry.typeLabel}</span>
+                                  <span
+                                    className={`fund-history-amount ${entry.direction === "out" ? "is-negative" : ""}`}
+                                  >
+                                    {entry.amountLabel}
+                                  </span>
+                                </div>
+                                <div className="fund-history-meta">
+                                  <span>{entry.dateLabel}</span>
+                                  <span className={`fund-history-status fund-history-status--${entry.status}`}>
+                                    {entry.statusLabel}
+                                  </span>
+                                </div>
+                                {entry.note && <p className="fund-history-note">{entry.note}</p>}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="funds-detail-empty">
+                    <p className="text-muted mb-0">{t("reports.funds.detail.no_selection")}</p>
+                  </div>
                 )}
               </div>
             </div>
