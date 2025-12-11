@@ -104,16 +104,10 @@ export default function EditTab({
                   color: "#6b7280",
                   marginTop: "4px"
                 }}>
-                  Tỷ giá: 1 {oldCurrency} = {newCurrency === "USD" 
-                    ? exchangeRate.toLocaleString("vi-VN", { 
+                  Tỷ giá: 1 {oldCurrency} = {exchangeRate.toLocaleString("vi-VN", { 
                         minimumFractionDigits: 0, 
                         maximumFractionDigits: 8 
-                      })
-                    : exchangeRate.toLocaleString("vi-VN", { 
-                        minimumFractionDigits: 0, 
-                        maximumFractionDigits: 8 
-                      })
-                  } {newCurrency}
+                      })} {newCurrency}
                 </div>
                 <div style={{ 
                   fontSize: "0.875rem", 

@@ -585,20 +585,11 @@ export default function WalletDetail(props) {
               </label>
             </div>
 
-            {/* Currency selection (was hidden) */}
+            {/* Currency fixed to VND */}
             <div className="wallet-form__row">
               <label>
                 Đơn vị tiền tệ
-                <select
-                  value={createForm.currency || "VND"}
-                  onChange={(e) => onCreateFieldChange("currency", e.target.value)}
-                >
-                  {(Array.isArray(currencies) ? currencies : ["VND"]).map((c) => (
-                    <option key={c} value={c}>
-                      {c === "VND" ? "VND" : c}
-                    </option>
-                  ))}
-                </select>
+                <input type="text" value="VND" disabled className="form-control" />
               </label>
             </div>
 

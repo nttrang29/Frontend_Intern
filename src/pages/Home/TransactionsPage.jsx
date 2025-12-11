@@ -418,8 +418,6 @@ export default function TransactionsPage() {
   const [filterWallet, setFilterWallet] = useState("all");
   const [fromDateTime, setFromDateTime] = useState("");
   const [toDateTime, setToDateTime] = useState("");
-  const [currencyFilter, setCurrencyFilter] = useState("all"); // "all" | "VND" | "USD"
-
   const [viewing, setViewing] = useState(null);
   const [editing, setEditing] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
@@ -1516,10 +1514,6 @@ export default function TransactionsPage() {
         if (to && d > to) return false;
       }
 
-      if (currencyFilter !== "all") {
-        if (t.currency !== currencyFilter) return false;
-      }
-
       if (searchText) {
         const keyword = searchText.toLowerCase();
         const joined =
@@ -1564,7 +1558,6 @@ export default function TransactionsPage() {
     filterWallet,
     fromDateTime,
     toDateTime,
-    currencyFilter,
     searchText,
   ]);
 
@@ -1864,11 +1857,6 @@ export default function TransactionsPage() {
                 toDateTime={toDateTime}
                 onToDateTimeChange={(value) => {
                   setToDateTime(value);
-                  setCurrentPage(1);
-                }}
-                currencyFilter={currencyFilter}
-                onCurrencyFilterChange={(value) => {
-                  setCurrencyFilter(value);
                   setCurrentPage(1);
                 }}
                 expanded={expandedPanel === "history"}

@@ -55,8 +55,8 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   const [saving, setSaving] = useState(false);
   const [withdrawProgress, setWithdrawProgress] = useState(0);
   
-  // States for currency and wallet selection
-  const [selectedCurrency, setSelectedCurrency] = useState(fund.currency || "VND");
+  // States for currency and wallet selection (chỉ VND)
+  const [selectedCurrency] = useState("VND");
   const [selectedSourceWalletId, setSelectedSourceWalletId] = useState(fund.sourceWalletId || "");
   
   // State for auto deposit data (for editing)
@@ -76,30 +76,15 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   // State for settle confirmation modal
   const [confirmSettleOpen, setConfirmSettleOpen] = useState(false);
   
-  // Lấy danh sách currencies
-  const availableCurrencies = useMemo(() => {
-    const currencies = [...new Set(wallets.map(w => w.currency))];
-    return currencies.sort();
-  }, [wallets]);
-  
-  // Filter wallets theo currency
+  // Filter wallets theo VND
   const filteredWallets = useMemo(() => {
-    if (!selectedCurrency) return [];
-    return wallets.filter(w => w.currency === selectedCurrency);
-  }, [wallets, selectedCurrency]);
-  
-  // Reset sourceWalletId khi đổi currency
-  useEffect(() => {
-    if (selectedCurrency !== fund.currency) {
-      setSelectedSourceWalletId("");
-    }
-  }, [selectedCurrency, fund.currency]);
+    return wallets.filter(w => (w.currency || "VND") === "VND");
+  }, [wallets]);
 
   // Khi chọn quỹ khác hoặc defaultTab thay đổi
   useEffect(() => {
     setActiveTab(defaultTab);
     setForm(buildFormState(fund));
-    setSelectedCurrency(fund.currency || "VND");
     setSelectedSourceWalletId(fund.sourceWalletId || "");
   }, [fund.id, defaultTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1086,11 +1071,8 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
               form={form}
               isFundCompleted={isFundCompleted}
               saving={saving}
-              selectedCurrency={selectedCurrency}
-              setSelectedCurrency={setSelectedCurrency}
               selectedSourceWalletId={selectedSourceWalletId}
               setSelectedSourceWalletId={setSelectedSourceWalletId}
-              availableCurrencies={availableCurrencies}
               filteredWallets={filteredWallets}
               autoDepositData={autoDepositData}
               setAutoDepositData={setAutoDepositData}

@@ -1,7 +1,7 @@
 /**
  * Utility functions để format số tiền trong input
  * Format: thêm dấu chấm (.) mỗi 3 chữ số từ bên phải cho phần nguyên
- * Hỗ trợ số thập phân cho USD (dấu chấm hoặc dấu phẩy)
+ * Hỗ trợ số thập phân (dấu chấm hoặc dấu phẩy)
  * Ví dụ: 1000 -> 1.000, 1000000 -> 1.000.000, 20.5 -> 20.5, 0.000041 -> 0.000041
  */
 
@@ -9,7 +9,7 @@
  * Format số tiền để hiển thị trong input (thêm dấu chấm mỗi 3 số cho phần nguyên)
  * Hỗ trợ số thập phân
  * @param {string|number} value - Giá trị số tiền
- * @param {string} currency - Currency của ví (VND hoặc USD)
+ * @param {string} currency - Currency của ví (hiện dùng VND)
  * @returns {string} - Chuỗi đã format với dấu chấm
  */
 export function formatMoneyInput(value, currency = "VND") {

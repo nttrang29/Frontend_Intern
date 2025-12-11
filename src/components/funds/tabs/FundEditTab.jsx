@@ -10,10 +10,8 @@ export default function FundEditTab({
   isFundCompleted,
   saving,
   selectedCurrency,
-  setSelectedCurrency,
   selectedSourceWalletId,
   setSelectedSourceWalletId,
-  availableCurrencies,
   filteredWallets,
   autoDepositData,
   setAutoDepositData,
@@ -81,36 +79,20 @@ export default function FundEditTab({
 
           <div className="funds-field funds-field--inline">
             <div>
-              <label>Chọn loại tiền tệ <span className="req">*</span></label>
-              <select
-                value={selectedCurrency}
-                onChange={(e) => setSelectedCurrency(e.target.value)}
-              >
-                <option value="">-- Chọn loại tiền tệ --</option>
-                {availableCurrencies.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </select>
-              <div className="funds-hint">
-                Thay đổi loại tiền tệ của quỹ.
-              </div>
+              <label>Loại tiền tệ</label>
+              <input type="text" value="VND" disabled className="form-control" />
+              <div className="funds-hint">Cố định VND.</div>
             </div>
             <div>
               <label>Chọn ví nguồn <span className="req">*</span></label>
               <select
                 value={selectedSourceWalletId}
                 onChange={(e) => setSelectedSourceWalletId(e.target.value)}
-                disabled={!selectedCurrency}
               >
                 <option value="">
-                  {!selectedCurrency 
-                    ? "-- Vui lòng chọn loại tiền tệ trước --"
-                    : filteredWallets.length === 0
+                  {filteredWallets.length === 0
                     ? "-- Không có ví nào với loại tiền tệ này --"
-                    : "-- Chọn ví nguồn --"
-                  }
+                    : "-- Chọn ví nguồn --"}
                 </option>
                 {filteredWallets.map((w) => (
                   <option key={w.id} value={w.id}>

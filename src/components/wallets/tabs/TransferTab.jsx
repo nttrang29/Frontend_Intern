@@ -60,18 +60,6 @@ export default function TransferTab({
       }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
       return `${formatted} VND`;
     }
-    if (currency === "USD") {
-      // USD: hiển thị kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân) lên tới 8 chữ số thập phân
-      let formatted = numAmount.toLocaleString("vi-VN", { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 8 
-      });
-      // Loại bỏ số 0 ở cuối phần thập phân
-      formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
-        return digits ? `,${digits}` : "";
-      }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
-      return `$${formatted}`;
-    }
     // Các currency khác
     const formatted = numAmount.toLocaleString("vi-VN", { 
       minimumFractionDigits: 2, 

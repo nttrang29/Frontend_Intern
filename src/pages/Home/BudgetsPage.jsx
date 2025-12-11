@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { useCurrency } from "../../hooks/useCurrency";
 import "../../styles/pages/BudgetsPage.css";
 import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
@@ -36,12 +35,8 @@ export default function BudgetsPage() {
   const [transactionFilter, setTransactionFilter] = useState("all");
   const [selectedBudgetId, setSelectedBudgetId] = useState(null);
  
-  // Currency toggle state (similar to WalletsPage)
-  const [budgetCurrency, setBudgetCurrency] = useState(() => localStorage.getItem("budgets_currency") || "VND");
-  React.useEffect(() => {
-    localStorage.setItem("budgets_currency", budgetCurrency);
-  }, [budgetCurrency]);
-  const toggleBudgetCurrency = () => setBudgetCurrency((c) => (c === "VND" ? "USD" : "VND"));
+  // Chỉ hỗ trợ VND
+  const budgetCurrency = "VND";
   const [detailBudget, setDetailBudget] = useState(null);
   const statusTabs = [
     { value: "all", label: "all" },
@@ -51,42 +46,11 @@ export default function BudgetsPage() {
   ];
  
   // Helper function to convert currency (similar to WalletsPage)
-  const convertCurrency = useCallback((amount, targetCurrency) => {
-    const numericAmount = Number(amount) || 0;
-    if (!targetCurrency || targetCurrency === "VND") return numericAmount;
-   
-    // Get cached exchange rate from localStorage
-    const cached = (typeof window !== 'undefined') ? (localStorage.getItem('exchange_rate_cache') ? JSON.parse(localStorage.getItem('exchange_rate_cache')) : null) : null;
-    const vndToUsd = (cached && Number(cached.vndToUsd)) ? Number(cached.vndToUsd) : 24500;
-   
-    if (targetCurrency === "USD") {
-      return numericAmount / vndToUsd;
-    }
-    return numericAmount;
-  }, []);
+  const convertCurrency = useCallback((amount) => Number(amount) || 0, []);
  
   // Format money with proper currency
-  const formatMoneyWithCurrency = useCallback((amount, currency) => {
+  const formatMoneyWithCurrency = useCallback((amount) => {
     const numAmount = Number(amount) || 0;
-    if (currency === "USD") {
-      // USD: hiển thị kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân)
-      let formatted = "";
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        formatted = numAmount.toLocaleString("vi-VN", {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 8
-        });
-      } else if (numAmount % 1 === 0) {
-        formatted = numAmount.toLocaleString("vi-VN");
-      } else {
-        formatted = numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 8 });
-      }
-      // Loại bỏ số 0 ở cuối phần thập phân
-      formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
-        return digits ? `,${digits}` : "";
-      }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
-      return `$${formatted}`;
-    }
     return `${numAmount.toLocaleString("vi-VN")} VND`;
   }, []);
  
@@ -254,9 +218,6 @@ export default function BudgetsPage() {
     });
     return { overItems, warningItems };
   }, [budgets, budgetUsageMap]);
- 
- 
-  const { formatCurrency } = useCurrency();
   const { t } = useLanguage();
  
   const filteredCategories = useMemo(() => {
@@ -483,24 +444,15 @@ export default function BudgetsPage() {
           <div className="budget-metric-card">
             <span className="budget-metric-label">
               {t("budgets.metric.total_limit")}
-              <button
-                type="button"
-                className="budget-metric-toggle"
-                title={budgetCurrency === 'VND' ? 'Chuyển sang USD' : 'Chuyển sang VND'}
-                onClick={(e) => { e.stopPropagation(); toggleBudgetCurrency(); }}
-                aria-pressed={budgetCurrency === 'USD'}
-              >
-                <i className="bi bi-arrow-repeat"></i>
-              </button>
             </span>
-            <div className="budget-metric-value">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalLimit, budgetCurrency), budgetCurrency)}</div>
+            <div className="budget-metric-value">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalLimit))}</div>
             <small className="text-muted">{t("budgets.metric.active_count", { count: overviewStats.activeBudgets })}</small>
           </div>
         </div>
         <div className="col-xl-3 col-md-6">
           <div className="budget-metric-card">
             <span className="budget-metric-label">{t("budgets.metric.used")}</span>
-            <div className="budget-metric-value text-primary">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalSpent, budgetCurrency), budgetCurrency)}</div>
+            <div className="budget-metric-value text-primary">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalSpent))}</div>
             <small className="text-muted">
               {overviewStats.totalLimit > 0
                 ? t("budgets.metric.used_percent", { percent: Math.round((overviewStats.totalSpent / overviewStats.totalLimit) * 100) })
@@ -511,7 +463,7 @@ export default function BudgetsPage() {
         <div className="col-xl-3 col-md-6">
           <div className="budget-metric-card">
             <span className="budget-metric-label">{t("budgets.metric.remaining")}</span>
-            <div className="budget-metric-value text-success">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalRemaining, budgetCurrency), budgetCurrency)}</div>
+            <div className="budget-metric-value text-success">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalRemaining))}</div>
             <small className="text-muted">{t("budgets.metric.overall")}</small>
           </div>
         </div>
@@ -792,7 +744,7 @@ export default function BudgetsPage() {
                             <small className="text-muted">{formatDateTime(tx.date)}</small>
                           </td>
                           <td className={`fw-semibold ${tx.type === "expense" ? "text-danger" : "text-success"}`}>
-                            {formatCurrency(tx.amount)}
+                           {formatMoneyWithCurrency(tx.amount)}
                           </td>
                         </tr>
                       ))

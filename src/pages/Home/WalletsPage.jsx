@@ -21,13 +21,12 @@ import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
 import { getMoneyValue } from "../../utils/formatMoneyInput";
 // Removed: import { getExchangeRate } from "../../services/exchange-rate.service";
-// Using fixed exchange rate: 24390.24 VND = 1 USD (same as Backend - ExchangeRateServiceImpl.java)
 
 import "../../styles/pages/WalletsPage.css";
 import "../../styles/components/wallets/WalletList.css";
 import "../../styles/components/wallets/WalletHeader.css";
 
-const CURRENCIES = ["VND", "USD"];
+const CURRENCIES = ["VND"];
 const NOTE_MAX_LENGTH = 60;
 const MERGE_PERSONAL_ONLY_ERROR = "WALLET_MERGE_PERSONAL_ONLY";
 
@@ -411,7 +410,6 @@ export default function WalletsPage() {
 
   useEffect(() => {
     // Removed: No longer fetching exchange rate from API
-    // Using fixed exchange rate: 24390.24 VND = 1 USD (same as Backend - ExchangeRateServiceImpl.java)
     // Clear old exchange rate cache to ensure we use fixed rate
     if (typeof window !== "undefined" && window.localStorage) {
       // Optionally clear old cache (commented out to preserve other data)
@@ -1106,32 +1104,13 @@ export default function WalletsPage() {
     }
   }, [currentList, selectedId]);
 
-  // Helper function để tính tỷ giá (sử dụng tỷ giá fix cứng giống Backend - ExchangeRateServiceImpl.java)
   const getRate = (from, to) => {
-    if (!from || !to || from === to) return 1;
-    
-    // Fixed exchange rate: 24390.24 VND = 1 USD (same as Backend ExchangeRateServiceImpl)
-    // Backend: FALLBACK_RATES.put("USD", new BigDecimal("0.000041"))
-    // Tính: 1 USD = 1 / 0.000041 = 24390.243902439024 VND
-    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
-    const FIXED_USD_TO_VND = 0.000041; // 1 VND = 0.000041 USD (giống Backend)
-    
-    if (from === 'USD' && to === 'VND') return FIXED_VND_TO_USD;
-    if (from === 'VND' && to === 'USD') return FIXED_USD_TO_VND;
-
-    // Fallback static rates for other currencies (giống Backend FALLBACK_RATES)
-    const rates = {
-      VND: 1,
-      USD: FIXED_USD_TO_VND, // 1 VND = 0.000041 USD (giống Backend)
-      EUR: 0.000038,
-      JPY: 0.0063,
-      GBP: 0.000032,
-      CNY: 0.0003,
-    };
-    if (!rates[from] || !rates[to]) return 1;
-    const fromToVND = 1 / rates[from];
-    const toToVND = 1 / rates[to];
-    return fromToVND / toToVND;
+    if (!from || !to) return 1;
+    const fromU = String(from).toUpperCase();
+    const toU = String(to).toUpperCase();
+    if (fromU === toU) return 1;
+    // Frontend chỉ hỗ trợ VND, quy đổi 1:1 để tránh sai lệch hiển thị
+    return 1;
   };
 
   // Helper function để chuyển đổi số tiền về VND
@@ -1156,23 +1135,7 @@ export default function WalletsPage() {
   };
 
   // Lấy đơn vị tiền tệ mặc định từ localStorage
-  const [displayCurrency, setDisplayCurrency] = useState(() => {
-    return localStorage.getItem("defaultCurrency") || "VND";
-  });
-
-  // Lắng nghe sự kiện thay đổi currency setting
-  useEffect(() => {
-    const handleCurrencyChange = (e) => {
-      setDisplayCurrency(e.detail.currency);
-    };
-    window.addEventListener("currencySettingChanged", handleCurrencyChange);
-    return () => {
-      window.removeEventListener(
-        "currencySettingChanged",
-        handleCurrencyChange
-      );
-    };
-  }, []);
+  const displayCurrency = "VND";
 
   useEffect(() => {
     setLocalSharedMap((prev) => {
@@ -1231,21 +1194,10 @@ export default function WalletsPage() {
       }, 0);
   }, [wallets, getWalletRole, isOwnerRole]);
 
-  // Toggle for the total card only: remember choice in localStorage
-  const [totalCurrency, setTotalCurrency] = useState(() => localStorage.getItem("wallets_total_currency") || "VND");
-  useEffect(() => {
-    localStorage.setItem("wallets_total_currency", totalCurrency);
-  }, [totalCurrency]);
-  const toggleTotalCurrency = () => setTotalCurrency((c) => (c === "VND" ? "USD" : "VND"));
+  const totalCurrency = "VND";
 
-  // Value to display on the total card (uses fixed exchange rate: 24390.24 VND = 1 USD - same as Backend)
-  const totalDisplayedValue = useMemo(() => {
-    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
-    if (totalCurrency === "USD") {
-      return totalInVND / FIXED_VND_TO_USD;
-    }
-    return totalInVND;
-  }, [totalInVND, totalCurrency]);
+  // Value to display on the total card
+  const totalDisplayedValue = useMemo(() => totalInVND, [totalInVND]);
 
   // Keep legacy totalBalance for other parts (uses displayCurrency)
   const totalBalance = useMemo(() => {
@@ -1271,10 +1223,7 @@ export default function WalletsPage() {
     }, 0);
   }, [personalWallets]);
 
-  const personalDisplayedValue = useMemo(() => {
-    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
-    return totalCurrency === "USD" ? personalInVND / FIXED_VND_TO_USD : personalInVND;
-  }, [personalInVND, totalCurrency]);
+  const personalDisplayedValue = useMemo(() => personalInVND, [personalInVND]);
 
   // Số dư ví nhóm: tổng số dư các ví nhóm mà bản thân sở hữu (bao gồm ví nhóm đã chia sẻ đi)
   const groupBalance = useMemo(() => {
@@ -1292,10 +1241,7 @@ export default function WalletsPage() {
     }, 0);
   }, [groupWallets]);
 
-  const groupDisplayedValue = useMemo(() => {
-    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
-    return totalCurrency === "USD" ? groupInVND / FIXED_VND_TO_USD : groupInVND;
-  }, [groupInVND, totalCurrency]);
+  const groupDisplayedValue = useMemo(() => groupInVND, [groupInVND]);
 
   // Số dư các ví được chia sẻ với tôi (sharedWithMe): bao gồm các ví sharedWithMe nhưng KHÔNG tính những ví nơi tôi chỉ ở quyền VIEW/VIEWER
   const sharedWithMeBalance = useMemo(() => {
@@ -1317,10 +1263,7 @@ export default function WalletsPage() {
       }, 0);
   }, [sharedWithMeDisplayWallets, isViewerRole]);
 
-  const sharedWithMeDisplayedValue = useMemo(() => {
-    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
-    return totalCurrency === "USD" ? sharedWithMeInVND / FIXED_VND_TO_USD : sharedWithMeInVND;
-  }, [sharedWithMeInVND, totalCurrency]);
+  const sharedWithMeDisplayedValue = useMemo(() => sharedWithMeInVND, [sharedWithMeInVND]);
 
   // Số dư các ví tôi đã chia sẻ cho người khác (sharedByMe)
   const sharedByMeBalance = useMemo(() => {
@@ -1338,10 +1281,7 @@ export default function WalletsPage() {
     }, 0);
   }, [sharedByMeWallets]);
 
-  const sharedByMeDisplayedValue = useMemo(() => {
-    const FIXED_VND_TO_USD = 24390.243902439024; // Giống Backend (1 / 0.000041)
-    return totalCurrency === "USD" ? sharedByMeInVND / FIXED_VND_TO_USD : sharedByMeInVND;
-  }, [sharedByMeInVND, totalCurrency]);
+  const sharedByMeDisplayedValue = useMemo(() => sharedByMeInVND, [sharedByMeInVND]);
 
   const handleSelectWallet = (id) => {
     setSelectedId(id);
@@ -2272,17 +2212,8 @@ export default function WalletsPage() {
         <div className="budget-metric-card budget-metric-card--has-toggle" tabIndex={0} aria-describedby="tooltip-total">
           <div className="budget-metric-label">
             {t('wallets.total_balance')}
-            <button
-              type="button"
-              className="budget-metric-toggle"
-              title={totalCurrency === 'VND' ? 'Chuyển sang USD' : 'Chuyển sang VND'}
-              onClick={(e) => { e.stopPropagation(); toggleTotalCurrency(); }}
-              aria-pressed={totalCurrency === 'USD'}
-            >
-              <i className="bi bi-arrow-repeat"></i>
-            </button>
           </div>
-          <div className="budget-metric-value">{formatMoney(totalDisplayedValue, totalCurrency || "VND", totalCurrency === 'USD' ? 8 : undefined)}</div>
+          <div className="budget-metric-value">{formatMoney(totalDisplayedValue, "VND")}</div>
           <div id="tooltip-total" role="tooltip" className="budget-metric-tooltip">
             <strong>Tổng số dư</strong>
             <div className="budget-metric-tooltip__body">
@@ -2294,7 +2225,7 @@ export default function WalletsPage() {
 
         <div className="budget-metric-card budget-metric-card--personal" tabIndex={0} aria-describedby="tooltip-personal">
           <div className="budget-metric-label">{t('wallets.metric.personal_balance')}</div>
-          <div className="budget-metric-value">{formatMoney(personalDisplayedValue, totalCurrency || "VND", totalCurrency === 'USD' ? 8 : undefined)}</div>
+          <div className="budget-metric-value">{formatMoney(personalDisplayedValue, "VND")}</div>
           <div id="tooltip-personal" role="tooltip" className="budget-metric-tooltip">
             <strong>Ví cá nhân</strong>
             <div className="budget-metric-tooltip__body">Tổng số dư của các ví cá nhân (ví thuộc sở hữu và quản lý trực tiếp bởi bạn).</div>
@@ -2304,7 +2235,7 @@ export default function WalletsPage() {
 
         <div className="budget-metric-card budget-metric-card--group" tabIndex={0} aria-describedby="tooltip-group">
           <div className="budget-metric-label">{t('wallets.metric.group_balance')}</div>
-          <div className="budget-metric-value">{formatMoney(groupDisplayedValue, totalCurrency || "VND", totalCurrency === 'USD' ? 8 : undefined)}</div>
+          <div className="budget-metric-value">{formatMoney(groupDisplayedValue, "VND")}</div>
           <div id="tooltip-group" role="tooltip" className="budget-metric-tooltip">
             <strong>Ví nhóm</strong>
             <div className="budget-metric-tooltip__body">Tổng số dư của các ví nhóm mà bạn sở hữu hoặc tham gia quản lý. Bao gồm các ví bạn đã chia sẻ cho nhóm.</div>
@@ -2314,7 +2245,7 @@ export default function WalletsPage() {
 
         <div className="budget-metric-card budget-metric-card--shared-with-me" tabIndex={0} aria-describedby="tooltip-shared-with-me">
           <div className="budget-metric-label">{t('wallets.metric.shared_with_me_balance')}</div>
-          <div className="budget-metric-value">{formatMoney(sharedWithMeDisplayedValue, totalCurrency || "VND", totalCurrency === 'USD' ? 8 : undefined)}</div>
+          <div className="budget-metric-value">{formatMoney(sharedWithMeDisplayedValue, "VND")}</div>
           <div id="tooltip-shared-with-me" role="tooltip" className="budget-metric-tooltip">
             <strong>Được chia sẻ cho tôi</strong>
             <div className="budget-metric-tooltip__body">Tổng số dư các ví mà người khác chia sẻ cho bạn — bạn có thể xem hoặc thao tác theo quyền được cấp.</div>
