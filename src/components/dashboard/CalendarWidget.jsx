@@ -1,17 +1,11 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import "../../styles/components/dashboard/CalendarWidget.css";
 
-export default function CalendarWidget() {
+export default function CalendarWidget({ compact = false }) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-
-  // Lấy ngày đầu tiên của tháng và số ngày trong tháng
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const daysInMonth = lastDay.getDate();
-  const startingDayOfWeek = firstDay.getDay(); // 0 = Chủ nhật, 1 = Thứ 2, ...
 
   // Tên tháng và năm
   const monthNames = [
@@ -20,15 +14,11 @@ export default function CalendarWidget() {
   ];
 
   const dayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+  const dayNamesFull = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
 
-  const today = new Date();
-  const isToday = (day) => {
-    return (
-      day === today.getDate() &&
-      month === today.getMonth() &&
-      year === today.getFullYear()
-    );
-  };
+  const today = useMemo(() => new Date(), []);
+  const weekdayLabel = dayNamesFull[today.getDay()];
+  const dayNumber = today.getDate();
 
   const goToPreviousMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
@@ -40,6 +30,41 @@ export default function CalendarWidget() {
 
   const goToToday = () => {
     setCurrentDate(new Date());
+  };
+
+  if (compact) {
+    return (
+      <div className="calendar-widget calendar-widget--compact">
+        <div className="calendar-widget__compact-header">
+          <p className="calendar-widget__compact-month">
+            {monthNames[today.getMonth()]} {today.getFullYear()}
+          </p>
+          <button className="calendar-widget__today-btn calendar-widget__today-btn--ghost" onClick={goToToday}>
+            <i className="bi bi-calendar-check me-1" />
+            Hôm nay
+          </button>
+        </div>
+        <div className="calendar-widget__compact-date">
+          <span className="calendar-widget__compact-day">
+            {weekdayLabel}/Ngày {dayNumber}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Lấy ngày đầu tiên của tháng và số ngày trong tháng
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  const startingDayOfWeek = firstDay.getDay(); // 0 = Chủ nhật, 1 = Thứ 2, ...
+
+  const isToday = (day) => {
+    return (
+      day === today.getDate() &&
+      month === today.getMonth() &&
+      year === today.getFullYear()
+    );
   };
 
   // Tạo mảng các ngày trong tháng

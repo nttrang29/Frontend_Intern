@@ -92,19 +92,41 @@
   scrollbar-width: none;          /* Firefox */
   scrollbar-color: transparent transparent;
 
-  transition: width var(--sb-anim);
+  transition: width var(--sb-anim),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
   /* Tối ưu performance */
-  will-change: width;
+  will-change: width, transform, box-shadow;
   backface-visibility: hidden;
   transform: translateZ(0);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+.home__sidebar:hover {
+  transform: translateX(4px) translateZ(0);
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+}
+
 /* fallback nếu JS chưa apply biến */
 .sb-collapsed .home__sidebar {
   width: var(--sb-wc);
+}
+
+/* Khi sidebar collapsed và hover vào container, tạm thời mở rộng */
+.sb-collapsed.sb-hover-expand .home__sidebar {
+  width: var(--sb-w) !important;
+}
+
+/* Cập nhật margin-left của main khi sidebar hover */
+.sb-collapsed.sb-hover-expand .home__main {
+  margin-left: var(--sb-w) !important;
+}
+
+/* Cập nhật --sb-current khi hover */
+.sb-collapsed.sb-hover-expand .home-page {
+  --sb-current: var(--sb-w);
 }
 
 /* Chrome / Edge / Safari: ẩn scrollbar */

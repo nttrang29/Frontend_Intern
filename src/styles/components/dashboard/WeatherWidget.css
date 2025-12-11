@@ -242,6 +242,32 @@
   color: var(--color-text);
 }
 
+/* COMPACT MODE */
+.weather-widget--compact {
+  padding: 10px;
+}
+
+.weather-widget--compact .weather-widget__header {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+}
+
+.weather-widget--compact .weather-widget__icon {
+  font-size: 2.4rem;
+}
+
+.weather-widget--compact .weather-widget__temp-value {
+  font-size: 2rem;
+}
+
+.weather-widget--compact .weather-widget__note {
+  margin-top: 4px;
+}
+
+.weather-widget--compact .weather-widget__details {
+  gap: 8px;
+}
+
 /* Dark Mode */
 .dark .weather-widget {
   background: var(--color-bg-secondary);
