@@ -1,13 +1,11 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import ConfirmModal from "../../common/Modal/ConfirmModal";
-import { getRate, formatConvertedBalance } from "../utils/walletUtils";
 import { formatMoney } from "../../../utils/formatMoney";
 
 const NOTE_MAX_LENGTH = 60;
 
 export default function EditTab({
   wallet,
-  currencies,
   editForm,
   onEditFieldChange,
   onSubmitEdit,
@@ -15,6 +13,8 @@ export default function EditTab({
 }) {
   const isGroupWallet = !!wallet.isShared;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const walletCurrency = wallet?.currency || "VND";
 
   const handleOpenDelete = () => {
     setShowDeleteConfirm(true);
@@ -29,23 +29,7 @@ export default function EditTab({
     onDeleteWallet?.(wallet.id);
   };
 
-  // Tính số dư mới khi currency thay đổi
-  const oldCurrency = wallet?.currency || "VND";
-  const newCurrency = editForm.currency;
   const currentBalance = Number(wallet?.balance || 0);
-  const currencyChanged = oldCurrency !== newCurrency;
-  
-  const exchangeRate = useMemo(() => {
-    if (!currencyChanged) return 1;
-    return getRate(oldCurrency, newCurrency);
-  }, [oldCurrency, newCurrency, currencyChanged]);
-
-  const convertedBalance = useMemo(() => {
-    if (!currencyChanged) return currentBalance;
-    // Không làm tròn để giữ đúng giá như tỷ giá (giữ nhiều chữ số thập phân)
-    const converted = currentBalance * exchangeRate;
-    return converted;
-  }, [currentBalance, exchangeRate, currencyChanged, newCurrency]);
 
   // Format thời gian tạo
   const createdAt = wallet?.createdAt
@@ -78,50 +62,18 @@ export default function EditTab({
             }}>
               Số dư hiện tại:{" "}
               <strong style={{ color: "#111827" }}>
-                {formatMoney(currentBalance, oldCurrency)}
+                {formatMoney(currentBalance, walletCurrency)}
               </strong>
             </div>
           </label>
           <label>
             Tiền tệ
-            <select
-              value={editForm.currency}
-              onChange={(e) =>
-                onEditFieldChange("currency", e.target.value)
-              }
-            >
-              {currencies.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            {/* Hiển thị tỷ giá và số dư sau khi chuyển đổi chỉ khi currency thay đổi */}
-            {currencyChanged && wallet && (
-              <>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#6b7280",
-                  marginTop: "4px"
-                }}>
-                  Tỷ giá: 1 {oldCurrency} = {exchangeRate.toLocaleString("vi-VN", { 
-                        minimumFractionDigits: 0, 
-                        maximumFractionDigits: 8 
-                      })} {newCurrency}
-                </div>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#059669",
-                  marginTop: "4px",
-                  fontWeight: 600
-                }}>
-                  Số dư sau khi chuyển đổi:{" "}
-                  <strong>
-                    {formatConvertedBalance(convertedBalance, newCurrency)}
-                  </strong>
-                </div>
-              </>
-            )}
+            <input
+              type="text"
+              value={editForm.currency || "VND"}
+              disabled
+              className="form-control"
+            />
           </label>
         </div>
 

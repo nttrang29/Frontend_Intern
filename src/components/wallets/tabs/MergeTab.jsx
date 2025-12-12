@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { formatConvertedBalance, formatExchangeRate, getRate } from "../utils/walletUtils";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useBudgetData } from "../../../contexts/BudgetDataContext";
+import { useWalletData } from "../../../contexts/WalletDataContext";
 
 const getLocalUserId = () => {
   if (typeof window === "undefined") return null;
@@ -53,6 +54,33 @@ export default function MergeTab({
   const [makeTargetDefault, setMakeTargetDefault] = useState(false);
   const { currentUser } = useAuth();
   const { budgets } = useBudgetData();
+  const walletContext = useWalletData();
+  // Lấy wallets mới nhất từ context để đảm bảo dữ liệu luôn được cập nhật
+  const contextWallets = walletContext?.wallets || [];
+  const loadWallets = walletContext?.loadWallets;
+
+  // Force reload wallet data khi MergeTab được mở để đảm bảo dữ liệu mới nhất
+  // Điều này đặc biệt quan trọng khi người dùng vừa sửa ví và đặt làm ví mặc định
+  // Sử dụng ref để tránh reload quá nhiều lần
+  const hasReloadedRef = useRef(false);
+  useEffect(() => {
+    if (wallet?.id && loadWallets && !hasReloadedRef.current) {
+      // Delay nhỏ để đảm bảo các update trước đó đã hoàn tất
+      const timer = setTimeout(() => {
+        hasReloadedRef.current = true;
+        // Reload wallets để lấy dữ liệu mới nhất từ API
+        loadWallets().catch((err) => {
+          console.debug("MergeTab: Failed to reload wallets:", err);
+        });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [wallet?.id, loadWallets]);
+  
+  // Reset reload flag khi wallet thay đổi
+  useEffect(() => {
+    hasReloadedRef.current = false;
+  }, [wallet?.id]);
 
   const currentUserId = useMemo(() => {
     const contextId =
@@ -64,6 +92,22 @@ export default function MergeTab({
     const fallback = contextId || getLocalUserId();
     return fallback ? normalizeId(fallback) : null;
   }, [currentUser]);
+
+  const getTxCount = (w) => {
+    if (!w) return 0;
+    const candidates = [
+      w.txCount,
+      w.transactionCount,
+      w.transactionsCount,
+      w.totalTransactions,
+      w.totalTransaction,
+      Array.isArray(w.transactions) ? w.transactions.length : null,
+    ];
+    const found = candidates.find(
+      (val) => val !== undefined && val !== null && !Number.isNaN(Number(val))
+    );
+    return Number(found) || 0;
+  };
 
   useEffect(() => {
     if (!processing) return;
@@ -95,7 +139,22 @@ export default function MergeTab({
   }, [targetId, direction]);
 
   // Tính toán tất cả các giá trị trước khi có early return (để hooks được gọi đúng thứ tự)
-  const currentWallet = wallet;
+  // Luôn lấy wallet mới nhất từ context hoặc allWallets để đảm bảo dữ liệu được cập nhật (ví dụ: sau khi đổi ví mặc định)
+  const currentWallet = useMemo(() => {
+    if (!wallet?.id) return wallet;
+    // Ưu tiên lấy từ contextWallets (dữ liệu mới nhất từ WalletDataContext)
+    // Nếu không có trong context, fallback về allWallets prop
+    // Cuối cùng mới dùng prop wallet
+    const latestFromContext = contextWallets.find(
+      (w) => String(w.id) === String(wallet.id)
+    );
+    if (latestFromContext) return latestFromContext;
+    
+    const latestFromProps = (allWallets || []).find(
+      (w) => String(w.id) === String(wallet.id)
+    );
+    return latestFromProps || wallet;
+  }, [wallet, allWallets, contextWallets]);
   const thisName = currentWallet?.name || "Ví hiện tại";
 
   const currentWalletOwnerId = useMemo(
@@ -108,13 +167,16 @@ export default function MergeTab({
     if (!currentUserId || !currentWalletOwnerId) return [];
     if (currentWalletOwnerId !== currentUserId) return [];
 
-    return (allWallets || []).filter((w) => {
+    // Ưu tiên dùng contextWallets (dữ liệu mới nhất), fallback về allWallets
+    const walletsToUse = contextWallets.length > 0 ? contextWallets : (allWallets || []);
+    
+    return walletsToUse.filter((w) => {
       if (!w || w.id === currentWallet.id) return false;
       if (w.isShared) return false;
       const ownerId = normalizeId(w.ownerUserId);
       return ownerId === currentUserId;
     });
-  }, [allWallets, currentWallet, currentUserId, currentWalletOwnerId]);
+  }, [allWallets, contextWallets, currentWallet, currentUserId, currentWalletOwnerId]);
 
   const budgetWalletIds = useMemo(
     () =>
@@ -148,8 +210,27 @@ export default function MergeTab({
   }, [selectableWallets, searchTerm]);
 
   const selectedWallet = useMemo(() => {
-    return selectableWallets.find((w) => String(w.id) === String(targetId));
-  }, [selectableWallets, targetId]);
+    if (!targetId) return null;
+    // Ưu tiên tìm wallet mới nhất từ contextWallets (dữ liệu mới nhất)
+    // Nếu không có trong context, tìm từ allWallets
+    // Cuối cùng mới tìm từ selectableWallets
+    const latestFromContext = contextWallets.find(
+      (w) => String(w.id) === String(targetId)
+    );
+    if (latestFromContext && selectableWallets.some((w) => String(w.id) === String(targetId))) {
+      return latestFromContext;
+    }
+    
+    const latestFromProps = (allWallets || []).find(
+      (w) => String(w.id) === String(targetId)
+    );
+    if (latestFromProps && selectableWallets.some((w) => String(w.id) === String(targetId))) {
+      return latestFromProps;
+    }
+    
+    // Fallback về selectableWallets nếu không tìm thấy trong context hoặc props
+    return selectableWallets.find((w) => String(w.id) === String(targetId)) || null;
+  }, [allWallets, contextWallets, selectableWallets, targetId]);
 
   const isThisIntoOther = direction === "this_into_other";
 
@@ -178,18 +259,14 @@ export default function MergeTab({
   const srcBalance = useMemo(() => {
     return Number(sourceWallet?.balance ?? sourceWallet?.current ?? 0) || 0;
   }, [sourceWallet]);
-  const srcTxCount = useMemo(() => {
-    return sourceWallet?.txCount ?? sourceWallet?.transactionCount ?? 0;
-  }, [sourceWallet]);
+  const srcTxCount = useMemo(() => getTxCount(sourceWallet), [sourceWallet]);
 
   const tgtCurrency = targetWallet?.currency || srcCurrency;
   const tgtName = targetWallet?.name || "Ví đích";
   const tgtBalance = useMemo(() => {
     return Number(targetWallet?.balance ?? targetWallet?.current ?? 0) || 0;
   }, [targetWallet]);
-  const tgtTxCount = useMemo(() => {
-    return targetWallet?.txCount ?? targetWallet?.transactionCount ?? 0;
-  }, [targetWallet]);
+  const tgtTxCount = useMemo(() => getTxCount(targetWallet), [targetWallet]);
 
   const currentIsDefault = !!currentWallet?.isDefault;
   const selectedIsDefault = !!selectedWallet?.isDefault;
@@ -338,7 +415,7 @@ export default function MergeTab({
     const currentBal =
       Number(currentWallet.balance ?? currentWallet.current ?? 0) || 0;
     const currentCur = currentWallet.currency || "VND";
-    const currentTx = currentWallet?.txCount ?? currentWallet?.transactionCount ?? 0;
+    const currentTx = getTxCount(currentWallet);
 
     const selectedBal =
       selectedWallet &&

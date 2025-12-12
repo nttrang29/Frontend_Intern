@@ -31,7 +31,6 @@ export default function WalletDetail(props) {
     canInviteMembers = false,
     onQuickShareEmail,
     quickShareLoading = false,
-    currencies,
     incomeCategories,
     expenseCategories,
     showCreate,
@@ -1068,7 +1067,6 @@ export default function WalletDetail(props) {
             {activeDetailTab === "edit" && effectiveIsOwner && (
         <EditTab
           wallet={wallet}
-          currencies={currencies}
           editForm={editForm}
           onEditFieldChange={onEditFieldChange}
           onSubmitEdit={onSubmitEdit}

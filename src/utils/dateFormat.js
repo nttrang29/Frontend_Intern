@@ -79,7 +79,47 @@ export function convertToVietnamDateTime(dateInput) {
  * @returns {string} - Chuỗi ngày đã format (ví dụ: "17/11/2025")
  */
 export function formatVietnamDate(date) {
-  return formatBySetting(date, getDateFormatSetting(), { timeZone: "Asia/Ho_Chi_Minh" });
+  if (!date) return "";
+  
+  // Nếu là string, extract ngày trực tiếp từ string (không parse và convert)
+  if (typeof date === "string") {
+    // Extract ngày trực tiếp từ string format: "2025-12-12T00:40:07" hoặc "2025-12-12T00:40:07+07:00"
+    const dateMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const year = dateMatch[1];
+      const month = dateMatch[2];
+      const day = dateMatch[3];
+      const formatKey = getDateFormatSetting();
+      switch (formatKey) {
+        case "MM/dd/yyyy":
+          return `${month}/${day}/${year}`;
+        case "yyyy-MM-dd":
+          return `${year}-${month}-${day}`;
+        case "dd/MM/yyyy":
+        default:
+          return `${day}/${month}/${year}`;
+      }
+    }
+    // Fallback: parse như local time
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return "";
+    const day = d.getDate().toString().padStart(2, "0");
+    const month = (d.getMonth() + 1).toString().padStart(2, "0");
+    const year = d.getFullYear();
+    const formatKey = getDateFormatSetting();
+    switch (formatKey) {
+      case "MM/dd/yyyy":
+        return `${month}/${day}/${year}`;
+      case "yyyy-MM-dd":
+        return `${year}-${month}-${day}`;
+      case "dd/MM/yyyy":
+      default:
+        return `${day}/${month}/${year}`;
+    }
+  } else {
+    // Nếu là Date object, convert sang GMT+7
+    return formatBySetting(date, getDateFormatSetting(), { timeZone: "Asia/Ho_Chi_Minh" });
+  }
 }
 
 /**
@@ -90,15 +130,40 @@ export function formatVietnamDate(date) {
  */
 export function formatVietnamTime(date) {
   if (!date) return "";
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) return "";
   
-  return d.toLocaleTimeString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  // Nếu là string và đã có timezone +07:00 (GMT+7), extract trực tiếp từ string
+  // Vì đã đúng timezone rồi, không cần parse và convert
+  if (typeof date === "string") {
+    const hasGMT7 = /\+07:00$/.test(date);
+    if (hasGMT7) {
+      // Date đã là GMT+7, extract giờ trực tiếp từ string
+      const timeMatch = date.match(/(?:T|\s)(\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?/);
+      if (timeMatch) {
+        return `${timeMatch[1]}:${timeMatch[2]}`;
+      }
+    }
+    // Nếu không có +07:00, parse như UTC và convert sang GMT+7
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return "";
+    
+    return d.toLocaleTimeString("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  } else {
+    // Nếu là Date object, convert sang GMT+7
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return "";
+    
+    return d.toLocaleTimeString("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
 }
 
 /**

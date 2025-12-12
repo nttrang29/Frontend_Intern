@@ -77,7 +77,8 @@ const ensureIsoDateWithTimezone = (rawValue) => {
 
   const hasTimezone = /(Z|z|[+\-]\d{2}:?\d{2})$/.test(value);
   if (!hasTimezone) {
-    value = `${value}Z`;
+    // Backend lưu date theo GMT+7 (Asia/Ho_Chi_Minh), nên thêm +07:00 thay vì Z (UTC)
+    value = `${value}+07:00`;
   }
 
   return value;
@@ -330,45 +331,85 @@ const normalizeAttachmentCandidate = (value) => {
 
 const resolveAttachmentFromTransaction = (tx) => {
   if (!tx) return "";
+  
+  // Ưu tiên các field trực tiếp của transaction (imageUrl, attachmentUrl, etc.)
   for (const key of ATTACHMENT_KEYS) {
     if (Object.prototype.hasOwnProperty.call(tx, key)) {
-      const normalized = normalizeAttachmentCandidate(tx[key]);
+      const value = tx[key];
+      if (value) {
+        const normalized = normalizeAttachmentCandidate(value);
+        if (normalized) return normalized;
+      }
+    }
+  }
+  
+  // Fallback sources trực tiếp
+  const fallbackSources = [tx.media, tx.attachments, tx.files, tx.images];
+  for (const source of fallbackSources) {
+    if (source) {
+      const normalized = normalizeAttachmentCandidate(source);
       if (normalized) return normalized;
     }
   }
-  const fallbackSources = [tx.media, tx.attachments, tx.files, tx.images];
-  for (const source of fallbackSources) {
-    const normalized = normalizeAttachmentCandidate(source);
-    if (normalized) return normalized;
-  }
 
-  const scanObjectForHints = (obj, depth = 0) => {
-    if (!obj || depth > 5) return "";
+  // Chỉ scan vào các object liên quan đến attachment, TRÁNH scan vào user/creator để không lấy avatar
+  const scanObjectForHints = (obj, depth = 0, skipKeys = []) => {
+    if (!obj || depth > 2) return ""; // Giảm depth để tránh scan quá sâu
+    
+    // Nếu là string, format và return
     if (typeof obj === "string") {
-      return formatAttachmentUrl(obj);
+      const formatted = formatAttachmentUrl(obj);
+      return formatted || "";
     }
+    
+    // Nếu là array, scan từng item
     if (Array.isArray(obj)) {
       for (const item of obj) {
-        const resolved = scanObjectForHints(item, depth + 1);
+        const resolved = scanObjectForHints(item, depth + 1, skipKeys);
         if (resolved) return resolved;
       }
       return "";
     }
+    
+    // Nếu là object
     if (typeof obj === "object") {
+      // Bỏ qua các key không liên quan đến attachment (user, creator, owner, etc.)
+      const excludedKeys = ['user', 'creator', 'owner', 'createdBy', 'updatedBy', 'performedBy', 'executor', 'actor', 'avatar'];
+      
       for (const key of Object.keys(obj)) {
         const lower = key.toLowerCase();
+        
+        // Skip nếu key bị exclude hoặc trong skipKeys
+        if (excludedKeys.includes(lower) || skipKeys.includes(lower)) {
+          continue;
+        }
+        
+        // Nếu key có hint về attachment, xử lý ngay
         if (ATTACHMENT_HINTS.some((hint) => lower.includes(hint))) {
           const normalized = normalizeAttachmentCandidate(obj[key]);
           if (normalized) return normalized;
         }
-        const nested = scanObjectForHints(obj[key], depth + 1);
-        if (nested) return nested;
+        
+        // Chỉ scan nested nếu không phải là user/creator object và depth còn cho phép
+        if (depth < 2 && !excludedKeys.includes(lower)) {
+          const nested = scanObjectForHints(obj[key], depth + 1, [...skipKeys, ...excludedKeys]);
+          if (nested) return nested;
+        }
       }
     }
     return "";
   };
 
-  return scanObjectForHints(tx);
+  // Scan transaction nhưng skip user và creator - chỉ scan depth 1
+  // Tạo một object copy không có user/creator để scan
+  const txWithoutUser = { ...tx };
+  delete txWithoutUser.user;
+  delete txWithoutUser.creator;
+  delete txWithoutUser.owner;
+  delete txWithoutUser.createdBy;
+  delete txWithoutUser.updatedBy;
+  
+  return scanObjectForHints(txWithoutUser, 0, []);
 };
 
 const extractListFromResponse = (payload, preferredKey) => {
@@ -589,13 +630,26 @@ export default function TransactionsPage() {
     if (!tx) return null;
     const walletId = tx.wallet?.walletId || tx.walletId;
     const wallet = walletId ? walletsMap.get(walletId) : null;
-    const walletName =
+    let walletName =
           wallet?.walletName ||
           wallet?.name ||
           tx.wallet?.walletName ||
           tx.wallet?.name ||
           tx.walletName ||
           "Unknown";
+    
+    // Kiểm tra xem wallet có bị deleted không
+    const isWalletDeleted = 
+      tx.wallet?.deleted === true || 
+      wallet?.deleted === true ||
+      tx.wallet?.isDeleted === true ||
+      wallet?.isDeleted === true;
+    
+    // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
+    if (isWalletDeleted) {
+      walletName = `${walletName} (đã xóa)`;
+    }
+    
     const categoryName =
       tx.category?.categoryName ||
       tx.category?.name ||
@@ -604,12 +658,13 @@ export default function TransactionsPage() {
       "Unknown";
     const type = resolveTransactionDirection(tx);
 
+    // Ưu tiên createdAt/created_at cho cột thời gian trong lịch sử giao dịch
     const rawDateValue =
+      tx.createdAt ||
+      tx.created_at ||
       tx.transactionDate ||
       tx.transaction_date ||
       tx.date ||
-      tx.createdAt ||
-      tx.created_at ||
       new Date().toISOString();
 
     const dateValue = ensureIsoDateWithTimezone(rawDateValue);
@@ -637,6 +692,8 @@ export default function TransactionsPage() {
       originalAmount: tx.originalAmount ? parseFloat(tx.originalAmount) : null,
       originalCurrency: tx.originalCurrency || null,
       exchangeRate: tx.exchangeRate ? parseFloat(tx.exchangeRate) : null,
+      // Lưu trạng thái deleted của wallet để ẩn nút sửa/xóa
+      isWalletDeleted: isWalletDeleted,
     };
   }, [walletsMap]);
 
@@ -647,23 +704,50 @@ export default function TransactionsPage() {
     const fromWallet = fromWalletId ? walletsMap.get(fromWalletId) : null;
     const toWallet = toWalletId ? walletsMap.get(toWalletId) : null;
     
-    const sourceWalletName =
+    let sourceWalletName =
       fromWallet?.walletName ||
       fromWallet?.name ||
       transfer.fromWallet?.walletName ||
       "Unknown";
-    const targetWalletName =
+    
+    // Kiểm tra xem fromWallet có bị deleted không
+    const isFromWalletDeleted = 
+      transfer.fromWallet?.deleted === true || 
+      fromWallet?.deleted === true ||
+      transfer.fromWallet?.isDeleted === true ||
+      fromWallet?.isDeleted === true;
+    
+    if (isFromWalletDeleted) {
+      sourceWalletName = `${sourceWalletName} (đã xóa)`;
+    }
+    
+    let targetWalletName =
       toWallet?.walletName ||
       toWallet?.name ||
       transfer.toWallet?.walletName ||
       "Unknown";
+    
+    // Kiểm tra xem toWallet có bị deleted không
+    const isToWalletDeleted = 
+      transfer.toWallet?.deleted === true || 
+      toWallet?.deleted === true ||
+      transfer.toWallet?.isDeleted === true ||
+      toWallet?.isDeleted === true;
+    
+    if (isToWalletDeleted) {
+      targetWalletName = `${targetWalletName} (đã xóa)`;
+    }
 
+    // Nếu một trong hai wallet bị deleted, đánh dấu transfer không thể sửa/xóa
+    const isWalletDeleted = isFromWalletDeleted || isToWalletDeleted;
+
+    // Ưu tiên createdAt/created_at cho cột thời gian trong lịch sử giao dịch giữa các ví
     const rawDateValue =
+      transfer.createdAt ||
+      transfer.created_at ||
       transfer.transferDate ||
       transfer.transfer_date ||
       transfer.date ||
-      transfer.createdAt ||
-      transfer.created_at ||
       new Date().toISOString();
 
     const dateValue = ensureIsoDateWithTimezone(rawDateValue);
@@ -681,6 +765,8 @@ export default function TransactionsPage() {
       note: transfer.note || "",
       creatorCode: `USR${String(transfer.user?.userId || 0).padStart(3, "0")}`,
       attachment: "",
+      // Lưu trạng thái deleted của wallet để ẩn nút sửa/xóa
+      isWalletDeleted: isWalletDeleted,
     };
   }, [walletsMap]);
 
@@ -745,7 +831,9 @@ export default function TransactionsPage() {
     };
 
     try {
-      const scoped = await fetchScopedHistory();
+      // Luôn dùng fetchLegacyHistory để lấy TẤT CẢ transactions, kể cả của wallets đã bị soft delete
+      // fetchScopedHistory chỉ query wallets trong walletIds (không bao gồm deleted wallets)
+      const scoped = await fetchLegacyHistory();
       const filteredScopedExternal = scoped.external.filter(matchesCurrentUser);
       const filteredScopedInternal = scoped.internal.filter(matchesCurrentUser);
       const mappedExternal = filteredScopedExternal.map(mapTransactionToFrontend);
@@ -756,11 +844,14 @@ export default function TransactionsPage() {
         const prevIds = new Set(prev.map(t => t.id || t.transactionId || t.code));
         const newIds = new Set(mappedExternal.map(t => t.id || t.transactionId || t.code));
         if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
-          // Kiểm tra xem có transaction nào thay đổi không (so sánh bằng amount, date, category)
+          // Kiểm tra xem có transaction nào thay đổi không (so sánh bằng amount, date, category, attachment)
           const hasChanged = mappedExternal.some(tx => {
             const prevTx = prev.find(p => (p.id || p.transactionId || p.code) === (tx.id || tx.transactionId || tx.code));
             if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || prevTx.date !== tx.date || prevTx.category !== tx.category;
+            return prevTx.amount !== tx.amount || 
+                   prevTx.date !== tx.date || 
+                   prevTx.category !== tx.category ||
+                   prevTx.attachment !== tx.attachment;
           });
           if (!hasChanged) {
             return prev; // Không thay đổi, giữ nguyên
@@ -800,7 +891,10 @@ export default function TransactionsPage() {
           const hasChanged = mappedExternal.some(tx => {
             const prevTx = prev.find(p => (p.id || p.transactionId || p.code) === (tx.id || tx.transactionId || tx.code));
             if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || prevTx.date !== tx.date || prevTx.category !== tx.category;
+            return prevTx.amount !== tx.amount || 
+                   prevTx.date !== tx.date || 
+                   prevTx.category !== tx.category ||
+                   prevTx.attachment !== tx.attachment;
           });
           if (!hasChanged) {
             return prev;
@@ -1240,6 +1334,8 @@ export default function TransactionsPage() {
       
       console.log("Update transaction response:", response);
 
+      // Force refresh bằng cách reset lastRefreshRef để đảm bảo refresh ngay lập tức
+      lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
       await refreshTransactionsData();
 
       setEditing(null);
