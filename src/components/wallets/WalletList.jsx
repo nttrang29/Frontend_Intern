@@ -2,53 +2,16 @@ import React from "react";
 import { useLanguage } from "../../contexts/LanguageContext";
 import "../../styles/components/wallets/WalletList.css";
 
-const formatWalletBalance = (amount = 0, currency = "VND") => {
+const formatWalletBalance = (amount = 0) => {
   const numAmount = Number(amount) || 0;
-  if (currency === "USD") {
-    // USD: hiển thị kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân)
-    // Loại bỏ số 0 ở cuối phần thập phân
-    let formatted = "";
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      formatted = numAmount.toLocaleString("vi-VN", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 8,
-      });
-    } else if (numAmount % 1 === 0) {
-      formatted = numAmount.toLocaleString("vi-VN");
-    } else {
-      formatted = numAmount.toLocaleString("vi-VN", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 8,
-      });
-    }
-    // Loại bỏ số 0 ở cuối phần thập phân (sau dấu phẩy)
-    formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
-      return digits ? `,${digits}` : "";
-    }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
-    return `$${formatted}`;
-  }
-  if (currency === "VND") {
-    // VND: hiển thị với 8 chữ số thập phân để không làm tròn số dư
-    let formatted = numAmount.toLocaleString("vi-VN", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 8
-    });
-    // Loại bỏ số 0 ở cuối phần thập phân
-    formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
-      return digits ? `,${digits}` : "";
-    }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
-    return `${formatted} VND`;
-  }
-  if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-    return `${numAmount.toLocaleString("vi-VN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 8,
-    })} ${currency}`;
-  }
-  return `${numAmount.toLocaleString("vi-VN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 8,
-  })} ${currency}`;
+  let formatted = numAmount.toLocaleString("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 8
+  });
+  formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
+    return digits ? `,${digits}` : "";
+  }).replace(/,$/, "");
+  return `${formatted} VND`;
 };
 
 export default function WalletList({

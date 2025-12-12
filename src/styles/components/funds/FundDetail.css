@@ -67,6 +67,309 @@
 }
 
 /* =============================
+   MODERN FUND PROGRESS CARD
+   ============================= */
+.fund-progress-card {
+  border-radius: 28px;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%);
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.fund-progress-card::after {
+  content: "";
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  right: -120px;
+  top: -140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(13, 110, 253, 0.25) 0%, rgba(13, 110, 253, 0) 60%);
+  filter: blur(12px);
+  pointer-events: none;
+}
+
+.fund-progress-modern {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  align-items: center;
+}
+
+.fund-progress-gauge {
+  flex: 0 0 260px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.fund-progress-ring {
+  stroke: rgba(13, 110, 253, 0.18);
+}
+
+.fund-progress-expected {
+  stroke: rgba(13, 110, 253, 0.4);
+}
+
+.fund-progress-actual {
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.fund-progress-center {
+  position: absolute;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fund-progress-center span {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.fund-progress-center strong {
+  font-size: 2rem;
+  color: #0d6efd;
+  text-shadow: 0 10px 25px rgba(13, 110, 253, 0.35);
+}
+
+.fund-progress-center small {
+  font-size: 0.82rem;
+  color: #111827;
+  font-weight: 600;
+}
+
+.fund-progress-plan-chip {
+  position: absolute;
+  bottom: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  padding: 6px 16px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  text-align: center;
+}
+
+.fund-progress-plan-chip p {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.fund-progress-plan-chip strong {
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.fund-progress-info {
+  flex: 1 1 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.fund-progress-status-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.fund-progress-status-head p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.fund-progress-status-head h5 {
+  margin: 4px 0 0;
+  font-size: 1.25rem;
+  color: #0f172a;
+}
+
+.fund-progress-status-badge {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.fund-progress-status-badge.is-ahead {
+  color: #15803d;
+  border-color: rgba(21, 128, 61, 0.3);
+}
+
+.fund-progress-status-badge.is-on_track {
+  color: #0f766e;
+  border-color: rgba(15, 118, 110, 0.3);
+}
+
+.fund-progress-status-badge.is-behind {
+  color: #b45309;
+  border-color: rgba(180, 83, 9, 0.3);
+}
+
+.fund-progress-status-badge.is-critical {
+  color: #b91c1c;
+  border-color: rgba(185, 28, 28, 0.3);
+}
+
+.fund-progress-status-desc {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.fund-progress-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.fund-progress-stat {
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  padding: 14px 16px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.fund-progress-stat p {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.fund-progress-stat strong {
+  display: block;
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+
+.fund-progress-stat span {
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.fund-progress-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fund-progress-meter-track {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.fund-progress-meter-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0d6efd, #00c2ff);
+}
+
+.fund-progress-meter-plan {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  bottom: -4px;
+  background: #0ea5e9;
+  border-radius: 999px;
+}
+
+.fund-progress-meter-legend {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.fund-progress-meter-legend .legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-flex;
+  margin-right: 6px;
+}
+
+.legend-dot.actual {
+  background: linear-gradient(90deg, #0d6efd, #00c2ff);
+}
+
+.legend-dot.plan {
+  background: #0ea5e9;
+}
+
+.fund-progress-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fund-progress-pill {
+  border-radius: 999px;
+  padding: 6px 14px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fund-progress-pill.is-active {
+  border-color: transparent;
+  background: linear-gradient(120deg, #0d6efd, #00c2ff);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+}
+
+.pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-flex;
+}
+
+.pill-dot--ahead { background: #22c55e; }
+.pill-dot--on_track { background: #0ea5e9; }
+.pill-dot--behind { background: #f97316; }
+.pill-dot--critical { background: #ef4444; }
+
+@media (max-width: 768px) {
+  .fund-progress-card {
+    padding: 20px;
+  }
+
+  .fund-progress-gauge {
+    flex: 1 1 100%;
+  }
+
+  .fund-progress-modern {
+    flex-direction: column;
+  }
+}
+
+/* =============================
    RESPONSIVE
    ============================= */
 @media (max-width: 992px) {

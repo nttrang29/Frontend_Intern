@@ -73,7 +73,7 @@ const handleAxiosResponse = (axiosResponse) => {
  * 📝 TẠO VÍ MỚI
  * @param {Object} createData - Dữ liệu tạo ví
  * @param {string} createData.walletName - Tên ví
- * @param {string} createData.currencyCode - Mã tiền tệ (VND hoặc USD)
+ * @param {string} createData.currencyCode - Mã tiền tệ (frontend hiện chỉ hỗ trợ VND)
  * @param {string} [createData.description] - Mô tả ví (optional)
  * @param {boolean} [createData.setAsDefault] - Đặt làm ví mặc định (optional)
  * @returns {Promise<Object>} - { message: string, wallet: Object } hoặc { error: string }
@@ -480,7 +480,7 @@ export const getMergeCandidates = async (sourceWalletId) => {
  * 👁️ XEM TRƯỚC KẾT QUẢ GỘP VÍ
  * @param {number} targetWalletId - ID của ví đích (ví sẽ nhận)
  * @param {number} sourceWalletId - ID của ví nguồn (ví sẽ bị gộp)
- * @param {string} targetCurrency - Mã tiền tệ đích (VND, USD, etc.)
+ * @param {string} targetCurrency - Mã tiền tệ đích (frontend hiện chỉ hỗ trợ VND)
  * @returns {Promise<Object>} - { preview: Object } hoặc { error: string }
  */
 export const previewMerge = async (targetWalletId, sourceWalletId, targetCurrency) => {
@@ -521,7 +521,7 @@ export const previewMerge = async (targetWalletId, sourceWalletId, targetCurrenc
  * @param {number} targetWalletId - ID của ví đích (ví sẽ nhận)
  * @param {Object} mergeData - Dữ liệu gộp ví
  * @param {number} mergeData.sourceWalletId - ID của ví nguồn (ví sẽ bị gộp)
- * @param {string} mergeData.targetCurrency - Mã tiền tệ đích (VND, USD, etc.)
+ * @param {string} mergeData.targetCurrency - Mã tiền tệ đích (frontend hiện chỉ hỗ trợ VND)
  * @returns {Promise<Object>} - { success: boolean, message: string, result: Object } hoặc { error: string }
  */
 export const mergeWallets = async (targetWalletId, mergeData) => {

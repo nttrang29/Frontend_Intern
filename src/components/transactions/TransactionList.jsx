@@ -32,8 +32,6 @@ export default function TransactionList({
   onFromDateTimeChange,
   toDateTime,
   onToDateTimeChange,
-  currencyFilter,
-  onCurrencyFilterChange,
   expanded,
   onToggleExpand,
 }) {
@@ -42,49 +40,13 @@ export default function TransactionList({
 
   // Format số tiền chỉ hiển thị số (không có ký hiệu tiền tệ)
   // Hiển thị với độ chính xác cao (tối đa 8 chữ số thập phân) để khớp với formatMoney trong modal
-  const formatAmountOnly = (amount, currency = "VND") => {
+  const formatAmountOnly = (amount) => {
     const numAmount = Number(amount) || 0;
-    
-    // Format tương tự formatMoney nhưng không có ký hiệu tiền tệ
-    if (currency === "USD") {
-      // USD: hiển thị kiểu Việt (dấu chấm ngăn nghìn, dấu phẩy thập phân)
-      let formatted = "";
-      // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        formatted = numAmount.toLocaleString("vi-VN", { 
-          minimumFractionDigits: 0, 
-          maximumFractionDigits: 8 
-        });
-      } else if (numAmount % 1 === 0) {
-        formatted = numAmount.toLocaleString("vi-VN");
-      } else {
-        formatted = numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 8 });
-      }
-      // Loại bỏ số 0 ở cuối phần thập phân
-      formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
-        return digits ? `,${digits}` : "";
-      }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
-      return formatted;
-    }
-    
-    // Format cho VND và các currency khác
-    if (currency === "VND") {
-      // VND: hiển thị số thập phân nếu có (khi chuyển đổi từ currency khác)
-      const hasDecimal = numAmount % 1 !== 0;
-      if (hasDecimal) {
-        return numAmount.toLocaleString("vi-VN", { 
-          minimumFractionDigits: 0, 
-          maximumFractionDigits: 8 
-        });
-      }
-      return numAmount.toLocaleString("vi-VN");
-    }
-    
-    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-    }
-    return numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+    const hasDecimal = numAmount % 1 !== 0;
+    return numAmount.toLocaleString("vi-VN", { 
+      minimumFractionDigits: 0, 
+      maximumFractionDigits: hasDecimal ? 8 : 0 
+    });
   };
 
   const paginated = React.useMemo(() => {
@@ -180,17 +142,6 @@ export default function TransactionList({
               </div>
             </div>
 
-            <div className="tx-filter-item">
-              <select
-                className="form-select"
-                value={currencyFilter || "all"}
-                onChange={(e) => onCurrencyFilterChange?.(e.target.value)}
-              >
-                <option value="all">{t("transactions.filter.currency_all")}</option>
-                <option value="VND">VND</option>
-                <option value="USD">USD</option>
-              </select>
-            </div>
           </div>
 
           {/* From và To Date - cùng một hàng */}

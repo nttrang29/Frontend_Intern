@@ -14,7 +14,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
   const { showToast } = useToast();
   
   const [fundName, setFundName] = useState("");
-  const [selectedCurrency, setSelectedCurrency] = useState("");
+  const [selectedCurrency] = useState("VND");
   const [sourceWalletId, setSourceWalletId] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -22,27 +22,23 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
   const [targetAmount, setTargetAmount] = useState("");
   const [targetError, setTargetError] = useState("");
   
-  // Lấy danh sách loại tiền tệ unique từ wallets
-  const availableCurrencies = useMemo(() => {
-    const currencies = [...new Set(wallets.map(w => w.currency))];
-    return currencies.sort();
-  }, [wallets]);
+  // Chỉ dùng VND
+  const availableCurrencies = ["VND"];
   
-  // Filter wallets theo currency đã chọn
+  // Filter wallets: chỉ VND
   const filteredWallets = useMemo(() => {
-    if (!selectedCurrency) return [];
-    return wallets.filter(w => w.currency === selectedCurrency);
-  }, [wallets, selectedCurrency]);
+    return wallets.filter(w => (w.currency || "VND") === "VND");
+  }, [wallets]);
   
   // Lấy wallet đã chọn
   const selectedWallet = useMemo(() => {
     return filteredWallets.find(w => String(w.id) === String(sourceWalletId)) || null;
   }, [filteredWallets, sourceWalletId]);
   
-  // Reset sourceWalletId khi đổi currency
+  // Reset sourceWalletId khi danh sách ví thay đổi
   useEffect(() => {
     setSourceWalletId("");
-  }, [selectedCurrency]);
+  }, [wallets]);
 
   const [freq, setFreq] = useState("MONTHLY");
   const [periodAmount, setPeriodAmount] = useState("");
@@ -80,7 +76,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
   const pillBg = "rgba(45, 153, 174, 0.1)";
 
   // Mức tối thiểu cho mục tiêu tùy theo loại tiền
-  const targetMin = selectedCurrency === "USD" ? 1 : 1000;
+  const targetMin = 1000;
 
   // Validate target money
   useEffect(() => {
@@ -165,21 +161,17 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     );
   }, [targetAmount, periodAmount, freq, startDate, targetMin]);
 
-  // Khi đổi loại tiền tệ, reset lỗi/ước tính cũ để tránh hiển thị thông báo sai currency
+  // Reset lỗi/ước tính khi khởi tạo
   useEffect(() => {
     setTargetError("");
     setCalculatedEndDate("");
     setEstimateText("");
-  }, [selectedCurrency]);
+  }, []);
 
   const handleSave = async () => {
     // Validation
     if (!fundName.trim()) {
       showToast("Vui lòng nhập tên quỹ.", "error");
-      return;
-    }
-    if (!selectedCurrency) {
-      showToast("Vui lòng chọn loại tiền tệ.", "error");
       return;
     }
     if (!sourceWalletId) {
@@ -378,23 +370,9 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             <div className="funds-hint">Tối đa 50 ký tự. Ví quỹ sẽ được tự động tạo với số dư ban đầu là 0đ.</div>
           </div>
           <div>
-            <label>
-              Chọn loại tiền tệ <span className="req">*</span>
-            </label>
-            <select
-              value={selectedCurrency}
-              onChange={(e) => setSelectedCurrency(e.target.value)}
-            >
-              <option value="">-- Chọn loại tiền tệ --</option>
-              {availableCurrencies.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </select>
-            <div className="funds-hint">
-              Chọn loại tiền tệ cho quỹ của bạn.
-            </div>
+            <label>Loại tiền tệ</label>
+            <input type="text" value="VND" disabled className="form-control" />
+            <div className="funds-hint">Loại tiền tệ cố định: VND.</div>
           </div>
         </div>
 
@@ -407,12 +385,9 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             <select
               value={sourceWalletId}
               onChange={(e) => setSourceWalletId(e.target.value)}
-              disabled={!selectedCurrency}
             >
               <option value="">
-                {!selectedCurrency 
-                  ? "-- Vui lòng chọn loại tiền tệ trước --"
-                  : filteredWallets.length === 0
+                {filteredWallets.length === 0
                   ? "-- Không có ví nào với loại tiền tệ này --"
                   : "-- Chọn ví nguồn --"
                 }
@@ -508,8 +483,8 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             <label>Số tiền gửi mỗi kỳ</label>
             <input
               type="number"
-              // Nếu ví là USD thì tối thiểu 1 USD, các loại tiền khác giữ 0
-              min={selectedCurrency === "USD" ? 1 : 0}
+              // Chỉ dùng VND, tối thiểu 0
+              min={0}
               placeholder="Nhập số tiền mỗi kỳ"
               value={periodAmount}
               onChange={(e) => setPeriodAmount(e.target.value)}

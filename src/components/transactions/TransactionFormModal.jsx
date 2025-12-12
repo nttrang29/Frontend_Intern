@@ -269,20 +269,8 @@ export default function TransactionFormModal({
   
   const getRate = (from, to) => {
     if (!from || !to || from === to) return 1;
-    // Tỷ giá cố định (theo ExchangeRateServiceImpl)
-    const rates = {
-      VND: 1,
-      USD: 0.000041, // 1 VND = 0.000041 USD
-      EUR: 0.000038,
-      JPY: 0.0063,
-      GBP: 0.000032,
-      CNY: 0.00030,
-    };
-    if (!rates[from] || !rates[to]) return 1;
-    // Tính tỷ giá: from → VND → to
-    const fromToVND = 1 / rates[from];
-    const toToVND = 1 / rates[to];
-    return fromToVND / toToVND;
+    // Frontend chỉ dùng VND, giữ fallback 1:1 để tránh sai số
+    return 1;
   };
 
   // Kiểm tra hai ví có khác loại tiền tệ không (cho chuyển tiền)
@@ -933,9 +921,7 @@ export default function TransactionFormModal({
                     {currenciesDiffer && convertedAmount > 0 && (
                         <div className="small text-muted mt-1">
                         {t("transactions.form.converted_amount")} {" "}
-                        <strong>
-                          {formatMoney(convertedAmount, targetWallet?.currency || "VND", targetWallet?.currency === 'USD' ? 8 : undefined)}
-                        </strong>
+                        <strong>{formatMoney(convertedAmount, targetWallet?.currency || "VND")}</strong>
                       </div>
                     )}
                     {/* Hiển thị tỷ giá nếu khác loại tiền tệ */}

@@ -521,7 +521,7 @@ export const walletAPI = {
   /**
    * Tạo ví mới
    * @param {string} walletName
-   * @param {string} currencyCode - VND, USD, ...
+   * @param {string} currencyCode - Mã tiền tệ (frontend hiện chỉ hỗ trợ VND)
    * @param {string} description
    * @param {boolean} setAsDefault
    */
