@@ -1,5 +1,5 @@
 // src/home/store/NotificationContext.jsx
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import * as NotificationService from "../services/notification.service";
 import { formatVietnamDate } from "../utils/dateFormat";
 import { useAuth } from "./AuthContext";
@@ -25,6 +25,8 @@ export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSession, setHasSession] = useState(() => Boolean(localStorage.getItem("accessToken")));
+  // Track các notification IDs đã dispatch event để tránh dispatch nhiều lần
+  const dispatchedNotificationIdsRef = useRef(new Set());
 
   const syncSessionState = useCallback(() => {
     setHasSession(Boolean(localStorage.getItem("accessToken")));
@@ -56,7 +58,7 @@ export function NotificationProvider({ children }) {
     try {
       const result = await NotificationService.fetchNotifications();
       const notifs = (result.notifications || []).map(n => {
-        // Map referenceType thành type cho các notification liên quan đến fund
+        // Map referenceType thành type cho các notification liên quan đến fund và wallet
         let mappedType = n.type;
         if (n.referenceType === "FUND_REMINDER") {
           mappedType = "fund_reminder";
@@ -66,6 +68,14 @@ export function NotificationProvider({ children }) {
           mappedType = "FUND_AUTO_DEPOSIT_FAILED";
         } else if (n.referenceType === "FUND_COMPLETED") {
           mappedType = "FUND_COMPLETED";
+        } else if (n.type === "WALLET_INVITED" || n.referenceType === "WALLET") {
+          mappedType = n.type === "WALLET_INVITED" ? "WALLET_INVITED" : "wallet_invited";
+        } else if (n.type === "WALLET_ROLE_UPDATED") {
+          mappedType = "WALLET_ROLE_UPDATED";
+        } else if (n.type === "WALLET_MEMBER_LEFT") {
+          mappedType = "WALLET_MEMBER_LEFT";
+        } else if (n.type === "WALLET_MEMBER_REMOVED") {
+          mappedType = "WALLET_MEMBER_REMOVED";
         }
         
         return {
@@ -85,9 +95,112 @@ export function NotificationProvider({ children }) {
                   n.referenceType === "FUND_AUTO_DEPOSIT_FAILED" || 
                   n.referenceType === "FUND_COMPLETED" ? n.referenceId : null,
           reviewId: n.referenceType === "APP_REVIEW" || n.referenceType === "FEEDBACK" ? n.referenceId : null,
+          walletId: (n.referenceType === "WALLET" || n.type === "WALLET_INVITED" || n.type === "WALLET_ROLE_UPDATED" || n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED") ? (n.referenceId || n.walletId) : null,
         };
       });
+      // Lưu notifications cũ để so sánh
+      const prevNotifications = notifications;
       setNotifications(notifs);
+      
+      // Kiểm tra xem có notification wallet mới (chưa đọc) không
+      const walletNotifications = notifs.filter(n => 
+        (n.type === "WALLET_INVITED" || n.type === "WALLET_ROLE_UPDATED" || n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED") && 
+        !n.read
+      );
+      
+      // Tìm các notification WALLET_MEMBER_LEFT và WALLET_MEMBER_REMOVED mới (chưa có trong danh sách cũ)
+      const prevMemberLeftIds = new Set(
+        (prevNotifications || [])
+          .filter(n => n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED")
+          .map(n => n.id)
+      );
+      
+      // Lấy tất cả notifications WALLET_MEMBER_LEFT và WALLET_MEMBER_REMOVED
+      const allMemberLeftNotifications = notifs.filter(n => n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED");
+      
+      // Tìm các notification mới (chưa có trong danh sách cũ)
+      const newMemberLeftNotifications = allMemberLeftNotifications.filter(n => {
+        // Nếu là notification mới (chưa có trong danh sách cũ), luôn dispatch
+        return !prevMemberLeftIds.has(n.id);
+      });
+      
+      // Dispatch event walletNotificationReceived cho TẤT CẢ notifications WALLET_MEMBER_LEFT và WALLET_MEMBER_REMOVED
+      // (không chỉ unread) để WalletDetail có thể force reload khi cần
+      const allWalletMemberLeftNotifications = notifs.filter(n => n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED");
+      
+      // Luôn dispatch event cho tất cả notifications WALLET_MEMBER_LEFT
+      // để đảm bảo UI được cập nhật khi có thay đổi
+      if (allWalletMemberLeftNotifications.length > 0) {
+        if (typeof window !== "undefined") {
+          console.log("🔄 Dispatching walletNotificationReceived with all WALLET_MEMBER_LEFT notifications:", allWalletMemberLeftNotifications.length);
+          window.dispatchEvent(new CustomEvent("walletNotificationReceived", {
+            detail: { notifications: allWalletMemberLeftNotifications }
+          }));
+        }
+      }
+      
+      // Cũng dispatch cho các wallet notifications khác (WALLET_INVITED, WALLET_ROLE_UPDATED)
+      const otherWalletNotifications = walletNotifications.filter(n => 
+        n.type !== "WALLET_MEMBER_LEFT" && n.type !== "WALLET_MEMBER_REMOVED"
+      );
+      if (otherWalletNotifications.length > 0) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("walletNotificationReceived", {
+            detail: { notifications: otherWalletNotifications }
+          }));
+        }
+      }
+      
+      // Dispatch event riêng cho WALLET_MEMBER_LEFT và WALLET_MEMBER_REMOVED (chỉ các notification mới)
+      // Luôn dispatch cho notification mới, không quan tâm đến việc đã dispatch hay chưa
+      if (newMemberLeftNotifications.length > 0) {
+        if (typeof window !== "undefined") {
+          // Map walletIds từ referenceId hoặc walletId, đảm bảo convert sang string để so sánh
+          const walletIds = newMemberLeftNotifications
+            .map(n => {
+              const id = n.referenceId || n.walletId || n.reference_id;
+              return id ? String(id) : null;
+            })
+            .filter(Boolean);
+          
+          console.log("🔄 Dispatching walletMemberLeft event with walletIds:", walletIds, "notifications:", newMemberLeftNotifications.map(n => ({ id: n.id, type: n.type, read: n.read, createdAt: n.createdAt })));
+          
+          // Dispatch event ngay lập tức
+          window.dispatchEvent(new CustomEvent("walletMemberLeft", {
+            detail: { 
+              notifications: newMemberLeftNotifications,
+              walletIds: walletIds
+            }
+          }));
+        }
+      }
+      
+      // Ngoài ra, nếu có notification WALLET_MEMBER_LEFT hoặc WALLET_MEMBER_REMOVED chưa đọc, cũng dispatch để đảm bảo reload
+      // (ngay cả khi không phải là notification mới)
+      const unreadMemberLeftNotifications = allMemberLeftNotifications.filter(n => !n.read);
+      if (unreadMemberLeftNotifications.length > 0) {
+        const unreadWalletIds = unreadMemberLeftNotifications
+          .map(n => {
+            const id = n.referenceId || n.walletId || n.reference_id;
+            return id ? String(id) : null;
+          })
+          .filter(Boolean);
+        
+        // Luôn dispatch cho unread notifications để đảm bảo reload
+        if (unreadWalletIds.length > 0) {
+          // Kiểm tra xem có notification nào chưa được dispatch trong lần này không
+          const alreadyDispatched = newMemberLeftNotifications.some(n => !n.read);
+          if (!alreadyDispatched) {
+            console.log("🔄 Dispatching walletMemberLeft event for unread notifications, walletIds:", unreadWalletIds);
+            window.dispatchEvent(new CustomEvent("walletMemberLeft", {
+              detail: { 
+                notifications: unreadMemberLeftNotifications,
+                walletIds: unreadWalletIds
+              }
+            }));
+          }
+        }
+      }
     } catch (error) {
       if (error?.status === 401) {
         setNotifications([]);

@@ -13,6 +13,7 @@ import WalletDetail from "../../components/wallets/WalletDetail";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
+import { useNotifications } from "../../contexts/NotificationContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
 import Toast from "../../components/common/Toast/Toast";
@@ -493,6 +494,7 @@ const getVietnamDateTime = () => {
 export default function WalletsPage() {
   const { t } = useLanguage();
   const { budgets = [] } = useBudgetData();
+  const { loadNotifications } = useNotifications() || {};
   const {
     wallets = [],
     createWallet,
@@ -678,7 +680,14 @@ export default function WalletsPage() {
           wallets: [],
         });
       }
-      ownersMap.get(ownerId).wallets.push(wallet);
+      // Đảm bảo wallet có role được normalize đúng
+      const walletWithRole = {
+        ...wallet,
+        walletRole: wallet.walletRole || wallet.sharedRole || wallet.role || "",
+        sharedRole: wallet.sharedRole || wallet.walletRole || wallet.role || "",
+        role: wallet.role || wallet.walletRole || wallet.sharedRole || "",
+      };
+      ownersMap.get(ownerId).wallets.push(walletWithRole);
     });
 
     return Array.from(ownersMap.values()).map((owner) => ({
@@ -867,14 +876,16 @@ export default function WalletsPage() {
         return { success: false, message };
       }
 
-      // Check local aggregated email set first (fast path) - only when operating on the currently selected wallet
+      // Luôn check từ server để đảm bảo dữ liệu chính xác (đặc biệt sau khi xóa thành viên)
+      // Local check chỉ là hint, không block
+      let isEmailInLocalSet = false;
       if (!overrideWalletId && selectedWalletEmailSet.has(normalized)) {
-        const message = t('wallets.error.email_already_shared');
-        showToast(message, "error");
-        return { success: false, message };
+        isEmailInLocalSet = true;
+        console.log("⚠️ Email found in local set, but will verify from server:", normalized);
       }
 
-      // As a fallback, fetch actual wallet members from server and ensure the email isn't already a member
+      // Fetch actual wallet members from server and ensure the email isn't already a member
+      // Đây là source of truth chính xác nhất
       try {
         if (walletAPI.getWalletMembers) {
           const resp = await walletAPI.getWalletMembers(walletIdToUse);
@@ -894,14 +905,27 @@ export default function WalletsPage() {
               .toLowerCase();
             if (e) memberEmails.add(e);
           }
+          
           if (memberEmails.has(normalized)) {
             const message = t('wallets.error.email_already_shared');
             showToast(message, "error");
             return { success: false, message };
           }
+          
+          // Nếu email không có trong server nhưng có trong local set, có thể local set đã stale
+          // Log để debug nhưng không block
+          if (isEmailInLocalSet && !memberEmails.has(normalized)) {
+            console.log("ℹ️ Email was in local set but not in server, local set may be stale. Proceeding with share.");
+          }
         }
       } catch (err) {
-        // If member fetch fails, continue and rely on server response for duplicate handling
+        // If member fetch fails, fall back to local check
+        if (isEmailInLocalSet) {
+          const message = t('wallets.error.email_already_shared');
+          showToast(message, "error");
+          return { success: false, message };
+        }
+        // If local check also fails, continue and rely on server response for duplicate handling
         // eslint-disable-next-line no-console
         console.debug("Could not verify existing members before share:", err);
       }
@@ -996,6 +1020,18 @@ export default function WalletsPage() {
         });
         showToast(`${t('wallets.share_success')} ${email}`);
         await loadWallets();
+        
+        // Refresh notifications để người được mời nhận thông báo ngay
+        if (loadNotifications && typeof loadNotifications === "function") {
+          try {
+            // Đợi một chút để backend đã tạo notification xong
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await loadNotifications();
+          } catch (e) {
+            console.debug("loadNotifications failed after sharing wallet", e);
+          }
+        }
+        
         try {
           logActivity({
             type: "wallet.share",
@@ -1019,6 +1055,8 @@ export default function WalletsPage() {
       loadWallets,
       showToast,
       setEditForm,
+      loadNotifications,
+      t,
     ]
   );
 
@@ -1257,6 +1295,56 @@ export default function WalletsPage() {
       return changed ? next : prev;
     });
   }, [wallets]);
+
+  // Lắng nghe event khi có thành viên bị xóa để cập nhật localSharedMap
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const handleWalletMembersUpdated = (event) => {
+      const { walletId, removedEmail } = event.detail || {};
+      if (!walletId || !removedEmail) return;
+      
+      console.log("🔄 Updating localSharedMap after member removal:", { walletId, removedEmail });
+      setLocalSharedMap((prev) => {
+        const walletEmails = prev[walletId];
+        if (!walletEmails || !Array.isArray(walletEmails)) return prev;
+        
+        // Xóa email bị xóa khỏi localSharedMap
+        const updatedEmails = walletEmails.filter(email => 
+          email && typeof email === "string" && email.toLowerCase().trim() !== removedEmail.toLowerCase().trim()
+        );
+        
+        if (updatedEmails.length !== walletEmails.length) {
+          console.log("✅ Removed email from localSharedMap:", removedEmail);
+          const next = { ...prev };
+          if (updatedEmails.length > 0) {
+            next[walletId] = updatedEmails;
+          } else {
+            delete next[walletId];
+          }
+          return next;
+        }
+        
+        return prev;
+      });
+    };
+    
+    const handleWalletUpdated = (event) => {
+      const { walletId, removedEmail } = event.detail || {};
+      if (!walletId || !removedEmail) return;
+      
+      // Cũng xử lý walletUpdated event
+      handleWalletMembersUpdated(event);
+    };
+    
+    window.addEventListener("walletMembersUpdated", handleWalletMembersUpdated);
+    window.addEventListener("walletUpdated", handleWalletUpdated);
+    
+    return () => {
+      window.removeEventListener("walletMembersUpdated", handleWalletMembersUpdated);
+      window.removeEventListener("walletUpdated", handleWalletUpdated);
+    };
+  }, []);
 
 
   // Tổng số dư: we'll compute the total in VND (used by the total card toggle)
@@ -2356,6 +2444,7 @@ export default function WalletsPage() {
       {/* MAIN LAYOUT */}
       <div className="wallets-layout">
         <WalletList
+          key={`wallet-list-${wallets.length}-${wallets.map(w => `${w.id}:${(w.walletRole || w.sharedRole || w.role || '').toString().toUpperCase()}`).join('|')}`}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           personalCount={personalWallets.length}
