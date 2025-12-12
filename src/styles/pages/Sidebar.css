@@ -109,6 +109,25 @@
   margin: 0;
 }
 
+/* Khi hover vào sidebar collapsed, hiện lại text */
+.sb-collapsed.sb-hover-expand .sb__brand-text {
+  max-width: 200px !important;
+  min-width: 0 !important;
+  width: auto !important;
+  opacity: 1 !important;
+  transform: translateX(0) translateZ(0) !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  visibility: visible !important;
+}
+
+.sb-collapsed.sb-hover-expand .sb__brand {
+  padding: 12px 14px !important;
+  flex-direction: row !important;
+  margin: 0 auto 8px !important;
+  width: auto !important;
+}
+
 /* =========================================================
    HEADER BUTTON (MENU)
    ========================================================= */
@@ -127,8 +146,8 @@
   background: #ffffff;
   transition: background var(--sb-transition-base), 
               border-color var(--sb-transition-base), 
-              transform var(--sb-transition-fast),
-              box-shadow var(--sb-transition-base),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow var(--sb-transition-base), 
               width var(--sb-transition-smooth),
               height var(--sb-transition-smooth),
               padding var(--sb-transition-smooth),
@@ -136,7 +155,7 @@
               gap var(--sb-transition-smooth),
               margin var(--sb-transition-smooth);
   cursor: pointer;
-  will-change: width, height, padding, border-radius, gap, margin;
+  will-change: width, height, padding, border-radius, gap, margin, transform, box-shadow;
   backface-visibility: hidden;
   transform: translateZ(0);
 }
@@ -144,7 +163,8 @@
 .sb__link--header:hover {
   background: var(--sb-item-hover);
   border-color: var(--sb-item-border);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px) translateZ(0);
 }
 
 .sb__link--header:active {
@@ -230,19 +250,20 @@
   opacity: 0.95;
   border: 1px solid transparent;
   background: transparent;
+  box-sizing: border-box;
   transition: background var(--sb-transition-base), 
               color var(--sb-transition-base), 
               padding var(--sb-transition-smooth),
               border-color var(--sb-transition-base), 
               box-shadow var(--sb-transition-base), 
-              transform var(--sb-transition-fast), 
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
               opacity var(--sb-transition-base),
               width var(--sb-transition-smooth),
               height var(--sb-transition-smooth),
               border-radius var(--sb-transition-smooth),
               gap var(--sb-transition-smooth),
               margin var(--sb-transition-smooth);
-  will-change: width, height, padding, border-radius, gap, margin;
+  will-change: width, height, padding, border-radius, gap, margin, transform, box-shadow;
   backface-visibility: hidden;
   transform: translateZ(0);
 }
@@ -251,7 +272,8 @@
   background: var(--sb-item-hover);
   border-color: var(--sb-item-border);
   opacity: 1;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px) translateZ(0);
 }
 
 .sb__link:active {
@@ -285,10 +307,30 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  flex-grow: 0;
   margin: 0;
+  min-width: var(--sb-icon-size);
   transition: width var(--sb-transition-smooth), 
               height var(--sb-transition-smooth),
               transform var(--sb-transition-fast);
+}
+
+/* Khi hover vào sidebar collapsed, thu nhỏ icon để có chỗ cho text */
+.sb-collapsed.sb-hover-expand .sb__icon {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.sb-collapsed.sb-hover-expand .sb__icon .bi,
+.sb-collapsed.sb-hover-expand .sb__icon svg {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
 }
 
 .sb__icon .bi,
@@ -328,10 +370,18 @@
   padding: 0;
   border-radius: 50%;
   margin: 2px auto 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
+}
+
+/* Khi hover vào sidebar collapsed, mở rộng header link */
+.sb-collapsed.sb-hover-expand .sb__link--header {
+  width: calc(100% - 24px) !important;
+  height: auto !important;
+  padding: 10px 8px 10px 8px !important;
+  border-radius: 999px !important;
+  margin: 0 12px 8px 12px !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
 }
 
 .sb-collapsed .sb__menu-title {
@@ -340,6 +390,23 @@
   margin: 0;
   overflow: hidden;
   transform: translateX(-10px) translateZ(0);
+}
+
+/* Khi hover vào sidebar collapsed, hiện lại text */
+body.sb-collapsed.sb-hover-expand .sb__text,
+.sb-collapsed.sb-hover-expand .sb__text {
+  max-width: 140px !important;
+  min-width: 0 !important;
+  width: auto !important;
+  opacity: 1 !important;
+  margin: 0 !important;
+  transform: translateX(0) translateZ(0) !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  display: block !important;
+  visibility: visible !important;
+  flex-shrink: 1 !important;
+  white-space: nowrap !important;
 }
 
 .sb-collapsed .sb__divider {
@@ -362,7 +429,7 @@
   transition: background var(--sb-transition-base), 
               border-color var(--sb-transition-base), 
               transform var(--sb-transition-fast),
-              box-shadow var(--sb-transition-base),
+              box-shadow var(--sb-transition-base), 
               width var(--sb-transition-smooth),
               height var(--sb-transition-smooth),
               padding var(--sb-transition-smooth),
@@ -370,6 +437,21 @@
               gap var(--sb-transition-smooth),
               margin var(--sb-transition-smooth);
   margin: 0 auto;
+}
+
+/* Khi hover vào sidebar collapsed, mở rộng link để hiển thị text */
+.sb-collapsed.sb-hover-expand .sb__link {
+  width: auto !important;
+  min-width: calc(100% - 24px) !important;
+  max-width: calc(100% - 24px) !important;
+  height: auto !important;
+  padding: 6px 8px 6px 8px !important;
+  border-radius: 999px !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin: 0 12px !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
 }
 
 .sb-collapsed .sb__icon {
@@ -390,6 +472,17 @@
   transform: translateX(-10px) translateZ(0);
   width: 0;
   display: block !important; /* Giữ display để animation hoạt động */
+}
+
+.sb-collapsed.sb-hover-expand .sb__menu-title {
+  max-width: 200px !important;
+  min-width: 0 !important;
+  width: auto !important;
+  opacity: 1 !important;
+  margin: 0 !important;
+  transform: translateX(0) translateZ(0) !important;
+  overflow: visible !important;
+  visibility: visible !important;
 }
 
 /* Footer spacing */

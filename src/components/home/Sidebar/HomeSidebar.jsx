@@ -20,6 +20,7 @@ export default function HomeSidebar() {
   const [collapsed, setCollapsed] = useState(
     localStorage.getItem("sb_collapsed") === "1"
   );
+  const [isHovered, setIsHovered] = useState(false);
   const { currentUser } = useAuth();
   const { t } = useLanguage();
 
@@ -53,8 +54,52 @@ export default function HomeSidebar() {
     localStorage.setItem("sb_collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
 
+  useEffect(() => {
+    const sidebarEl = document.getElementById("home-sidebar");
+    if (!sidebarEl) {
+      // Retry after a short delay if element not found
+      const timer = setTimeout(() => {
+        const retryEl = document.getElementById("home-sidebar");
+        if (retryEl && collapsed) {
+          retryEl.addEventListener("mouseenter", () => {
+            document.body.classList.add("sb-hover-expand");
+          });
+          retryEl.addEventListener("mouseleave", () => {
+            document.body.classList.remove("sb-hover-expand");
+          });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+
+    const handleMouseEnter = () => {
+      if (collapsed) {
+        console.log("Adding sb-hover-expand class");
+        document.body.classList.add("sb-hover-expand");
+        console.log("Body classes:", document.body.className);
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (collapsed) {
+        console.log("Removing sb-hover-expand class");
+        document.body.classList.remove("sb-hover-expand");
+      }
+    };
+
+    sidebarEl.addEventListener("mouseenter", handleMouseEnter);
+    sidebarEl.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      sidebarEl.removeEventListener("mouseenter", handleMouseEnter);
+      sidebarEl.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, [collapsed]);
+
   return (
-    <div className={`sb__container ${collapsed ? "is-collapsed" : ""}`}>
+    <div 
+      className={`sb__container ${collapsed ? "is-collapsed" : ""}`}
+    >
       <div className="sb__brand">
         <video
           className="sb__brand-video"

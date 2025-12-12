@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "../../styles/components/dashboard/WeatherWidget.css";
 import { getWeatherByCity, getWeatherByCoords } from "../../services/weather.service";
 
-export default function WeatherWidget() {
+export default function WeatherWidget({ compact = false }) {
   const [weather, setWeather] = useState({
     temp: 22,
     condition: "Có nắng",
@@ -78,7 +78,7 @@ export default function WeatherWidget() {
   };
 
   return (
-    <div className="weather-widget">
+    <div className={`weather-widget ${compact ? "weather-widget--compact" : ""}`}>
       <div className="weather-widget__header">
         <div className="weather-widget__location">
           <i className="bi bi-geo-alt-fill me-1" />

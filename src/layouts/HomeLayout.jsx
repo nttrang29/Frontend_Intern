@@ -14,7 +14,7 @@ export default function HomeLayout() {
       <div className="home-page__overlay" />
 
       {/* Sidebar cố định */}
-      <aside className="home__sidebar">
+      <aside className="home__sidebar" id="home-sidebar">
         <HomeSidebar />
       </aside>
 

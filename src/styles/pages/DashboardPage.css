@@ -232,16 +232,47 @@
 
 /* GRID */
 
-.dashboard-grid {
+.dashboard-grid-compact {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(280px, 1.3fr);
-  gap: 20px;
+  grid-template-columns: 2fr 0.5fr; /* cột widget hẹp còn một nửa */
+  gap: 18px;
+  align-items: start;
 }
 
-.db-card-grid {
+.dashboard-charts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: minmax(210px, auto);
+  gap: 18px;
+  align-items: start;
+}
+
+/* Card đầu tiên (Mức chi tiêu theo danh mục) - giảm 20% */
+.dashboard-charts > .db-card:nth-child(1) {
+  max-width: 80%;
+  width: 80%;
+}
+
+/* Card thứ hai (Tổng chi tiêu) - tăng để lấp vào nhưng vẫn giữ khoảng cách nhỏ */
+.dashboard-charts > .db-card:nth-child(2) {
+  width: calc(100% + 20% - 4px); /* 100% + 20% từ card 1 - khoảng cách nhỏ */
+  margin-left: calc(-20% + 4px); /* Đẩy về trái nhưng giữ khoảng cách nhỏ */
+  max-width: none;
+}
+
+/* Card full-width vẫn chiếm toàn bộ */
+.db-card--full-width {
+  grid-column: 1 / -1;
+  max-width: 100%;
+  margin-left: 0;
+}
+
+.db-card--full-width {
+  grid-column: 1 / -1;
+}
+
+.dashboard-widgets-stack {
+  display: flex;
+  flex-direction: column;
   gap: 18px;
 }
 
@@ -255,29 +286,19 @@
   border: 1px solid rgba(0, 28, 68, 0.06);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
+  overflow: visible; /* không cắt tooltip/legend khi hover */
   animation: cardFadeIn 0.6s ease-out backwards;
 }
 
-.db-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(45, 153, 174, 0.1), transparent);
-  transition: left 0.5s ease;
-}
-
+.db-card::before,
 .db-card:hover::before {
-  left: 100%;
+  content: none;
 }
 
 .db-card:hover {
   transform: translateY(-8px) scale(1.02);
   box-shadow: 0 24px 60px rgba(0, 28, 68, 0.2);
-  border-color: rgba(45, 153, 174, 0.3);
+  background: #ffffff;
 }
 
 @keyframes cardFadeIn {
@@ -317,7 +338,7 @@
 }
 
 .db-card:hover .db-card__header h3 {
-  color: var(--color-primary);
+  color: #001c44;
 }
 
 .db-card__subtitle {
@@ -349,48 +370,27 @@
 
 .db-donut {
   position: relative;
-  width: 140px;
-  height: 140px;
+  width: 220px;
+  height: 220px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.db-donut__ring {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: var(
-    --donut-gradient,
-    conic-gradient(#2d99ae 0 210deg, #0c5776 210deg 282deg, #bcfefe 282deg 324deg, #f8dad0 324deg 360deg)
-  );
-  position: relative;
-  box-shadow: 0 12px 24px rgba(0, 28, 68, 0.35);
-  animation: donutRotate 20s linear infinite;
-  transition: transform 0.3s ease;
+.db-donut__svg {
+  width: 220px;
+  height: 220px;
 }
 
-.db-card:hover .db-donut__ring {
-  animation: donutRotate 10s linear infinite;
-  box-shadow: 0 16px 32px rgba(45, 153, 174, 0.4);
+.db-donut__slice {
+  transition: transform 0.2s ease, filter 0.2s ease;
+  cursor: pointer;
 }
 
-@keyframes donutRotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.db-donut__ring::after {
-  content: "";
-  position: absolute;
-  inset: 18px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 20%, #001c44, #000a1a);
+.db-donut__slice:hover {
+  transform: scale(1.04);
+  filter: brightness(1.05);
 }
 
 .db-donut__center {
@@ -398,17 +398,45 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  padding: 8px;
 }
 
-.db-donut__value {
-  font-size: 1.6rem;
-  font-weight: 600;
-  color: #f9fafb;
+.db-donut__hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.3;
 }
 
-.db-donut__label {
-  font-size: 0.8rem;
-  color: #bcfefe;
+.db-donut__tooltip {
+  position: absolute;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  padding: 10px 12px;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  min-width: 140px;
+  border: 1px solid rgba(0, 28, 68, 0.08);
+  z-index: 20;
+}
+
+.db-donut__tooltip-label {
+  font-weight: 700;
+  color: #001c44;
+  margin-bottom: 2px;
+  font-size: 0.9rem;
+}
+
+.db-donut__tooltip-value {
+  font-size: 0.85rem;
+  color: #0c5776;
 }
 
 /* LEGEND */
@@ -418,19 +446,22 @@
   padding: 0;
   margin: 0;
   flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
 }
 
 .db-legend__item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   font-size: 0.8rem;
   padding: 4px 0;
   transition: all 0.3s ease;
   border-radius: 8px;
   padding: 6px 8px;
-  margin: 2px 0;
+  margin: 0;
   cursor: pointer;
 }
 
@@ -457,14 +488,6 @@
   color: #001c44;
 }
 
-.db-legend__value {
-  color: #0c5776;
-}
-
-.db-legend__unit {
-  font-size: 0.7rem;
-}
-
 /* KPI */
 
 .db-card__kpi {
@@ -477,7 +500,9 @@
 .db-kpi__label {
   font-size: 0.8rem;
   color: #0c5776;
-  margin-bottom: 2px;
+  margin-bottom: 0;
+  margin-right: 8px;
+  display: inline-block;
 }
 
 .db-kpi__value {
@@ -486,6 +511,12 @@
   color: #001c44;
   transition: all 0.3s ease;
   display: inline-block;
+}
+
+.db-card__kpi > div {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
 }
 
 .db-card:hover .db-kpi__value {
@@ -514,23 +545,93 @@
 
 /* LINE CHARTS */
 
+.db-line-chart-container {
+  display: flex;
+  position: relative;
+  margin-top: 16px;
+  padding-left: 70px; /* Space for y-axis labels */
+}
+
+.db-line-chart__y-axis {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 65px;
+  height: 120px; /* baseHeight */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-end;
+  padding-right: 8px;
+  pointer-events: none;
+}
+
+.db-line-chart__y-axis-label {
+  position: absolute;
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+  transform: translateY(50%);
+  font-weight: 500;
+}
+
+.db-line-chart__grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 120px; /* baseHeight */
+  pointer-events: none;
+}
+
+.db-line-chart__grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  border-top: 1px dashed rgba(0, 28, 68, 0.15);
+}
+
+.db-line-chart {
+  position: relative;
+  flex: 1;
+  min-height: 140px; /* baseHeight + space for labels */
+}
+
 .db-line-chart__svg {
   width: 100%;
-  height: 80px;
+  height: 120px; /* baseHeight */
 }
 
 .db-line-chart__line {
   fill: none;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition: stroke-width 0.3s ease;
+  stroke-width: 2.5;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  stroke-miterlimit: 10;
+  vector-effect: non-scaling-stroke;
+}
+
+.db-line-chart__line--income {
+  stroke: #2d99ae;
   filter: drop-shadow(0 2px 4px rgba(45, 153, 174, 0.3));
 }
 
+.db-line-chart__line--expense {
+  stroke: #ef4444;
+  filter: drop-shadow(0 2px 4px rgba(239, 68, 68, 0.3));
+}
+
 .db-card:hover .db-line-chart__line {
-  stroke-width: 3;
+  stroke-width: 2.5;
+}
+
+.db-card:hover .db-line-chart__line--income {
   filter: drop-shadow(0 4px 8px rgba(45, 153, 174, 0.5));
+}
+
+.db-card:hover .db-line-chart__line--expense {
+  filter: drop-shadow(0 4px 8px rgba(239, 68, 68, 0.5));
 }
 
 .db-line-chart__line--primary {
@@ -542,34 +643,154 @@
 }
 
 .db-line-chart__line--secondary {
-  stroke: #c0476a;
+  stroke: #ef4444;
 }
 
 .db-line-chart__labels {
   display: flex;
   justify-content: space-between;
   gap: 4px;
-  margin-top: 4px;
+  margin-top: 8px;
   font-size: 0.7rem;
   color: #0c5776;
+  padding-bottom: 4px;
+}
+
+.db-line-chart__legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  justify-content: center;
+}
+
+.db-line-chart__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #001c44;
+}
+
+.db-card__kpi--dual {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.db-kpi__value--income {
+  color: #2d99ae;
+}
+
+.db-kpi__value--expense {
+  color: #ef4444;
 }
 
 /* BAR CHART – MỨC ĐỘ CHI TIÊU */
+
+.db-bar-chart-container {
+  display: flex;
+  position: relative;
+  margin-top: 16px;
+  padding-left: 70px; /* Space for y-axis labels */
+}
+
+.db-bar-chart__y-axis {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 65px;
+  height: 166px; /* baseHeight */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-end;
+  padding-right: 8px;
+  pointer-events: none;
+}
+
+.db-bar-chart__y-axis-label {
+  position: absolute;
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+  transform: translateY(50%);
+  font-weight: 500;
+}
+
+.db-bar-chart__grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 166px; /* baseHeight */
+  pointer-events: none;
+}
+
+.db-bar-chart__grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  border-top: 1px dashed rgba(0, 28, 68, 0.15);
+}
 
 .db-bar-chart {
   display: flex;
   align-items: flex-end;
   gap: 12px;
-  margin-top: 16px;
+  position: relative;
+  flex: 1;
+  min-height: 186px; /* baseHeight + space for labels */
 }
 
 .db-bar-chart--dense {
   gap: 8px;
 }
 
+/* Điều chỉnh kích thước bar theo period */
+.db-bar-chart--tuan {
+  gap: 10px;
+  min-height: 182px; /* Tăng thêm 15% từ 158px */
+}
+
+.db-bar-chart--tuan .db-bar-chart__bars-pair {
+  grid-template-columns: repeat(2, 26px); /* Tăng thêm 15% từ 23px */
+  gap: 8px;
+}
+
+.db-bar-chart--thang {
+  gap: 16px;
+  min-height: 182px; /* Tăng thêm 15% từ 158px */
+}
+
+.db-bar-chart--thang .db-bar-chart__bars-pair {
+  grid-template-columns: repeat(2, 40px); /* Tăng thêm 15% từ 35px */
+  gap: 10px;
+}
+
+.db-bar-chart--nam {
+  gap: 6px;
+  min-height: 182px; /* Tăng thêm 15% từ 158px */
+}
+
+.db-bar-chart--nam .db-bar-chart__bars-pair {
+  grid-template-columns: repeat(2, 16px); /* Tăng thêm 15% từ 14px */
+  gap: 5px;
+}
+
 .db-bar-chart__item {
   flex: 1;
   text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.db-bar-chart__bars-pair {
+  display: grid;
+  grid-template-columns: repeat(2, 12px);
+  gap: 6px;
+  align-items: end;
+  justify-content: center;
 }
 
 /* bỏ ô xám, chỉ giữ cột xanh */
@@ -582,7 +803,7 @@
 }
 
 .db-bar-chart__bar {
-  width: 60%;
+  width: 100%;
   border-radius: 999px 999px 6px 6px;
   background: linear-gradient(180deg, #2d99ae, #0c5776);
   box-shadow: 0 8px 16px rgba(0, 28, 68, 0.25);
@@ -590,10 +811,37 @@
   animation: barGrow 0.8s ease-out backwards;
 }
 
-.db-bar-chart__item:hover .db-bar-chart__bar {
-  transform: scaleY(1.1);
-  box-shadow: 0 12px 24px rgba(45, 153, 174, 0.4);
-  filter: brightness(1.1);
+.db-bar-chart__bar--income {
+  background: linear-gradient(180deg, #2d99ae, #0c5776);
+}
+
+.db-bar-chart__bar--spending {
+  background: linear-gradient(180deg, #ef4444, #dc2626);
+}
+
+.db-bar-chart__bar {
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+}
+
+.db-bar-chart__bar:hover {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 12px 28px rgba(0, 28, 68, 0.35);
+  filter: brightness(1.15);
+  z-index: 10;
+}
+
+.db-bar-chart__bar--income:hover {
+  box-shadow: 0 12px 28px rgba(45, 153, 174, 0.5);
+}
+
+.db-bar-chart__bar--spending:hover {
+  box-shadow: 0 12px 28px rgba(239, 68, 68, 0.5);
+}
+
+.db-bar-chart__item:hover .db-bar-chart__bar:not(:hover) {
+  opacity: 0.7;
 }
 
 @keyframes barGrow {
@@ -606,6 +854,41 @@
   }
 }
 
+/* Tooltip for bar chart */
+.db-bar-chart__tooltip {
+  position: absolute;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 24px rgba(0, 28, 68, 0.2);
+  border: 1px solid rgba(0, 28, 68, 0.1);
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+}
+
+.db-bar-chart__tooltip-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #001c44;
+  margin-bottom: 4px;
+}
+
+.db-bar-chart__tooltip-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0c5776;
+  margin-bottom: 2px;
+}
+
+.db-bar-chart__tooltip-period {
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
 .db-bar-chart__item:nth-child(1) .db-bar-chart__bar { animation-delay: 0.1s; }
 .db-bar-chart__item:nth-child(2) .db-bar-chart__bar { animation-delay: 0.2s; }
 .db-bar-chart__item:nth-child(3) .db-bar-chart__bar { animation-delay: 0.3s; }
@@ -614,14 +897,25 @@
 .db-bar-chart__item:nth-child(6) .db-bar-chart__bar { animation-delay: 0.6s; }
 .db-bar-chart__item:nth-child(7) .db-bar-chart__bar { animation-delay: 0.7s; }
 
-.db-bar-chart__bar--spending {
-  background: linear-gradient(180deg, #2d99ae, #0c5776);
-}
-
 .db-bar-chart__label {
   margin-top: 6px;
   font-size: 0.8rem;
   color: #001c44;
+}
+
+.db-bar-chart__legend {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #0c5776;
+  flex-wrap: wrap;
+}
+
+.db-bar-chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* BIẾN ĐỘNG SỐ DƯ – LEGEND */
@@ -652,15 +946,13 @@
 }
 
 .dot--secondary {
-  background: #0c5776;
+  background: #ef4444;
 }
 
 /* SIDE – LỊCH SỬ GIAO DỊCH */
 
-.dashboard-side {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+.db-card--widget {
+  padding: 8px 10px;
 }
 
 .db-card--side {
@@ -836,10 +1128,6 @@
 /* RESPONSIVE */
 
 @media (max-width: 1100px) {
-  .dashboard-grid {
-    grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1.3fr);
-  }
-
   .db-donut {
     width: 120px;
     height: 120px;
@@ -847,16 +1135,12 @@
 }
 
 @media (max-width: 992px) {
-  .dashboard-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .dashboard-grid-compact {
+    grid-template-columns: 1fr;
   }
 
-  .dashboard-side {
-    flex-direction: row;
-  }
-
-  .db-card--side {
-    width: 100%;
+  .dashboard-charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -887,16 +1171,8 @@
     justify-content: center;
   }
 
-  .db-card-grid {
+  .dashboard-charts {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .dashboard-side {
-    flex-direction: column;
-  }
-
-  .dashboard-extra-widgets {
-    grid-template-columns: 1fr;
   }
 }
 
