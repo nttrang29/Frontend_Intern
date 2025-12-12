@@ -1,10 +1,8 @@
-// Exchange rate service stub: frontend hiện chỉ dùng VND, không cần gọi API.
-// Trả về giá trị cố định 1:1 để tránh thay đổi hành vi ở các nơi đã import.
+// Exchange rate service: frontend chỉ dùng VND, không cần chuyển đổi tiền tệ.
+// Service này được giữ lại để tránh break các import hiện có, nhưng không còn chức năng chuyển đổi.
 
 export async function getExchangeRate() {
   return {
-    vndToUsd: 1,
-    usdToVnd: 1,
     change: 0,
     changePercent: 0,
     lastUpdate: new Date().toISOString(),

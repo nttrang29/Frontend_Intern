@@ -1207,34 +1207,15 @@ export default function WalletsPage() {
     }
   }, [currentList, selectedId]);
 
-  const getRate = (from, to) => {
-    if (!from || !to) return 1;
-    const fromU = String(from).toUpperCase();
-    const toU = String(to).toUpperCase();
-    if (fromU === toU) return 1;
-    // Frontend chỉ hỗ trợ VND, quy đổi 1:1 để tránh sai lệch hiển thị
-    return 1;
-  };
-
-  // Helper function để chuyển đổi số tiền về VND
+  // Frontend chỉ dùng VND, không còn chức năng chuyển đổi tiền tệ
   const convertToVND = (amount, currency) => {
-    const numericAmount = Number(amount) || 0;
-    if (!currency || currency === "VND") return numericAmount;
-    const rate = getRate(currency, "VND");
-    return numericAmount * rate;
+    // Luôn trả về số tiền gốc vì chỉ dùng VND
+    return Number(amount) || 0;
   };
 
-  // Helper function để chuyển đổi từ VND sang currency khác
   const convertFromVND = (amountVND, targetCurrency) => {
-    const base = Number(amountVND) || 0;
-    if (!targetCurrency || targetCurrency === "VND") return base;
-    const rate = getRate("VND", targetCurrency);
-    const converted = base * rate;
-    const decimals = targetCurrency === "VND" ? 0 : 8;
-    return (
-      Math.round(converted * Math.pow(10, decimals)) /
-      Math.pow(10, decimals)
-    );
+    // Luôn trả về số tiền gốc vì chỉ dùng VND
+    return Number(amountVND) || 0;
   };
 
   // Lấy đơn vị tiền tệ mặc định từ localStorage

@@ -260,36 +260,8 @@ export default function TransactionFormModal({
   const sourceWallet = walletList?.find(w => w.name === form.sourceWallet);
   const targetWallet = walletList?.find(w => w.name === form.targetWallet);
 
-  // Helper functions để tính tỷ giá và chuyển đổi (tham khảo WalletInspector)
-  const decimalsOf = (c) => (String(c) === "VND" ? 0 : 2);
-  const roundTo = (n, d = 0) => {
-    const m = Math.pow(10, d);
-    return Math.round(n * m) / m;
-  };
-  
-  const getRate = (from, to) => {
-    if (!from || !to || from === to) return 1;
-    // Frontend chỉ dùng VND, giữ fallback 1:1 để tránh sai số
-    return 1;
-  };
-
-  // Kiểm tra hai ví có khác loại tiền tệ không (cho chuyển tiền)
-  const currenciesDiffer = sourceWallet && targetWallet 
-    ? (sourceWallet.currency || "VND") !== (targetWallet.currency || "VND")
-    : false;
-  
-  // Tính tỷ giá và số tiền chuyển đổi (cho chuyển tiền)
-  const transferRate = sourceWallet && targetWallet 
-    ? getRate(sourceWallet.currency || "VND", targetWallet.currency || "VND")
-    : 1;
-  
+  // Frontend chỉ dùng VND, không còn chức năng chuyển đổi tiền tệ
   const amountNum = getMoneyValue(form.amount);
-  const convertedAmount = useMemo(() => {
-    if (!sourceWallet || !targetWallet || !amountNum) return 0;
-    if (!currenciesDiffer) return amountNum;
-    // Chuyển đổi từ sourceWallet.currency sang targetWallet.currency
-    return roundTo(amountNum * transferRate, decimalsOf(targetWallet.currency || "VND"));
-  }, [amountNum, transferRate, currenciesDiffer, sourceWallet, targetWallet]);
 
   // Kiểm tra số tiền có hợp lệ không (cho loại chi tiêu và chuyển tiền)
   const walletBalance = Number(selectedWallet?.balance || 0);
@@ -915,25 +887,8 @@ export default function TransactionFormModal({
                         readOnly={mode === "edit"}
                         style={mode === "edit" ? { backgroundColor: "#f8f9fa", cursor: "not-allowed" } : {}}
                       />
-                      <span className="input-group-text">{sourceWallet?.currency || form.currency || "VND"}</span>
+                      <span className="input-group-text">VND</span>
                     </div>
-                    {/* Hiển thị số tiền chuyển đổi nếu khác loại tiền tệ */}
-                    {currenciesDiffer && convertedAmount > 0 && (
-                        <div className="small text-muted mt-1">
-                        {t("transactions.form.converted_amount")} {" "}
-                        <strong>{formatMoney(convertedAmount, targetWallet?.currency || "VND")}</strong>
-                      </div>
-                    )}
-                    {/* Hiển thị tỷ giá nếu khác loại tiền tệ */}
-                    {currenciesDiffer && sourceWallet && targetWallet && (
-                        <div className="small text-muted mt-1">
-                        {t("transactions.form.exchange_rate_prefix")} 1 {sourceWallet.currency || "VND"} ={" "}
-                        {new Intl.NumberFormat("vi-VN", {
-                          maximumFractionDigits: 8,
-                        }).format(transferRate)}{" "}
-                        {targetWallet.currency || "VND"}
-                      </div>
-                    )}
                     {/* Hiển thị lỗi khi số tiền vượt quá số dư ví gửi (chỉ khi tạo mới) */}
                     {mode !== "edit" && showTransferAmountError && (
                       <div className="text-danger small mt-1">
