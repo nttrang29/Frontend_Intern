@@ -235,6 +235,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     };
   }, [fund.current, fund.currentAmount, fund.target, fund.targetAmount, fund.startDate, fund.endDate, progressValue]);
 
+  const gaugeGradientId = useMemo(() => {
+    const identity = fund.id || fund.fundId || fund.code || "fund";
+    return `fundPaceGradient-${identity}`;
+  }, [fund.code, fund.fundId, fund.id]);
+
   const paceStatusLabel = PACE_STATUS_LABELS[fundPacing.paceStatus] || PACE_STATUS_LABELS.unknown;
   const paceStatusDescription = useMemo(() => {
     if (fundPacing.diffPct == null) {
@@ -255,6 +260,10 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
 
   const actualPct = Math.max(0, Math.min(progressValue, 100));
   const expectedPctValue = fundPacing.expectedPct != null ? Math.max(0, Math.min(fundPacing.expectedPct, 100)) : null;
+  const gaugeRadius = 105;
+  const gaugeCircumference = 2 * Math.PI * gaugeRadius;
+  const actualOffset = gaugeCircumference * (1 - actualPct / 100);
+  const expectedOffset = expectedPctValue != null ? gaugeCircumference * (1 - expectedPctValue / 100) : null;
   const actualAmountLabel = formatMoney(fundPacing.currentAmount, fund.currency);
   const planAmountLabel = fundPacing.expectedAmount != null ? formatMoney(fundPacing.expectedAmount, fund.currency) : "—";
   const shortageLabel = fundPacing.shortage != null ? formatMoney(fundPacing.shortage, fund.currency) : "—";
@@ -265,16 +274,6 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     const remaining = Math.max(0, fundPacing.totalDays - fundPacing.elapsedDays);
     return remaining === 0 ? "Đến hạn hôm nay" : `${remaining} ngày còn lại`;
   })();
-  const shortagePct = useMemo(() => {
-    if (!fundPacing.targetAmount || fundPacing.targetAmount <= 0 || fundPacing.shortage == null) return null;
-    return Math.min(100, Math.max(0, (fundPacing.shortage / fundPacing.targetAmount) * 100));
-  }, [fundPacing.shortage, fundPacing.targetAmount]);
-  const hasShortage = fundPacing.shortage != null && fundPacing.shortage > 0;
-  const actualTrackHeight = Math.max(0, Math.min(100, actualPct));
-  const shortageTrackHeight = hasShortage && shortagePct != null ? Math.max(0, Math.min(100, shortagePct)) : 0;
-  const shortagePercentLabel = shortagePct != null ? `${Math.round(shortagePct)}%` : fundPacing.shortage === 0 ? "0%" : "--";
-  const targetAmountLabel = fundPacing.targetAmount ? formatMoney(fundPacing.targetAmount, fund.currency) : "—";
-  const actualPercentLabel = `${Math.round(actualPct)}%`;
 
   // Trạng thái quỹ từ backend (ACTIVE, CLOSED, COMPLETED)
   const fundStatus = fund.status || fund.fundStatus || null;
@@ -1212,45 +1211,61 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       <div className="fund-detail-summary">
         <div className="fund-progress-card card border-0 shadow-sm">
           <div className="fund-progress-modern">
-            <div className="fund-progress-visual">
-              <div className="fund-progress-unified">
-                <div className="fund-progress-unified-track">
-                  {hasShortage && shortageTrackHeight > 0 && (
-                    <span className="fund-progress-unified-gap" style={{ height: `${shortageTrackHeight}%` }} />
-                  )}
-                  <span className="fund-progress-unified-fill" style={{ height: `${actualTrackHeight}%` }} />
-                  {expectedPctValue != null && (
-                    <span className="fund-progress-unified-plan" style={{ bottom: `${Math.max(0, Math.min(100, expectedPctValue))}%` }} />
-                  )}
-                  <div className="fund-progress-unified-scale">
-                    <span>100%</span>
-                    <span>50%</span>
-                    <span>0%</span>
-                  </div>
-                </div>
-                <div className="fund-progress-unified-cards">
-                  <div className="fund-progress-unified-card is-actual">
-                    <p>Thực tế</p>
-                    <strong>{actualAmountLabel}</strong>
-                    <span>{actualPercentLabel}</span>
-                  </div>
-                  <div className="fund-progress-unified-card is-plan">
-                    <p>Kế hoạch</p>
-                    <strong>{planAmountLabel}</strong>
-                    <span>{expectedPercentLabel}</span>
-                  </div>
-                  <div className="fund-progress-unified-card is-target">
-                    <p>Mục tiêu</p>
-                    <strong>{targetAmountLabel}</strong>
-                    <span>100%</span>
-                  </div>
-                  <div className="fund-progress-unified-card is-gap">
-                    <p>Còn thiếu</p>
-                    <strong>{shortageLabel}</strong>
-                    <span>{shortagePercentLabel}</span>
-                  </div>
-                </div>
+            <div className="fund-progress-gauge">
+              <svg width="260" height="260" viewBox="0 0 260 260" role="img" aria-label="Fund pacing gauge">
+                <defs>
+                  <linearGradient id={gaugeGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#0d6efd" />
+                    <stop offset="100%" stopColor="#00c2ff" />
+                  </linearGradient>
+                </defs>
+                <circle
+                  className="fund-progress-ring"
+                  cx="130"
+                  cy="130"
+                  r={gaugeRadius}
+                  strokeWidth="18"
+                  fill="none"
+                />
+                {expectedOffset != null && (
+                  <circle
+                    className="fund-progress-expected"
+                    cx="130"
+                    cy="130"
+                    r={gaugeRadius}
+                    strokeWidth="12"
+                    strokeDasharray={`${gaugeCircumference} ${gaugeCircumference}`}
+                    strokeDashoffset={expectedOffset}
+                    strokeLinecap="round"
+                    fill="none"
+                    transform="rotate(-90 130 130)"
+                  />
+                )}
+                <circle
+                  className="fund-progress-actual"
+                  cx="130"
+                  cy="130"
+                  r={gaugeRadius}
+                  stroke={`url(#${gaugeGradientId})`}
+                  strokeWidth="18"
+                  strokeDasharray={`${gaugeCircumference} ${gaugeCircumference}`}
+                  strokeDashoffset={actualOffset}
+                  strokeLinecap="round"
+                  fill="none"
+                  transform="rotate(-90 130 130)"
+                />
+              </svg>
+              <div className="fund-progress-center">
+                <span>Thực tế</span>
+                <strong>{Math.round(actualPct)}%</strong>
+                <small>{actualAmountLabel}</small>
               </div>
+              {expectedPctValue != null && (
+                <div className="fund-progress-plan-chip">
+                  <p>Theo kế hoạch</p>
+                  <strong>{expectedPercentLabel}</strong>
+                </div>
+              )}
             </div>
             <div className="fund-progress-info">
               <div className="fund-progress-status-head">

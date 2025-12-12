@@ -856,111 +856,6 @@ export default function ReportsPage() {
   }, [chartData]);
   const chartNet = chartSummary.income - chartSummary.expense;
 
-  const totalWalletBalance = useMemo(() => {
-    if (!wallets || !wallets.length) return 0;
-    return wallets.reduce(
-      (sum, wallet) => sum + (Number(wallet.balance ?? wallet.current ?? 0) || 0),
-      0
-    );
-  }, [wallets]);
-
-  const rangeLabel = useMemo(() => {
-    const match = RANGE_OPTIONS.find((option) => option.value === range);
-    if (!match) return "";
-    return t(`reports.range.${match.value}`);
-  }, [range, t]);
-
-  const computeTrend = useCallback(
-    (field) => {
-      if (!chartData.length) return 0;
-      const firstValue = chartData[0]?.[field] ?? 0;
-      const lastValue = chartData[chartData.length - 1]?.[field] ?? 0;
-      if (firstValue === 0) {
-        return lastValue === 0 ? 0 : 100;
-      }
-      const raw = ((lastValue - firstValue) / Math.abs(firstValue)) * 100;
-      return Math.round(Math.max(-100, Math.min(100, raw)));
-    },
-    [chartData]
-  );
-
-  const incomeTrend = useMemo(() => computeTrend("income"), [computeTrend]);
-  const expenseTrend = useMemo(() => computeTrend("expense"), [computeTrend]);
-  const netTrend = useMemo(() => {
-    if (!chartData.length) return 0;
-    const firstNet = (chartData[0]?.income || 0) - (chartData[0]?.expense || 0);
-    const lastNet =
-      (chartData[chartData.length - 1]?.income || 0) -
-      (chartData[chartData.length - 1]?.expense || 0);
-    if (firstNet === 0) {
-      return lastNet === 0 ? 0 : 100;
-    }
-    const raw = ((lastNet - firstNet) / Math.abs(firstNet)) * 100;
-    return Math.round(Math.max(-100, Math.min(100, raw)));
-  }, [chartData]);
-
-  const lineChartPoints = useMemo(() => {
-    if (!chartData.length) {
-      return { income: "", expense: "" };
-    }
-
-    const denominator = Math.max(1, chartData.length - 1);
-    const maxValue = chartMaxValue || 1;
-
-    const buildPoints = (field) =>
-      chartData
-        .map((item, index) => {
-          const x = (index / denominator) * 100;
-          const ratio = (item[field] || 0) / maxValue;
-          const y = 100 - Math.min(100, Math.max(0, ratio * 100));
-          return `${x.toFixed(2)},${y.toFixed(2)}`;
-        })
-        .join(" ");
-
-    return {
-      income: buildPoints("income"),
-      expense: buildPoints("expense"),
-    };
-  }, [chartData, chartMaxValue]);
-
-  const highlightCards = useMemo(
-    () => [
-      {
-        key: "income",
-        title: t("dashboard.income"),
-        amount: formatCurrency(chartSummary.income),
-        delta: incomeTrend,
-        positive: incomeTrend >= 0,
-        icon: "bi-cash-stack",
-      },
-      {
-        key: "expense",
-        title: t("dashboard.expense"),
-        amount: formatCurrency(chartSummary.expense),
-        delta: expenseTrend,
-        positive: expenseTrend <= 0,
-        icon: "bi-cart-check",
-      },
-      {
-        key: "net",
-        title: t("reports.remaining"),
-        amount: formatCurrency(chartNet),
-        delta: netTrend,
-        positive: netTrend >= 0,
-        icon: "bi-arrow-left-right",
-      },
-      {
-        key: "balance",
-        title: t("wallets.total_balance") || "Tổng số dư",
-        amount: formatCurrency(totalWalletBalance),
-        delta: 0,
-        positive: true,
-        icon: "bi-credit-card-2-front",
-      },
-    ],
-    [chartSummary, chartNet, expenseTrend, formatCurrency, incomeTrend, netTrend, t, totalWalletBalance]
-  );
-
   const summary = useMemo(() => {
     return walletTransactions.reduce(
       (acc, tx) => {
@@ -1374,42 +1269,6 @@ export default function ReportsPage() {
     };
   }, [budgetUsageList, budgets.length]);
 
-  const statBreakdown = useMemo(() => {
-    const slices = [
-      {
-        key: "income",
-        label: t("dashboard.income"),
-        value: chartSummary.income,
-        accent: "#0b63f6",
-      },
-      {
-        key: "expense",
-        label: t("dashboard.expense"),
-        value: chartSummary.expense,
-        accent: "#00c2ff",
-      },
-      {
-        key: "installment",
-        label: t("reports.budgets.total_spent"),
-        value: budgetSummary.totalSpent,
-        accent: "#fb923c",
-      },
-      {
-        key: "invest",
-        label: t("reports.funds.section_title"),
-        value: fundSummary.totalCurrent,
-        accent: "#7c3aed",
-      },
-    ];
-    const maxValue = slices.reduce((max, slice) => Math.max(max, slice.value || 0), 0) || 1;
-    return slices.map((slice, index) => ({
-      ...slice,
-      formatted: formatCurrency(slice.value || 0),
-      percent: Math.round(((slice.value || 0) / maxValue) * 100),
-      index,
-    }));
-  }, [budgetSummary.totalSpent, chartSummary, formatCurrency, fundSummary.totalCurrent, t]);
-
   const handleViewHistory = useCallback(() => {
     if (!selectedWalletId) return;
     setShowHistory((prev) => !prev);
@@ -1455,488 +1314,57 @@ export default function ReportsPage() {
         </div>
         <div className="reports-content">
         {activeReportTab === "wallets" && (
-          <div className="reports-dashboard">
-            <div className="reports-kpi-grid">
-              {highlightCards.map((card) => (
-                <article key={card.key} className={`reports-kpi-card is-${card.key}`}>
-                  <div className="kpi-icon">
-                    <i className={`bi ${card.icon}`} />
-                  </div>
-                  <div className="kpi-body">
-                    <p>{card.title}</p>
-                    <h3>{card.amount}</h3>
-                    <span className={`kpi-delta ${card.positive ? "is-up" : "is-down"}`}>
-                      {card.delta === 0 ? "Hiện tại" : `${card.delta > 0 ? "+" : ""}${card.delta}% · ${rangeLabel}`}
-                    </span>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <div className="reports-main-grid">
-              <article className="reports-stat-card card border-0 shadow-sm">
-                <div className="reports-stat-head">
-                  <div>
-                    <p className="text-muted mb-1">Thống kê hiện tại</p>
-                    <h5 className="mb-0">Ảnh tổng quan</h5>
-                  </div>
-                  <span className="reports-stat-pill">{rangeLabel}</span>
-                </div>
-                <div className="reports-arc-stack">
-                  {statBreakdown.map((slice) => (
-                    <span
-                      key={slice.key}
-                      className={`stat-arc arc-${slice.index}`}
-                      style={{
-                        background: `conic-gradient(${slice.accent} 0 ${slice.percent}%, rgba(148,163,184,0.15) ${slice.percent}% 100%)`,
-                      }}
-                    />
-                  ))}
-                </div>
-                <div className="reports-stat-list">
-                  {statBreakdown.map((slice) => (
-                    <div key={slice.key} className="stat-row">
-                      <div className="stat-row-label">
-                        <span className="stat-dot" style={{ background: slice.accent }} />
-                        <p className="mb-0">{slice.label}</p>
-                      </div>
-                      <div className="stat-values">
-                        <strong>{slice.formatted}</strong>
-                        <span>{slice.percent}%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </article>
-
-              <article className="reports-market-card card border-0 shadow-sm">
-                <div className="market-card-head">
-                  <div>
-                    <p className="eyebrow mb-1">Market Overview</p>
-                    <h4 className="mb-1">{selectedWallet?.name || t("reports.no_wallet")}</h4>
-                    <small className="text-muted">Đang xem {rangeLabel}</small>
-                  </div>
-                  <div className="market-card-actions">
-                    <div className="market-chip-group">
-                      <span className="market-chip is-income">
-                        <span className="summary-dot" />
-                        {t("dashboard.income")}
-                      </span>
-                      <span className="market-chip is-expense">
-                        <span className="summary-dot" />
-                        {t("dashboard.expense")}
-                      </span>
-                      <span className="market-chip is-net">
-                        <span className="summary-dot" />
-                        {t("reports.remaining")}
-                      </span>
-                    </div>
-                    <div className="market-head-buttons">
-                      <div className="reports-range-toggle">
-                        {RANGE_OPTIONS.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            className={`reports-range-btn ${range === option.value ? "active" : ""}`}
-                            onClick={() => setRange(option.value)}
-                          >
-                            {t(`reports.range.${option.value}`)}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        className={`reports-history-btn ${showHistory ? "active" : ""}`}
-                        onClick={handleViewHistory}
-                        disabled={!selectedWalletId}
-                      >
-                        <i className={`bi ${showHistory ? "bi-graph-up" : "bi-clock-history"}`} />
-                        {showHistory ? t("reports.view_chart") : t("reports.view_history")}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {!showHistory ? (
-                  <div className="market-chart-section">
-                    {loadingTransactions ? (
-                      <div className="reports-chart-empty text-center text-muted py-5">
-                        <div className="spinner-border text-primary mb-3" role="status" />
-                        <p className="mb-0">{t("transactions.loading.list")}</p>
-                      </div>
-                    ) : !selectedWallet ? (
-                      <div className="reports-chart-empty text-center text-muted py-5">
-                        {t("reports.select_wallet_prompt")}
-                      </div>
-                    ) : error ? (
-                      <div className="reports-chart-empty text-center text-danger py-5">{error}</div>
-                    ) : chartData.length === 0 ? (
-                      <div className="reports-chart-empty text-center text-muted py-5">
-                        {t("reports.no_transactions_in_period")}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="market-chart-wrapper">
-                          <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Income and expense lines">
-                            {Array.from({ length: 5 }).map((_, idx) => (
-                              <line
-                                key={`grid-${idx}`}
-                                x1="0"
-                                x2="100"
-                                y1={(idx * 25).toFixed(2)}
-                                y2={(idx * 25).toFixed(2)}
-                                className="market-grid-line"
-                              />
-                            ))}
-                            <polyline className="market-line income" points={lineChartPoints.income} />
-                            <polyline className="market-line expense" points={lineChartPoints.expense} />
-                          </svg>
-                        </div>
-                        <div className="market-chart-summary">
-                          <div>
-                            <span className="summary-dot income" />
-                            <div>
-                              <p className="mb-0 text-muted">{t("dashboard.income")}</p>
-                              <strong>{formatCurrency(chartSummary.income)}</strong>
-                            </div>
-                          </div>
-                          <div>
-                            <span className="summary-dot expense" />
-                            <div>
-                              <p className="mb-0 text-muted">{t("dashboard.expense")}</p>
-                              <strong>{formatCurrency(chartSummary.expense)}</strong>
-                            </div>
-                          </div>
-                          <div>
-                            <span className="summary-dot net" />
-                            <div>
-                              <p className="mb-0 text-muted">{t("reports.remaining")}</p>
-                              <strong>{formatCurrency(chartNet)}</strong>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="market-chart-xlabels">
-                          {chartData.map((period) => (
-                            <span key={`label-${period.label}`}>{period.label}</span>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="reports-history-wrapper">
-                    {loadingTransactions ? (
-                      <div className="reports-chart-empty text-center text-muted py-5">
-                        <div className="spinner-border text-primary mb-3" role="status" />
-                        <p className="mb-0">{t("transactions.loading.list")}</p>
-                      </div>
-                    ) : !selectedWallet ? (
-                      <div className="reports-chart-empty text-center text-muted py-5">
-                        {t("reports.select_wallet_prompt")}
-                      </div>
-                    ) : error ? (
-                      <div className="reports-chart-empty text-center text-danger py-5">{error}</div>
-                    ) : walletTransactions.length === 0 ? (
-                      <div className="reports-chart-empty text-center text-muted py-5">
-                        {t("reports.no_transactions_in_period")}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="reports-history-list">
-                          <table className="table table-hover">
-                            <thead>
-                              <tr>
-                                <th style={{ width: "60px" }}>{t("transactions.table.no")}</th>
-                                <th>{t("transactions.table.time")}</th>
-                                <th>{t("transactions.table.type")}</th>
-                                <th>{t("transactions.table.note")}</th>
-                                <th className="text-end">{t("transactions.table.amount")}</th>
-                                <th>{t("transactions.table.currency")}</th>
-                                {selectedWallet?.isShared && (
-                                  <th>{t("transactions.table.member") || "Thành viên"}</th>
-                                )}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {paginatedTransactions.map((tx, index) => {
-                                const dateObj = tx.date instanceof Date ? tx.date : new Date(tx.date);
-                                const dateTimeStr = `${formatDate(dateObj)} ${formatVietnamTime(dateObj)}`.trim();
-                                const formatAmountOnly = (amount) => {
-                                  const numAmount = Number(amount) || 0;
-                                  return numAmount.toLocaleString("vi-VN", {
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 2,
-                                  });
-                                };
-
-                                const txCreatedBy = tx.createdBy || tx.userId;
-                                const isCreatedByCurrentUser = currentUserId && txCreatedBy && (
-                                  String(txCreatedBy) === String(currentUserId) ||
-                                  String(txCreatedBy) === String(currentUser?.id)
-                                );
-
-                                const displayEmail = isCreatedByCurrentUser && currentUserEmail
-                                  ? currentUserEmail
-                                  : tx.createdByEmail || null;
-
-                                const walletMemberEmails = selectedWallet?.isShared && Array.isArray(selectedWallet.sharedEmails)
-                                  ? selectedWallet.sharedEmails.filter((email) => email && typeof email === "string" && email.trim())
-                                  : [];
-
-                                return (
-                                  <tr key={tx.id}>
-                                    <td className="text-muted">{(currentPage - 1) * PAGE_SIZE + index + 1}</td>
-                                    <td className="fw-medium">{dateTimeStr}</td>
-                                    <td>
-                                      {tx.type === "transfer" ? (
-                                        <span className="badge bg-info-subtle text-info" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px" }}>
-                                          {t("transactions.type.transfer")}
-                                        </span>
-                                      ) : (
-                                        <span
-                                          className={`badge ${tx.type === "income" ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger"}`}
-                                          style={{
-                                            fontSize: "0.75rem",
-                                            padding: "4px 8px",
-                                            borderRadius: "6px",
-                                            backgroundColor: tx.type === "income" ? "#d1fae5" : "#fee2e2",
-                                            color: tx.type === "income" ? "#059669" : "#dc2626",
-                                          }}
-                                        >
-                                          {tx.type === "income" ? t("transactions.type.income") : t("transactions.type.expense")}
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
-                                    <td className="text-end">
-                                      {tx.type === "transfer" ? (
-                                        <span
-                                          style={{
-                                            color: "#0ea5e9",
-                                            fontWeight: "600",
-                                            fontSize: "0.95rem",
-                                          }}
-                                        >
-                                          {formatAmountOnly(tx.amount)}
-                                        </span>
-                                      ) : (
-                                        <span
-                                          style={{
-                                            color: tx.type === "expense" ? "#dc2626" : "#16a34a",
-                                            fontWeight: "600",
-                                            fontSize: "0.95rem",
-                                          }}
-                                        >
-                                          {tx.type === "expense" ? "-" : "+"}
-                                          {formatAmountOnly(tx.amount)}
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td>
-                                      <span className="badge bg-light text-dark" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px", fontWeight: "500" }}>
-                                        {tx.currency || "VND"}
-                                      </span>
-                                    </td>
-                                    {selectedWallet?.isShared && (
-                                      <td>
-                                        {displayEmail ? (
-                                          <span
-                                            className="badge bg-primary-subtle text-primary"
-                                            style={{
-                                              fontSize: "0.7rem",
-                                              padding: "3px 6px",
-                                              borderRadius: "4px",
-                                              maxWidth: "150px",
-                                              overflow: "hidden",
-                                              textOverflow: "ellipsis",
-                                              whiteSpace: "nowrap",
-                                              fontWeight: isCreatedByCurrentUser ? "600" : "500",
-                                            }}
-                                            title={displayEmail}
-                                          >
-                                            {displayEmail}
-                                          </span>
-                                        ) : walletMemberEmails.length > 0 ? (
-                                          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                                            {walletMemberEmails.slice(0, 2).map((email, idx) => (
-                                              <span
-                                                key={idx}
-                                                className="badge bg-secondary-subtle text-secondary"
-                                                style={{
-                                                  fontSize: "0.7rem",
-                                                  padding: "3px 6px",
-                                                  borderRadius: "4px",
-                                                  maxWidth: "120px",
-                                                  overflow: "hidden",
-                                                  textOverflow: "ellipsis",
-                                                  whiteSpace: "nowrap",
-                                                }}
-                                                title={email}
-                                              >
-                                                {email}
-                                              </span>
-                                            ))}
-                                            {walletMemberEmails.length > 2 && (
-                                              <span
-                                                className="badge bg-light text-muted"
-                                                style={{ fontSize: "0.7rem", padding: "3px 6px", borderRadius: "4px" }}
-                                                title={walletMemberEmails.slice(2).join(", ")}
-                                              >
-                                                +{walletMemberEmails.length - 2}
-                                              </span>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <span className="text-muted" style={{ fontSize: "0.85rem" }}>-</span>
-                                        )}
-                                      </td>
-                                    )}
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-
-                          {totalPages > 1 && (
-                            <div className="reports-pagination-wrapper">
-                              <div className="reports-pagination">
-                                <span className="text-muted small">
-                                  Trang {currentPage}/{totalPages}
-                                </span>
-                                <div className="tx-pagination">
-                                  <button
-                                    type="button"
-                                    className="page-arrow"
-                                    disabled={currentPage === 1}
-                                    onClick={() => handlePageChange(1)}
-                                  >
-                                    «
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="page-arrow"
-                                    disabled={currentPage === 1}
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                  >
-                                    ‹
-                                  </button>
-                                  {paginationRange.map((item, idx) =>
-                                    typeof item === "string" && item.includes("ellipsis") ? (
-                                      <span key={`${item}-${idx}`} className="page-ellipsis">…</span>
-                                    ) : (
-                                      <button
-                                        key={`reports-page-${item}`}
-                                        type="button"
-                                        className={`page-number ${currentPage === item ? "active" : ""}`}
-                                        onClick={() => handlePageChange(item)}
-                                      >
-                                        {item}
-                                      </button>
-                                    )
-                                  )}
-                                  <button
-                                    type="button"
-                                    className="page-arrow"
-                                    disabled={currentPage === totalPages}
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                  >
-                                    ›
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="page-arrow"
-                                    disabled={currentPage === totalPages}
-                                    onClick={() => handlePageChange(totalPages)}
-                                  >
-                                    »
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {walletTransactions.length > 0 && (
-                            <div className="reports-export-pdf-wrapper">
-                              <button
-                                type="button"
-                                className="btn btn-primary reports-export-pdf-btn"
-                                onClick={() => handleExportPDF()}
-                              >
-                                <i className="bi bi-file-earmark-pdf me-2" />
-                                {t("reports.export_pdf") || "Xuất PDF"}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </article>
-            </div>
-
-            <div className="reports-wallets-section card border-0 shadow-sm">
-              <div className="reports-wallets-head">
+          <div className="reports-layout">
+          <div className="reports-wallet-card card border-0 shadow-sm">
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-3">
                 <div>
-                  <p className="text-muted mb-1">Danh sách ví</p>
-                  <h5 className="mb-0">Chọn ví để xem chi tiết</h5>
+                  <h5 className="mb-1">{t("reports.wallets.title")}</h5>
+                  <p className="text-muted mb-0 small">{t("reports.wallets.desc")}</p>
                 </div>
-                <div className="reports-wallets-actions">
-                  <div className="reports-wallet-search">
-                    <i className="bi bi-search" />
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder={t("wallets.search_placeholder")}
-                      value={walletSearch}
-                      onChange={(e) => setWalletSearch(e.target.value)}
-                    />
-                  </div>
-                  <button type="button" className="reports-filter-btn">
-                    <i className="bi bi-funnel" />
-                    Filter Periode
-                  </button>
-                </div>
+                <span className="badge rounded-pill text-bg-light">{wallets.length} {t("wallets.count_unit")}</span>
               </div>
-              <div className="reports-wallets-grid">
+              <div className="reports-wallet-search mb-3">
+                <i className="bi bi-search" />
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder={t("wallets.search_placeholder")}
+                  value={walletSearch}
+                  onChange={(e) => setWalletSearch(e.target.value)}
+                />
+              </div>
+              <div className="reports-wallet-list">
                 {walletsLoading ? (
-                  <div className="text-center text-muted py-4 w-100">{t("common.loading")}</div>
+                  <div className="text-center py-4 text-muted small">{t("common.loading")}</div>
                 ) : filteredWallets.length === 0 ? (
-                  <div className="text-center text-muted py-4 w-100">{t("reports.wallets.not_found")}</div>
+                  <div className="text-center py-4 text-muted small">{t("reports.wallets.not_found")}</div>
                 ) : (
-                  filteredWallets.map((wallet, index) => {
+                  filteredWallets.map((wallet) => {
                     const isPersonal = !wallet.isShared && !(wallet.walletRole || wallet.sharedRole || wallet.role);
                     const ownerId = wallet.ownerUserId || wallet.ownerId || wallet.createdBy || wallet.userId;
                     const isOwnedByCurrentUser = ownerId && currentUserId
                       ? String(ownerId) === String(currentUserId)
                       : !wallet.isShared;
                     const showDefaultBadge = wallet.isDefault && isOwnedByCurrentUser;
-                    const memberCount = Array.isArray(wallet.sharedEmails) ? wallet.sharedEmails.length : 0;
                     return (
                       <button
                         key={wallet.id}
                         type="button"
-                        className={`wallet-pill wallet-pill--${index % 4} ${selectedWalletId === wallet.id ? "active" : ""}`}
+                        className={`reports-wallet-item ${selectedWalletId === wallet.id ? "active" : ""}`}
                         onClick={() => setSelectedWalletId(wallet.id)}
                       >
-                        <div className="wallet-pill-top">
-                          <span className="wallet-pill-label">
-                            {wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
-                          </span>
-                          {showDefaultBadge && <span className="wallet-pill-chip">Mặc định</span>}
+                        <div>
+                          <p className="wallet-name mb-1">{wallet.name}</p>
+                          <div className="wallet-tags">
+                            {showDefaultBadge && <span className="badge rounded-pill text-bg-primary">Mặc định</span>}
+                            {isPersonal && <span className="badge rounded-pill text-bg-secondary">Ví cá nhân</span>}
+                            {wallet.isShared && <span className="badge rounded-pill text-bg-info">Ví nhóm</span>}
+                          </div>
                         </div>
-                        <h3>{formatCurrency(Number(wallet.balance) || 0)}</h3>
-                        <div className="wallet-pill-meta">
-                          <span>{wallet.currency || "VND"}</span>
-                          <span>{wallet.name}</span>
-                        </div>
-                        <div className="wallet-pill-footer">
-                          <span>{isPersonal ? "Sở hữu" : "Chia sẻ"}</span>
-                          {wallet.isShared ? (
-                            <small>{memberCount} thành viên</small>
-                          ) : (
-                            <small>{showDefaultBadge ? "Ví chính" : "Cá nhân"}</small>
-                          )}
+                        <div className="wallet-balance text-end">
+                          <p className="mb-0 fw-semibold">{formatCurrency(Number(wallet.balance) || 0)}</p>
+                          <small className="text-muted">{wallet.currency || "VND"}</small>
                         </div>
                       </button>
                     );
@@ -1945,6 +1373,402 @@ export default function ReportsPage() {
               </div>
             </div>
           </div>
+
+          <div className="reports-chart-card card border-0 shadow-sm">
+            <div className="card-body">
+              <div className="reports-chart-header-card">
+                <div className="reports-chart-header">
+                  <div>
+                    <p className="text-muted mb-1">{t("reports.selected_wallet_label")}</p>
+                    <h4 className="mb-1">{selectedWallet?.name || t("reports.no_wallet")}</h4>
+                    <div className="reports-summary-row">
+                      <div>
+                        <span className="summary-dot" style={{ background: INCOME_COLOR }} />
+                        {t("dashboard.income")}: <strong>{formatCurrency(summary.income)}</strong>
+                      </div>
+                      <div>
+                        <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
+                        {t("dashboard.expense")}: <strong>{formatCurrency(summary.expense)}</strong>
+                      </div>
+                      <div>
+                        <span className="summary-dot" style={{ background: net >= 0 ? "#16a34a" : "#dc2626" }} />
+                        {t("reports.remaining")}: <strong>{formatCurrency(net)}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="reports-header-actions">
+                    <div className="reports-range-toggle">
+                      {RANGE_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`reports-range-btn ${range === option.value ? "active" : ""}`}
+                          onClick={() => setRange(option.value)}
+                        >
+                          {t(`reports.range.${option.value}`)}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className={`reports-history-btn ${showHistory ? "active" : ""}`}
+                      onClick={handleViewHistory}
+                      disabled={!selectedWalletId}
+                    >
+                      <i className={`bi ${showHistory ? "bi-graph-up" : "bi-clock-history"}`} /> 
+                      {showHistory ? t("reports.view_chart") : t("reports.view_history")}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {!showHistory ? (
+                <div className="reports-chart-area">
+                  {loadingTransactions ? (
+                    <div className="reports-chart-empty text-center text-muted py-5">
+                      <div className="spinner-border text-primary mb-3" role="status" />
+                      <p className="mb-0">{t("transactions.loading.list")}</p>
+                    </div>
+                  ) : !selectedWallet ? (
+                    <div className="reports-chart-empty text-center text-muted py-5">
+                      {t("reports.select_wallet_prompt")}
+                    </div>
+                  ) : error ? (
+                    <div className="reports-chart-empty text-center text-danger py-5">
+                      {error}
+                    </div>
+                  ) : chartData.length === 0 ? (
+                    <div className="reports-chart-empty text-center text-muted py-5">
+                      {t("reports.no_transactions_in_period")}
+                    </div>
+                  ) : (
+                    <div className="reports-chart-viewport">
+                      <div className="reports-chart-axis">
+                        {yAxisTicks.map((value) => (
+                          <div key={`tick-${value}`} className="axis-row">
+                            <span className="axis-value">{formatCompactNumber(value)}</span>
+                            <span className="axis-guide" />
+                          </div>
+                        ))}
+                      </div>
+                    <div
+                      className="reports-chart-grid"
+                      style={{
+                        gridTemplateColumns:
+                          range === "day"
+                            ? `repeat(${chartData.length}, minmax(32px, 1fr))`
+                            : range === "week"
+                              ? `repeat(${chartData.length}, minmax(48px, 1fr))`
+                              : range === "month"
+                                ? `repeat(${chartData.length}, minmax(60px, 1fr))`
+                                : `repeat(${chartData.length}, minmax(36px, 1fr))`,
+                      }}
+                    >
+                        {chartData.map((period, index) => {
+                          const scale = chartMaxValue || 1;
+                          const incomeHeight = Math.round((period.income / scale) * 100);
+                          const expenseHeight = Math.round((period.expense / scale) * 100);
+                          return (
+                            <div
+                              key={period.label}
+                              className="reports-chart-column"
+                              onMouseEnter={() => setHoveredColumnIndex(index)}
+                              onMouseLeave={() => setHoveredColumnIndex(null)}
+                              onFocus={() => setHoveredColumnIndex(index)}
+                              onBlur={() => setHoveredColumnIndex(null)}
+                              tabIndex={0}
+                            >
+                              {hoveredColumnIndex === index && (
+                                <div className="reports-chart-tooltip">
+                                  <div>
+                                    <span className="summary-dot" style={{ background: INCOME_COLOR }} />
+                                    {formatCompactNumber(period.income)}
+                                  </div>
+                                  <div>
+                                    <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
+                                    {formatCompactNumber(period.expense)}
+                                  </div>
+                                </div>
+                              )}
+                              <div className="reports-chart-bars">
+                                <div className="reports-chart-bar-wrapper">
+                                  <div
+                                    className="reports-chart-bar income"
+                                    style={{ height: `${incomeHeight}%`, background: INCOME_COLOR }}
+                                  />
+                                </div>
+                                <div className="reports-chart-bar-wrapper">
+                                  <div
+                                    className="reports-chart-bar expense"
+                                    style={{ height: `${expenseHeight}%`, background: EXPENSE_COLOR }}
+                                  />
+                                </div>
+                              </div>
+                              <p className="reports-chart-label">{period.label}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="reports-history-area">
+                  {loadingTransactions ? (
+                    <div className="reports-chart-empty text-center text-muted py-5">
+                      <div className="spinner-border text-primary mb-3" role="status" />
+                      <p className="mb-0">{t("transactions.loading.list")}</p>
+                    </div>
+                  ) : !selectedWallet ? (
+                    <div className="reports-chart-empty text-center text-muted py-5">
+                      {t("reports.select_wallet_prompt")}
+                    </div>
+                  ) : error ? (
+                    <div className="reports-chart-empty text-center text-danger py-5">
+                      {error}
+                    </div>
+                  ) : walletTransactions.length === 0 ? (
+                    <div className="reports-chart-empty text-center text-muted py-5">
+                      {t("reports.no_transactions_in_period")}
+                    </div>
+                  ) : (
+                    <div className="reports-history-list">
+                      <table className="table table-hover">
+                        <thead>
+                          <tr>
+                            <th style={{ width: "60px" }}>{t("transactions.table.no")}</th>
+                            <th>{t("transactions.table.time")}</th>
+                            <th>{t("transactions.table.type")}</th>
+                            <th>{t("transactions.table.note")}</th>
+                            <th className="text-end">{t("transactions.table.amount")}</th>
+                            <th>{t("transactions.table.currency")}</th>
+                            {selectedWallet?.isShared && (
+                              <th>{t("transactions.table.member") || "Thành viên"}</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedTransactions.map((tx, index) => {
+                            const dateObj = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                            const dateTimeStr = `${formatDate(dateObj)} ${formatVietnamTime(dateObj)}`.trim();
+                            const formatAmountOnly = (amount) => {
+                              const numAmount = Number(amount) || 0;
+                              return numAmount.toLocaleString("vi-VN", {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                              });
+                            };
+                            
+                            // Kiểm tra xem giao dịch có được tạo bởi user hiện tại không
+                            const txCreatedBy = tx.createdBy || tx.userId;
+                            const isCreatedByCurrentUser = currentUserId && txCreatedBy && (
+                              String(txCreatedBy) === String(currentUserId) ||
+                              String(txCreatedBy) === String(currentUser?.id)
+                            );
+                            
+                            // Nếu là người tạo giao dịch, hiển thị email của chính mình
+                            // Nếu không, hiển thị email của người tạo (nếu có) hoặc danh sách thành viên
+                            const displayEmail = isCreatedByCurrentUser && currentUserEmail
+                              ? currentUserEmail
+                              : (tx.createdByEmail || null);
+                            
+                            // Lấy danh sách email thành viên từ wallet (nếu không phải người tạo)
+                            const walletMemberEmails = selectedWallet?.isShared && Array.isArray(selectedWallet.sharedEmails)
+                              ? selectedWallet.sharedEmails.filter(email => email && typeof email === 'string' && email.trim())
+                              : [];
+
+                            return (
+                              <tr key={tx.id}>
+                                <td className="text-muted">{(currentPage - 1) * PAGE_SIZE + index + 1}</td>
+                                <td className="fw-medium">{dateTimeStr}</td>
+                                <td>
+                                  {tx.type === "transfer" ? (
+                                    <span className="badge bg-info-subtle text-info" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px" }}>
+                                      {t("transactions.type.transfer")}
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className={`badge ${tx.type === "income" ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger"}`}
+                                      style={{
+                                        fontSize: "0.75rem",
+                                        padding: "4px 8px",
+                                        borderRadius: "6px",
+                                        backgroundColor: tx.type === "income" ? "#d1fae5" : "#fee2e2",
+                                        color: tx.type === "income" ? "#059669" : "#dc2626",
+                                      }}
+                                    >
+                                      {tx.type === "income" ? t("transactions.type.income") : t("transactions.type.expense")}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
+                                <td className="text-end">
+                                  {tx.type === "transfer" ? (
+                                    <span
+                                      style={{
+                                        color: "#0ea5e9",
+                                        fontWeight: "600",
+                                        fontSize: "0.95rem",
+                                      }}
+                                    >
+                                      {formatAmountOnly(tx.amount)}
+                                    </span>
+                                  ) : (
+                                    <span
+                                      style={{
+                                        color: tx.type === "expense" ? "#dc2626" : "#16a34a",
+                                        fontWeight: "600",
+                                        fontSize: "0.95rem",
+                                      }}
+                                    >
+                                      {tx.type === "expense" ? "-" : "+"}{formatAmountOnly(tx.amount)}
+                                    </span>
+                                  )}
+                                </td>
+                                <td>
+                                  <span className="badge bg-light text-dark" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px", fontWeight: "500" }}>
+                                    {tx.currency || "VND"}
+                                  </span>
+                                </td>
+                                {selectedWallet?.isShared && (
+                                  <td>
+                                    {displayEmail ? (
+                                      <span 
+                                        className="badge bg-primary-subtle text-primary" 
+                                        style={{ 
+                                          fontSize: "0.7rem", 
+                                          padding: "3px 6px", 
+                                          borderRadius: "4px",
+                                          maxWidth: "150px",
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                          fontWeight: isCreatedByCurrentUser ? "600" : "500"
+                                        }}
+                                        title={displayEmail}
+                                      >
+                                        {displayEmail}
+                                      </span>
+                                    ) : walletMemberEmails.length > 0 ? (
+                                      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                        {walletMemberEmails.slice(0, 2).map((email, idx) => (
+                                          <span 
+                                            key={idx} 
+                                            className="badge bg-secondary-subtle text-secondary" 
+                                            style={{ 
+                                              fontSize: "0.7rem", 
+                                              padding: "3px 6px", 
+                                              borderRadius: "4px",
+                                              maxWidth: "120px",
+                                              overflow: "hidden",
+                                              textOverflow: "ellipsis",
+                                              whiteSpace: "nowrap"
+                                            }}
+                                            title={email}
+                                          >
+                                            {email}
+                                          </span>
+                                        ))}
+                                        {walletMemberEmails.length > 2 && (
+                                          <span 
+                                            className="badge bg-light text-muted" 
+                                            style={{ fontSize: "0.7rem", padding: "3px 6px", borderRadius: "4px" }}
+                                            title={walletMemberEmails.slice(2).join(", ")}
+                                          >
+                                            +{walletMemberEmails.length - 2}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted" style={{ fontSize: "0.85rem" }}>-</span>
+                                    )}
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      
+                      {/* Pagination */}
+                      {totalPages > 1 && (
+                        <div className="reports-pagination-wrapper">
+                          <div className="reports-pagination">
+                            <span className="text-muted small">
+                              Trang {currentPage}/{totalPages}
+                            </span>
+                            <div className="tx-pagination">
+                              <button
+                                type="button"
+                                className="page-arrow"
+                                disabled={currentPage === 1}
+                                onClick={() => handlePageChange(1)}
+                              >
+                                «
+                              </button>
+                              <button
+                                type="button"
+                                className="page-arrow"
+                                disabled={currentPage === 1}
+                                onClick={() => handlePageChange(currentPage - 1)}
+                              >
+                                ‹
+                              </button>
+                              {paginationRange.map((item, idx) =>
+                                typeof item === "string" && item.includes("ellipsis") ? (
+                                  <span key={`${item}-${idx}`} className="page-ellipsis">…</span>
+                                ) : (
+                                  <button
+                                    key={`reports-page-${item}`}
+                                    type="button"
+                                    className={`page-number ${currentPage === item ? "active" : ""}`}
+                                    onClick={() => handlePageChange(item)}
+                                  >
+                                    {item}
+                                  </button>
+                                )
+                              )}
+                              <button
+                                type="button"
+                                className="page-arrow"
+                                disabled={currentPage === totalPages}
+                                onClick={() => handlePageChange(currentPage + 1)}
+                              >
+                                ›
+                              </button>
+                              <button
+                                type="button"
+                                className="page-arrow"
+                                disabled={currentPage === totalPages}
+                                onClick={() => handlePageChange(totalPages)}
+                              >
+                                »
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Export PDF Button */}
+                      {walletTransactions.length > 0 && (
+                        <div className="reports-export-pdf-wrapper">
+                          <button
+                            type="button"
+                            className="btn btn-primary reports-export-pdf-btn"
+                            onClick={() => handleExportPDF()}
+                          >
+                            <i className="bi bi-file-earmark-pdf me-2" />
+                            {t("reports.export_pdf") || "Xuất PDF"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
         )}
         {activeReportTab === "funds" && (
           <div className="reports-layout reports-layout--funds">
