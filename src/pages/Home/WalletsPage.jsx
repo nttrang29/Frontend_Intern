@@ -1297,6 +1297,7 @@ export default function WalletsPage() {
   }, [wallets]);
 
   // Lắng nghe event khi có thành viên bị xóa để cập nhật localSharedMap
+  // QUAN TRỌNG: Đảm bảo reload wallets khi có thành viên rời ví, bất kể phương thức đăng nhập
   useEffect(() => {
     if (typeof window === "undefined") return;
     
@@ -1337,14 +1338,57 @@ export default function WalletsPage() {
       handleWalletMembersUpdated(event);
     };
     
+    // QUAN TRỌNG: Lắng nghe walletMemberLeft event để force reload wallets
+    // Đảm bảo hoạt động cho cả Google OAuth và password login
+    const handleWalletMemberLeft = async (event) => {
+      const { walletIds, notifications } = event.detail || {};
+      
+      console.log("🔄 walletMemberLeft event received:", { walletIds, notifications });
+      
+      // Nếu có notification WALLET_MEMBER_REMOVED, user đã bị xóa khỏi ví
+      // Cần reload wallets để xóa ví khỏi danh sách
+      const removedNotif = notifications?.find(n => n.type === "WALLET_MEMBER_REMOVED");
+      if (removedNotif) {
+        console.log("🔄 User removed from wallet, reloading wallets...");
+        // Đợi một chút để đảm bảo backend đã xử lý xong
+        setTimeout(async () => {
+          try {
+            await loadWallets();
+            // Clear wallet selection nếu ví hiện tại bị xóa
+            if (selectedId && walletIds && walletIds.some(id => String(id) === String(selectedId))) {
+              setSelectedId(null);
+            }
+          } catch (e) {
+            console.error("Failed to reload wallets after being removed:", e);
+          }
+        }, 500);
+        return;
+      }
+      
+      // Nếu có walletIds, reload wallets để cập nhật số thành viên
+      if (walletIds && Array.isArray(walletIds) && walletIds.length > 0) {
+        console.log("🔄 Member left wallet, reloading wallets...", walletIds);
+        // Đợi một chút để đảm bảo backend đã xử lý xong
+        setTimeout(async () => {
+          try {
+            await loadWallets();
+          } catch (e) {
+            console.error("Failed to reload wallets after member left:", e);
+          }
+        }, 600);
+      }
+    };
+    
     window.addEventListener("walletMembersUpdated", handleWalletMembersUpdated);
     window.addEventListener("walletUpdated", handleWalletUpdated);
+    window.addEventListener("walletMemberLeft", handleWalletMemberLeft);
     
     return () => {
       window.removeEventListener("walletMembersUpdated", handleWalletMembersUpdated);
       window.removeEventListener("walletUpdated", handleWalletUpdated);
+      window.removeEventListener("walletMemberLeft", handleWalletMemberLeft);
     };
-  }, []);
+  }, [loadWallets, selectedId, setSelectedId]);
 
 
   // Tổng số dư: we'll compute the total in VND (used by the total card toggle)

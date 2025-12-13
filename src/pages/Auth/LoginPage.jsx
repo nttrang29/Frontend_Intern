@@ -180,7 +180,9 @@ export default function LoginPage() {
       });
 
       // Dispatch event để các context (WalletDataContext, CategoryDataContext) reload data
+      // QUAN TRỌNG: Dispatch cả storageUpdated để đảm bảo tương thích với Google OAuth
       window.dispatchEvent(new CustomEvent("userChanged"));
+      window.dispatchEvent(new CustomEvent("storageUpdated"));
 
       setRedirectPath(targetPath);
     } catch (err) {

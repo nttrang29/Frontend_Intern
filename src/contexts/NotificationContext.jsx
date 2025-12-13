@@ -36,21 +36,16 @@ export function NotificationProvider({ children }) {
     syncSessionState();
   }, [currentUser, syncSessionState]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return () => {};
-    const handler = () => {
-      syncSessionState();
-    };
-    window.addEventListener("userChanged", handler);
-    return () => window.removeEventListener("userChanged", handler);
-  }, [syncSessionState]);
-
   // Load notifications từ API
+  // QUAN TRỌNG: Sử dụng ref để track notifications cũ, tránh stale closure
+  const prevNotificationsRef = useRef([]);
+  
   const loadNotifications = useCallback(async () => {
     const tokenExists = Boolean(localStorage.getItem("accessToken"));
     if (!tokenExists) {
       setNotifications([]);
       setLoading(false);
+      prevNotificationsRef.current = [];
       return;
     }
 
@@ -98,8 +93,9 @@ export function NotificationProvider({ children }) {
           walletId: (n.referenceType === "WALLET" || n.type === "WALLET_INVITED" || n.type === "WALLET_ROLE_UPDATED" || n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED") ? (n.referenceId || n.walletId) : null,
         };
       });
-      // Lưu notifications cũ để so sánh
-      const prevNotifications = notifications;
+      // Lưu notifications cũ để so sánh - sử dụng ref để tránh stale closure
+      const prevNotifications = prevNotificationsRef.current;
+      prevNotificationsRef.current = notifs;
       setNotifications(notifs);
       
       // Kiểm tra xem có notification wallet mới (chưa đọc) không
@@ -139,9 +135,49 @@ export function NotificationProvider({ children }) {
         }
       }
       
-      // Cũng dispatch cho các wallet notifications khác (WALLET_INVITED, WALLET_ROLE_UPDATED)
+      // QUAN TRỌNG: Dispatch event riêng cho WALLET_ROLE_UPDATED (TẤT CẢ, không chỉ unread) để đảm bảo reload members
+      // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào trong ví, không chỉ user hiện tại
+      const allRoleUpdatedNotifs = notifs.filter(n => n.type === "WALLET_ROLE_UPDATED");
+      if (allRoleUpdatedNotifs.length > 0) {
+        if (typeof window !== "undefined") {
+          console.log("🔄 Dispatching walletRoleUpdated events for", allRoleUpdatedNotifs.length, "notifications");
+          
+          // Dispatch qua walletNotificationReceived để handleNotificationReceived xử lý
+          window.dispatchEvent(new CustomEvent("walletNotificationReceived", {
+            detail: { notifications: allRoleUpdatedNotifs }
+          }));
+          
+          // Cũng dispatch riêng cho từng notification để đảm bảo
+          allRoleUpdatedNotifs.forEach(notif => {
+            const walletId = notif.referenceId || notif.walletId || notif.reference_id;
+            if (walletId) {
+              console.log("🔄 Dispatching walletRoleUpdated event for wallet", walletId, "notification:", notif.id, "read:", notif.read);
+              window.dispatchEvent(new CustomEvent("walletRoleUpdated", {
+                detail: { 
+                  walletId: Number(walletId),
+                  notifications: [notif]
+                }
+              }));
+            }
+          });
+        }
+      }
+      
+      // QUAN TRỌNG: Dispatch event cho WALLET_INVITED (TẤT CẢ, không chỉ unread) để đảm bảo reload members khi có thành viên mới
+      // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào trong ví, không chỉ người được mời
+      const allInvitedNotifs = notifs.filter(n => n.type === "WALLET_INVITED");
+      if (allInvitedNotifs.length > 0) {
+        if (typeof window !== "undefined") {
+          console.log("🔄 Dispatching walletNotificationReceived with WALLET_INVITED notifications:", allInvitedNotifs.length);
+          window.dispatchEvent(new CustomEvent("walletNotificationReceived", {
+            detail: { notifications: allInvitedNotifs }
+          }));
+        }
+      }
+      
+      // Cũng dispatch cho các wallet notifications khác qua walletNotificationReceived
       const otherWalletNotifications = walletNotifications.filter(n => 
-        n.type !== "WALLET_MEMBER_LEFT" && n.type !== "WALLET_MEMBER_REMOVED"
+        n.type !== "WALLET_MEMBER_LEFT" && n.type !== "WALLET_MEMBER_REMOVED" && n.type !== "WALLET_ROLE_UPDATED" && n.type !== "WALLET_INVITED"
       );
       if (otherWalletNotifications.length > 0) {
         if (typeof window !== "undefined") {
@@ -212,7 +248,30 @@ export function NotificationProvider({ children }) {
     }
   }, []);
 
+  // Lắng nghe event userChanged để force reload notifications
+  // QUAN TRỌNG: Phải đặt sau khi loadNotifications được định nghĩa
+  useEffect(() => {
+    if (typeof window === "undefined") return () => {};
+    const handler = () => {
+      syncSessionState();
+      // QUAN TRỌNG: Force reload notifications khi user thay đổi (đăng nhập/đăng xuất)
+      // Đảm bảo hoạt động cho cả Google OAuth và password login
+      const token = localStorage.getItem("accessToken");
+      if (token && typeof loadNotifications === "function") {
+        // Đợi một chút để đảm bảo token đã được lưu vào localStorage
+        setTimeout(() => {
+          loadNotifications().catch(err => {
+            console.debug("Failed to reload notifications after user change:", err);
+          });
+        }, 300);
+      }
+    };
+    window.addEventListener("userChanged", handler);
+    return () => window.removeEventListener("userChanged", handler);
+  }, [syncSessionState, loadNotifications]);
+
   // Load notifications khi mount
+  // QUAN TRỌNG: Đảm bảo polling hoạt động cho cả Google OAuth và password login
   useEffect(() => {
     if (!hasSession) {
       setNotifications([]);
@@ -222,7 +281,15 @@ export function NotificationProvider({ children }) {
     loadNotifications();
 
     // Polling mỗi 30 giây để cập nhật notification mới
-    const interval = setInterval(loadNotifications, 30000);
+    // Đảm bảo chỉ poll khi có accessToken (user đã đăng nhập)
+    const interval = setInterval(() => {
+      const token = localStorage.getItem("accessToken");
+      if (token && typeof loadNotifications === "function") {
+        loadNotifications().catch(err => {
+          console.debug("Failed to poll notifications:", err);
+        });
+      }
+    }, 30000);
     return () => clearInterval(interval);
   }, [hasSession, loadNotifications]);
 

@@ -397,6 +397,63 @@ export default function WalletDetail(props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.id]); // Chỉ phụ thuộc vào wallet.id để listener ổn định
 
+  // QUAN TRỌNG: Listener riêng cho WALLET_ROLE_UPDATED để đảm bảo reload members ngay lập tức
+  useEffect(() => {
+    if (typeof window === "undefined" || !wallet?.id) return;
+    
+    const currentWalletId = String(wallet.id);
+    
+    const handleRoleUpdated = async (event) => {
+      const { walletId, notifications } = event.detail || {};
+      
+      // Kiểm tra xem có phải wallet hiện tại không
+      if (!walletId || String(walletId) !== currentWalletId) return;
+      
+      console.log("🔄 WALLET_ROLE_UPDATED event received for wallet", currentWalletId, "- reloading members...");
+      
+      // Reload members ngay lập tức để cập nhật role
+      try {
+        setSharedMembersLoading(true);
+        setSharedMembersError("");
+        
+        // Đợi một chút để đảm bảo backend đã xử lý xong
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+        let list = [];
+        if (!resp) list = [];
+        else if (Array.isArray(resp)) list = resp;
+        else if (Array.isArray(resp.data)) list = resp.data;
+        else if (Array.isArray(resp.members)) list = resp.members;
+        else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+        
+        const normalized = normalizeMembersList(list);
+        
+        // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
+        setSharedMembers(normalized);
+        
+        console.log("✅ Members reloaded after role update:", normalized.map(m => ({ email: m.email, role: m.role })));
+        
+        // Dispatch event để trigger reload wallets nếu cần
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+            detail: { walletId: Number(currentWalletId), memberCount: normalized.length }
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to reload members after WALLET_ROLE_UPDATED event:", error);
+        setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+      } finally {
+        setSharedMembersLoading(false);
+      }
+    };
+    
+    window.addEventListener("walletRoleUpdated", handleRoleUpdated);
+    return () => {
+      window.removeEventListener("walletRoleUpdated", handleRoleUpdated);
+    };
+  }, [wallet?.id]);
+
   // Lắng nghe event walletNotificationReceived để force reload khi có notification mới
   useEffect(() => {
     if (typeof window === "undefined" || !wallet?.id) return;
@@ -407,6 +464,122 @@ export default function WalletDetail(props) {
       const { notifications } = event.detail || {};
       if (!notifications || !Array.isArray(notifications)) {
         return;
+      }
+      
+      // QUAN TRỌNG: Xử lý WALLET_ROLE_UPDATED để reload members và wallets khi role thay đổi
+      // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào trong ví, không chỉ user hiện tại
+      const roleUpdatedNotifs = notifications.filter(n => {
+        if (n.type !== "WALLET_ROLE_UPDATED") return false;
+        const notifWalletId = n.referenceId || n.walletId || n.reference_id;
+        return notifWalletId && String(notifWalletId) === currentWalletId;
+      });
+      
+      if (roleUpdatedNotifs.length > 0) {
+        console.log("🔄 WALLET_ROLE_UPDATED notification received for wallet", currentWalletId, "- reloading members immediately...");
+        
+        // QUAN TRỌNG: Reload members ngay lập tức, không đợi event khác
+        try {
+          setSharedMembersLoading(true);
+          setSharedMembersError("");
+          
+          // Đợi một chút để đảm bảo backend đã xử lý xong
+          await new Promise(resolve => setTimeout(resolve, 800));
+          
+          const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+          let list = [];
+          if (!resp) list = [];
+          else if (Array.isArray(resp)) list = resp;
+          else if (Array.isArray(resp.data)) list = resp.data;
+          else if (Array.isArray(resp.members)) list = resp.members;
+          else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+          
+          const normalized = normalizeMembersList(list);
+          
+          // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
+          setSharedMembers(normalized);
+          
+          console.log("✅ Members reloaded after WALLET_ROLE_UPDATED in handleNotificationReceived:", normalized.map(m => ({ email: m.email, role: m.role })));
+        } catch (error) {
+          console.error("Failed to reload members after WALLET_ROLE_UPDATED in handleNotificationReceived:", error);
+          setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+        } finally {
+          setSharedMembersLoading(false);
+        }
+        
+        // Dispatch event riêng để listener ở trên xử lý (backup)
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("walletRoleUpdated", {
+            detail: { 
+              walletId: Number(currentWalletId),
+              notifications: roleUpdatedNotifs
+            }
+          }));
+        }
+        
+        // Cũng reload wallets để đảm bảo wallet prop được cập nhật
+        const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+        if (reloadWallets && typeof reloadWallets === "function") {
+          try {
+            await reloadWallets();
+          } catch (e) {
+            console.error("Failed to reload wallets after role update:", e);
+          }
+        }
+      }
+      
+      // QUAN TRỌNG: Xử lý WALLET_INVITED để reload members và wallets khi có thành viên mới được thêm vào
+      // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào trong ví, không chỉ người được mời
+      const invitedNotifs = notifications.filter(n => {
+        if (n.type !== "WALLET_INVITED") return false;
+        const notifWalletId = n.referenceId || n.walletId || n.reference_id;
+        return notifWalletId && String(notifWalletId) === currentWalletId;
+      });
+      
+      if (invitedNotifs.length > 0) {
+        console.log("🔄 WALLET_INVITED notification received for wallet", currentWalletId, "- reloading wallets and members immediately...");
+        
+        // Reload wallets trước để cập nhật membersCount
+        const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+        if (reloadWallets && typeof reloadWallets === "function") {
+          try {
+            await reloadWallets();
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (e) {
+            console.error("Failed to reload wallets after WALLET_INVITED:", e);
+          }
+        }
+        
+        // Reload members để cập nhật danh sách thành viên
+        try {
+          setSharedMembersLoading(true);
+          setSharedMembersError("");
+          // Đợi một chút để đảm bảo backend đã xử lý xong
+          await new Promise(resolve => setTimeout(resolve, 800));
+          const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+          let list = [];
+          if (!resp) list = [];
+          else if (Array.isArray(resp)) list = resp;
+          else if (Array.isArray(resp.data)) list = resp.data;
+          else if (Array.isArray(resp.members)) list = resp.members;
+          else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+          const normalized = normalizeMembersList(list);
+          // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
+          setSharedMembers(normalized);
+          
+          console.log("✅ Members reloaded after WALLET_INVITED:", normalized.map(m => ({ email: m.email, role: m.role })));
+          
+          // Dispatch event để trigger reload wallets nếu cần
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+              detail: { walletId: Number(currentWalletId), memberCount: normalized.length }
+            }));
+          }
+        } catch (error) {
+          console.error("Failed to reload members after WALLET_INVITED:", error);
+          setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+        } finally {
+          setSharedMembersLoading(false);
+        }
       }
       
       // Kiểm tra xem có notification WALLET_MEMBER_LEFT hoặc WALLET_MEMBER_REMOVED cho wallet hiện tại không
@@ -436,7 +609,10 @@ export default function WalletDetail(props) {
       }
       
       if (memberLeftNotifs.length > 0) {
+        console.log("🔄 WALLET_MEMBER_LEFT/WALLET_MEMBER_REMOVED notification received for wallet", currentWalletId, "- reloading members immediately...");
+        
         // Force reload wallets và members
+        // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào rời đi hoặc bị xóa, không chỉ user hiện tại
         const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
         if (reloadWallets && typeof reloadWallets === "function") {
           try {
@@ -448,6 +624,7 @@ export default function WalletDetail(props) {
         }
         
         // Reload members - QUAN TRỌNG: Luôn reload để cập nhật danh sách cho chủ ví
+        // QUAN TRỌNG: Reload ngay lập tức khi có thành viên rời đi hoặc bị xóa
         try {
           setSharedMembersLoading(true);
           setSharedMembersError(""); // Clear error
@@ -463,6 +640,9 @@ export default function WalletDetail(props) {
           const normalized = normalizeMembersList(list);
           // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
           setSharedMembers(normalized);
+          
+          console.log("✅ Members reloaded after WALLET_MEMBER_LEFT in handleNotificationReceived:", normalized.map(m => ({ email: m.email, role: m.role })));
+          
           // Dispatch event để trigger reload wallets nếu cần
           if (typeof window !== "undefined") {
             window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
@@ -484,8 +664,8 @@ export default function WalletDetail(props) {
     };
   }, [wallet?.id]);
 
-  // Kiểm tra và reload khi component mount hoặc notifications thay đổi nếu có notification WALLET_MEMBER_LEFT cho wallet hiện tại
-  // QUAN TRỌNG: Reload members ngay khi có notification WALLET_MEMBER_LEFT, không quan tâm đến việc đã đọc hay chưa
+  // Kiểm tra và reload khi component mount hoặc notifications thay đổi nếu có notification WALLET_MEMBER_LEFT hoặc WALLET_ROLE_UPDATED cho wallet hiện tại
+  // QUAN TRỌNG: Reload members ngay khi có notification, không quan tâm đến việc đã đọc hay chưa
   const processedNotificationIdsRef = useRef(new Set());
   const lastProcessedNotificationTimeRef = useRef(new Map()); // Track thời gian xử lý để tránh reload quá nhiều lần
   
@@ -493,22 +673,23 @@ export default function WalletDetail(props) {
     if (!wallet?.id || !allNotifications || !Array.isArray(allNotifications)) return;
     
     const currentWalletId = String(wallet.id);
-    const memberLeftNotifs = allNotifications.filter(n => {
-      const isMemberLeftType = n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED";
-      if (!isMemberLeftType) return false;
-      
+    
+    // QUAN TRỌNG: Xử lý WALLET_ROLE_UPDATED để reload members và wallets khi role thay đổi
+    // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào trong ví, không chỉ user hiện tại
+    const roleUpdatedNotifs = allNotifications.filter(n => {
+      if (n.type !== "WALLET_ROLE_UPDATED") return false;
       const notifWalletId = n.referenceId || n.walletId || n.reference_id;
       return notifWalletId && String(notifWalletId) === currentWalletId;
     });
     
-    if (memberLeftNotifs.length > 0) {
-      // QUAN TRỌNG: Reload nếu có notification WALLET_MEMBER_LEFT (dù đã đọc hay chưa)
-      // Chỉ bỏ qua nếu đã xử lý trong vòng 3 giây gần đây (để tránh reload quá nhiều lần)
+    if (roleUpdatedNotifs.length > 0) {
       const now = Date.now();
-      const notificationsToProcess = memberLeftNotifs.filter(n => {
+      // QUAN TRỌNG: Luôn reload nếu có notification WALLET_ROLE_UPDATED mới (chưa xử lý)
+      // Không quan tâm đến việc đã đọc hay chưa, miễn là notification mới
+      const notificationsToProcess = roleUpdatedNotifs.filter(n => {
         const lastProcessedTime = lastProcessedNotificationTimeRef.current.get(n.id);
-        // Nếu đã xử lý trong vòng 3 giây gần đây, bỏ qua
-        if (lastProcessedTime && (now - lastProcessedTime) < 3000) {
+        // Nếu đã xử lý trong vòng 5 giây gần đây, bỏ qua (tránh reload quá nhiều lần) - TĂNG từ 2 lên 5
+        if (lastProcessedTime && (now - lastProcessedTime) < 5000) {
           return false;
         }
         
@@ -517,17 +698,120 @@ export default function WalletDetail(props) {
           return true;
         }
         
-        // Nếu đã đọc, vẫn reload nếu được tạo trong 20 phút gần đây
+        // Nếu đã đọc, vẫn reload nếu được tạo trong 30 phút gần đây (tăng từ 20 lên 30)
         if (n.createdAt) {
           const created = new Date(n.createdAt);
           const diffMs = now - created.getTime();
           const diffMins = diffMs / 60000;
-          return diffMins < 20; // Trong vòng 20 phút
+          return diffMins < 30; // Trong vòng 30 phút
         }
         
         // Nếu không có createdAt, vẫn reload nếu chưa đọc
         return !n.read;
       });
+      
+      if (notificationsToProcess.length > 0) {
+        console.log("🔄 Processing WALLET_ROLE_UPDATED notifications for wallet", currentWalletId, "count:", notificationsToProcess.length);
+        
+        // Đánh dấu đã xử lý với timestamp
+        notificationsToProcess.forEach(n => {
+          processedNotificationIdsRef.current.add(n.id);
+          lastProcessedNotificationTimeRef.current.set(n.id, now);
+        });
+        
+        // Force reload members và wallets - QUAN TRỌNG để cập nhật role của BẤT KỲ thành viên nào
+        const reloadMembers = async () => {
+          try {
+            setSharedMembersLoading(true);
+            setSharedMembersError("");
+            
+            // Đợi một chút để đảm bảo backend đã xử lý xong
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+            let list = [];
+            if (!resp) list = [];
+            else if (Array.isArray(resp)) list = resp;
+            else if (Array.isArray(resp.data)) list = resp.data;
+            else if (Array.isArray(resp.members)) list = resp.members;
+            else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+            
+            const normalized = normalizeMembersList(list);
+            
+            // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
+            setSharedMembers(normalized);
+            
+            console.log("✅ Members reloaded after WALLET_ROLE_UPDATED:", normalized.map(m => ({ email: m.email, role: m.role })));
+            
+            // Reload wallets để cập nhật role
+            const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+            if (reloadWallets && typeof reloadWallets === "function") {
+              try {
+                await reloadWallets();
+              } catch (e) {
+                console.error("Failed to reload wallets after role update:", e);
+              }
+            }
+            
+            // Dispatch event để trigger reload ở các component khác
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+                detail: { walletId: Number(currentWalletId), memberCount: normalized.length }
+              }));
+              
+              window.dispatchEvent(new CustomEvent("walletUpdated", {
+                detail: { walletId: Number(currentWalletId), action: "roleUpdated" }
+              }));
+            }
+          } catch (error) {
+            console.error("Failed to force reload members after WALLET_ROLE_UPDATED notification:", error);
+            setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+          } finally {
+            setSharedMembersLoading(false);
+          }
+        };
+        
+        // Reload ngay lập tức
+        reloadMembers();
+      }
+    }
+    
+    const memberLeftNotifs = allNotifications.filter(n => {
+      const isMemberLeftType = n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED";
+      if (!isMemberLeftType) return false;
+      
+      const notifWalletId = n.referenceId || n.walletId || n.reference_id;
+      return notifWalletId && String(notifWalletId) === currentWalletId;
+    });
+    
+      if (memberLeftNotifs.length > 0) {
+        // QUAN TRỌNG: Reload nếu có notification WALLET_MEMBER_LEFT hoặc WALLET_MEMBER_REMOVED (dù đã đọc hay chưa)
+        // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào rời đi hoặc bị xóa, không chỉ user hiện tại
+        // Chỉ bỏ qua nếu đã xử lý trong vòng 2 giây gần đây (để tránh reload quá nhiều lần)
+        const now = Date.now();
+        const notificationsToProcess = memberLeftNotifs.filter(n => {
+          const lastProcessedTime = lastProcessedNotificationTimeRef.current.get(n.id);
+          // Nếu đã xử lý trong vòng 5 giây gần đây, bỏ qua - TĂNG từ 2 lên 5 để tránh reload quá nhiều lần
+          if (lastProcessedTime && (now - lastProcessedTime) < 5000) {
+            return false;
+          }
+          
+          // LUÔN reload nếu chưa đọc
+          if (!n.read) {
+            return true;
+          }
+          
+          // Nếu đã đọc, vẫn reload nếu được tạo trong 30 phút gần đây (tăng từ 20 lên 30)
+          if (n.createdAt) {
+            const created = new Date(n.createdAt);
+            const diffMs = now - created.getTime();
+            const diffMins = diffMs / 60000;
+            return diffMins < 30; // Trong vòng 30 phút
+          }
+          
+          // Nếu không có createdAt, vẫn reload nếu chưa đọc
+          return !n.read;
+        });
       
       if (notificationsToProcess.length > 0) {
         // Đánh dấu đã xử lý với timestamp
@@ -602,12 +886,24 @@ export default function WalletDetail(props) {
   }, [wallet?.id, allNotifications]);
 
   // Thêm polling ngắn hơn cho notifications khi có wallet đang mở để phát hiện thay đổi nhanh hơn
+  // QUAN TRỌNG: Đảm bảo polling hoạt động cho cả Google OAuth và password login
   useEffect(() => {
     if (!wallet?.id || !loadNotifications) return;
+    
+    // Kiểm tra xem có accessToken không (đảm bảo user đã đăng nhập)
+    const checkToken = () => {
+      const token = localStorage.getItem("accessToken");
+      return Boolean(token);
+    };
     
     // Polling mỗi 5 giây để phát hiện notification mới nhanh hơn
     // Chỉ khi có wallet đang mở (để tránh quá tải)
     const interval = setInterval(() => {
+      // Chỉ poll nếu có token (user đã đăng nhập)
+      if (!checkToken()) {
+        return;
+      }
+      
       if (typeof loadNotifications === "function") {
         loadNotifications().catch(err => {
           console.debug("Failed to poll notifications:", err);
@@ -620,47 +916,48 @@ export default function WalletDetail(props) {
 
   // QUAN TRỌNG: Polling để tự động reload members khi đang xem tab "Quản lý người dùng"
   // Đây là giải pháp cuối cùng để đảm bảo UI được cập nhật khi thành viên rời ví
-  useEffect(() => {
-    if (!wallet?.id || activeDetailTab !== "members") return;
-    
-    // Polling mỗi 3 giây để reload members khi đang xem tab quản lý người dùng
-    const interval = setInterval(async () => {
-      try {
-        setSharedMembersLoading(true);
-        
-        const resp = await walletAPI.getWalletMembers(wallet.id);
-        let list = [];
-        if (!resp) list = [];
-        else if (Array.isArray(resp)) list = resp;
-        else if (Array.isArray(resp.data)) list = resp.data;
-        else if (Array.isArray(resp.members)) list = resp.members;
-        else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
-        
-        const normalized = normalizeMembersList(list);
-        
-        // Force update state
-        setSharedMembers(normalized);
-        
-        // Reload wallets để cập nhật membersCount
-        const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
-        if (reloadWallets && typeof reloadWallets === "function") {
-          try {
-            await reloadWallets();
-          } catch (e) {
-            console.debug("Failed to reload wallets in polling:", e);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to reload members:", error);
-      } finally {
-        setSharedMembersLoading(false);
-      }
-    }, 3000); // 3 giây
-    
-    return () => {
-      clearInterval(interval);
-    };
-  }, [wallet?.id, activeDetailTab]);
+  // TẮT polling để tránh reload liên tục - dựa vào notifications và membersCount thay đổi thay vì polling
+  // useEffect(() => {
+  //   if (!wallet?.id || activeDetailTab !== "members") return;
+  //   
+  //   // Polling mỗi 3 giây để reload members khi đang xem tab quản lý người dùng
+  //   const interval = setInterval(async () => {
+  //     try {
+  //       setSharedMembersLoading(true);
+  //       
+  //       const resp = await walletAPI.getWalletMembers(wallet.id);
+  //       let list = [];
+  //       if (!resp) list = [];
+  //       else if (Array.isArray(resp)) list = resp;
+  //       else if (Array.isArray(resp.data)) list = resp.data;
+  //       else if (Array.isArray(resp.members)) list = resp.members;
+  //       else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+  //       
+  //       const normalized = normalizeMembersList(list);
+  //       
+  //       // Force update state
+  //       setSharedMembers(normalized);
+  //       
+  //       // Reload wallets để cập nhật membersCount
+  //       const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+  //       if (reloadWallets && typeof reloadWallets === "function") {
+  //         try {
+  //           await reloadWallets();
+  //         } catch (e) {
+  //           console.debug("Failed to reload wallets in polling:", e);
+  //         }
+  //       }
+  //     } catch (error) {
+  //       console.error("Failed to reload members:", error);
+  //     } finally {
+  //       setSharedMembersLoading(false);
+  //     }
+  //   }, 3000); // 3 giây
+  //   
+  //   return () => {
+  //     clearInterval(interval);
+  //   };
+  // }, [wallet?.id, activeDetailTab]);
 
   // Reload members khi membersCount thay đổi (khi có thành viên rời hoặc thêm vào)
   // QUAN TRỌNG: Đây là cách chính để reload khi thành viên rời ví, không phụ thuộc vào notification
@@ -691,8 +988,11 @@ export default function WalletDetail(props) {
       return;
     }
     
+    // QUAN TRỌNG: Phát hiện khi membersCount TĂNG (có thành viên mới được thêm vào)
+    const membersCountIncreased = currentMembersCount > prevMembersCount;
+    
     // QUAN TRỌNG: Với ví cá nhân, vẫn cần reload khi membersCount thay đổi
-    // (ví dụ: từ 2 thành viên xuống 1 thành viên khi có người rời)
+    // (ví dụ: từ 2 thành viên xuống 1 thành viên khi có người rời, hoặc từ 2 lên 3 khi có người mới)
     // Chỉ clear danh sách nếu membersCount = 0 hoặc không có shared info
     const hasSharedEmails = Array.isArray(wallet.sharedEmails) && wallet.sharedEmails.length > 0;
     const hasMultipleMembers = currentMembersCount > 1;
@@ -705,13 +1005,19 @@ export default function WalletDetail(props) {
       return;
     }
     
-    // Tránh reload quá nhiều lần trong thời gian ngắn (debounce)
+    // Tránh reload quá nhiều lần trong thời gian ngắn (debounce) - TĂNG thời gian để tránh loop
     const now = Date.now();
-    if (lastMembersCountReloadTimeRef.current && (now - lastMembersCountReloadTimeRef.current) < 2000) {
+    if (lastMembersCountReloadTimeRef.current && (now - lastMembersCountReloadTimeRef.current) < 5000) {
+      // Tăng từ 2 giây lên 5 giây để tránh reload quá nhiều lần
       return;
     }
     
-    // Debounce để tránh reload quá nhiều lần
+    // QUAN TRỌNG: Nếu membersCount tăng (có thành viên mới), reload ngay lập tức với delay ngắn hơn
+    const delay = membersCountIncreased ? 500 : 800;
+    
+    console.log("🔄 MembersCount changed from", prevMembersCount, "to", currentMembersCount, "- reloading members...");
+    
+    // Debounce để tránh reload quá nhiều lần - TĂNG delay để tránh loop
     const timeoutId = setTimeout(async () => {
       try {
         lastMembersCountReloadTimeRef.current = Date.now();
@@ -719,7 +1025,7 @@ export default function WalletDetail(props) {
         setSharedMembersError(""); // Clear error
         
         // Đợi một chút để đảm bảo backend đã xử lý xong
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, delay));
         
         const resp = await walletAPI.getWalletMembers(wallet.id);
         let list = [];
@@ -732,6 +1038,8 @@ export default function WalletDetail(props) {
         
         // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
         setSharedMembers(normalized);
+        
+        console.log("✅ Members reloaded after membersCount change:", normalized.map(m => ({ email: m.email, role: m.role })));
       } catch (error) {
         console.error("Failed to reload members after membersCount change:", error);
         setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
@@ -740,16 +1048,17 @@ export default function WalletDetail(props) {
       } finally {
         setSharedMembersLoading(false);
       }
-    }, 300);
+    }, 1000); // Tăng từ 300ms lên 1000ms để tránh reload quá nhanh
     
     return () => clearTimeout(timeoutId);
   }, [wallet?.id, wallet?.membersCount]);
 
   // Ensure sharedMembers state is consistent when wallet changes.
   // If the newly selected wallet has no shared info, clear previous members to avoid stale UI.
-  // Cũng reload members khi wallet prop thay đổi (đặc biệt là membersCount)
+  // Cũng reload members khi wallet prop thay đổi (đặc biệt là membersCount hoặc role)
   const prevWalletIdRef = useRef(null);
   const prevMembersCountRef2 = useRef(null);
+  const prevWalletRoleRef = useRef(null);
   
   useEffect(() => {
     if (!wallet) {
@@ -758,30 +1067,37 @@ export default function WalletDetail(props) {
       setSharedMembersLoading(false);
       prevWalletIdRef.current = null;
       prevMembersCountRef2.current = null;
+      prevWalletRoleRef.current = null;
       return;
     }
 
     const currentWalletId = wallet.id;
     const currentMembersCount = Number(wallet.membersCount || 0);
+    const currentWalletRole = getRoleFromWallet(wallet);
     const prevWalletId = prevWalletIdRef.current;
     const prevMembersCount = prevMembersCountRef2.current;
+    const prevWalletRole = prevWalletRoleRef.current;
     
     // Nếu wallet thay đổi, reset refs
     if (prevWalletId !== currentWalletId) {
       prevWalletIdRef.current = currentWalletId;
       prevMembersCountRef2.current = currentMembersCount;
+      prevWalletRoleRef.current = currentWalletRole;
     }
 
-    // QUAN TRỌNG: Nếu membersCount thay đổi (và không phải lần đầu mount), reload members
-    // Áp dụng cho cả ví cá nhân và ví nhóm
-    if (prevMembersCount !== null && prevMembersCount !== currentMembersCount && prevWalletId === currentWalletId) {
-      prevMembersCountRef2.current = currentMembersCount;
+    // QUAN TRỌNG: Nếu role thay đổi (ví dụ: từ MEMBER xuống VIEWER), reload members để cập nhật role trong danh sách
+    // Đây là trường hợp quan trọng khi user bị downgrade quyền
+    if (prevWalletRole !== null && prevWalletRole !== currentWalletRole && prevWalletId === currentWalletId) {
+      console.log("🔄 Wallet role changed from", prevWalletRole, "to", currentWalletRole, "- reloading members");
+      prevWalletRoleRef.current = currentWalletRole;
       
-      // Reload members từ server
+      // Reload members từ server để cập nhật role
       const reloadMembers = async () => {
         try {
           setSharedMembersLoading(true);
           setSharedMembersError("");
+          // Đợi một chút để đảm bảo backend đã xử lý xong
+          await new Promise(resolve => setTimeout(resolve, 500));
           const resp = await walletAPI.getWalletMembers(wallet.id);
           let list = [];
           if (!resp) list = [];
@@ -791,8 +1107,15 @@ export default function WalletDetail(props) {
           else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
           const normalized = normalizeMembersList(list);
           setSharedMembers(normalized);
+          
+          // Dispatch event để trigger reload wallets nếu cần
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+              detail: { walletId: wallet.id, memberCount: normalized.length }
+            }));
+          }
         } catch (error) {
-          console.error("Failed to reload members after wallet prop change:", error);
+          console.error("Failed to reload members after wallet role change:", error);
           setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
         } finally {
           setSharedMembersLoading(false);
@@ -801,6 +1124,15 @@ export default function WalletDetail(props) {
       
       reloadMembers();
       return;
+    }
+
+    // QUAN TRỌNG: Không reload members ở đây khi membersCount thay đổi
+    // Vì đã có useEffect riêng ở trên (dòng 967) xử lý membersCount thay đổi
+    // Tránh reload trùng lặp gây ra loop
+    // Chỉ cập nhật ref để track
+    if (prevMembersCount !== null && prevMembersCount !== currentMembersCount && prevWalletId === currentWalletId) {
+      prevMembersCountRef2.current = currentMembersCount;
+      // Không reload ở đây, để useEffect ở trên xử lý
     }
 
     const hasSharedEmails = Array.isArray(wallet.sharedEmails) && wallet.sharedEmails.length > 0;
@@ -831,7 +1163,7 @@ export default function WalletDetail(props) {
       setSharedMembersError("");
       setSharedMembersLoading(false);
     }
-  }, [wallet?.id, wallet?.membersCount]);
+  }, [wallet?.id, wallet?.membersCount, wallet?.walletRole, wallet?.sharedRole, wallet?.role]);
 
   // If the `sharedEmails` prop (possibly overridden by parent via `sharedEmailsOverride`) changes,
   // derive simple member entries so the UI shows newly-added emails immediately without waiting
