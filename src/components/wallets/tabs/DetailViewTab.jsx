@@ -243,6 +243,11 @@ export default function DetailViewTab({
                       maximumFractionDigits: 0
                     });
                     
+                    // Debug: Log để kiểm tra email có trong transaction không
+                    if (tx.creatorEmail) {
+                      console.log("📧 Transaction has creatorEmail:", tx.creatorEmail, "tx:", tx);
+                    }
+                    
                     return (
                       <li key={tx.id} className="wallets-detail__history-item">
                         <div className="wallets-detail__history-main">
@@ -266,7 +271,12 @@ export default function DetailViewTab({
                             {tx.categoryName || "Danh mục khác"}
                           </span>
                           {tx.creatorName ? (
-                            <span className="wallets-detail__history-actor">{tx.creatorName}</span>
+                            <div className="wallets-detail__history-actor-wrapper" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                              <span className="wallets-detail__history-actor">{tx.creatorName}</span>
+                              {tx.creatorEmail ? (
+                                <span className="wallets-detail__history-actor-email" style={{ fontSize: '0.85em', color: '#666', marginTop: '2px' }}>{tx.creatorEmail}</span>
+                              ) : null}
+                            </div>
                           ) : null}
                           <span>{tx.timeLabel}</span>
                         </div>

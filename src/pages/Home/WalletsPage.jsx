@@ -2174,6 +2174,57 @@ export default function WalletsPage() {
     const timeLabel = formatTimeLabel(dateValue) || formatVietnamDateTime(new Date()); // Fallback nếu format fail
 
       const creatorName = resolveActorName(tx);
+      
+      // Extract email của người tạo giao dịch
+      // Backend trả về email trong tx.creator.email (WalletTransactionHistoryDTO.UserInfo)
+      const resolveActorEmail = (tx) => {
+        const extractEmailFromObject = (obj) => {
+          if (!obj || typeof obj !== "object") return "";
+          return (
+            obj.email ||
+            obj.userEmail ||
+            obj.accountEmail ||
+            ""
+          );
+        };
+
+        const emailCandidates = [
+          // Ưu tiên: email từ creator object (backend trả về trong WalletTransactionHistoryDTO)
+          extractEmailFromObject(tx.creator),
+          // Các field khác
+          tx.actorEmail,
+          tx.createdByEmail,
+          tx.creatorEmail,
+          tx.userEmail,
+          tx.performedByEmail,
+          extractEmailFromObject(tx.createdByUser),
+          extractEmailFromObject(tx.creatorUser),
+          extractEmailFromObject(tx.user),
+          extractEmailFromObject(tx.performedBy),
+        ];
+
+        for (const candidate of emailCandidates) {
+          if (!candidate) continue;
+          if (typeof candidate === "string") {
+            const trimmed = candidate.trim();
+            if (trimmed.length && trimmed.includes("@")) return trimmed;
+          }
+        }
+
+        return "";
+      };
+      
+      const creatorEmail = resolveActorEmail(tx);
+      
+      // Debug: Log để kiểm tra email có được extract không
+      if (creatorEmail) {
+        console.log("✅ Extracted creator email:", creatorEmail, "from tx:", {
+          creator: tx.creator,
+          creatorEmail: tx.creator?.email,
+          user: tx.user,
+          userEmail: tx.user?.email
+        });
+      }
 
     const walletInfo = tx.wallet || {};
     const fallbackWalletName =
@@ -2220,6 +2271,7 @@ export default function WalletsPage() {
       currency,
       date: dateValue,
       creatorName,
+      creatorEmail,
       note,
       walletName,
       type: isExpense ? "expense" : "income",
@@ -2282,6 +2334,46 @@ export default function WalletsPage() {
       transfer.createdByName ||
       transfer.creatorName ||
       "";
+    
+    // Extract email của người thực hiện chuyển tiền
+    // Backend trả về email trong transfer.creator.email (WalletTransferHistoryDTO.UserInfo)
+    const resolveTransferActorEmail = (transfer) => {
+      const extractEmailFromObject = (obj) => {
+        if (!obj || typeof obj !== "object") return "";
+        return (
+          obj.email ||
+          obj.userEmail ||
+          obj.accountEmail ||
+          ""
+        );
+      };
+
+      const emailCandidates = [
+        // Ưu tiên: email từ creator object (backend trả về trong WalletTransferHistoryDTO)
+        extractEmailFromObject(transfer.creator),
+        // Các field khác
+        transfer.actorEmail,
+        transfer.createdByEmail,
+        transfer.creatorEmail,
+        transfer.userEmail,
+        extractEmailFromObject(transfer.user),
+        extractEmailFromObject(transfer.createdByUser),
+        extractEmailFromObject(transfer.creatorUser),
+      ];
+
+      for (const candidate of emailCandidates) {
+        if (!candidate) continue;
+        if (typeof candidate === "string") {
+          const trimmed = candidate.trim();
+          if (trimmed.length && trimmed.includes("@")) return trimmed;
+        }
+      }
+
+      return "";
+    };
+    
+    const actorEmail = resolveTransferActorEmail(transfer);
+    
     const transferId = transfer.transferId ?? transfer.id ?? `${walletId || "wallet"}-${dateValue}`;
 
     const currencyCandidates = [
@@ -2311,6 +2403,7 @@ export default function WalletsPage() {
       currency,
       date: dateValue,
       creatorName: actorName,
+      creatorEmail: actorEmail,
       note: transfer.note || "",
       sourceWallet: sourceName,
       targetWallet: targetName,
@@ -2409,6 +2502,63 @@ export default function WalletsPage() {
   const refreshTransactions = () => {
     setTransactionsRefreshKey((prev) => prev + 1);
   };
+
+  // QUAN TRỌNG: Reload transactions khi wallet balance thay đổi (có giao dịch mới)
+  const prevWalletBalanceRef = useRef(null);
+  useEffect(() => {
+    if (!selectedWallet?.id) {
+      prevWalletBalanceRef.current = null;
+      return;
+    }
+
+    const currentBalance = Number(selectedWallet.balance || selectedWallet.current || 0);
+    const prevBalance = prevWalletBalanceRef.current;
+
+    // Nếu balance thay đổi (có giao dịch mới), reload transactions
+    if (prevBalance !== null && prevBalance !== currentBalance) {
+      console.log("🔄 Wallet balance changed from", prevBalance, "to", currentBalance, "- reloading transactions...");
+      // Delay một chút để đảm bảo backend đã xử lý xong giao dịch
+      setTimeout(() => {
+        refreshTransactions();
+      }, 500);
+    }
+
+    prevWalletBalanceRef.current = currentBalance;
+  }, [selectedWallet?.id, selectedWallet?.balance, selectedWallet?.current]);
+
+  // QUAN TRỌNG: Polling để reload transactions định kỳ khi đang xem chi tiết ví
+  // Đảm bảo lịch sử giao dịch luôn được cập nhật khi có thành viên khác nạp/rút
+  useEffect(() => {
+    if (!selectedWallet?.id) return;
+
+    // Polling mỗi 5 giây để reload transactions
+    const interval = setInterval(() => {
+      refreshTransactions();
+    }, 5000); // 5 giây
+
+    return () => clearInterval(interval);
+  }, [selectedWallet?.id]);
+
+  // QUAN TRỌNG: Listen event walletUpdated để reload transactions khi có thay đổi
+  useEffect(() => {
+    if (!selectedWallet?.id) return;
+
+    const handleWalletUpdated = (event) => {
+      const { walletId } = event.detail || {};
+      if (walletId && String(walletId) === String(selectedWallet.id)) {
+        console.log("🔄 Wallet updated event received, reloading transactions...");
+        // Delay một chút để đảm bảo backend đã xử lý xong
+        setTimeout(() => {
+          refreshTransactions();
+        }, 500);
+      }
+    };
+
+    window.addEventListener("walletUpdated", handleWalletUpdated);
+    return () => {
+      window.removeEventListener("walletUpdated", handleWalletUpdated);
+    };
+  }, [selectedWallet?.id]);
 
   return (
   <div className="wallets-page tx-page container-fluid py-4">
