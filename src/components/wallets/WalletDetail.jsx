@@ -885,34 +885,34 @@ export default function WalletDetail(props) {
     }
   }, [wallet?.id, allNotifications]);
 
-  // Thêm polling ngắn hơn cho notifications khi có wallet đang mở để phát hiện thay đổi nhanh hơn
-  // QUAN TRỌNG: Đảm bảo polling hoạt động cho cả Google OAuth và password login
-  useEffect(() => {
-    if (!wallet?.id || !loadNotifications) return;
-    
-    // Kiểm tra xem có accessToken không (đảm bảo user đã đăng nhập)
-    const checkToken = () => {
-      const token = localStorage.getItem("accessToken");
-      return Boolean(token);
-    };
-    
-    // Polling mỗi 5 giây để phát hiện notification mới nhanh hơn
-    // Chỉ khi có wallet đang mở (để tránh quá tải)
-    const interval = setInterval(() => {
-      // Chỉ poll nếu có token (user đã đăng nhập)
-      if (!checkToken()) {
-        return;
-      }
-      
-      if (typeof loadNotifications === "function") {
-        loadNotifications().catch(err => {
-          console.debug("Failed to poll notifications:", err);
-        });
-      }
-    }, 5000); // 5 giây
-    
-    return () => clearInterval(interval);
-  }, [wallet?.id, loadNotifications]);
+  // TẮT polling - chỉ reload notifications khi có event hoặc thay đổi thực sự
+  // NotificationContext đã có polling riêng, không cần polling thêm ở đây
+  // useEffect(() => {
+  //   if (!wallet?.id || !loadNotifications) return;
+  //   
+  //   // Kiểm tra xem có accessToken không (đảm bảo user đã đăng nhập)
+  //   const checkToken = () => {
+  //     const token = localStorage.getItem("accessToken");
+  //     return Boolean(token);
+  //   };
+  //   
+  //   // Polling mỗi 5 giây để phát hiện notification mới nhanh hơn
+  //   // Chỉ khi có wallet đang mở (để tránh quá tải)
+  //   const interval = setInterval(() => {
+  //     // Chỉ poll nếu có token (user đã đăng nhập)
+  //     if (!checkToken()) {
+  //       return;
+  //     }
+  //     
+  //     if (typeof loadNotifications === "function") {
+  //       loadNotifications().catch(err => {
+  //         console.debug("Failed to poll notifications:", err);
+  //       });
+  //     }
+  //   }, 5000); // 5 giây
+  //   
+  //   return () => clearInterval(interval);
+  // }, [wallet?.id, loadNotifications]);
 
   // QUAN TRỌNG: Polling để tự động reload members khi đang xem tab "Quản lý người dùng"
   // Đây là giải pháp cuối cùng để đảm bảo UI được cập nhật khi thành viên rời ví

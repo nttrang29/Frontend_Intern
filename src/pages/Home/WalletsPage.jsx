@@ -1835,6 +1835,12 @@ export default function WalletsPage() {
       if (response?.transaction) {
         await loadWallets();
         refreshTransactions();
+        // Dispatch event để trigger reload transactions ở các component khác
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("walletUpdated", {
+            detail: { walletId: selectedWallet.id, action: "transactionCreated" }
+          }));
+        }
         showToast(t('wallets.toast.topup_success'));
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
@@ -1868,6 +1874,12 @@ export default function WalletsPage() {
         if (response?.transaction) {
         await loadWallets();
         refreshTransactions();
+        // Dispatch event để trigger reload transactions ở các component khác
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("walletUpdated", {
+            detail: { walletId: selectedWallet.id, action: "transactionCreated" }
+          }));
+        }
         showToast(t('wallets.toast.withdraw_success'));
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
@@ -1907,6 +1919,15 @@ export default function WalletsPage() {
       });
       await loadWallets();
       refreshTransactions();
+      // Dispatch event để trigger reload transactions ở các component khác (cho cả source và target wallet)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("walletUpdated", {
+          detail: { walletId: selectedWallet.id, action: "transferCreated" }
+        }));
+        window.dispatchEvent(new CustomEvent("walletUpdated", {
+          detail: { walletId: Number(transferTargetId), action: "transferCreated" }
+        }));
+      }
       showToast(t('wallets.toast.transfer_success'));
     } catch (error) {
       showToast(error.message || t('wallets.toast.create_error'), "error");
@@ -2526,18 +2547,18 @@ export default function WalletsPage() {
     prevWalletBalanceRef.current = currentBalance;
   }, [selectedWallet?.id, selectedWallet?.balance, selectedWallet?.current]);
 
-  // QUAN TRỌNG: Polling để reload transactions định kỳ khi đang xem chi tiết ví
-  // Đảm bảo lịch sử giao dịch luôn được cập nhật khi có thành viên khác nạp/rút
-  useEffect(() => {
-    if (!selectedWallet?.id) return;
-
-    // Polling mỗi 5 giây để reload transactions
-    const interval = setInterval(() => {
-      refreshTransactions();
-    }, 5000); // 5 giây
-
-    return () => clearInterval(interval);
-  }, [selectedWallet?.id]);
+  // TẮT polling - chỉ reload khi có thay đổi thực sự (balance thay đổi, event walletUpdated)
+  // Đảm bảo lịch sử giao dịch được cập nhật khi có thành viên khác nạp/rút thông qua balance change và events
+  // useEffect(() => {
+  //   if (!selectedWallet?.id) return;
+  //
+  //   // Polling mỗi 5 giây để reload transactions
+  //   const interval = setInterval(() => {
+  //     refreshTransactions();
+  //   }, 5000); // 5 giây
+  //
+  //   return () => clearInterval(interval);
+  // }, [selectedWallet?.id]);
 
   // QUAN TRỌNG: Listen event walletUpdated để reload transactions khi có thay đổi
   useEffect(() => {
