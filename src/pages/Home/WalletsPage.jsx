@@ -17,6 +17,7 @@ import { useNotifications } from "../../contexts/NotificationContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
 import Toast from "../../components/common/Toast/Toast";
+import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
@@ -134,6 +135,56 @@ const normalizeOwnerName = (wallet) =>
 
 const normalizeOwnerEmail = (wallet) =>
   wallet.ownerEmail || wallet.ownerContact || "";
+
+// Helper functions for budget warning evaluation
+const normalizeBudgetCategoryKey = (value) => {
+  if (!value && value !== 0) return "";
+  return String(value).trim().toLowerCase();
+};
+
+const parseBudgetBoundaryDate = (value, isEnd = false) => {
+  if (!value) return null;
+  const [datePart] = value.split("T");
+  const [year, month, day] = (datePart || "").split("-");
+  const y = Number(year);
+  const m = Number(month) - 1;
+  const d = Number(day);
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return null;
+  const hours = isEnd ? 23 : 0;
+  const minutes = isEnd ? 59 : 0;
+  const seconds = isEnd ? 59 : 0;
+  const ms = isEnd ? 999 : 0;
+  return new Date(y, m, d, hours, minutes, seconds, ms);
+};
+
+const isTransactionWithinBudgetPeriod = (budget, txDate) => {
+  if (!budget) return false;
+  if (!budget.startDate && !budget.endDate) return true;
+  if (!txDate || Number.isNaN(txDate.getTime())) return false;
+  const start = parseBudgetBoundaryDate(budget.startDate, false);
+  const end = parseBudgetBoundaryDate(budget.endDate, true);
+  if (start && txDate < start) return false;
+  if (end && txDate > end) return false;
+  return true;
+};
+
+const doesBudgetMatchWallet = (budget, walletEntity, fallbackWalletName) => {
+  if (!budget) return false;
+  if (budget.walletId === null || budget.walletId === undefined) {
+    return true; // Budget áp dụng cho tất cả ví
+  }
+  const walletId = walletEntity ? (walletEntity.walletId ?? walletEntity.id) : null;
+  if (walletId !== null && walletId !== undefined) {
+    if (Number(budget.walletId) === Number(walletId)) {
+      return true;
+    }
+  }
+  const budgetWalletName = normalizeBudgetCategoryKey(budget.walletName);
+  const walletName = normalizeBudgetCategoryKey(
+    walletEntity?.name || walletEntity?.walletName || fallbackWalletName
+  );
+  return !!budgetWalletName && budgetWalletName === walletName;
+};
 
 const sortWalletsByMode = (walletList = [], sortMode = "default") => {
   const arr = [...walletList];
@@ -493,7 +544,7 @@ const getVietnamDateTime = () => {
 
 export default function WalletsPage() {
   const { t } = useLanguage();
-  const { budgets = [] } = useBudgetData();
+  const { budgets = [], refreshBudgets, getSpentForBudget } = useBudgetData();
   const { loadNotifications } = useNotifications() || {};
   const {
     wallets = [],
@@ -819,6 +870,10 @@ export default function WalletsPage() {
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [transactionsRefreshKey, setTransactionsRefreshKey] = useState(0);
+  
+  // Budget warning state
+  const [budgetWarning, setBudgetWarning] = useState(null);
+  const [pendingWithdraw, setPendingWithdraw] = useState(null);
 
   const showToast = (message, type = "success") =>
     setToast({ open: true, message, type });
@@ -1854,14 +1909,97 @@ export default function WalletsPage() {
     }
   };
 
-  const handleSubmitWithdraw = async (e) => {
-    e.preventDefault();
+  // Evaluate budget warning before creating expense transaction
+  const evaluateBudgetWarning = useCallback((amount, categoryId, walletEntity, options = {}) => {
+    if (!amount || !categoryId || !walletEntity || !budgets || budgets.length === 0) return null;
+    
+    // Tìm category name từ categoryId
+    const category = expenseCategoryOptions.find(c => String(c.id) === String(categoryId));
+    if (!category) return null;
+    
+    const normalizedCategory = normalizeBudgetCategoryKey(category.name);
+    if (!normalizedCategory) return null;
+
+    const txDate = new Date();
+
+    // Sắp xếp budgets: ví cụ thể trước, "tất cả ví" sau
+    const orderedBudgets = [...budgets].sort((a, b) => {
+      const aGlobal = a?.walletId === null || a?.walletId === undefined;
+      const bGlobal = b?.walletId === null || b?.walletId === undefined;
+      if (aGlobal === bGlobal) return 0;
+      return aGlobal ? 1 : -1;
+    });
+
+    let alertCandidate = null;
+
+    for (const budget of orderedBudgets) {
+      if (!budget) continue;
+      if ((budget.categoryType || "expense").toLowerCase() !== "expense") continue;
+      const budgetCategory = normalizeBudgetCategoryKey(budget.categoryName);
+      if (!budgetCategory || budgetCategory !== normalizedCategory) continue;
+      if (!isTransactionWithinBudgetPeriod(budget, txDate)) continue;
+      if (!doesBudgetMatchWallet(budget, walletEntity, walletEntity?.name || walletEntity?.walletName)) continue;
+
+      const limit = Number(budget.limitAmount || budget.amountLimit || 0);
+      const amountNum = Number(amount || 0);
+      if (!limit || !amountNum) continue;
+
+      const spent = Number(getSpentForBudget ? getSpentForBudget(budget) : 0);
+      const totalAfterTx = spent + amountNum;
+      const warnPercent = Number(budget.alertPercentage ?? budget.warningThreshold ?? 80);
+      const warningAmount = limit * (warnPercent / 100);
+      const isExceeding = totalAfterTx > limit;
+      const crossesWarning = !isExceeding && spent < warningAmount && totalAfterTx >= warningAmount;
+
+      if (isExceeding || crossesWarning) {
+        const snapshot = {
+          categoryName: budget.categoryName,
+          walletName: budget.walletName || walletEntity?.name || walletEntity?.walletName || "Tất cả ví",
+          budgetLimit: limit,
+          spent,
+          transactionAmount: amountNum,
+          totalAfterTx,
+          isExceeding,
+        };
+
+        if (isExceeding) {
+          return snapshot;
+        }
+
+        if (!alertCandidate) {
+          alertCandidate = snapshot;
+        }
+      }
+    }
+
+    return alertCandidate;
+  }, [budgets, getSpentForBudget, expenseCategoryOptions]);
+
+  const handleSubmitWithdraw = async (e, options = {}) => {
+    e?.preventDefault();
     if (!selectedWallet) return;
     // Parse số tiền từ format Việt Nam (dấu chấm mỗi 3 số, dấu phẩy thập phân)
     const amountNum = getMoneyValue(withdrawAmount);
     if (!amountNum || amountNum <= 0 || !withdrawCategoryId) {
       return;
     }
+    
+    const skipBudgetCheck = options.skipBudgetCheck === true;
+    
+    // Kiểm tra cảnh báo ngân sách trước khi tạo giao dịch
+    if (!skipBudgetCheck) {
+      const warningData = evaluateBudgetWarning(amountNum, withdrawCategoryId, selectedWallet);
+      if (warningData) {
+        setPendingWithdraw({
+          amount: amountNum,
+          categoryId: withdrawCategoryId,
+          note: withdrawNote,
+        });
+        setBudgetWarning(warningData);
+        return;
+      }
+    }
+    
     try {
       const response = await transactionAPI.addExpense(
         amountNum,
@@ -1874,6 +2012,14 @@ export default function WalletsPage() {
         if (response?.transaction) {
         await loadWallets();
         refreshTransactions();
+        // Reload budgets để cập nhật spent amount sau khi tạo giao dịch chi tiêu
+        if (refreshBudgets && typeof refreshBudgets === "function") {
+          try {
+            await refreshBudgets();
+          } catch (e) {
+            console.debug("Failed to reload budgets after expense transaction:", e);
+          }
+        }
         // Dispatch event để trigger reload transactions ở các component khác
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("walletUpdated", {
@@ -1892,6 +2038,35 @@ export default function WalletsPage() {
       setWithdrawCategoryId("");
     }
   };
+  
+  // Handle budget warning confirmation (user wants to continue)
+  const handleBudgetWarningConfirm = useCallback(async () => {
+    if (!pendingWithdraw) return;
+
+    // Lưu lại dữ liệu từ pendingWithdraw
+    const { amount, categoryId, note } = pendingWithdraw;
+    
+    // Set lại form values
+    setWithdrawAmount(String(amount));
+    setWithdrawCategoryId(String(categoryId));
+    setWithdrawNote(note || "");
+    
+    // Clear warning state
+    setBudgetWarning(null);
+    setPendingWithdraw(null);
+
+    // Create the transaction anyway by calling handleSubmitWithdraw with skipBudgetCheck
+    // Sử dụng setTimeout để đảm bảo state đã được cập nhật
+    setTimeout(async () => {
+      await handleSubmitWithdraw(null, { skipBudgetCheck: true });
+    }, 100);
+  }, [pendingWithdraw]);
+
+  // Handle budget warning cancellation
+  const handleBudgetWarningCancel = useCallback(() => {
+    setBudgetWarning(null);
+    setPendingWithdraw(null);
+  }, []);
 
   const handleSubmitTransfer = async (e) => {
     e.preventDefault();
@@ -2771,6 +2946,19 @@ export default function WalletsPage() {
         type={toast.type}
         duration={2500}
         onClose={closeToast}
+      />
+
+      <BudgetWarningModal
+        open={!!budgetWarning}
+        categoryName={budgetWarning?.categoryName}
+        walletName={budgetWarning?.walletName}
+        budgetLimit={budgetWarning?.budgetLimit || 0}
+        spent={budgetWarning?.spent || 0}
+        transactionAmount={budgetWarning?.transactionAmount || 0}
+        totalAfterTx={budgetWarning?.totalAfterTx || 0}
+        isExceeding={budgetWarning?.isExceeding || false}
+        onConfirm={handleBudgetWarningConfirm}
+        onCancel={handleBudgetWarningCancel}
       />
 
       {demoNavigationState.visible && (

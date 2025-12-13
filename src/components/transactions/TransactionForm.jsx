@@ -33,6 +33,7 @@ export default function TransactionForm({
   expanded,
   onToggleExpand,
   availableWallets,
+  activeTab, // Tab hiện tại để filter wallets
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [attachmentPreview, setAttachmentPreview] = useState("");
@@ -45,13 +46,87 @@ export default function TransactionForm({
 
   const { expenseCategories, incomeCategories } = useCategoryData();
   const { wallets: walletListFromContext } = useWalletData();
-  const walletList = useMemo(() => {
-    if (Array.isArray(availableWallets)) {
-      return availableWallets;
+  
+  // Lấy currentUserId để kiểm tra owner
+  const currentUserId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const user = JSON.parse(stored);
+        return user.userId || user.id || null;
+      }
+    } catch (error) {
+      console.error("Không thể đọc user từ localStorage:", error);
     }
-    return walletListFromContext || [];
-  }, [availableWallets, walletListFromContext]);
+    return null;
+  }, []);
 
+  // Filter wallets dựa trên activeTab
+  // EXTERNAL: chỉ ví cá nhân (PERSONAL)
+  // GROUP_EXTERNAL: ví nhóm (GROUP) và ví được chia sẻ với role MEMBER
+  const filteredWalletList = useMemo(() => {
+    const allWallets = Array.isArray(availableWallets) ? availableWallets : (walletListFromContext || []);
+    
+    return allWallets.filter((w) => {
+      // Bỏ qua ví đã bị xóa mềm
+      if (w?.deleted) return false;
+      
+      // Lấy walletType để phân biệt PERSONAL và GROUP
+      const walletType = (w?.walletType || w?.type || "").toString().toUpperCase();
+      const role = (w?.walletRole || w?.sharedRole || w?.role || "").toString().toUpperCase();
+      const isShared = !!w?.isShared || !!(w?.walletRole || w?.sharedRole || w?.role);
+      
+      // Nếu là tab "Giao dịch ngoài" (EXTERNAL) - chỉ hiển thị ví cá nhân
+      if (activeTab === "external") {
+        // Chỉ lấy ví PERSONAL (walletType !== "GROUP")
+        if (walletType === "GROUP") return false;
+        
+        // Ví cá nhân: kiểm tra xem user có phải owner không
+        if (w?.ownerUserId && currentUserId) {
+          return String(w.ownerUserId) === String(currentUserId);
+        }
+        // Nếu không có ownerUserId, mặc định là ví của user hiện tại
+        return true;
+      }
+      
+      // Nếu là tab "Giao dịch ví nhóm" (GROUP_EXTERNAL) - chỉ hiển thị ví nhóm và ví được chia sẻ với role MEMBER
+      if (activeTab === "group_external") {
+        // 1. Ví nhóm (walletType === "GROUP", user là OWNER/MASTER/ADMIN)
+        if (walletType === "GROUP" && isShared && ["OWNER", "MASTER", "ADMIN"].includes(role)) {
+          return true;
+        }
+        
+        // 2. Ví được chia sẻ với quyền MEMBER/USER/USE (không phải VIEW/VIEWER)
+        if (isShared && ["MEMBER", "USER", "USE"].includes(role)) {
+          return true;
+        }
+        
+        // Bỏ qua ví cá nhân và các ví khác
+        return false;
+      }
+      
+      // Fallback: nếu không có activeTab hoặc tab khác, dùng logic cũ (tương thích)
+      if (!isShared) {
+        if (w?.ownerUserId && currentUserId) {
+          return String(w.ownerUserId) === String(currentUserId);
+        }
+        return true;
+      }
+      
+      if (isShared && ["OWNER", "MASTER", "ADMIN"].includes(role)) {
+        return true;
+      }
+      
+      if (isShared && ["MEMBER", "USER", "USE"].includes(role)) {
+        return true;
+      }
+      
+      return false;
+    });
+  }, [availableWallets, walletListFromContext, currentUserId, activeTab]);
+
+  const walletList = filteredWalletList;
   const defaultWallet = walletList.find(w => w.isDefault === true);
 
   // Initialize form
@@ -165,12 +240,72 @@ export default function TransactionForm({
   }), [t]);
 
   const walletOptions = useMemo(() => {
-    return mapWalletsToSelectOptions(
+    const options = mapWalletsToSelectOptions(
       walletList,
       walletTypeLabels,
       (wallet) => wallet?.name || ""
     );
-  }, [walletList, walletTypeLabels]);
+
+    // Sửa lại label và description dựa trên quyền sở hữu và loại ví
+    const normalized = options
+      .filter((opt) => opt.value !== "")
+      .map((opt) => {
+        const wallet = opt.raw;
+        if (!wallet) return opt;
+
+        // Xác định user hiện tại có phải là owner không
+        const role = (wallet.walletRole || wallet.sharedRole || wallet.role || "").toString().toUpperCase();
+        const isOwner = 
+          (wallet.ownerUserId && currentUserId && String(wallet.ownerUserId) === String(currentUserId)) ||
+          ["OWNER", "MASTER", "ADMIN"].includes(role);
+        
+        // Kiểm tra walletType để phân biệt chính xác ví nhóm và ví cá nhân
+        const walletType = (wallet.walletType || wallet.type || "").toString().toUpperCase();
+        const isGroupWallet = walletType === "GROUP";
+        
+        // Nếu user là owner
+        if (isOwner) {
+          // Ví nhóm (walletType === "GROUP") → "Ví nhóm"
+          if (isGroupWallet) {
+            return {
+              ...opt,
+              description: "Ví nhóm",
+            };
+          }
+          // Ví cá nhân (walletType === "PERSONAL" hoặc không phải GROUP) → "Ví cá nhân"
+          return {
+            ...opt,
+            description: "Ví cá nhân",
+          };
+        }
+        
+        // Nếu user không phải owner (là member được mời) → "Ví được chia sẻ"
+        // Lấy email chủ ví từ nhiều nguồn
+        const ownerEmail = 
+          wallet.ownerEmail || 
+          wallet.ownerContact || 
+          wallet.owner?.email ||
+          wallet.ownerUser?.email ||
+          "";
+        
+        // Thêm email chủ ví vào label nếu có
+        let newLabel = opt.label;
+        if (ownerEmail && ownerEmail.trim() !== "") {
+          newLabel = `${opt.label} (${ownerEmail})`;
+        } else if (wallet.ownerName && wallet.ownerName.trim() !== "") {
+          // Fallback: nếu không có email, dùng tên chủ ví
+          newLabel = `${opt.label} (${wallet.ownerName})`;
+        }
+        
+        return {
+          ...opt,
+          label: newLabel,
+          description: "Ví được chia sẻ",
+        };
+      });
+
+    return normalized;
+  }, [walletList, walletTypeLabels, currentUserId]);
 
   const targetWalletOptions = useMemo(() => {
     if (!walletOptions || walletOptions.length === 0) return [];

@@ -309,6 +309,7 @@ export function WalletDataProvider({ children }) {
       groupId: apiWallet.groupId || null,
       ownerUserId: apiWallet.ownerId || apiWallet.ownerUserId || apiWallet.createdBy || existingWallet?.ownerUserId || null,
       ownerName: apiWallet.ownerName || apiWallet.ownerFullName || existingWallet?.ownerName || "",
+      ownerEmail: apiWallet.ownerEmail || existingWallet?.ownerEmail || "",
       walletRole: enforcedRole || (apiWallet.walletRole || apiWallet.role || apiWallet.accessRole || existingWallet?.walletRole || null),
       sharedRole: enforcedRole || (apiWallet.sharedRole || existingWallet?.sharedRole || null),
       sharedEmails: resolvedSharedEmails,
