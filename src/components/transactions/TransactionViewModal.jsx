@@ -193,17 +193,19 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                       <div className="tx-detail-value">{tx.walletName}</div>
                     </div>
                   </div>
-                  {/* Hiển thị "Chủ ví" nếu có ownerEmail hoặc nếu là ví nhóm/đã rời ví (để người dùng biết chủ ví) */}
-                  {(tx.ownerEmail || (tx.walletName && tx.walletName.includes("(đã rời ví)"))) && (
-                    <div className="col-6">
-                      <div className="tx-detail-item">
-                        <div className="tx-detail-label">Chủ ví</div>
-                        <div className="tx-detail-value">
-                          {tx.ownerEmail || <span style={{ color: "#9ca3af", fontStyle: "italic" }}>Không có thông tin</span>}
-                        </div>
+                  {/* Hiển thị "Chủ ví" luôn luôn, kể cả khi wallet đã rời hoặc bị xóa */}
+                  <div className="col-6">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Chủ ví</div>
+                      <div className="tx-detail-value">
+                        {tx.ownerEmail ? (
+                          tx.ownerEmail
+                        ) : (
+                          <span style={{ color: "#9ca3af", fontStyle: "italic" }}>Không có thông tin</span>
+                        )}
                       </div>
                     </div>
-                  )}
+                  </div>
                   <div className={tx.ownerEmail ? "col-12" : "col-6"}>
                     <div className="tx-detail-item">
                       <div className="tx-detail-label">Số tiền</div>

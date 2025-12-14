@@ -680,6 +680,7 @@ export default function TransactionForm({
                 onChange={(v) => setForm(f => ({ ...f, walletName: v }))}
                 options={walletOptions}
                 placeholder={t("transactions.form.wallet_placeholder") || "Nhập hoặc chọn ví..."}
+                disabled={mode === "edit"}
               />
             </div>
             {form.walletName && (

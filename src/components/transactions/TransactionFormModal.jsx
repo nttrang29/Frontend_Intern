@@ -729,7 +729,7 @@ export default function TransactionFormModal({
                         onChange={(v) => setForm((f) => ({ ...f, walletName: v }))}
                         options={walletOptions}
                         placeholder={t("transactions.form.wallet_placeholder") || "Nhập hoặc chọn ví..."}
-                        disabled={!hasWallets}
+                        disabled={mode === "edit" || !hasWallets}
                         emptyMessage={!hasWallets ? (t("transactions.form.no_wallets") || "Không có ví khả dụng") : undefined}
                       />
                     </div>
@@ -1033,10 +1033,10 @@ export default function TransactionFormModal({
                         {t("wallets.inspector.current_balance_colon")} <strong>{formatMoney(targetWallet.balance, targetWallet.currency)}</strong>
                       </div>
                     )}
-                  </div>
+                    </div>
 
-                  <div className="col-md-6">
-                    <label className="form-label fw-semibold">{t("transactions.form.amount")}</label>
+                    <div className="col-md-6">
+                      <label className="form-label fw-semibold">{t("transactions.form.amount")}</label>
                     <div className="input-group">
                       <input
                         type="text"

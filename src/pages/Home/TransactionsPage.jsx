@@ -826,15 +826,82 @@ export default function TransactionsPage() {
     const currentCurrency = tx.wallet?.currencyCode || tx.currencyCode || "VND";
 
     // Lấy ownerEmail từ wallet để hiển thị trong cột "Chủ ví" cho tab group_external
-    // Ưu tiên: wallet từ walletsMap > tx.wallet từ transaction entity > empty string
-    // Lưu ý: Khi wallet đã rời, wallet sẽ null nhưng tx.wallet vẫn có thể có ownerEmail
-    let ownerEmail = wallet?.ownerEmail || "";
+    // QUAN TRỌNG: Phải lấy từ nhiều nguồn để đảm bảo có thông tin ngay cả khi wallet đã rời hoặc bị xóa
+    // Ưu tiên: 
+    // 1. wallet từ walletsMap (kể cả khi deleted - vì soft delete vẫn có trong list)
+    // 2. tx.wallet từ transaction entity (luôn có ngay cả khi wallet đã rời/xóa)
+    // 3. Tìm trong wallets list (kể cả deleted) nếu không có trong walletsMap
+    // 4. tx.ownerEmail trực tiếp từ transaction entity (nếu có)
+    let ownerEmail = "";
+    
+    // Ưu tiên 1: Lấy từ wallet trong walletsMap (kể cả khi deleted - soft delete vẫn có trong list)
+    // Đây là nguồn đáng tin cậy nhất vì walletsMap được load từ API và có đầy đủ thông tin
+    if (wallet) {
+      ownerEmail = wallet.ownerEmail || 
+                   wallet.ownerName || 
+                   "";
+    }
+    
+    // Ưu tiên 2: Nếu không có trong walletsMap, tìm trong wallets list (kể cả deleted)
+    // Vì walletsMap chỉ chứa wallets không bị filter, nhưng wallets list có thể có deleted wallets
+    if (!ownerEmail && walletId && wallets && wallets.length > 0) {
+      const foundWallet = wallets.find(w => 
+        String(w.id || w.walletId) === String(walletId)
+      );
+      if (foundWallet) {
+        ownerEmail = foundWallet.ownerEmail || 
+                     foundWallet.ownerName || 
+                     "";
+      }
+    }
+    
+    // Ưu tiên 3: Nếu không có, lấy từ tx.wallet (transaction entity luôn có thông tin này, kể cả khi soft deleted)
     if (!ownerEmail && tx.wallet) {
-      // Nếu không có trong wallet từ walletsMap, thử lấy từ tx.wallet
-      // Có thể tx.wallet là object có ownerEmail hoặc cần lấy từ owner object
+      // Thử nhiều cách lấy ownerEmail từ tx.wallet
+      // Backend có thể trả về ownerEmail trực tiếp hoặc trong owner object
+      // Kiểm tra tất cả các keys có thể có trong tx.wallet
       ownerEmail = tx.wallet.ownerEmail || 
                    tx.wallet.owner?.email || 
-                   tx.wallet.ownerEmail || 
+                   tx.wallet.owner?.userEmail ||
+                   tx.wallet.owner?.accountEmail ||
+                   tx.wallet.ownerName || 
+                   tx.wallet.ownerFullName ||
+                   tx.wallet.owner?.name ||
+                   tx.wallet.owner?.fullName ||
+                   "";
+      
+      // Nếu vẫn không có, thử scan tất cả các keys trong tx.wallet để tìm email
+      if (!ownerEmail) {
+        const txWalletKeys = Object.keys(tx.wallet || {});
+        for (const key of txWalletKeys) {
+          const value = tx.wallet[key];
+          if (typeof value === "string" && value.includes("@")) {
+            ownerEmail = value;
+            break;
+          }
+          if (typeof value === "object" && value !== null) {
+            // Scan nested object
+            const nestedKeys = Object.keys(value);
+            for (const nestedKey of nestedKeys) {
+              const nestedValue = value[nestedKey];
+              if (typeof nestedValue === "string" && nestedValue.includes("@")) {
+                ownerEmail = nestedValue;
+                break;
+              }
+            }
+            if (ownerEmail) break;
+          }
+        }
+      }
+    }
+    
+    // Ưu tiên 4: Nếu vẫn không có, thử lấy trực tiếp từ transaction entity
+    if (!ownerEmail) {
+      ownerEmail = tx.ownerEmail || 
+                   tx.owner?.email || 
+                   tx.owner?.userEmail ||
+                   tx.ownerName ||
+                   tx.ownerFullName ||
                    "";
     }
 
@@ -851,7 +918,13 @@ export default function TransactionsPage() {
     const isLeftWallet = (walletIdStr && leftWalletIds.has(walletIdStr)) || 
                          (!walletsLoading && !wallet && walletId && !isWalletDeleted && !walletExistsInList);
 
+    // Kiểm tra xem wallet có phải là VIEWER không
+    // Nếu wallet không có trong walletsMap (đã rời ví), không thể kiểm tra role
+    // Nếu wallet có trong walletsMap, kiểm tra role
+    const isViewerWallet = wallet ? isViewerOnlyWallet(wallet) : false;
+
     // Thêm "(đã rời ví)" vào tên ví nếu user đã rời ví
+    // Lưu ý: Nếu được mời lại với role VIEWER, vẫn không hiện "(đã rời ví)" nhưng vẫn ẩn hành động
     let displayWalletName = walletName;
     if (isLeftWallet) {
       displayWalletName = `${walletName} (đã rời ví)`;
@@ -879,6 +952,8 @@ export default function TransactionsPage() {
       isWalletDeleted: isWalletDeleted,
       // Lưu trạng thái đã rời ví để ẩn nút sửa/xóa
       isLeftWallet: isLeftWallet,
+      // Lưu trạng thái viewer wallet để ẩn nút sửa/xóa (ngay cả khi không còn trong leftWalletIds)
+      isViewerWallet: isViewerWallet,
     };
   }, [walletsMap, leftWalletIds, walletsLoading, wallets]);
 
@@ -946,6 +1021,11 @@ export default function TransactionsPage() {
                            (toWalletIdStr && leftWalletIds.has(toWalletIdStr));
     const isLeftWallet = isFromWalletLeft || isToWalletLeft;
 
+    // Kiểm tra xem wallet có phải là VIEWER không
+    const isFromWalletViewer = fromWallet ? isViewerOnlyWallet(fromWallet) : false;
+    const isToWalletViewer = toWallet ? isViewerOnlyWallet(toWallet) : false;
+    const isViewerWallet = isFromWalletViewer || isToWalletViewer;
+
     // Thêm "(đã rời ví)" vào tên ví nếu user đã rời ví
     let displaySourceWalletName = sourceWalletName;
     let displayTargetWalletName = targetWalletName;
@@ -973,6 +1053,8 @@ export default function TransactionsPage() {
       isWalletDeleted: isWalletDeleted,
       // Lưu trạng thái đã rời ví để ẩn nút sửa/xóa
       isLeftWallet: isLeftWallet,
+      // Lưu trạng thái viewer wallet để ẩn nút sửa/xóa (ngay cả khi không còn trong leftWalletIds)
+      isViewerWallet: isViewerWallet,
     };
   }, [walletsMap, leftWalletIds, walletsLoading, wallets]);
 
@@ -1172,6 +1254,7 @@ export default function TransactionsPage() {
                    prevTx.attachment !== tx.attachment ||
                    prevTx.isLeftWallet !== tx.isLeftWallet ||
                    prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+                   prevTx.isViewerWallet !== tx.isViewerWallet ||
                    prevTx.walletName !== tx.walletName; // walletName có thể thay đổi khi thêm "(đã rời ví)"
           });
           if (!hasChanged) {
@@ -1192,6 +1275,7 @@ export default function TransactionsPage() {
                    prevTx.date !== tx.date ||
                    prevTx.isLeftWallet !== tx.isLeftWallet ||
                    prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+                   prevTx.isViewerWallet !== tx.isViewerWallet ||
                    prevTx.sourceWallet !== tx.sourceWallet ||
                    prevTx.targetWallet !== tx.targetWallet; // sourceWallet/targetWallet có thể thay đổi khi thêm "(đã rời ví)"
           });
@@ -1213,6 +1297,7 @@ export default function TransactionsPage() {
                    prevTx.date !== tx.date ||
                    prevTx.isLeftWallet !== tx.isLeftWallet ||
                    prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+                   prevTx.isViewerWallet !== tx.isViewerWallet ||
                    prevTx.sourceWallet !== tx.sourceWallet ||
                    prevTx.targetWallet !== tx.targetWallet; // sourceWallet/targetWallet có thể thay đổi khi thêm "(đã rời ví)"
           });
@@ -1344,7 +1429,11 @@ export default function TransactionsPage() {
             return prevTx.amount !== tx.amount || 
                    prevTx.date !== tx.date || 
                    prevTx.category !== tx.category ||
-                   prevTx.attachment !== tx.attachment;
+                   prevTx.attachment !== tx.attachment ||
+                   prevTx.isLeftWallet !== tx.isLeftWallet ||
+                   prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+                   prevTx.isViewerWallet !== tx.isViewerWallet ||
+                   prevTx.walletName !== tx.walletName;
           });
           if (!hasChanged) {
             return prev;
@@ -1379,7 +1468,13 @@ export default function TransactionsPage() {
           const hasChanged = personalInternalLegacy.some(tx => {
             const prevTx = prev.find(p => (p.id || p.transferId || p.code) === (tx.id || tx.transferId || tx.code));
             if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || prevTx.date !== tx.date;
+            return prevTx.amount !== tx.amount || 
+                   prevTx.date !== tx.date ||
+                   prevTx.isLeftWallet !== tx.isLeftWallet ||
+                   prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+                   prevTx.isViewerWallet !== tx.isViewerWallet ||
+                   prevTx.sourceWallet !== tx.sourceWallet ||
+                   prevTx.targetWallet !== tx.targetWallet;
           });
           if (!hasChanged) {
             return prev;
@@ -1395,7 +1490,13 @@ export default function TransactionsPage() {
           const hasChanged = groupInternalLegacy.some(tx => {
             const prevTx = prev.find(p => (p.id || p.transferId || p.code) === (tx.id || tx.transferId || tx.code));
             if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || prevTx.date !== tx.date;
+            return prevTx.amount !== tx.amount || 
+                   prevTx.date !== tx.date ||
+                   prevTx.isLeftWallet !== tx.isLeftWallet ||
+                   prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+                   prevTx.isViewerWallet !== tx.isViewerWallet ||
+                   prevTx.sourceWallet !== tx.sourceWallet ||
+                   prevTx.targetWallet !== tx.targetWallet;
           });
           if (!hasChanged) {
             return prev;
@@ -1644,18 +1745,33 @@ export default function TransactionsPage() {
             invitedWalletIds.forEach(id => newSet.delete(id));
             return newSet;
           });
+          
+          // Force reload wallets và transactions để cập nhật isViewerWallet
+          isRefreshingRef.current = false;
+          
+          // Force reload wallets trước
+          if (loadWallets && typeof loadWallets === "function") {
+            try {
+              await loadWallets();
+            } catch (error) {
+              console.error("Failed to reload wallets after invited:", error);
+            }
+          }
+          
+          // Reset last refresh để force reload transactions
+          lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
+          
+          // Force refresh transactions ngay lập tức để cập nhật isViewerWallet
+          setLoading(true);
+          try {
+            await refreshTransactionsData();
+          } catch (error) {
+            console.error("Failed to refresh transactions after invited:", error);
+          } finally {
+            setLoading(false);
+            isRefreshingRef.current = false;
+          }
         }
-        
-        // Force reload wallets và transactions
-        if (loadWallets && typeof loadWallets === "function") {
-          await loadWallets();
-        }
-        // Reset last refresh để force reload transactions
-        lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
-        // Đợi một chút để wallets được cập nhật
-        setTimeout(() => {
-          runInitialLoad();
-        }, 800);
       }
     };
     window.addEventListener("walletNotificationReceived", handleWalletNotification);
@@ -1671,6 +1787,36 @@ export default function TransactionsPage() {
     };
     window.addEventListener("walletsReloaded", handleWalletsReloaded);
 
+    // Lắng nghe event khi role thay đổi để refresh transactions
+    const handleWalletRoleUpdated = async (event) => {
+      const { walletId } = event.detail || {};
+      if (walletId) {
+        console.log("🔄 Wallet role updated for wallet", walletId, "- refreshing transactions...");
+        // Reload wallets để cập nhật role
+        if (loadWallets && typeof loadWallets === "function") {
+          try {
+            await loadWallets();
+          } catch (error) {
+            console.error("Failed to reload wallets after role update:", error);
+          }
+        }
+        // Reset last refresh để force reload transactions
+        lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
+        // Force refresh transactions để cập nhật isViewerWallet
+        isRefreshingRef.current = false;
+        setLoading(true);
+        try {
+          await refreshTransactionsData();
+        } catch (error) {
+          console.error("Failed to refresh transactions after role update:", error);
+        } finally {
+          setLoading(false);
+          isRefreshingRef.current = false;
+        }
+      }
+    };
+    window.addEventListener("walletRoleUpdated", handleWalletRoleUpdated);
+
     return () => {
       window.removeEventListener("userChanged", handleUserChange);
       window.removeEventListener("storage", handleStorageChange);
@@ -1678,8 +1824,9 @@ export default function TransactionsPage() {
       window.removeEventListener("walletMemberLeft", handleWalletMemberLeft);
       window.removeEventListener("walletNotificationReceived", handleWalletNotification);
       window.removeEventListener("walletsReloaded", handleWalletsReloaded);
+      window.removeEventListener("walletRoleUpdated", handleWalletRoleUpdated);
     };
-  }, [runInitialLoad, loadWallets]);
+  }, [runInitialLoad, loadWallets, refreshTransactionsData]);
 
   // Apply wallet filter when navigated with ?focus=<walletId|walletName>
   useEffect(() => {
