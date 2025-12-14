@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { formatConvertedBalance, formatExchangeRate, getRate } from "../utils/walletUtils";
+import { formatConvertedBalance } from "../utils/walletUtils";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useBudgetData } from "../../../contexts/BudgetDataContext";
 import { useWalletData } from "../../../contexts/WalletDataContext";
@@ -281,45 +281,12 @@ export default function MergeTab({
       (direction === "other_into_this" && currentIsDefault);
   }, [direction, selectedIsDefault, currentIsDefault]);
 
-  const differentCurrency = useMemo(() => {
-    return !!targetWallet && srcCurrency !== tgtCurrency;
-  }, [targetWallet, srcCurrency, tgtCurrency]);
+  // Frontend chỉ dùng VND, không còn chức năng chuyển đổi tiền tệ
+  const differentCurrency = false; // Luôn false vì chỉ dùng VND
   
-  // Tính tỷ giá thực tế (giống EditTab)
-  const exchangeRate = useMemo(() => {
-    if (!differentCurrency || !sourceWallet || !targetWallet) return 1;
-    if (currencyMode === "keepTarget") {
-      // Chuyển đổi từ srcCurrency sang tgtCurrency
-      return getRate(srcCurrency, tgtCurrency);
-    }
-    // Chuyển đổi từ tgtCurrency sang srcCurrency
-    return getRate(tgtCurrency, srcCurrency);
-  }, [differentCurrency, srcCurrency, tgtCurrency, currencyMode, sourceWallet, targetWallet]);
-
-  const convertedSourceAmount = useMemo(() => {
-    if (!differentCurrency || !sourceWallet) return srcBalance;
-    if (currencyMode === "keepTarget") {
-      // Chuyển đổi số dư ví nguồn sang currency của ví đích
-      const converted = srcBalance * getRate(srcCurrency, tgtCurrency);
-      return converted; // Không làm tròn để giữ độ chính xác
-    }
-    return srcBalance;
-  }, [differentCurrency, srcBalance, srcCurrency, tgtCurrency, currencyMode, sourceWallet]);
-
-  const convertedTargetAmount = useMemo(() => {
-    if (!differentCurrency || !targetWallet) return tgtBalance;
-    if (currencyMode === "keepSource") {
-      // Chuyển đổi số dư ví đích sang currency của ví nguồn
-      const converted = tgtBalance * getRate(tgtCurrency, srcCurrency);
-      return converted; // Không làm tròn để giữ độ chính xác
-    }
-    return tgtBalance;
-  }, [differentCurrency, tgtBalance, srcCurrency, tgtCurrency, currencyMode, targetWallet]);
-
-  const finalCurrency = useMemo(() => {
-    if (!differentCurrency) return tgtCurrency;
-    return currencyMode === "keepTarget" ? tgtCurrency : srcCurrency;
-  }, [differentCurrency, tgtCurrency, currencyMode, srcCurrency]);
+  const convertedSourceAmount = srcBalance;
+  const convertedTargetAmount = tgtBalance;
+  const finalCurrency = "VND";
 
   const finalBalance = useMemo(() => {
     if (!targetWallet || !sourceWallet) return srcBalance;
@@ -972,20 +939,11 @@ export default function MergeTab({
               />
               <div>
                 <div className="wallet-merge__option-title">
-                  Giữ {tgtCurrency} (loại tiền của ví đích)
+                  Giữ VND (loại tiền của ví đích)
                 </div>
                 <div className="wallet-merge__option-desc">
-                  Số dư ví nguồn sẽ được quy đổi:
+                  Số dư ví nguồn: {formatConvertedBalance(srcBalance, "VND")}
                 </div>
-                <div className="wallet-merge__option-desc">
-                  {formatConvertedBalance(srcBalance, srcCurrency)} →{" "}
-                  {formatConvertedBalance(convertedSourceAmount, tgtCurrency)}
-                </div>
-                {differentCurrency && (
-                  <div className="wallet-merge__option-foot">
-                    Tỷ giá: 1 {srcCurrency} = {formatExchangeRate(getRate(srcCurrency, tgtCurrency), tgtCurrency)} {tgtCurrency}
-                  </div>
-                )}
               </div>
             </label>
 
@@ -999,20 +957,11 @@ export default function MergeTab({
               />
               <div>
                 <div className="wallet-merge__option-title">
-                  Giữ {srcCurrency} (loại tiền của ví nguồn)
+                  Giữ VND (loại tiền của ví nguồn)
                 </div>
                 <div className="wallet-merge__option-desc">
-                  Số dư ví đích sẽ được quy đổi:
+                  Số dư ví đích: {formatConvertedBalance(tgtBalance, "VND")}
                 </div>
-                <div className="wallet-merge__option-desc">
-                  {formatConvertedBalance(tgtBalance, tgtCurrency)} →{" "}
-                  {formatConvertedBalance(convertedTargetAmount, srcCurrency)}
-                </div>
-                {differentCurrency && (
-                  <div className="wallet-merge__option-foot">
-                    Tỷ giá: 1 {tgtCurrency} = {formatExchangeRate(getRate(tgtCurrency, srcCurrency), srcCurrency)} {srcCurrency}
-                  </div>
-                )}
               </div>
             </label>
           </div>

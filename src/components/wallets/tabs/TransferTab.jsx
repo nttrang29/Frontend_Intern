@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo } from "react";
 import { formatMoneyInput, getMoneyValue } from "../../../utils/formatMoneyInput";
 import { formatMoney } from "../../../utils/formatMoney";
-import { getRate } from "../utils/walletUtils";
 
 export default function TransferTab({
   wallet,
@@ -45,30 +44,8 @@ export default function TransferTab({
     return ["VIEW", "VIEWER"].includes(role);
   };
 
-  // Format số tiền chuyển đổi với độ chính xác cao (giống tỷ giá - 6 chữ số thập phân)
-  const formatConvertedAmount = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    if (currency === "VND") {
-      // VND: hiển thị với 8 chữ số thập phân để khớp với tỷ giá và không làm tròn số dư
-      let formatted = numAmount.toLocaleString("vi-VN", { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 8 
-      });
-      // Loại bỏ số 0 ở cuối phần thập phân
-      formatted = formatted.replace(/,(\d*?)0+$/, (match, digits) => {
-        return digits ? `,${digits}` : "";
-      }).replace(/,$/, ""); // Loại bỏ dấu phẩy nếu không còn phần thập phân
-      return `${formatted} VND`;
-    }
-    // Các currency khác
-    const formatted = numAmount.toLocaleString("vi-VN", { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 6 
-    });
-    return `${formatted} ${currency}`;
-  };
 
-  const sourceCurrency = wallet.currency || "VND";
+  // Frontend chỉ dùng VND, không còn chức năng chuyển đổi tiền tệ
   const sourceBalance = Number(wallet?.balance || 0);
   const selectableTargets = useMemo(() => {
     return safeWallets.filter((candidate) => {
@@ -94,33 +71,16 @@ export default function TransferTab({
       setTransferTargetId("");
     }
   }, [selectableTargets, transferTargetId, setTransferTargetId]);
-  const targetCurrency = targetWallet?.currency || null;
-
-  const currencyMismatch =
-    !!targetWallet && !!targetCurrency && targetCurrency !== sourceCurrency;
-
-  // Tính tỷ giá và số tiền chuyển đổi
-  const exchangeRate = useMemo(() => {
-    if (!currencyMismatch || !targetCurrency) return 1;
-    return getRate(sourceCurrency, targetCurrency);
-  }, [currencyMismatch, sourceCurrency, targetCurrency]);
 
   // Parse số tiền từ format Việt Nam (dấu chấm mỗi 3 số, dấu phẩy thập phân)
   const transferAmountNum = getMoneyValue(transferAmount || "");
-  const convertedAmount = useMemo(() => {
-    if (!currencyMismatch || !transferAmountNum) return 0;
-    // Không làm tròn để giữ đúng giá như tỷ giá (giữ 6 chữ số thập phân)
-    const converted = transferAmountNum * exchangeRate;
-    return converted;
-  }, [transferAmountNum, exchangeRate, currencyMismatch, targetCurrency]);
 
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
         <h3>Chuyển tiền giữa các ví</h3>
         <span>
-          Chuyển tiền từ ví hiện tại sang ví khác. Nếu khác loại tiền tệ, hệ
-          thống sẽ tự động quy đổi theo tỷ giá.
+          Chuyển tiền từ ví hiện tại sang ví khác (chỉ hỗ trợ VND).
         </span>
       </div>
       <form
@@ -133,7 +93,7 @@ export default function TransferTab({
             Ví nguồn
             <input
               type="text"
-              value={`${wallet.name || "Ví hiện tại"} (${sourceCurrency})`}
+              value={`${wallet.name || "Ví hiện tại"} (VND)`}
               disabled
             />
             <div style={{ 
@@ -143,7 +103,7 @@ export default function TransferTab({
             }}>
               Số dư ví nguồn:{" "}
               <strong style={{ color: "#111827" }}>
-                {formatMoney(sourceBalance, sourceCurrency)}
+                {formatMoney(sourceBalance, "VND")}
               </strong>
             </div>
           </label>
@@ -157,7 +117,7 @@ export default function TransferTab({
               {selectableTargets.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name || "Chưa đặt tên"}{" "}
-                  {w.isShared ? "(Nhóm)" : "(Cá nhân)"} · {w.currency || "VND"}
+                  {w.isShared ? "(Nhóm)" : "(Cá nhân)"} · VND
                 </option>
               ))}
             </select>
@@ -178,7 +138,7 @@ export default function TransferTab({
               }}>
                 Số dư ví đích:{" "}
                 <strong style={{ color: "#111827" }}>
-                  {formatMoney(Number(targetWallet?.balance || 0), targetCurrency || "VND")}
+                  {formatMoney(Number(targetWallet?.balance || 0), "VND")}
                 </strong>
               </div>
             )}
@@ -186,7 +146,7 @@ export default function TransferTab({
         </div>
         <div className="wallet-form__row">
           <label>
-            Số tiền chuyển (theo {sourceCurrency})
+            Số tiền chuyển (VND)
             <input
               type="text"
               value={transferAmount || ""}
@@ -230,30 +190,9 @@ export default function TransferTab({
                 // Khi blur, giữ nguyên format (đã format rồi)
                 // Không cần làm gì thêm
               }}
-              placeholder={`Nhập số tiền (VD: 1.000.000,5 hoặc 20,5) bằng ${sourceCurrency}`}
-              inputMode="decimal"
+              placeholder="Nhập số tiền (VD: 1.000.000 hoặc 20) bằng VND"
+              inputMode="numeric"
             />
-            {currencyMismatch && transferAmountNum > 0 && (
-              <>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#6b7280",
-                  marginTop: "4px"
-                }}>
-                  Tiền chuyển đổi:{" "}
-                  <strong style={{ color: "#059669" }}>
-                    {formatConvertedAmount(convertedAmount, targetCurrency)}
-                  </strong>
-                </div>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#6b7280",
-                  marginTop: "4px"
-                }}>
-                  Tỷ giá: 1 {sourceCurrency} = {exchangeRate.toLocaleString("vi-VN", { maximumFractionDigits: 8 })} {targetCurrency}
-                </div>
-              </>
-            )}
           </label>
         </div>
 
