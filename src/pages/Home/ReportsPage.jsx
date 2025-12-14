@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
 import { useDateFormat } from "../../hooks/useDateFormat";
-import { formatVietnamTime } from "../../utils/dateFormat";
+import { formatVietnamTime, formatVietnamDate } from "../../utils/dateFormat";
+import { formatMoney } from "../../utils/formatMoney";
+import { parseAmountNonNegative } from "../../utils/parseAmount";
 
 import "../../styles/pages/ReportsPage.css";
+import "../../styles/components/funds/FundDetail.css";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useFundData } from "../../contexts/FundDataContext";
 import { useBudgetData } from "../../contexts/BudgetDataContext";
@@ -460,6 +463,7 @@ export default function ReportsPage() {
   const [fundHistoryItems, setFundHistoryItems] = useState([]);
   const [fundHistoryLoading, setFundHistoryLoading] = useState(false);
   const [fundHistoryError, setFundHistoryError] = useState(false);
+  const [chartTooltip, setChartTooltip] = useState({ show: false, x: 0, y: 0, data: null });
 
   const formatDateSafe = useCallback(
     (value) => {
@@ -1158,6 +1162,69 @@ export default function ReportsPage() {
     ? formatDateSafe(selectedFundGoal.endDate)
     : t("reports.funds.detail.no_deadline");
   const selectedFundCurrency = selectedFund?.currency || "VND";
+  
+  // Transaction history for growth chart (for non-term funds)
+  const selectedFundTransactionHistory = useMemo(() => {
+    if (!fundHistoryItems || fundHistoryItems.length === 0) return [];
+    
+    return fundHistoryItems
+      .filter(tx => tx.status === 'SUCCESS' && (
+        tx.type === 'DEPOSIT' || 
+        tx.type === 'AUTO_DEPOSIT' || 
+        tx.type === 'AUTO_DEPOSIT_RECOVERY' ||
+        tx.type === 'WITHDRAW'
+      ))
+      .sort((a, b) => new Date(b.createdAt || b.transactionDate) - new Date(a.createdAt || a.transactionDate))
+      .map(tx => ({
+        date: tx.createdAt || tx.transactionDate,
+        amount: tx.type === 'WITHDRAW' 
+          ? -parseAmountNonNegative(tx.amount, 0)
+          : parseAmountNonNegative(tx.amount, 0),
+        type: tx.type
+      }));
+  }, [fundHistoryItems]);
+
+  // Growth chart data for non-term funds
+  const selectedFundGrowthChartData = useMemo(() => {
+    if (!selectedFund || (selectedFund.hasDeadline || selectedFund.hasTerm)) return null;
+    
+    if (!selectedFundTransactionHistory || selectedFundTransactionHistory.length === 0) {
+      return { points: [], cumulative: 0, max: 0, totalDeposited: 0, totalWithdrawn: 0, totalTransactions: 0, totalWithdrawals: 0 };
+    }
+    
+    const sorted = [...selectedFundTransactionHistory].sort((a, b) => 
+      new Date(a.date) - new Date(b.date)
+    );
+    
+    let cumulative = 0;
+    const points = sorted.map((tx) => {
+      cumulative += tx.amount;
+      return {
+        date: tx.date,
+        amount: tx.amount,
+        cumulative: Math.max(0, cumulative),
+        type: tx.type
+      };
+    });
+    
+    const maxCumulative = Math.max(...points.map(p => p.cumulative), 1);
+    const totalWithdrawn = points
+      .filter(p => p.type === 'WITHDRAW')
+      .reduce((sum, p) => sum + Math.abs(p.amount), 0);
+    const totalDeposited = points
+      .filter(p => p.type !== 'WITHDRAW')
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    return {
+      points: points,
+      cumulative: cumulative,
+      max: maxCumulative,
+      totalTransactions: points.filter(p => p.type !== 'WITHDRAW').length,
+      totalWithdrawals: points.filter(p => p.type === 'WITHDRAW').length,
+      totalWithdrawn: totalWithdrawn,
+      totalDeposited: totalDeposited
+    };
+  }, [selectedFund, selectedFundTransactionHistory]);
 
   const selectedFundHistoryEntries = useMemo(() => {
     if (!fundHistoryItems.length) return [];
@@ -1950,80 +2017,317 @@ export default function ReportsPage() {
                 </div>
                 {selectedFund ? (
                   <>
-                    <div className="fund-detail-goal">
-                      <div className="fund-progress-widget">
-                        <FundProgressDonut progress={selectedFundProgressPct} />
-                        <p className="fund-progress-caption">{t("reports.funds.detail.goal_focus")}</p>
-                      </div>
-                      <div className="fund-goal-stats">
-                        <div className="fund-goal-stat fund-goal-stat--current">
-                          <p>{t("reports.funds.detail.current")}</p>
-                          <strong>{selectedFundCurrentLabel}</strong>
-                        </div>
-                        <div className="fund-goal-stat fund-goal-stat--target">
-                          <p>{t("reports.funds.detail.target")}</p>
-                          <strong>{selectedFundTargetLabel}</strong>
-                        </div>
-                        <div className="fund-goal-stat fund-goal-stat--shortage">
-                          <p>{t("reports.funds.detail.shortage")}</p>
-                          <strong>{selectedFundShortageLabel}</strong>
-                        </div>
-                        {selectedFundDailyNeeded && (
-                          <div className="fund-goal-stat fund-goal-stat--daily">
-                            <p>{t("reports.funds.detail.daily_needed")}</p>
-                            <strong>{selectedFundDailyNeeded}</strong>
+                    {/* Hiển thị biểu đồ tăng trưởng cho quỹ không thời hạn, biểu đồ donut và pace cho quỹ có thời hạn */}
+                    {selectedFundGrowthChartData ? (
+                      /* QUỸ KHÔNG THỜI HẠN: Biểu đồ tăng trưởng */
+                      <div className="fund-growth-modern" style={{ marginBottom: '1.5rem' }}>
+                        <div className="fund-growth-header">
+                          <div>
+                            <p>Tăng trưởng quỹ</p>
+                            <h5>Tổng tích lũy</h5>
                           </div>
-                        )}
-                        {selectedFundPeriodContribution && (
-                          <div className="fund-goal-stat fund-goal-stat--period">
-                            <p>{t("reports.funds.detail.need_per_period")}</p>
-                            <strong>{formatCurrency(selectedFundPeriodContribution)}</strong>
-                            {selectedFundFrequencyLabel && <small>{selectedFundFrequencyLabel}</small>}
+                          <div className="fund-growth-badge">
+                            <i className="bi bi-graph-up-arrow"></i>
+                            <span>{selectedFundGrowthChartData?.totalTransactions || 0} lần nạp{selectedFundGrowthChartData?.totalWithdrawals > 0 ? `, ${selectedFundGrowthChartData.totalWithdrawals} lần rút` : ''}</span>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="fund-pace-card">
-                      <div className="fund-pace-header">
-                        <div>
-                          <p className="text-muted mb-1">{t("reports.funds.detail.pace_label")}</p>
-                          <h5 className={`fund-pace-status fund-pace-status--${paceStatus}`}>
-                            {fundPaceLabel}
-                          </h5>
                         </div>
-                        <span className="fund-pace-days">{selectedFundRemainingLabel}</span>
-                      </div>
-                      {hasSelectedFundTarget ? (
-                        <>
-                          <div className="fund-pace-track">
-                            <span
-                              className="fund-pace-marker fund-pace-marker--actual"
-                              style={{ width: `${Math.min(selectedFundProgressPct, 100)}%` }}
-                            />
-                            {selectedFundExpectedPct != null && (
-                              <span
-                                className="fund-pace-marker fund-pace-marker--expected"
-                                style={{ width: `${Math.min(selectedFundExpectedPct, 100)}%` }}
+                        
+                        <div className="fund-growth-chart" style={{ position: 'relative' }}>
+                          {selectedFundGrowthChartData && selectedFundGrowthChartData.points.length > 0 ? (
+                            <>
+                            <svg width="100%" height="240" viewBox="0 0 400 240" className="fund-growth-svg" style={{ overflow: 'visible' }}>
+                              <defs>
+                                <linearGradient id={`growthGradient-report-${selectedFund?.fundId || selectedFund?.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                  <stop offset="0%" stopColor="#0d6efd" stopOpacity="0.3" />
+                                  <stop offset="100%" stopColor="#0d6efd" stopOpacity="0.05" />
+                                </linearGradient>
+                              </defs>
+                              
+                              {/* Y-axis labels */}
+                              {[0, 25, 50, 75, 100].map((pct) => {
+                                const value = (pct / 100) * selectedFundGrowthChartData.max;
+                                const y = 200 - (pct / 100) * 180;
+                                return (
+                                  <g key={`y-label-${pct}`}>
+                                    <line
+                                      x1="0"
+                                      y1={y}
+                                      x2="400"
+                                      y2={y}
+                                      stroke="rgba(0, 0, 0, 0.08)"
+                                      strokeWidth="1"
+                                      strokeDasharray="2,2"
+                                    />
+                                    <text
+                                      x="-5"
+                                      y={y + 4}
+                                      textAnchor="end"
+                                      fontSize="10"
+                                      fill="#64748b"
+                                      fontWeight="500"
+                                    >
+                                      {formatMoney(value, selectedFundCurrency, 0)}
+                                    </text>
+                                  </g>
+                                );
+                              })}
+                              
+                              {/* X-axis labels */}
+                              {selectedFundGrowthChartData.points.map((p, idx) => {
+                                if (selectedFundGrowthChartData.points.length > 10 && idx % Math.ceil(selectedFundGrowthChartData.points.length / 5) !== 0 && idx !== selectedFundGrowthChartData.points.length - 1) {
+                                  return null;
+                                }
+                                const x = (idx / Math.max(selectedFundGrowthChartData.points.length - 1, 1)) * 400;
+                                const date = p.date ? formatVietnamDate(p.date) : '';
+                                return (
+                                  <text
+                                    key={`x-label-${idx}`}
+                                    x={x}
+                                    y="235"
+                                    textAnchor="middle"
+                                    fontSize="9"
+                                    fill="#64748b"
+                                    fontWeight="500"
+                                  >
+                                    {date}
+                                  </text>
+                                );
+                              })}
+                              
+                              {/* Area chart */}
+                              <path
+                                d={`M 0,200 ${selectedFundGrowthChartData.points.map((p, idx) => {
+                                  const x = (idx / Math.max(selectedFundGrowthChartData.points.length - 1, 1)) * 400;
+                                  const y = 200 - (p.cumulative / selectedFundGrowthChartData.max) * 180;
+                                  return `L ${x},${y}`;
+                                }).join(' ')} L 400,200 Z`}
+                                fill={`url(#growthGradient-report-${selectedFund?.fundId || selectedFund?.id})`}
                               />
+                              
+                              {/* Line chart */}
+                              <polyline
+                                points={selectedFundGrowthChartData.points.map((p, idx) => {
+                                  const x = (idx / Math.max(selectedFundGrowthChartData.points.length - 1, 1)) * 400;
+                                  const y = 200 - (p.cumulative / selectedFundGrowthChartData.max) * 180;
+                                  return `${x},${y}`;
+                                }).join(' ')}
+                                fill="none"
+                                stroke="#0d6efd"
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                style={{ cursor: 'pointer' }}
+                              />
+                              
+                              {/* Interactive data points với tooltip */}
+                              {selectedFundGrowthChartData.points.map((p, idx) => {
+                                const x = (idx / Math.max(selectedFundGrowthChartData.points.length - 1, 1)) * 400;
+                                const y = 200 - (p.cumulative / selectedFundGrowthChartData.max) * 180;
+                                const isWithdraw = p.type === 'WITHDRAW';
+                                const date = p.date ? formatVietnamDate(p.date) : '';
+                                const time = p.date ? formatVietnamTime(p.date) : '';
+                                
+                                return (
+                                  <g key={idx}>
+                                    <circle
+                                      cx={x}
+                                      cy={y}
+                                      r="12"
+                                      fill="transparent"
+                                      style={{ cursor: 'pointer' }}
+                                      onMouseEnter={(e) => {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const chartRect = e.currentTarget.closest('.fund-growth-chart')?.getBoundingClientRect();
+                                        if (chartRect) {
+                                          setChartTooltip({
+                                            show: true,
+                                            x: e.clientX - chartRect.left,
+                                            y: e.clientY - chartRect.top,
+                                            data: {
+                                              date: date,
+                                              time: time,
+                                              amount: p.amount,
+                                              cumulative: p.cumulative,
+                                              type: isWithdraw ? 'Rút tiền' : 'Nạp tiền',
+                                              isWithdraw: isWithdraw
+                                            }
+                                          });
+                                        }
+                                      }}
+                                      onMouseMove={(e) => {
+                                        const chartRect = e.currentTarget.closest('.fund-growth-chart')?.getBoundingClientRect();
+                                        if (chartRect) {
+                                          setChartTooltip(prev => ({
+                                            ...prev,
+                                            x: e.clientX - chartRect.left,
+                                            y: e.clientY - chartRect.top
+                                          }));
+                                        }
+                                      }}
+                                      onMouseLeave={() => {
+                                        setChartTooltip({ show: false, x: 0, y: 0, data: null });
+                                      }}
+                                    />
+                                    <circle
+                                      cx={x}
+                                      cy={y}
+                                      r="5"
+                                      fill={isWithdraw ? "#ef4444" : "#0d6efd"}
+                                      stroke="#ffffff"
+                                      strokeWidth="2"
+                                      style={{ pointerEvents: 'none' }}
+                                    />
+                                  </g>
+                                );
+                              })}
+                            </svg>
+                            
+                            {/* Tooltip */}
+                            {chartTooltip.show && chartTooltip.data && (
+                              <div 
+                                className="fund-growth-tooltip"
+                                style={{
+                                  position: 'absolute',
+                                  left: `${chartTooltip.x + 15}px`,
+                                  top: `${chartTooltip.y - 15}px`,
+                                  transform: 'translateY(-100%)',
+                                  pointerEvents: 'none',
+                                  zIndex: 1000
+                                }}
+                              >
+                                <div className="fund-growth-tooltip__content">
+                                  <div className="fund-growth-tooltip__header">
+                                    <span className={`fund-growth-tooltip__type ${chartTooltip.data.isWithdraw ? 'fund-growth-tooltip__type--withdraw' : 'fund-growth-tooltip__type--deposit'}`}>
+                                      {chartTooltip.data.type}
+                                    </span>
+                                  </div>
+                                  <div className="fund-growth-tooltip__date">
+                                    <i className="bi bi-calendar3 me-1"></i>
+                                    {chartTooltip.data.date} {chartTooltip.data.time && `• ${chartTooltip.data.time}`}
+                                  </div>
+                                  <div className="fund-growth-tooltip__amount">
+                                    <span className="fund-growth-tooltip__label">Số tiền:</span>
+                                    <span className={`fund-growth-tooltip__value ${chartTooltip.data.isWithdraw ? 'fund-growth-tooltip__value--withdraw' : 'fund-growth-tooltip__value--deposit'}`}>
+                                      {chartTooltip.data.isWithdraw ? '-' : '+'}{formatMoney(Math.abs(chartTooltip.data.amount), selectedFundCurrency)}
+                                    </span>
+                                  </div>
+                                  <div className="fund-growth-tooltip__cumulative">
+                                    <span className="fund-growth-tooltip__label">Tích lũy:</span>
+                                    <span className="fund-growth-tooltip__value">
+                                      {formatMoney(chartTooltip.data.cumulative, selectedFundCurrency)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            </>
+                          ) : (
+                            <div className="fund-growth-empty">
+                              <i className="bi bi-graph-up"></i>
+                              <p>Chưa có dữ liệu nạp tiền</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="fund-growth-stats">
+                          <div className="fund-growth-stat">
+                            <p>TỔNG TÍCH LŨY</p>
+                            <strong>{formatMoney(selectedFundGrowthChartData?.totalDeposited || 0, selectedFundCurrency)}</strong>
+                            <span>{selectedFundGrowthChartData?.totalTransactions || 0} lần nạp</span>
+                          </div>
+                          <div className="fund-growth-stat">
+                            <p>TỔNG ĐÃ RÚT</p>
+                            <strong style={{ color: selectedFundGrowthChartData?.totalWithdrawn > 0 ? '#ef4444' : '#111827' }}>
+                              {formatMoney(selectedFundGrowthChartData?.totalWithdrawn || 0, selectedFundCurrency)}
+                            </strong>
+                            <span>{selectedFundGrowthChartData?.totalWithdrawals || 0} lần rút</span>
+                          </div>
+                          <div className="fund-growth-stat">
+                            <p>SỐ DƯ HIỆN TẠI</p>
+                            <strong>{formatMoney(Number(selectedFund?.currentAmount ?? selectedFund?.current ?? 0), selectedFundCurrency)}</strong>
+                            <span>Quỹ không thời hạn</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* QUỸ CÓ THỜI HẠN: Biểu đồ donut và pace */
+                      <>
+                        <div className="fund-detail-goal">
+                          <div className="fund-progress-widget">
+                            <FundProgressDonut progress={selectedFundProgressPct} />
+                            <p className="fund-progress-caption">{t("reports.funds.detail.goal_focus")}</p>
+                          </div>
+                          <div className="fund-goal-stats">
+                            <div className="fund-goal-stat fund-goal-stat--current">
+                              <p>{t("reports.funds.detail.current")}</p>
+                              <strong>{selectedFundCurrentLabel}</strong>
+                            </div>
+                            <div className="fund-goal-stat fund-goal-stat--target">
+                              <p>{t("reports.funds.detail.target")}</p>
+                              <strong>{selectedFundTargetLabel}</strong>
+                            </div>
+                            <div className="fund-goal-stat fund-goal-stat--shortage">
+                              <p>{t("reports.funds.detail.shortage")}</p>
+                              <strong>{selectedFundShortageLabel}</strong>
+                            </div>
+                            {selectedFundDailyNeeded && (
+                              <div className="fund-goal-stat fund-goal-stat--daily">
+                                <p>{t("reports.funds.detail.daily_needed")}</p>
+                                <strong>{selectedFundDailyNeeded}</strong>
+                              </div>
+                            )}
+                            {selectedFundPeriodContribution && (
+                              <div className="fund-goal-stat fund-goal-stat--period">
+                                <p>{t("reports.funds.detail.need_per_period")}</p>
+                                <strong>{formatCurrency(selectedFundPeriodContribution)}</strong>
+                                {selectedFundFrequencyLabel && <small>{selectedFundFrequencyLabel}</small>}
+                              </div>
                             )}
                           </div>
-                          <div className="fund-pace-legend">
-                            <span>
-                              <span className="legend-dot legend-dot--actual" />
-                              {t("reports.funds.detail.actual_progress")}
-                            </span>
-                            {selectedFundExpectedPct != null && (
-                              <span>
-                                <span className="legend-dot legend-dot--expected" />
-                                {t("reports.funds.detail.expected_progress")}
-                              </span>
-                            )}
+                        </div>
+                        <div className="fund-pace-card">
+                          <div className="fund-pace-header">
+                            <div>
+                              <p className="text-muted mb-1">{t("reports.funds.detail.pace_label")}</p>
+                              <h5 className={`fund-pace-status fund-pace-status--${paceStatus}`}>
+                                {fundPaceLabel}
+                              </h5>
+                            </div>
+                            <span className="fund-pace-days">{selectedFundRemainingLabel}</span>
                           </div>
-                        </>
-                      ) : (
-                        <p className="text-muted small mb-0">{t("reports.funds.detail.no_target")}</p>
-                      )}
-                    </div>
+                          {hasSelectedFundTarget ? (
+                            <>
+                              <div className="fund-pace-track">
+                                <span
+                                  className="fund-pace-marker fund-pace-marker--actual"
+                                  style={{ width: `${Math.min(selectedFundProgressPct, 100)}%` }}
+                                />
+                                {selectedFundExpectedPct != null && (
+                                  <span
+                                    className="fund-pace-marker fund-pace-marker--expected"
+                                    style={{ width: `${Math.min(selectedFundExpectedPct, 100)}%` }}
+                                  />
+                                )}
+                              </div>
+                              <div className="fund-pace-legend">
+                                <span>
+                                  <span className="legend-dot legend-dot--actual" />
+                                  {t("reports.funds.detail.actual_progress")}
+                                </span>
+                                {selectedFundExpectedPct != null && (
+                                  <span>
+                                    <span className="legend-dot legend-dot--expected" />
+                                    {t("reports.funds.detail.expected_progress")}
+                                  </span>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-muted small mb-0">{t("reports.funds.detail.no_target")}</p>
+                          )}
+                        </div>
+                      </>
+                    )}
                     <div className="fund-detail-meta-grid">
                       <div>
                         <p>{t("reports.funds.detail.start_date")}</p>

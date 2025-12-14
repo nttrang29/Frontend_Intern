@@ -13,10 +13,12 @@ import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
+import { useFundData } from "../../contexts/FundDataContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
+import { getFundTransactions } from "../../services/fund.service";
 import { API_BASE_URL } from "../../services/api-client";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
 
@@ -25,6 +27,7 @@ import { formatVietnamDateTime } from "../../utils/dateFormat";
 const TABS = {
   EXTERNAL: "external",
   INTERNAL: "internal",
+  FUND: "fund",
 };
 
 const EXPENSE_TOKENS = [
@@ -447,6 +450,7 @@ export default function TransactionsPage() {
   const { t } = useLanguage();
   const [externalTransactions, setExternalTransactions] = useState([]);
   const [internalTransactions, setInternalTransactions] = useState([]);
+  const [fundTransactions, setFundTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(TABS.EXTERNAL);
 
@@ -469,6 +473,7 @@ export default function TransactionsPage() {
   const { budgets, getSpentAmount, getSpentForBudget, updateTransactionsByCategory, updateAllExternalTransactions } = useBudgetData();
   const { expenseCategories, incomeCategories } = useCategoryData();
   const { wallets, loadWallets } = useWalletData();
+  const { funds } = useFundData();
   const { currentUser } = useAuth();
   const location = useLocation();
   const [appliedFocusParam, setAppliedFocusParam] = useState("");
@@ -763,6 +768,123 @@ export default function TransactionsPage() {
     };
   }, [walletsMap]);
 
+  // Map fund transaction to frontend format
+  const mapFundTransactionToFrontend = useCallback((tx, fund) => {
+    if (!tx || !fund) return null;
+    
+    const txType = tx.type || "";
+    let category = "";
+    let type = "expense";
+    
+    // Xác định loại giao dịch và category
+    // Nạp tiền vào quỹ = Chi tiêu (tiền ra khỏi ví nguồn)
+    // Rút tiền từ quỹ = Thu nhập (tiền về ví nguồn)
+    if (txType === "DEPOSIT" || txType === "AUTO_DEPOSIT" || txType === "AUTO_DEPOSIT_RECOVERY") {
+      type = "expense"; // Nạp tiền vào quỹ = Chi tiêu
+      if (txType === "AUTO_DEPOSIT") {
+        category = "Nạp tiền tự động";
+      } else if (txType === "AUTO_DEPOSIT_RECOVERY") {
+        category = "Nạp bù tự động";
+      } else {
+        category = "Nạp tiền vào quỹ";
+      }
+    } else if (txType === "WITHDRAW") {
+      type = "income"; // Rút tiền từ quỹ = Thu nhập
+      category = "Rút tiền từ quỹ";
+    } else if (txType === "SETTLE") {
+      type = "income"; // Tất toán quỹ = Thu nhập (tiền về ví nguồn)
+      category = "Tất toán quỹ";
+    } else {
+      category = "Giao dịch quỹ";
+    }
+    
+    // Lấy tên quỹ từ nhiều nguồn có thể - ưu tiên fundName, sau đó name
+    const fundName = (fund && (fund.fundName || fund.name)) || "Unknown";
+    
+    // Debug log để kiểm tra
+    if (!fundName || fundName === "Unknown") {
+      console.warn("mapFundTransactionToFrontend: fundName is missing", {
+        fund,
+        fundName,
+        txId: tx.id || tx.transactionId
+      });
+    }
+    
+    const sourceWalletName = fund.sourceWalletName || fund.sourceWallet?.name || "Ví nguồn";
+    const targetWalletName = fund.targetWalletName || fund.targetWallet?.name || "Ví quỹ";
+    
+    // Ưu tiên createdAt/created_at cho cột thời gian
+    const rawDateValue =
+      tx.createdAt ||
+      tx.created_at ||
+      tx.transactionDate ||
+      tx.transaction_date ||
+      tx.date ||
+      new Date().toISOString();
+
+    const dateValue = ensureIsoDateWithTimezone(rawDateValue);
+    
+    const amount = parseFloat(tx.amount || 0);
+    const currency = fund.currencyCode || fund.currency || "VND";
+    
+    // Xác định walletName dựa trên loại giao dịch:
+    // - Nạp tiền vào quỹ (expense): tiền từ ví nguồn -> sourceWalletName
+    // - Rút tiền từ quỹ (income): tiền về ví nguồn -> sourceWalletName
+    // - Tất toán quỹ (income): tiền về ví nguồn -> sourceWalletName
+    let walletName = sourceWalletName; // Mặc định là ví nguồn
+    if (txType === "DEPOSIT" || txType === "AUTO_DEPOSIT" || txType === "AUTO_DEPOSIT_RECOVERY") {
+      walletName = sourceWalletName; // Nạp tiền: từ ví nguồn
+    } else if (txType === "WITHDRAW" || txType === "SETTLE") {
+      walletName = sourceWalletName; // Rút/Tất toán: về ví nguồn
+    }
+    
+    return {
+      id: tx.transactionId || tx.id,
+      code: `FT-${String(tx.transactionId || tx.id).padStart(4, "0")}`,
+      type,
+      walletName,
+      fundName,
+      amount,
+      currency,
+      date: dateValue,
+      category,
+      note: tx.message || tx.note || "",
+      creatorCode: `USR${String(tx.performedBy?.userId || fund.ownerId || 0).padStart(3, "0")}`,
+      attachment: "",
+      // Giao dịch quỹ không thể sửa/xóa
+      isFundTransaction: true,
+      // Thông tin bổ sung
+      transactionType: txType,
+      sourceWallet: sourceWalletName,
+      targetWallet: targetWalletName,
+    };
+  }, []);
+
+  // Helper function to check if a transfer is related to a fund
+  const isTransferRelatedToFund = useCallback((transfer) => {
+    if (!transfer || !funds || funds.length === 0) return false;
+    
+    const fromWalletId = transfer.fromWallet?.walletId || transfer.fromWallet?.id || transfer.sourceWalletId || null;
+    const toWalletId = transfer.toWallet?.walletId || transfer.toWallet?.id || transfer.targetWalletId || null;
+    
+    if (!fromWalletId && !toWalletId) return false;
+    
+    // Check if either wallet is a source wallet or target wallet of any fund
+    return funds.some(fund => {
+      const fundSourceWalletId = fund.sourceWalletId || fund.sourceWallet?.walletId || fund.sourceWallet?.id || null;
+      const fundTargetWalletId = fund.targetWalletId || fund.targetWallet?.walletId || fund.targetWallet?.id || fund.walletId || null;
+      
+      const fromWalletIdStr = fromWalletId ? String(fromWalletId) : null;
+      const toWalletIdStr = toWalletId ? String(toWalletId) : null;
+      const fundSourceWalletIdStr = fundSourceWalletId ? String(fundSourceWalletId) : null;
+      const fundTargetWalletIdStr = fundTargetWalletId ? String(fundTargetWalletId) : null;
+      
+      // Transfer is related to fund if fromWallet or toWallet matches sourceWallet or targetWallet
+      return (fromWalletIdStr && (fromWalletIdStr === fundSourceWalletIdStr || fromWalletIdStr === fundTargetWalletIdStr)) ||
+             (toWalletIdStr && (toWalletIdStr === fundSourceWalletIdStr || toWalletIdStr === fundTargetWalletIdStr));
+    });
+  }, [funds]);
+
   const refreshTransactionsData = useCallback(async () => {
     // Lấy walletIds từ walletsIds string
     const walletIds = walletsIds ? walletsIds.split(',').filter(Boolean) : [];
@@ -806,9 +928,13 @@ export default function TransactionsPage() {
         });
       });
 
+      // Lọc bỏ các giao dịch liên quan đến quỹ
+      const allTransfers = Array.from(transferMap.values());
+      const filteredTransfers = allTransfers.filter(transfer => !isTransferRelatedToFund(transfer));
+      
       return {
         external: scopedTransactions.flat(),
-        internal: Array.from(transferMap.values()),
+        internal: filteredTransfers,
       };
     };
 
@@ -829,8 +955,10 @@ export default function TransactionsPage() {
       const scoped = await fetchLegacyHistory();
       const filteredScopedExternal = scoped.external.filter(matchesCurrentUser);
       const filteredScopedInternal = scoped.internal.filter(matchesCurrentUser);
+      // Lọc bỏ các giao dịch liên quan đến quỹ
+      const filteredInternalWithoutFunds = filteredScopedInternal.filter(transfer => !isTransferRelatedToFund(transfer));
       const mappedExternal = filteredScopedExternal.map(mapTransactionToFrontend);
-      const mappedInternal = filteredScopedInternal.map(mapTransferToFrontend);
+      const mappedInternal = filteredInternalWithoutFunds.map(mapTransferToFrontend);
       
       // Chỉ update state nếu dữ liệu thực sự thay đổi
       setExternalTransactions((prev) => {
@@ -873,8 +1001,10 @@ export default function TransactionsPage() {
       const legacy = await fetchLegacyHistory();
       const filteredLegacyExternal = legacy.external.filter(matchesCurrentUser);
       const filteredLegacyInternal = legacy.internal.filter(matchesCurrentUser);
+      // Lọc bỏ các giao dịch liên quan đến quỹ
+      const filteredInternalWithoutFunds = filteredLegacyInternal.filter(transfer => !isTransferRelatedToFund(transfer));
       const mappedExternal = filteredLegacyExternal.map(mapTransactionToFrontend);
-      const mappedInternal = filteredLegacyInternal.map(mapTransferToFrontend);
+      const mappedInternal = filteredInternalWithoutFunds.map(mapTransferToFrontend);
       
       // Chỉ update state nếu dữ liệu thực sự thay đổi
       setExternalTransactions((prev) => {
@@ -912,7 +1042,79 @@ export default function TransactionsPage() {
         return mappedInternal;
       });
     }
-  }, [walletsIds, mapTransactionToFrontend, mapTransferToFrontend, matchesCurrentUser]);
+    
+    // Lấy giao dịch quỹ
+    try {
+      if (funds && funds.length > 0) {
+        const allFundTransactions = [];
+        for (const fund of funds) {
+          const fundId = fund.fundId || fund.id;
+          if (!fundId) {
+            console.warn("TransactionsPage: fund missing fundId", fund);
+            continue;
+          }
+          
+          // Đảm bảo fund có fundName
+          const fundName = fund.fundName || fund.name;
+          if (!fundName) {
+            console.warn("TransactionsPage: fund missing fundName", { fundId, fund });
+          }
+          
+          try {
+            const result = await getFundTransactions(fundId, 200);
+            if (result?.response?.ok && result?.data) {
+              const list = Array.isArray(result.data)
+                ? result.data
+                : result.data.transactions || [];
+              
+              const mapped = list
+                .map(tx => {
+                  const mappedTx = mapFundTransactionToFrontend(tx, fund);
+                  // Đảm bảo fundName được set
+                  if (mappedTx && !mappedTx.fundName) {
+                    mappedTx.fundName = fundName || "Unknown";
+                  }
+                  return mappedTx;
+                })
+                .filter(Boolean);
+              
+              allFundTransactions.push(...mapped);
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch transactions for fund ${fundId}:`, err);
+          }
+        }
+        
+        // Sắp xếp theo ngày giảm dần
+        allFundTransactions.sort((a, b) => {
+          const da = toDateObj(a.date)?.getTime() || 0;
+          const db = toDateObj(b.date)?.getTime() || 0;
+          return db - da;
+        });
+        
+        setFundTransactions((prev) => {
+          const prevIds = new Set(prev.map(t => t.id || t.code));
+          const newIds = new Set(allFundTransactions.map(t => t.id || t.code));
+          if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
+            const hasChanged = allFundTransactions.some(tx => {
+              const prevTx = prev.find(p => (p.id || p.code) === (tx.id || tx.code));
+              if (!prevTx) return true;
+              return prevTx.amount !== tx.amount || prevTx.date !== tx.date;
+            });
+            if (!hasChanged) {
+              return prev;
+            }
+          }
+          return allFundTransactions;
+        });
+      } else {
+        setFundTransactions([]);
+      }
+    } catch (fundError) {
+      console.warn("TransactionsPage: fund transactions fetch failed", fundError);
+      setFundTransactions([]);
+    }
+  }, [walletsIds, mapTransactionToFrontend, mapTransferToFrontend, matchesCurrentUser, funds, mapFundTransactionToFrontend, isTransferRelatedToFund]);
 
   // Ref để track lần cuối cùng refresh
   const lastRefreshRef = useRef({ walletsIds: '', timestamp: 0 });
@@ -979,6 +1181,13 @@ export default function TransactionsPage() {
     };
   }, [runInitialLoad]);
 
+  // Refresh fund transactions khi funds thay đổi
+  useEffect(() => {
+    if (funds && funds.length > 0) {
+      refreshTransactionsData();
+    }
+  }, [funds, refreshTransactionsData]);
+
   // Apply wallet filter when navigated with ?focus=<walletId|walletName>
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -1028,6 +1237,10 @@ export default function TransactionsPage() {
     const value = e.target.value;
     setActiveTab(value);
     setSearchText("");
+    // Reset expandedPanel khi chuyển sang tab FUND
+    if (value === TABS.FUND) {
+      setExpandedPanel(null);
+    }
   };
 
   const evaluateBudgetWarning = useCallback((payload, walletEntity) => {
@@ -1516,11 +1729,16 @@ export default function TransactionsPage() {
   }, [externalTransactions, updateTransactionsByCategory, updateAllExternalTransactions]);
 
   const currentTransactions = useMemo(
-    () =>
-      activeTab === TABS.EXTERNAL
-        ? externalTransactions
-        : internalTransactions,
-    [activeTab, externalTransactions, internalTransactions]
+    () => {
+      if (activeTab === TABS.EXTERNAL) {
+        return externalTransactions;
+      } else if (activeTab === TABS.FUND) {
+        return fundTransactions;
+      } else {
+        return internalTransactions;
+      }
+    },
+    [activeTab, externalTransactions, internalTransactions, fundTransactions]
   );
 
   const allCategories = useMemo(() => {
@@ -1534,6 +1752,15 @@ export default function TransactionsPage() {
         externalTransactions.map((t) => t.walletName).filter(Boolean)
       );
       return Array.from(s);
+    } else if (activeTab === TABS.FUND) {
+      const s = new Set();
+      fundTransactions.forEach((t) => {
+        if (t.fundName) s.add(t.fundName);
+        if (t.walletName) s.add(t.walletName);
+        if (t.sourceWallet) s.add(t.sourceWallet);
+        if (t.targetWallet) s.add(t.targetWallet);
+      });
+      return Array.from(s);
     }
     const s = new Set();
     internalTransactions.forEach((t) => {
@@ -1541,7 +1768,7 @@ export default function TransactionsPage() {
       if (t.targetWallet) s.add(t.targetWallet);
     });
     return Array.from(s);
-  }, [activeTab, externalTransactions, internalTransactions]);
+  }, [activeTab, externalTransactions, internalTransactions, fundTransactions]);
 
 
   const filteredSorted = useMemo(() => {
@@ -1583,27 +1810,43 @@ export default function TransactionsPage() {
 
       if (searchText) {
         const keyword = searchText.toLowerCase();
-        const joined =
-          activeTab === TABS.EXTERNAL
-            ? [
-                t.code,
-                t.walletName,
-                t.category,
-                t.note,
-                t.amount?.toString(),
-              ]
-                .join(" ")
-                .toLowerCase()
-            : [
-                t.code,
-                t.sourceWallet,
-                t.targetWallet,
-                t.category,
-                t.note,
-                t.amount?.toString(),
-              ]
-                .join(" ")
-                .toLowerCase();
+        let joined = "";
+        if (activeTab === TABS.EXTERNAL) {
+          joined = [
+            t.code,
+            t.walletName,
+            t.category,
+            t.note,
+            t.amount?.toString(),
+          ]
+            .join(" ")
+            .toLowerCase();
+        } else if (activeTab === TABS.FUND) {
+          joined = [
+            t.code,
+            t.fundName,
+            t.walletName,
+            t.sourceWallet,
+            t.targetWallet,
+            t.category,
+            t.note,
+            t.amount?.toString(),
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+        } else {
+          joined = [
+            t.code,
+            t.sourceWallet,
+            t.targetWallet,
+            t.category,
+            t.note,
+            t.amount?.toString(),
+          ]
+            .join(" ")
+            .toLowerCase();
+        }
         if (!joined.includes(keyword)) return false;
       }
 
@@ -1712,6 +1955,13 @@ export default function TransactionsPage() {
             >
               {t("transactions.tab.internal")}
             </button>
+            <button
+              type="button"
+              className={`funds-tab ${activeTab === TABS.FUND ? "funds-tab--active" : ""}`}
+              onClick={() => handleTabChange({ target: { value: TABS.FUND } })}
+            >
+              Giao dịch quỹ
+            </button>
           </div>
         </div>
 
@@ -1720,9 +1970,9 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className={`transactions-layout ${expandedPanel ? "transactions-layout--expanded" : "transactions-layout--with-history"}`}>
-          {/* LEFT: Create Transaction Form */}
-          {(!expandedPanel || expandedPanel === "form") && (
+      <div className={`transactions-layout ${activeTab === TABS.FUND ? "transactions-layout--fund-only" : expandedPanel ? "transactions-layout--expanded" : "transactions-layout--with-history"}`}>
+          {/* LEFT: Create Transaction Form - Ẩn khi ở tab FUND */}
+          {activeTab !== TABS.FUND && (!expandedPanel || expandedPanel === "form") && (
             <div className={`transactions-form-panel ${expandedPanel === "form" ? "expanded" : ""}`}>
               <TransactionForm
                 mode="create"
@@ -1739,8 +1989,8 @@ export default function TransactionsPage() {
           )}
 
           {/* RIGHT: Transaction History */}
-          {(!expandedPanel || expandedPanel === "history") && (
-            <div className={`transactions-history-panel ${expandedPanel === "history" ? "expanded" : ""}`}>
+          {(!expandedPanel || expandedPanel === "history" || activeTab === TABS.FUND) && (
+            <div className={`transactions-history-panel ${activeTab === TABS.FUND ? "expanded" : expandedPanel === "history" ? "expanded" : ""}`}>
               <TransactionList
                 transactions={filteredSorted}
                 activeTab={activeTab}
@@ -1750,8 +2000,8 @@ export default function TransactionsPage() {
                 paginationRange={paginationRange}
                 onPageChange={handlePageChange}
                 onView={setViewing}
-                onEdit={handleTransactionEditRequest}
-                onDelete={handleTransactionDeleteRequest}
+                onEdit={activeTab === TABS.FUND ? undefined : handleTransactionEditRequest}
+                onDelete={activeTab === TABS.FUND ? undefined : handleTransactionDeleteRequest}
                 filterType={filterType}
                 onFilterTypeChange={(value) => {
                   setFilterType(value);
@@ -1772,8 +2022,8 @@ export default function TransactionsPage() {
                   setToDateTime(value);
                   setCurrentPage(1);
                 }}
-                expanded={expandedPanel === "history"}
-                onToggleExpand={() => setExpandedPanel(expandedPanel === "history" ? null : "history")}
+                expanded={activeTab === TABS.FUND ? true : expandedPanel === "history"}
+                onToggleExpand={activeTab === TABS.FUND ? undefined : () => setExpandedPanel(expandedPanel === "history" ? null : "history")}
               />
             </div>
           )}

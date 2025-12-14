@@ -72,7 +72,7 @@ export default function TransactionList({
       {/* Tiêu đề */}
       <div className="card-header transaction-history-header">
         <h5 className="mb-0">{t("transactions.history.title")}</h5>
-        {onToggleExpand && (
+        {onToggleExpand && activeTab !== "fund" && (
           <button
             type="button"
             className="btn-expand-header"
@@ -184,23 +184,32 @@ export default function TransactionList({
         </div>
       </div>
       <div className="table-responsive">
-        {activeTab === "external" ? (
+        {activeTab === "external" || activeTab === "fund" ? (
           <table className="table table-hover align-middle mb-0 tx-table-external">
             <thead>
               <tr>
                 <th style={{ width: 60 }}>{t("transactions.table.no")}</th>
-                <th>{t("transactions.table.wallet") || "Ví"}</th>
+                {activeTab === "fund" ? (
+                  <>
+                    <th>Quỹ</th>
+                    <th>Ví</th>
+                  </>
+                ) : (
+                  <th>{t("transactions.table.wallet") || "Ví"}</th>
+                )}
                 <th style={{ width: 100 }}>{t("transactions.table.time")}</th>
                 <th>{t("transactions.table.type")}</th>
                 <th className="tx-note-col">{t("transactions.table.category") || "Danh mục"}</th>
                 <th className="text-end" style={{ width: 230 }}>{t("transactions.table.amount")}</th>
-                <th className="text-center" style={{ width: 100 }}>{t("transactions.table.action")}</th>
+                {activeTab !== "fund" && (
+                  <th className="text-center" style={{ width: 100 }}>{t("transactions.table.action")}</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center text-muted py-4">
+                  <td colSpan={activeTab === "fund" ? 7 : 7} className="text-center text-muted py-4">
                     {t("transactions.table.empty")}
                   </td>
                 </tr>
@@ -217,7 +226,14 @@ export default function TransactionList({
                       style={{ cursor: "pointer" }}
                     >
                       <td className="text-muted">{serial}</td>
-                      <td className="fw-medium">{tx.walletName || "-"}</td>
+                      {activeTab === "fund" ? (
+                        <>
+                          <td className="fw-medium">{tx.fundName || "-"}</td>
+                          <td className="fw-medium">{tx.walletName || tx.sourceWallet || tx.targetWallet || "-"}</td>
+                        </>
+                      ) : (
+                        <td className="fw-medium">{tx.walletName || "-"}</td>
+                      )}
                       <td className="fw-medium">{dateTimeStr}</td>
                       <td>
                         <span 
@@ -243,21 +259,23 @@ export default function TransactionList({
                             fontSize: "0.95rem"
                           }}
                         >
-                          {tx.type === "expense" ? "-" : "+"}{formatAmountOnly(tx.amount, tx.currency)}
+                          {tx.type === "expense" ? "-" : "+"}{formatAmountOnly(tx.amount)}
                         </span>
                       </td>
-                      <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                        {!tx.isWalletDeleted && (
-                          <div className="tx-action-buttons">
-                            <button className="btn btn-link btn-sm text-muted" title={t("transactions.action.edit")} onClick={() => onEdit(tx)}>
-                              <i className="bi bi-pencil-square" />
-                            </button>
-                            <button className="btn btn-link btn-sm text-danger" title={t("transactions.action.delete")} onClick={() => onDelete(tx)}>
-                              <i className="bi bi-trash" />
-                            </button>
-                          </div>
-                        )}
-                      </td>
+                      {activeTab !== "fund" && (
+                        <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                          {!tx.isWalletDeleted && !tx.isFundTransaction && (
+                            <div className="tx-action-buttons">
+                              <button className="btn btn-link btn-sm text-muted" title={t("transactions.action.edit")} onClick={() => onEdit?.(tx)}>
+                                <i className="bi bi-pencil-square" />
+                              </button>
+                              <button className="btn btn-link btn-sm text-danger" title={t("transactions.action.delete")} onClick={() => onDelete?.(tx)}>
+                                <i className="bi bi-trash" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })
