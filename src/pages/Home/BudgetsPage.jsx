@@ -24,6 +24,7 @@ export default function BudgetsPage() {
   } = useBudgetData();
   const { expenseCategories } = useCategoryData();
   const { wallets } = useWalletData();
+  const { t } = useLanguage();
   const [modalMode, setModalMode] = useState("create");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalInitial, setModalInitial] = useState(null);
@@ -111,8 +112,8 @@ export default function BudgetsPage() {
       startDate: budget.startDate,
       endDate: budget.endDate,
       // If walletId is null and walletName is missing or equals the special label, treat as ALL
-      walletId: budget.walletId != null ? budget.walletId : (budget.walletName === "Tất cả ví" ? "ALL" : (budget.walletName || null)),
-      walletName: budget.walletName != null ? budget.walletName : (budget.walletId == null ? "Tất cả ví" : null),
+      walletId: budget.walletId != null ? budget.walletId : (budget.walletName === t('budgets.wallet.all') ? "ALL" : (budget.walletName || null)),
+      walletName: budget.walletName != null ? budget.walletName : (budget.walletId == null ? t('budgets.wallet.all') : null),
       alertPercentage: budget.alertPercentage ?? 90,
       note: budget.note || "",
     });
@@ -218,7 +219,6 @@ export default function BudgetsPage() {
     });
     return { overItems, warningItems };
   }, [budgets, budgetUsageMap]);
-  const { t } = useLanguage();
  
   const filteredCategories = useMemo(() => {
     if (Array.isArray(expenseCategories) && expenseCategories.length > 0) {
@@ -305,7 +305,7 @@ export default function BudgetsPage() {
           if (!categoryMatch) return false;
          
           // Kiểm tra ví (nếu budget có chỉ định ví cụ thể)
-          if (selectedBudget.walletId && selectedBudget.walletName !== "Tất cả ví") {
+          if (selectedBudget.walletId && selectedBudget.walletName !== t('budgets.wallet.all')) {
             const walletMatch = tx.walletId === selectedBudget.walletId ||
                                tx.walletName === selectedBudget.walletName;
             if (!walletMatch) return false;
@@ -551,9 +551,9 @@ export default function BudgetsPage() {
                 <circle cx="75" cy="35" r="8" fill="#28a745" />
                 <path d="M72 35l2 2 4-4" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <h3>Bạn chưa thiết lập Hạn mức Chi tiêu</h3>
-              <p>Hãy bắt đầu bằng cách tạo hạn mức cho một danh mục để kiểm soát chi tiêu của bạn.</p>
-              <button className="btn btn-primary" onClick={handleAddBudget}>Thiết lập Hạn mức Chi tiêu đầu tiên</button>
+              <h3>{t('budgets.empty.title')}</h3>
+              <p>{t('budgets.empty.desc')}</p>
+              <button className="btn btn-primary" onClick={handleAddBudget}>{t('budgets.empty.btn')}</button>
             </div>
           ) : (
             <div className="budget-card-grid">
@@ -590,7 +590,7 @@ export default function BudgetsPage() {
                           </div>
                           <div>
                             <h5 className="budget-card-title">{budget.categoryName}</h5>
-                            {budget.walletName && <div className="text-muted small">Ví: {budget.walletName}</div>}
+                            {budget.walletName && <div className="text-muted small">{t('budgets.card.wallet_label', { wallet: budget.walletName })}</div>}
                           </div>
                         </div>
                         <span className={`budget-status-chip ${chipTone}`}>
@@ -684,8 +684,8 @@ export default function BudgetsPage() {
                         <div className="mt-2">
                           <small className="text-muted d-block">
                             <strong>{selectedBudget.categoryName}</strong>
-                            {selectedBudget.walletName && selectedBudget.walletName !== "Tất cả ví" && (
-                              <> • Ví: {selectedBudget.walletName}</>
+                            {selectedBudget.walletName && selectedBudget.walletName !== t('budgets.wallet.all') && (
+                              <> • {t('budgets.card.wallet_label', { wallet: selectedBudget.walletName })}</>
                             )}
                           </small>
                           {selectedBudget.startDate && selectedBudget.endDate && (

@@ -548,7 +548,7 @@ export default function DashboardPage() {
           <div className="dashboard-charts">
             <div className="db-card">
               <div className="db-card__header">
-              <h3>Mức chi tiêu theo danh mục </h3>
+              <h3>{t("dashboard.spending_by_category")}</h3>
               </div>
               <div className="db-card__body db-card__body--horizontal db-card__body--donut">
                 <div className="db-donut" ref={donutRef}>

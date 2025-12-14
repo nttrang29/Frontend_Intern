@@ -1,5 +1,6 @@
 // src/components/funds/ReminderBlock.jsx
 import React, { useState, useEffect } from "react";
+import { useLanguage } from "../../contexts/LanguageContext";
 import "../../styles/components/funds/FundForms.css";
 
 export default function ReminderBlock({ 
@@ -12,6 +13,7 @@ export default function ReminderBlock({
   hasTodayReminder = false,
   nextReminderDate = null,
 }) {
+  const { t } = useLanguage();
   // Map week day string to number (1-7)
   const weekDayMap = {
     "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "1": 1
@@ -60,33 +62,33 @@ export default function ReminderBlock({
 
   const freqLabel =
     {
-      DAILY: "Theo ngày",
-      WEEKLY: "Theo tuần",
-      MONTHLY: "Theo tháng",
-    }[freq] || "Theo tháng";
+      DAILY: t('funds.form.freq_day'),
+      WEEKLY: t('funds.form.freq_week'),
+      MONTHLY: t('funds.form.freq_month'),
+    }[freq] || t('funds.form.freq_month');
 
   const weekOptions = [
-    { value: "2", label: "Thứ 2" },
-    { value: "3", label: "Thứ 3" },
-    { value: "4", label: "Thứ 4" },
-    { value: "5", label: "Thứ 5" },
-    { value: "6", label: "Thứ 6" },
-    { value: "7", label: "Thứ 7" },
-    { value: "1", label: "Chủ nhật" },
+    { value: "2", label: t('common.day.mon') },
+    { value: "3", label: t('common.day.tue') },
+    { value: "4", label: t('common.day.wed') },
+    { value: "5", label: t('common.day.thu') },
+    { value: "6", label: t('common.day.fri') },
+    { value: "7", label: t('common.day.sat') },
+    { value: "1", label: t('common.day.sun') },
   ];
 
   const renderFollowContent = () => {
     if (freq === "DAILY") {
       return (
         <div className="funds-field">
-          <label>Giờ nhắc trong ngày</label>
+          <label>{t('funds.form.reminder_time_label')}</label>
             <input
               type="time"
               value={followTime || ""}
               onChange={(e) => setFollowTime(e.target.value)}
             />
           <div className="funds-hint">
-            Ví dụ: 08:00 mỗi ngày sẽ nhắc bạn gửi tiền vào quỹ.
+            {t('funds.form.reminder_time_hint_daily')}
           </div>
         </div>
       );
@@ -96,7 +98,7 @@ export default function ReminderBlock({
       return (
         <div className="funds-field funds-field--inline">
           <div>
-            <label>Ngày trong tuần</label>
+            <label>{t('funds.form.reminder_weekday_label')}</label>
             <select
               value={followWeekDay}
               onChange={(e) => setFollowWeekDay(e.target.value)}
@@ -109,7 +111,7 @@ export default function ReminderBlock({
             </select>
           </div>
           <div>
-            <label>Giờ nhắc trong ngày</label>
+            <label>{t('funds.form.reminder_time_label')}</label>
             <input
               type="time"
               value={followTime || ""}
@@ -117,12 +119,12 @@ export default function ReminderBlock({
             />
           </div>
           <div className="funds-hint">
-            Ví dụ: Thứ 6 lúc 21:00 sẽ nhắc bạn gửi tiền mỗi tuần.
+            {t('funds.form.reminder_time_hint_weekly')}
             {followTime && (
               <div style={{ marginTop: '0.5rem', color: '#f59e0b', fontWeight: '600' }}>
                 {hasTodayReminder
-                  ? `Thời gian mới sẽ áp dụng cho lần nhắc nhở tiếp theo vào ngày ${nextReminderDate || 'tuần tới'}.`
-                  : `Thời gian mới sẽ áp dụng cho lần nhắc nhở tới.`}
+                  ? t('funds.form.reminder_time_apply_next', { date: nextReminderDate || t('funds.form.next_week') })
+                  : t('funds.form.reminder_time_apply_next_generic')}
               </div>
             )}
           </div>
@@ -134,7 +136,7 @@ export default function ReminderBlock({
       <>
         <div className="funds-field funds-field--inline">
           <div>
-            <label>Ngày nhắc trong tháng <span className="req">*</span></label>
+            <label>{t('funds.form.reminder_monthday_label')} <span className="req">*</span></label>
             <input
               type="text"
               inputMode="numeric"
@@ -154,38 +156,37 @@ export default function ReminderBlock({
                   }
                 }
               }}
-              placeholder="Nhập ngày (1-31)"
+              placeholder={t('funds.form.reminder_monthday_placeholder')}
               required
             />
             <div className="funds-hint" style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.25rem' }}>
-              Chọn ngày từ 1-31. Ví dụ: ngày 5
+              {t('funds.form.reminder_monthday_hint')}
             </div>
             {followMonthDay > 28 && (
               <div className="funds-hint" style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.5rem' }}>
                 <div style={{ marginBottom: '0.25rem', fontWeight: '600' }}>
-                  Lưu ý ngày cuối tháng:
+                  {t('funds.form.reminder_monthday_warning_title')}
                 </div>
                 {followMonthDay === 31 && (
                   <div>
-                    • Tháng 30 ngày (4,6,9,11): nhắc ngày 30<br/>
-                    • Tháng 2: nhắc ngày 28 (hoặc 29 năm nhuận)
+                    {t('funds.form.reminder_monthday_warning_31')}
                   </div>
                 )}
                 {followMonthDay === 30 && (
                   <div>
-                    • Tháng 2: nhắc ngày 28 (hoặc 29 năm nhuận)
+                    {t('funds.form.reminder_monthday_warning_30')}
                   </div>
                 )}
                 {followMonthDay === 29 && (
                   <div>
-                    • Tháng 2 thường: nhắc ngày 28
+                    {t('funds.form.reminder_monthday_warning_29')}
                   </div>
                 )}
               </div>
             )}
           </div>
           <div>
-            <label>Giờ nhắc trong ngày</label>
+            <label>{t('funds.form.reminder_time_label')}</label>
             <input
               type="time"
               value={followTime || ""}
@@ -194,12 +195,12 @@ export default function ReminderBlock({
           </div>
         </div>
         <div className="funds-hint">
-          Ví dụ: ngày 5 hàng tháng lúc 09:00 sẽ nhắc bạn gửi tiền vào quỹ.
+          {t('funds.form.reminder_time_hint_monthly')}
           {followTime && (
             <div style={{ marginTop: '0.5rem', color: '#f59e0b', fontWeight: '600' }}>
               {hasTodayReminder
-                ? `Thời gian mới sẽ áp dụng cho lần nhắc nhở tiếp theo vào ngày ${nextReminderDate || 'tháng tới'}.`
-                : `Thời gian mới sẽ áp dụng cho lần nhắc nhở tới.`}
+                ? t('funds.form.reminder_time_apply_next', { date: nextReminderDate || t('funds.form.next_month') })
+                : t('funds.form.reminder_time_apply_next_generic')}
             </div>
           )}
         </div>
@@ -209,11 +210,11 @@ export default function ReminderBlock({
 
   return (
     <div className="funds-fieldset">
-      <div className="funds-fieldset__legend">Nhắc nhở</div>
+      <div className="funds-fieldset__legend">{t('funds.form.reminder_legend')}</div>
 
       {!hideToggle && (
         <div className="funds-toggle-line">
-          <span>Bật nhắc nhở cho quỹ này</span>
+          <span>{t('funds.form.reminder_toggle')}</span>
           <label className="switch">
             <input
               type="checkbox"
@@ -227,15 +228,14 @@ export default function ReminderBlock({
 
       {!hideToggle && !reminderOn && (
         <div className="funds-hint">
-          Khi cần, bạn có thể bật lại để hệ thống nhắc theo tần suất mong muốn.
+          {t('funds.form.reminder_toggle_hint')}
         </div>
       )}
 
       {(hideToggle || reminderOn) && (
         <>
           <div className="funds-hint">
-            Hệ thống sẽ nhắc nhở theo tần suất gửi quỹ ({freqLabel}). 
-            Bạn chỉ cần chọn giờ / ngày cụ thể.
+            {t('funds.form.reminder_hint', { freq: freqLabel })}
           </div>
           {renderFollowContent()}
         </>

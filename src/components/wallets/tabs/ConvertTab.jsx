@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 export default function ConvertTab({
   wallet,
@@ -6,6 +7,7 @@ export default function ConvertTab({
   onConvertToGroup,
   onChangeSelectedWallet,
 }) {
+  const { t } = useLanguage();
   const isDefault = !!wallet.isDefault;
   const isShared = !!wallet.isShared;
 
@@ -67,31 +69,30 @@ export default function ConvertTab({
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
-        <h3>Chuyển thành ví nhóm</h3>
+        <h3>{t('wallets.convert.title')}</h3>
         <span>
-          Sau khi chuyển, ví này sẽ trở thành ví nhóm. Bạn có thể thêm thành
-          viên ở phần chia sẻ.
+          {t('wallets.convert.subtitle')}
         </span>
       </div>
 
       <form className="wallet-form" onSubmit={handleSubmit}>
         <div className="wallet-form__row">
           <label className="wallet-form__full">
-            <span className="wallet-detail-item__label">Tóm tắt ví</span>
+            <span className="wallet-detail-item__label">{t('wallets.convert.summary_label')}</span>
             <div className="wallet-detail-item" style={{ marginTop: 4 }}>
               <div className="wallet-detail-item__value">
-                <strong>Tên ví:</strong> {wallet.name}
+                <strong>{t('wallets.convert.name_label')}:</strong> {wallet.name}
               </div>
               <div className="wallet-detail-item__value">
-                <strong>Trạng thái:</strong>{" "}
-                {wallet.isShared ? "Đã là ví nhóm" : "Hiện là ví cá nhân"}
+                <strong>{t('wallets.convert.status_label')}:</strong>{" "}
+                {wallet.isShared ? t('wallets.convert.status_group') : t('wallets.convert.status_personal')}
               </div>
               {isDefault && !wallet.isShared && (
                 <div
                   className="wallet-detail-item__value"
                   style={{ marginTop: 4 }}
                 >
-                  <strong>Ghi chú:</strong> Ví này đang là ví mặc định.
+                  <strong>{t('wallets.inspector.note')}:</strong> {t('wallets.convert.is_default_note')}
                 </div>
               )}
             </div>
@@ -102,23 +103,21 @@ export default function ConvertTab({
           <>
             <div className="wallet-merge__section-block wallet-merge__section-block--warning">
               <div className="wallet-merge__section-title">
-                Bạn đang chuyển một ví mặc định sang ví nhóm
+                {t('wallets.convert.warning_title')}
               </div>
               <ul className="wallet-merge__list">
                 <li>
-                  <strong>{wallet.name}</strong> hiện đang là ví mặc định của hệ
-                  thống.
+                  <strong>{wallet.name}</strong> {t('wallets.convert.warning_message_1')}
                 </li>
                 <li>
-                  Ví nhóm không được phép đặt làm ví mặc định, vì vậy cần chọn
-                  cách xử lý ví mặc định hiện tại.
+                  {t('wallets.convert.warning_message_2')}
                 </li>
               </ul>
             </div>
 
             <div className="wallet-merge__section-block">
               <div className="wallet-merge__section-title">
-                Chọn cách xử lý ví mặc định
+                {t('wallets.convert.default_handling_title')}
               </div>
 
               {hasCandidate ? (
@@ -133,11 +132,10 @@ export default function ConvertTab({
                     />
                     <div>
                       <div className="wallet-merge__option-title">
-                        Chọn một ví cá nhân khác làm ví mặc định mới
+                        {t('wallets.convert.option_choose_other_title')}
                       </div>
                       <div className="wallet-merge__option-desc">
-                        Sau khi chuyển sang ví nhóm, ví được chọn dưới đây sẽ trở
-                        thành ví mặc định.
+                        {t('wallets.convert.option_choose_other_desc')}
                       </div>
                       <div style={{ marginTop: 6 }}>
                         <select
@@ -147,7 +145,7 @@ export default function ConvertTab({
                         >
                           {candidateDefaults.map((w) => (
                             <option key={w.id} value={w.id}>
-                              {w.name || "Ví cá nhân khác"}
+                              {w.name || t('wallets.convert.other_personal_wallet')}
                             </option>
                           ))}
                         </select>
@@ -165,11 +163,10 @@ export default function ConvertTab({
                     />
                     <div>
                       <div className="wallet-merge__option-title">
-                        Tạm thời không có ví mặc định
+                        {t('wallets.convert.option_no_default_title')}
                       </div>
                       <div className="wallet-merge__option-desc">
-                        Hệ thống sẽ tạm thời không có ví mặc định. Bạn có thể
-                        đặt lại ví mặc định sau trong phần quản lý ví.
+                        {t('wallets.convert.option_no_default_desc')}
                       </div>
                     </div>
                   </label>
@@ -177,9 +174,7 @@ export default function ConvertTab({
               ) : (
                 <div className="wallet-merge__section-block">
                   <p className="wallet-merge__hint">
-                    Hiện tại bạn không có ví cá nhân nào khác. Sau khi chuyển
-                    ví này thành ví nhóm, hệ thống sẽ tạm thời không có ví mặc
-                    định. Bạn có thể tạo ví cá nhân mới và đặt làm mặc định sau.
+                    {t('wallets.convert.no_other_wallet_hint')}
                   </p>
                 </div>
               )}
@@ -193,7 +188,7 @@ export default function ConvertTab({
             className="wallets-btn wallets-btn--primary"
             disabled={isSubmitDisabled}
           >
-            {wallet.isShared ? "Đã là ví nhóm" : "Chuyển sang ví nhóm"}
+            {wallet.isShared ? t('wallets.convert.already_group') : t('wallets.convert.convert_button')}
           </button>
         </div>
       </form>

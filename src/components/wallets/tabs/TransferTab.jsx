@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { formatMoneyInput, getMoneyValue } from "../../../utils/formatMoneyInput";
 import { formatMoney } from "../../../utils/formatMoney";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 export default function TransferTab({
   wallet,
@@ -13,6 +14,7 @@ export default function TransferTab({
   setTransferNote,
   onSubmitTransfer,
 }) {
+  const { t } = useLanguage();
 
   const safeWallets = useMemo(() => (Array.isArray(allWallets) ? allWallets : []), [allWallets]);
 
@@ -78,9 +80,9 @@ export default function TransferTab({
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
-        <h3>Chuyển tiền giữa các ví</h3>
+        <h3>{t('wallets.transfer.title')}</h3>
         <span>
-          Chuyển tiền từ ví hiện tại sang ví khác (chỉ hỗ trợ VND).
+          {t('wallets.transfer.subtitle')}
         </span>
       </div>
       <form
@@ -108,16 +110,16 @@ export default function TransferTab({
             </div>
           </label>
           <label>
-            Ví đích
+            {t('wallets.transfer.target_label')}
             <select
               value={transferTargetId}
               onChange={(e) => setTransferTargetId(e.target.value)}
             >
-              <option value="">-- Chọn ví đích --</option>
+              <option value="">{t('wallets.transfer.target_placeholder')}</option>
               {selectableTargets.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.name || "Chưa đặt tên"}{" "}
-                  {w.isShared ? "(Nhóm)" : "(Cá nhân)"} · VND
+                  {w.name || t('wallets.no_name')}{" "}
+                  {w.isShared ? t('wallets.transfer.group_tag') : t('wallets.transfer.personal_tag')} · VND
                 </option>
               ))}
             </select>
@@ -128,7 +130,7 @@ export default function TransferTab({
                 marginTop: "4px",
               }}
             >
-              Chỉ những ví bạn có quyền thao tác mới hiển thị trong danh sách này.
+              {t('wallets.transfer.target_hint')}
             </div>
             {targetWallet && (
               <div style={{ 
@@ -136,7 +138,7 @@ export default function TransferTab({
                 color: "#6b7280",
                 marginTop: "4px"
               }}>
-                Số dư ví đích:{" "}
+                {t('wallets.transfer.target_balance')}:{" "}
                 <strong style={{ color: "#111827" }}>
                   {formatMoney(Number(targetWallet?.balance || 0), "VND")}
                 </strong>
@@ -146,7 +148,7 @@ export default function TransferTab({
         </div>
         <div className="wallet-form__row">
           <label>
-            Số tiền chuyển (VND)
+            {t('wallets.transfer.amount_label')}
             <input
               type="text"
               value={transferAmount || ""}
@@ -190,7 +192,7 @@ export default function TransferTab({
                 // Khi blur, giữ nguyên format (đã format rồi)
                 // Không cần làm gì thêm
               }}
-              placeholder="Nhập số tiền (VD: 1.000.000 hoặc 20) bằng VND"
+              placeholder={t('wallets.transfer.amount_placeholder')}
               inputMode="numeric"
             />
           </label>
@@ -198,12 +200,12 @@ export default function TransferTab({
 
         <div className="wallet-form__row">
           <label className="wallet-form__full">
-            Ghi chú
+            {t('wallets.modal.note_label')}
             <textarea
               rows={2}
               value={transferNote}
               onChange={(e) => setTransferNote(e.target.value)}
-              placeholder="Ghi chú cho lần chuyển này..."
+              placeholder={t('wallets.transfer.note_placeholder')}
             />
           </label>
         </div>
@@ -212,7 +214,7 @@ export default function TransferTab({
         {transferAmount && transferAmountNum > sourceBalance && (
           <div className="wallet-form__row">
             <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
-              Số tiền không hợp lệ hoặc vượt quá số dư.
+              {t('wallets.transfer.error.invalid_amount')}
             </div>
           </div>
         )}
@@ -224,7 +226,7 @@ export default function TransferTab({
             disabled={!transferTargetId || !transferAmount || transferAmountNum > sourceBalance || transferAmountNum <= 0}
           >
             <span style={{ marginRight: "6px" }}>✔</span>
-            Xác nhận chuyển
+            {t('wallets.transfer.confirm_button')}
           </button>
         </div>
       </form>

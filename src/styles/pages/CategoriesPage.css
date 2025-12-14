@@ -466,23 +466,71 @@
    PAGINATION – ĐỒNG MÀU FUNDS
 ================================= */
 
+.category-pagination-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+}
+
+.category-pagination-bar > span {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 500;
+  padding-left: 2px;
+}
+
+.category-pagination {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-left: 2px;
+}
+
 .category-pagination .page-arrow,
 .category-pagination .page-number {
-  border: 1px solid #dbe2ef;
-  background: #ffffff;
-  border-radius: 999px;
-  padding: 4px 12px;
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 50%;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #1f2937;
+  color: #6b7280;
   transition: all 0.2s ease;
+  cursor: pointer;
+  padding: 0;
+}
+
+.category-pagination .page-arrow:hover:not(:disabled),
+.category-pagination .page-number:hover:not(.active) {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.category-pagination .page-arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f9fafb;
 }
 
 .category-pagination .page-number.active {
-  background: var(--funds-accent);
+  background: #2d99ae;
   color: #ffffff;
-  border-color: var(--funds-accent);
-  box-shadow: 0 6px 16px rgba(45, 153, 174, 0.3);
+  border-color: #2d99ae;
+  box-shadow: 0 2px 8px rgba(45, 153, 174, 0.25);
+}
+
+.category-pagination .page-ellipsis {
+  padding: 0 4px;
+  color: #9ca3af;
+  font-size: 0.9rem;
 }
 
 /* ===== NÚT THÊM DANH MỤC – STYLE GIỐNG "Tạo quỹ" ===== */

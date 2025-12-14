@@ -114,3 +114,64 @@
 	border-color: var(--color-primary);
 	color: var(--color-text-inverse);
 }
+
+/* ================= EMPTY STATE ================= */
+.activity-empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 4rem 2rem;
+	text-align: center;
+	background: var(--color-bg-secondary);
+	border-radius: 20px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+	color: var(--color-text);
+	min-height: 400px;
+}
+
+.activity-empty-state__icon {
+	width: 100px;
+	height: 100px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background: linear-gradient(135deg, rgba(11, 90, 165, 0.1) 0%, rgba(10, 181, 192, 0.1) 100%);
+	margin-bottom: 1.5rem;
+	opacity: 0.9;
+}
+
+.activity-empty-state__icon i {
+	font-size: 3.5rem;
+	color: #2d99ae;
+	animation: activityIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes activityIconPulse {
+	0%, 100% {
+		transform: scale(1);
+		opacity: 0.9;
+	}
+	50% {
+		transform: scale(1.05);
+		opacity: 1;
+	}
+}
+
+.activity-empty-state__title {
+	font-size: 1.5rem;
+	font-weight: 600;
+	color: var(--color-text);
+	margin-bottom: 0.75rem;
+	line-height: 1.4;
+}
+
+.activity-empty-state__hint {
+	font-size: 0.95rem;
+	color: var(--color-text-muted);
+	line-height: 1.6;
+	max-width: 480px;
+	margin: 0 auto;
+	opacity: 0.8;
+}

@@ -4,6 +4,7 @@ import { useFundData } from "../../contexts/FundDataContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useToast } from "../common/Toast/ToastContext";
 import { useNotifications } from "../../contexts/NotificationContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import AutoTopupBlock from "./AutoTopupBlock";
 import ReminderBlock from "./ReminderBlock";
@@ -15,25 +16,9 @@ import FundHistoryTab from "./tabs/FundHistoryTab";
 import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDate } from "../../utils/dateFormat";
 import { getFundTransactions } from "../../services/fund.service";
+import { calcEstimateDate } from "./utils/fundUtils";
 import "../../styles/components/funds/FundDetail.css";
 import "../../styles/components/funds/FundForms.css";
-
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-const PACE_STATUS_LABELS = {
-  ahead: "Vượt tiến độ",
-  on_track: "Theo kế hoạch",
-  behind: "Chậm tiến độ",
-  critical: "Nguy cơ trễ hạn",
-  unknown: "Chưa xác định",
-};
-
-const PACE_STATUS_DEFINITIONS = [
-  { key: "ahead", label: "Vượt tiến độ" },
-  { key: "on_track", label: "Theo kế hoạch" },
-  { key: "behind", label: "Chậm tiến độ" },
-  { key: "critical", label: "Nguy cơ" },
-];
 
 const buildFormState = (fund) => ({
   name: fund.name || "",
@@ -59,6 +44,7 @@ const buildFormState = (fund) => ({
 });
 
 export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab = "info" }) {
+  const { t } = useLanguage();
   const { updateFund, depositToFund, withdrawFromFund, deleteFund, closeFund, settleFund } = useFundData();
   const { wallets, loadWallets } = useWalletData();
   const { showToast } = useToast();
@@ -71,8 +57,8 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   const [saving, setSaving] = useState(false);
   const [withdrawProgress, setWithdrawProgress] = useState(0);
   
-  // States for currency and wallet selection (chỉ VND)
-  const [selectedCurrency] = useState("VND");
+  // States for currency and wallet selection
+  const [selectedCurrency, setSelectedCurrency] = useState(fund.currency || "VND");
   const [selectedSourceWalletId, setSelectedSourceWalletId] = useState(fund.sourceWalletId || "");
   
   // State for auto deposit data (for editing)
@@ -92,15 +78,30 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   // State for settle confirmation modal
   const [confirmSettleOpen, setConfirmSettleOpen] = useState(false);
   
-  // Filter wallets theo VND
-  const filteredWallets = useMemo(() => {
-    return wallets.filter(w => (w.currency || "VND") === "VND");
+  // Lấy danh sách currencies
+  const availableCurrencies = useMemo(() => {
+    const currencies = [...new Set(wallets.map(w => w.currency))];
+    return currencies.sort();
   }, [wallets]);
+  
+  // Filter wallets theo currency
+  const filteredWallets = useMemo(() => {
+    if (!selectedCurrency) return [];
+    return wallets.filter(w => w.currency === selectedCurrency);
+  }, [wallets, selectedCurrency]);
+  
+  // Reset sourceWalletId khi đổi currency
+  useEffect(() => {
+    if (selectedCurrency !== fund.currency) {
+      setSelectedSourceWalletId("");
+    }
+  }, [selectedCurrency, fund.currency]);
 
   // Khi chọn quỹ khác hoặc defaultTab thay đổi
   useEffect(() => {
     setActiveTab(defaultTab);
     setForm(buildFormState(fund));
+    setSelectedCurrency(fund.currency || "VND");
     setSelectedSourceWalletId(fund.sourceWalletId || "");
   }, [fund.id, defaultTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -174,106 +175,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       ? Math.min(100, Math.round((fund.current / fund.target) * 100))
       : null;
   const progressValue = progress ?? 0;
-  const fundPacing = useMemo(() => {
-    const currentAmount = Number(fund.current ?? fund.currentAmount ?? 0) || 0;
-    const targetAmount = Number(fund.target ?? fund.targetAmount ?? 0) || 0;
-    const hasTarget = targetAmount > 0;
-
-    const parseDate = (value) => {
-      if (!value) return null;
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? null : date;
-    };
-
-    const startDate = parseDate(fund.startDate);
-    const endDate = parseDate(fund.endDate);
-
-    let totalDays = null;
-    let elapsedDays = null;
-    let expectedPct = null;
-    let expectedAmount = null;
-
-    if (startDate && endDate && endDate.getTime() > startDate.getTime()) {
-      totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / MS_PER_DAY));
-      const today = new Date();
-      const clamped = Math.min(endDate.getTime(), Math.max(startDate.getTime(), today.getTime()));
-      elapsedDays = Math.max(0, Math.round((clamped - startDate.getTime()) / MS_PER_DAY));
-      expectedPct = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
-      if (hasTarget) {
-        expectedAmount = (expectedPct / 100) * targetAmount;
-      }
-    }
-
-    let paceStatus = "unknown";
-    if (expectedPct == null) {
-      if (hasTarget && progressValue >= 100) {
-        paceStatus = "ahead";
-      }
-    } else {
-      const diff = progressValue - expectedPct;
-      if (diff >= 7) paceStatus = "ahead";
-      else if (diff >= -4) paceStatus = "on_track";
-      else if (diff >= -15) paceStatus = "behind";
-      else paceStatus = "critical";
-    }
-
-    const diffPct = expectedPct == null ? null : Math.round(progressValue - expectedPct);
-    const pctPerDay = totalDays ? 100 / totalDays : null;
-    const diffDays = diffPct != null && pctPerDay ? Math.round(diffPct / pctPerDay) : null;
-
-    return {
-      currentAmount,
-      targetAmount,
-      expectedPct,
-      expectedAmount,
-      paceStatus,
-      diffPct,
-      diffDays,
-      shortage: hasTarget ? Math.max(0, targetAmount - currentAmount) : null,
-      totalDays,
-      elapsedDays,
-    };
-  }, [fund.current, fund.currentAmount, fund.target, fund.targetAmount, fund.startDate, fund.endDate, progressValue]);
-
-  const gaugeGradientId = useMemo(() => {
-    const identity = fund.id || fund.fundId || fund.code || "fund";
-    return `fundPaceGradient-${identity}`;
-  }, [fund.code, fund.fundId, fund.id]);
-
-  const paceStatusLabel = PACE_STATUS_LABELS[fundPacing.paceStatus] || PACE_STATUS_LABELS.unknown;
-  const paceStatusDescription = useMemo(() => {
-    if (fundPacing.diffPct == null) {
-      return "Chưa có thời hạn để so sánh với kế hoạch.";
-    }
-    if (fundPacing.diffPct === 0) {
-      return "Đang đúng với kế hoạch đề ra.";
-    }
-    const absPct = Math.abs(fundPacing.diffPct);
-    const dayHint = fundPacing.diffDays && fundPacing.diffDays !== 0
-      ? ` (~${Math.abs(fundPacing.diffDays)} ngày ${fundPacing.diffDays > 0 ? "sớm" : "trễ"})`
-      : "";
-    if (fundPacing.diffPct > 0) {
-      return `Vượt kế hoạch ${absPct}%${dayHint}.`;
-    }
-    return `Chậm hơn kế hoạch ${absPct}%${dayHint}.`;
-  }, [fundPacing.diffPct, fundPacing.diffDays]);
-
-  const actualPct = Math.max(0, Math.min(progressValue, 100));
-  const expectedPctValue = fundPacing.expectedPct != null ? Math.max(0, Math.min(fundPacing.expectedPct, 100)) : null;
-  const gaugeRadius = 105;
-  const gaugeCircumference = 2 * Math.PI * gaugeRadius;
-  const actualOffset = gaugeCircumference * (1 - actualPct / 100);
-  const expectedOffset = expectedPctValue != null ? gaugeCircumference * (1 - expectedPctValue / 100) : null;
-  const actualAmountLabel = formatMoney(fundPacing.currentAmount, fund.currency);
-  const planAmountLabel = fundPacing.expectedAmount != null ? formatMoney(fundPacing.expectedAmount, fund.currency) : "—";
-  const shortageLabel = fundPacing.shortage != null ? formatMoney(fundPacing.shortage, fund.currency) : "—";
-  const expectedPercentLabel = expectedPctValue != null ? `${Math.round(expectedPctValue)}%` : "--";
-  const diffPercentLabel = fundPacing.diffPct != null ? `${fundPacing.diffPct > 0 ? "+" : ""}${fundPacing.diffPct}%` : "--";
-  const remainingDaysLabel = (() => {
-    if (fundPacing.totalDays == null || fundPacing.elapsedDays == null) return "Chưa có thời hạn";
-    const remaining = Math.max(0, fundPacing.totalDays - fundPacing.elapsedDays);
-    return remaining === 0 ? "Đến hạn hôm nay" : `${remaining} ngày còn lại`;
-  })();
+  const ringRadius = 40;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringOffset = ringCircumference * (1 - progressValue / 100);
+  const ringOuterRadius = ringRadius + 30;
+  const ringOuterCircumference = 2 * Math.PI * ringOuterRadius;
+  const ringOuterOffset = ringOuterCircumference * (1 - progressValue / 100);
 
   // Trạng thái quỹ từ backend (ACTIVE, CLOSED, COMPLETED)
   const fundStatus = fund.status || fund.fundStatus || null;
@@ -305,7 +212,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     e.preventDefault();
 
     if (!form.name.trim()) {
-      showToast("Vui lòng nhập tên quỹ.", "error");
+      showToast(t("funds.form.error.name_required"), "error");
       return;
     }
 
@@ -314,12 +221,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     try {
       // Validation
       if (!selectedCurrency) {
-        showToast("Vui lòng chọn loại tiền tệ.", "error");
+        showToast(t("funds.form.error.currency_required"), "error");
         setSaving(false);
         return;
       }
       if (!selectedSourceWalletId) {
-        showToast("Vui lòng chọn ví nguồn.", "error");
+        showToast(t("funds.form.error.source_wallet_required"), "error");
         setSaving(false);
         return;
       }
@@ -386,18 +293,18 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const result = await updateFund(fund.id, updateData);
 
       if (result.success) {
-        showToast("Cập nhật quỹ thành công!", "success");
+        showToast(t("funds.toast.update_success"), "success");
         // Callback để reload fund list
         if (onUpdateFund) {
           await onUpdateFund();
         }
         setActiveTab("info");
       } else {
-        showToast(`Không thể cập nhật quỹ: ${result.error}`, "error");
+        showToast(t("funds.toast.update_failed", { error: result.error }), "error");
       }
     } catch (error) {
       console.error("Error updating fund:", error);
-      showToast("Đã xảy ra lỗi khi cập nhật quỹ.", "error");
+      showToast(t("funds.toast.update_error"), "error");
     } finally {
       setSaving(false);
     }
@@ -416,12 +323,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         const transactions = Array.isArray(result.data) ? result.data : (result.data.transactions || []);
         setHistoryItems(transactions);
       } else {
-        setHistoryError("Không thể tải lịch sử giao dịch");
+        setHistoryError(t("funds.history.load_error"));
         setHistoryItems([]);
       }
     } catch (error) {
       console.error("Error loading fund history:", error);
-      setHistoryError("Lỗi khi tải lịch sử giao dịch");
+      setHistoryError(t("funds.history.load_error_generic"));
       setHistoryItems([]);
     } finally {
       setHistoryLoading(false);
@@ -502,6 +409,35 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     };
   }, [historyItems]);
 
+  // Line chart: tiến độ tiến gần mục tiêu theo tháng (cumulative %)
+  const monthlyProgress = useMemo(() => {
+    if (!historyItems || historyItems.length === 0) return { labels: [], progress: [], max: 100 };
+    const target = fund.target || fund.targetAmount || 0;
+    const map = new Map();
+    historyItems.forEach((tx) => {
+      const d = new Date(tx.createdAt || tx.transactionDate || tx.transactionAt);
+      if (Number.isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const amount = Number(tx.amount || 0);
+      const entry = map.get(key) || { total: 0, month: d.getMonth() };
+      if (tx.status === "SUCCESS") {
+        entry.total += amount;
+      }
+      map.set(key, entry);
+    });
+    const sorted = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    let cumulative = 0;
+    const labels = [];
+    const progress = [];
+    sorted.forEach(([, v]) => {
+      cumulative += v.total;
+      labels.push(new Date(2020, v.month, 1).toLocaleString("en-US", { month: "short" }));
+      const pct = target > 0 ? Math.min(100, Math.round((cumulative / target) * 100)) : 0;
+      progress.push(pct);
+    });
+    return { labels, progress, max: 100 };
+  }, [historyItems, fund.target, fund.targetAmount]);
+
   const maxAmount = Math.max(fund.target || 0, fund.current || 1);
   
   // Tính toán trạng thái nạp tiền thủ công hôm nay
@@ -526,7 +462,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const totalDeposited = todayDeposits.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
       return {
         status: 'deposited',
-        message: 'Hôm nay đã nạp',
+        message: t('funds.deposit.status.deposited_today'),
         amount: totalDeposited,
         time: todayDeposits[0].createdAt || todayDeposits[0].transactionDate
       };
@@ -534,7 +470,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       // Chưa nạp hôm nay
       return {
         status: 'not_deposited',
-        message: 'Chưa nạp hôm nay'
+        message: t('funds.deposit.status.not_deposited_today')
       };
     }
   }, [fund.autoDepositEnabled, historyItems]);
@@ -567,7 +503,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const totalDeposited = todayDeposits.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
       return {
         status: 'deposited',
-        message: 'Hôm nay đã nạp',
+        message: t('funds.deposit.status.deposited_today'),
         amount: totalDeposited,
         time: todayDeposits[0].createdAt || todayDeposits[0].transactionDate
       };
@@ -586,7 +522,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       // Chưa nạp
       return {
         status: 'not_deposited',
-        message: 'Chưa nạp hôm nay'
+        message: t('funds.deposit.status.not_deposited_today')
       };
     }
   }, [fund.autoDepositEnabled, fund.pendingAutoTopupAmount, fund.autoDepositAmount, fund.amountPerPeriod, fund.sourceWalletId, fund.sourceWalletName, historyItems, wallets]);
@@ -729,11 +665,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       return {
         id: tx.id || tx.transactionId,
         type: isAuto ? 'auto' : 'manual',
-        typeLabel: isRecovery ? 'Nạp bù tự động' : (isAuto ? 'Nạp tự động' : 'Nạp thủ công'),
+        typeLabel: isRecovery ? t('funds.history.type.recovery') : (isAuto ? t('funds.history.type.auto') : t('funds.history.type.manual')),
         amount: Number(tx.amount || 0),
         status: isSuccess ? 'success' : 'failed',
         date: tx.createdAt || tx.transactionDate || tx.transactionAt,
-        message: tx.message || (isRecovery ? 'Nạp bù tự động thành công' : (isAuto ? 'Nạp tự động thành công' : 'Nạp tiền thành công')),
+        message: tx.message || (isRecovery ? t('funds.history.message.recovery_success') : (isAuto ? t('funds.history.message.auto_success') : t('funds.history.message.manual_success'))),
         walletBalance: tx.walletBalance
       };
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -744,26 +680,26 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
 
     // Chặn nạp nếu quỹ không còn ACTIVE (đã đóng hoặc hoàn thành)
     if (!isFundActive) {
-      showToast("Quỹ đã đóng hoặc hoàn thành mục tiêu, không thể nạp thêm.", "error");
+      showToast(t("funds.deposit.error.fund_closed"), "error");
       return;
     }
     const amount = Number(depositAmount);
     
     // Validation cơ bản
     if (!amount || amount <= 0) {
-      showToast("Vui lòng nhập số tiền hợp lệ.", "error");
+      showToast(t("funds.deposit.error.amount_invalid"), "error");
       return;
     }
 
     if (amount < 1000) {
-      showToast("Số tiền nạp tối thiểu là 1,000.", "error");
+      showToast(t("funds.deposit.error.amount_min"), "error");
       return;
     }
 
     // Kiểm tra số tiền phải >= số tiền theo tần suất
     if (fund.amountPerPeriod && amount < fund.amountPerPeriod) {
       showToast(
-        `Số tiền nạp phải lớn hơn hoặc bằng số tiền theo tần suất: ${formatMoney(fund.amountPerPeriod, fund.currency)}.`,
+        t("funds.deposit.error.amount_less_than_period", { amount: formatMoney(fund.amountPerPeriod, fund.currency) }),
         "error"
       );
       return;
@@ -772,13 +708,13 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     // Kiểm tra số dư ví nguồn
     const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
     if (!sourceWallet) {
-      showToast("Không tìm thấy ví nguồn.", "error");
+      showToast(t("funds.deposit.error.source_wallet_not_found"), "error");
       return;
     }
 
     if (amount > sourceWallet.balance) {
       showToast(
-        `Số dư ví nguồn không đủ! Số dư hiện tại: ${formatMoney(sourceWallet.balance, sourceWallet.currency)}`,
+        t("funds.deposit.error.insufficient_balance", { balance: formatMoney(sourceWallet.balance, sourceWallet.currency) }),
         "error"
       );
       return;
@@ -791,7 +727,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const result = await depositToFund(fund.id, amount);
 
       if (result.success) {
-        showToast(`Nạp ${formatMoney(amount, fund.currency)} vào quỹ thành công!`, "success");
+        showToast(t("funds.deposit.success", { amount: formatMoney(amount, fund.currency) }), "success");
 
         // Nếu backend trả về quỹ đã COMPLETED sau nạp, hiển thị thông báo đóng băng
         const updatedFund = result.data || fund;
@@ -806,7 +742,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           (updatedFund.hasTerm && updatedFund.target && updatedProgress !== null && updatedProgress >= 100)
         ) {
           showToast(
-            "Quỹ đã hoàn thành mục tiêu. Quỹ sẽ được đóng băng và không thể nạp thêm.",
+            t("funds.deposit.fund_completed"),
             "info"
           );
         }
@@ -819,11 +755,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           await onUpdateFund();
         }
       } else {
-        showToast(`Không thể nạp tiền: ${result.error}`, "error");
+        showToast(t("funds.deposit.error.failed", { error: result.error }), "error");
       }
     } catch (error) {
       console.error("Error depositing to fund:", error);
-      showToast("Đã xảy ra lỗi khi nạp tiền.", "error");
+      showToast(t("funds.deposit.error.generic"), "error");
     } finally {
       setSaving(false);
     }
@@ -836,7 +772,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     const amount = fund.current;
     
     if (!amount || amount <= 0) {
-      showToast("Quỹ không có số dư để rút.", "error");
+      showToast(t("funds.withdraw.error.no_balance"), "error");
       return;
     }
 
@@ -865,7 +801,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       setWithdrawProgress(100);
 
       if (result.success) {
-        showToast(`🎉 Hoàn thành quỹ! Rút toàn bộ ${formatMoney(amount, fund.currency)} về ví nguồn thành công!`, "success");
+        showToast(t("funds.withdraw.success_complete", { amount: formatMoney(amount, fund.currency) }), "success");
         // Reload history after successful withdraw
         await loadHistory();
         
@@ -889,19 +825,19 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           }
         }, 1000);
       } else {
-        showToast(`Không thể rút tiền: ${result.error}`, "error");
+        showToast(t("funds.withdraw.error.failed", { error: result.error }), "error");
       }
     } catch (error) {
       console.error("Error withdrawing from fund:", error);
-      showToast("Đã xảy ra lỗi khi rút tiền.", "error");
+      showToast(t("funds.withdraw.error.generic"), "error");
     } finally {
       setSaving(false);
     }
   };
 
   const handleSettle = () => {
-    if (!fund.current || fund.current <= 0) {
-      showToast("Quỹ không có số dư để tất toán.", "error");
+      if (!fund.current || fund.current <= 0) {
+      showToast(t("funds.settle.error.no_balance"), "error");
       return;
     }
     
@@ -913,7 +849,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     setConfirmSettleOpen(false);
     
     if (!fund.current || fund.current <= 0) {
-      showToast("Quỹ không có số dư để tất toán.", "error");
+      showToast(t("funds.settle.error.no_balance"), "error");
       return;
     }
 
@@ -940,7 +876,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       setWithdrawProgress(100);
 
       if (result.success) {
-        showToast(`✅ Tất toán quỹ thành công! Đã rút toàn bộ ${formatMoney(fund.current, fund.currency)} về ví nguồn.`, "success");
+        showToast(t("funds.settle.success", { amount: formatMoney(fund.current, fund.currency) }), "success");
         await loadHistory();
         
         // Xóa quỹ sau khi tất toán thành công
@@ -959,11 +895,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           }
         }, 1000);
       } else {
-        showToast(`Không thể tất toán quỹ: ${result.error}`, "error");
+        showToast(t("funds.settle.error.failed", { error: result.error }), "error");
       }
     } catch (error) {
       console.error("Error settling fund:", error);
-      showToast("Đã xảy ra lỗi khi tất toán quỹ.", "error");
+      showToast(t("funds.settle.error.generic"), "error");
     } finally {
       setSaving(false);
     }
@@ -982,17 +918,17 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const result = await deleteFund(fund.id);
 
       if (result.success) {
-        showToast("Xóa quỹ thành công!", "success");
+        showToast(t("funds.delete.success"), "success");
         // Quay về danh sách
         if (onBack) {
           onBack();
         }
       } else {
-        showToast(`Không thể xóa quỹ: ${result.error}`, "error");
+        showToast(t("funds.delete.error.failed", { error: result.error }), "error");
       }
     } catch (error) {
       console.error("Error deleting fund:", error);
-      showToast("Đã xảy ra lỗi khi xóa quỹ.", "error");
+      showToast(t("funds.delete.error.generic"), "error");
     } finally {
       setSaving(false);
     }
@@ -1152,8 +1088,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
               form={form}
               isFundCompleted={isFundCompleted}
               saving={saving}
+              selectedCurrency={selectedCurrency}
+              setSelectedCurrency={setSelectedCurrency}
               selectedSourceWalletId={selectedSourceWalletId}
               setSelectedSourceWalletId={setSelectedSourceWalletId}
+              availableCurrencies={availableCurrencies}
               filteredWallets={filteredWallets}
               autoDepositData={autoDepositData}
               setAutoDepositData={setAutoDepositData}
@@ -1207,123 +1146,167 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         </div>
       </div>
 
-      {/* CỘT PHẢI: BIỂU ĐỒ TRẠNG THÁI MỚI */}
+      {/* CỘT PHẢI: CHỈ HIỂN THỊ BIỂU ĐỒ QUẠT (DONUT) */}
       <div className="fund-detail-summary">
-        <div className="fund-progress-card card border-0 shadow-sm">
-          <div className="fund-progress-modern">
-            <div className="fund-progress-gauge">
-              <svg width="260" height="260" viewBox="0 0 260 260" role="img" aria-label="Fund pacing gauge">
-                <defs>
-                  <linearGradient id={gaugeGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#0d6efd" />
-                    <stop offset="100%" stopColor="#00c2ff" />
-                  </linearGradient>
-                </defs>
-                <circle
-                  className="fund-progress-ring"
-                  cx="130"
-                  cy="130"
-                  r={gaugeRadius}
-                  strokeWidth="18"
-                  fill="none"
-                />
-                {expectedOffset != null && (
+        <div
+          className="card border-0 shadow-sm"
+          style={{
+            background: "linear-gradient(145deg, #f8fbff 0%, #eef4ff 100%)",
+            overflow: "hidden",
+            position: "relative",
+          }}
+        >
+          {/* Glow background */}
+          <div
+            style={{
+              position: "absolute",
+              width: 220,
+              height: 220,
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(13,110,253,0.25) 0%, rgba(13,110,253,0) 60%)",
+              top: -40,
+              right: -50,
+              filter: "blur(6px)",
+            }}
+          ></div>
+          <div className="card-header bg-transparent fw-semibold d-flex justify-content-between align-items-center border-0">
+            <span style={{ color: "#0d6efd" }}>Tiến độ quỹ</span>
+            <span className="badge bg-primary-subtle text-primary text-uppercase">
+              {fund.status || fund.fundStatus || "ACTIVE"}
+            </span>
+          </div>
+          <div className="card-body">
+            <div className="d-flex flex-column align-items-center">
+              <div className="position-relative" style={{ width: 220, height: 220 }}>
+                <svg width="220" height="220">
+                  <defs>
+                    <linearGradient id="fundRing" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#0d6efd" />
+                      <stop offset="100%" stopColor="#4dabf7" />
+                    </linearGradient>
+                  </defs>
                   <circle
-                    className="fund-progress-expected"
-                    cx="130"
-                    cy="130"
-                    r={gaugeRadius}
-                    strokeWidth="12"
-                    strokeDasharray={`${gaugeCircumference} ${gaugeCircumference}`}
-                    strokeDashoffset={expectedOffset}
-                    strokeLinecap="round"
+                    cx="110"
+                    cy="110"
+                    r={ringOuterRadius}
+                    stroke="#e9ecef"
+                    strokeWidth="18"
                     fill="none"
-                    transform="rotate(-90 130 130)"
                   />
-                )}
-                <circle
-                  className="fund-progress-actual"
-                  cx="130"
-                  cy="130"
-                  r={gaugeRadius}
-                  stroke={`url(#${gaugeGradientId})`}
-                  strokeWidth="18"
-                  strokeDasharray={`${gaugeCircumference} ${gaugeCircumference}`}
-                  strokeDashoffset={actualOffset}
-                  strokeLinecap="round"
-                  fill="none"
-                  transform="rotate(-90 130 130)"
-                />
-              </svg>
-              <div className="fund-progress-center">
-                <span>Thực tế</span>
-                <strong>{Math.round(actualPct)}%</strong>
-                <small>{actualAmountLabel}</small>
+                  <circle
+                    cx="110"
+                    cy="110"
+                    r={ringOuterRadius}
+                    stroke="url(#fundRing)"
+                    strokeWidth="18"
+                    fill="none"
+                    strokeDasharray={`${ringOuterCircumference} ${ringOuterCircumference}`}
+                    strokeDashoffset={ringOuterOffset}
+                    strokeLinecap="round"
+                    transform="rotate(-90 110 110)"
+                    style={{ transition: "stroke-dashoffset 0.6s ease, stroke 0.3s ease" }}
+                  />
+                </svg>
+                <div className="position-absolute top-50 start-50 translate-middle text-center">
+                  <div
+                    className="fw-bold"
+                    style={{
+                      fontSize: "1.8rem",
+                      color: "#0d6efd",
+                      textShadow: "0 4px 12px rgba(13,110,253,0.3)",
+                    }}
+                  >
+                    {progressValue}%
+                  </div>
+                  <div className="text-muted small">Hoàn thành mục tiêu</div>
+                  <div className="mt-1 text-muted small">
+                    {formatMoney(fund.current, fund.currency)} /{" "}
+                    {fund.target ? formatMoney(fund.target, fund.currency) : "—"}
+                  </div>
+                </div>
               </div>
-              {expectedPctValue != null && (
-                <div className="fund-progress-plan-chip">
-                  <p>Theo kế hoạch</p>
-                  <strong>{expectedPercentLabel}</strong>
-                </div>
-              )}
-            </div>
-            <div className="fund-progress-info">
-              <div className="fund-progress-status-head">
-                <div>
-                  <p>Trạng thái tốc độ</p>
-                  <h5>{paceStatusLabel}</h5>
-                </div>
-                <span className={`fund-progress-status-badge is-${fundPacing.paceStatus}`}>
-                  {diffPercentLabel}
+
+              {/* Legend chips */}
+              <div className="d-flex gap-2 mt-3 flex-wrap justify-content-center">
+                <span className="badge rounded-pill bg-white text-primary border">
+                  Số dư: {formatMoney(fund.current, fund.currency)}
+                </span>
+                <span className="badge rounded-pill bg-white text-success border">
+                  Mục tiêu: {fund.target ? formatMoney(fund.target, fund.currency) : "—"}
+                </span>
+                <span className="badge rounded-pill bg-white text-secondary border">
+                  Tự động nạp: {fund.autoDepositEnabled ? "Bật" : "Tắt"}
+                </span>
+                <span className="badge rounded-pill bg-white text-secondary border">
+                  Nhắc nhở: {fund.reminderEnabled ? "Bật" : "Tắt"}
                 </span>
               </div>
-              <p className="fund-progress-status-desc">{paceStatusDescription}</p>
-              <div className="fund-progress-stat-grid">
-                <div className="fund-progress-stat">
-                  <p>Thực tế</p>
-                  <strong>{actualAmountLabel}</strong>
-                  <span>Đã đạt {Math.round(actualPct)}% mục tiêu</span>
-                </div>
-                <div className="fund-progress-stat">
-                  <p>Theo kế hoạch</p>
-                  <strong>{planAmountLabel}</strong>
-                  <span>{expectedPctValue != null ? `Lẽ ra đạt ${expectedPercentLabel}` : "Chưa có lịch trình"}</span>
-                </div>
-                <div className="fund-progress-stat">
-                  <p>Còn thiếu</p>
-                  <strong>{shortageLabel}</strong>
-                  <span>{fundPacing.shortage === 0 ? "Đã chạm mục tiêu" : remainingDaysLabel}</span>
-                </div>
+            </div>
+          </div>
+        </div>
+
+        {/* LINE CHART KIỂU MẪU */}
+        <div className="card shadow-sm mt-3">
+          <div className="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+            <span>Tiến độ theo tháng</span>
+            <span className="badge bg-light text-muted">Cumulative vs Target</span>
+          </div>
+          <div className="card-body">
+            {monthlyProgress.labels.length ? (
+              <div style={{ width: "100%", height: 220 }}>
+                <svg width="100%" height="220" viewBox="0 0 100 60" preserveAspectRatio="none">
+                  {/* Grid */}
+                  {[0, 20, 40, 60, 80, 100].map((y) => (
+                    <line
+                      key={y}
+                      x1="0"
+                      y1={60 - (y / 100) * 50}
+                      x2="100"
+                      y2={60 - (y / 100) * 50}
+                      stroke="#f1f3f5"
+                      strokeWidth="0.2"
+                    />
+                  ))}
+                  {/* Path progress */}
+                  {(() => {
+                    const arr = monthlyProgress.progress;
+                    const d = arr
+                      .map((val, idx) => {
+                        const x = (idx / Math.max(arr.length - 1, 1)) * 100;
+                        const y = 55 - (val / monthlyProgress.max) * 50;
+                        return `${idx === 0 ? "M" : "L"} ${x},${y}`;
+                      })
+                      .join(" ");
+                    return (
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke="#0d6efd"
+                        strokeWidth="1.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    );
+                  })()}
+                  {/* Dots */}
+                  {monthlyProgress.progress.map((val, idx) => {
+                    const x = (idx / Math.max(monthlyProgress.progress.length - 1, 1)) * 100;
+                    const y = 55 - (val / monthlyProgress.max) * 50;
+                    return (
+                      <circle key={`prog-${idx}`} cx={x} cy={y} r="1.4" fill="#0d6efd" />
+                    );
+                  })}
+                </svg>
               </div>
-              <div className="fund-progress-meter">
-                <div className="fund-progress-meter-track">
-                  <span className="fund-progress-meter-fill" style={{ width: `${actualPct}%` }} />
-                  {expectedPctValue != null && (
-                    <span className="fund-progress-meter-plan" style={{ left: `${expectedPctValue}%` }} />
-                  )}
-                </div>
-                <div className="fund-progress-meter-legend">
-                  <span>
-                    <span className="legend-dot actual" /> Thực tế
-                  </span>
-                  {expectedPctValue != null && (
-                    <span>
-                      <span className="legend-dot plan" /> Kế hoạch
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="fund-progress-pill-row">
-                {PACE_STATUS_DEFINITIONS.map((status) => (
-                  <span
-                    key={status.key}
-                    className={`fund-progress-pill ${status.key === fundPacing.paceStatus ? "is-active" : ""}`}
-                  >
-                    <span className={`pill-dot pill-dot--${status.key}`} />
-                    {status.label}
-                  </span>
-                ))}
-              </div>
+            ) : (
+              <div className="text-muted small">Chưa có dữ liệu giao dịch để vẽ biểu đồ.</div>
+            )}
+            {/* Legend */}
+            <div className="d-flex gap-3 align-items-center mt-2">
+              <span className="d-flex align-items-center gap-1 text-muted small">
+                <span style={{ width: 10, height: 2, background: "#0d6efd", display: "inline-block" }}></span>
+                % tiến tới mục tiêu
+              </span>
             </div>
           </div>
         </div>
