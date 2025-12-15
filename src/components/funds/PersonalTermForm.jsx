@@ -87,13 +87,13 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
       return;
     }
 
-    const t = Number(targetAmount);
-    if (Number.isNaN(t) || t <= 0) {
+    const targetNum = Number(targetAmount);
+    if (Number.isNaN(targetNum) || targetNum <= 0) {
       setTargetError(t('funds.form.error.target_invalid'));
       return;
     }
 
-    if (t < targetMin) {
+    if (targetNum < targetMin) {
       const minLabel = targetMin.toLocaleString("en-US");
       setTargetError(
         t('funds.form.error.target_min', { min: minLabel, currency: selectedCurrency ? " " + selectedCurrency : "" })
@@ -102,20 +102,20 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     }
 
     setTargetError("");
-  }, [targetAmount, targetMin]);
+  }, [targetAmount, targetMin, t, selectedCurrency]);
 
   // Tính ngày kết thúc tự động
   useEffect(() => {
-    const t = Number(targetAmount);
-    const p = Number(periodAmount);
+    const targetNum = Number(targetAmount);
+    const periodNum = Number(periodAmount);
 
     if (
       !targetAmount ||
       !periodAmount ||
-      Number.isNaN(t) ||
-      Number.isNaN(p) ||
-      p <= 0 ||
-      t < targetMin
+      Number.isNaN(targetNum) ||
+      Number.isNaN(periodNum) ||
+      periodNum <= 0 ||
+      targetNum < targetMin
     ) {
       setCalculatedEndDate("");
       setEstimateText("");
@@ -123,7 +123,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     }
 
     // Tính từ 0đ lên mục tiêu
-    const periods = Math.ceil(t / p);
+    const periods = Math.ceil(targetNum / periodNum);
     if (!periods || periods <= 0) {
       setCalculatedEndDate("");
       setEstimateText("");
