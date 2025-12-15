@@ -1,6 +1,65 @@
-import React from "react";
+import React, { useMemo } from "react";
 import Modal from "../common/Modal/Modal";
 import { formatVietnamDate } from "../../utils/dateFormat";
+
+// Budget Progress Ring Component
+const BudgetProgressRing = ({ percent = 0, status = "healthy" }) => {
+  const normalizedPercent = Math.min(Math.max(percent, 0), 100);
+  const radius = 68;
+  const stroke = 12;
+  const normalizedRadius = radius - stroke / 2;
+  const circumference = 2 * Math.PI * normalizedRadius;
+  const strokeDashoffset = circumference - (normalizedPercent / 100) * circumference;
+  
+  const statusColors = {
+    healthy: { main: "#10b981", bg: "rgba(16, 185, 129, 0.15)" },
+    warning: { main: "#f59e0b", bg: "rgba(245, 158, 11, 0.15)" },
+    over: { main: "#ef4444", bg: "rgba(239, 68, 68, 0.15)" },
+  };
+  
+  const colors = statusColors[status] || statusColors.healthy;
+  
+  return (
+    <div className="budget-progress-ring-container">
+      <svg
+        width={radius * 2}
+        height={radius * 2}
+        viewBox={`0 0 ${radius * 2} ${radius * 2}`}
+        className="budget-progress-ring-svg"
+      >
+        {/* Background circle */}
+        <circle
+          cx={radius}
+          cy={radius}
+          r={normalizedRadius}
+          fill="none"
+          stroke={colors.bg}
+          strokeWidth={stroke}
+        />
+        {/* Progress circle */}
+        <circle
+          cx={radius}
+          cy={radius}
+          r={normalizedRadius}
+          fill="none"
+          stroke={colors.main}
+          strokeWidth={stroke}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${radius} ${radius})`}
+          style={{ transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease" }}
+        />
+      </svg>
+      <div className="budget-progress-ring-content">
+        <span className="budget-progress-ring-percent" style={{ color: colors.main }}>
+          {Math.round(normalizedPercent)}%
+        </span>
+        <small className="budget-progress-ring-label">Đã dùng</small>
+      </div>
+    </div>
+  );
+};
 
 export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit, onRemind }) {
   if (!open || !budget) return null;
@@ -24,9 +83,22 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
     warning: "warning",
     over: "danger",
   }[usage?.status || "healthy"] || "success";
-  const percent = usage?.percent ?? 0;
+  
+  // Calculate actual percent from spent and limit
   const limit = budget.limitAmount || 0;
   const spent = usage?.spent || 0;
+  const actualPercent = limit > 0 ? (spent / limit) * 100 : 0;
+  const percent = usage?.percent ?? actualPercent;
+  
+  // Determine status based on actual usage
+  const alertPercentage = budget.alertPercentage ?? 80;
+  let actualStatus = "healthy";
+  if (percent >= 100) {
+    actualStatus = "over";
+  } else if (percent >= alertPercentage) {
+    actualStatus = "warning";
+  }
+  
   const remaining = usage?.remaining ?? limit - spent;
   const rangeLabel = budget.startDate && budget.endDate
     ? `${formatVietnamDate(budget.startDate)} - ${formatVietnamDate(budget.endDate)}`
@@ -42,7 +114,7 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
             <span className="text-muted">Áp dụng cho ví: {budget.walletName || "Tất cả ví"}</span>
           </div>
           <span className={`budget-status-chip ${statusTone}`}>
-            {statusLabel[usage?.status || "healthy"]}
+            {statusLabel[usage?.status || actualStatus]}
           </span>
         </div>
 
@@ -67,10 +139,7 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
 
         <div className="budget-detail-body">
           <div className="budget-detail-chart">
-            <div className="budget-detail-chart-ring">
-              <span>{Math.min(percent, 999)}%</span>
-              <small>Đã dùng</small>
-            </div>
+            <BudgetProgressRing percent={percent} status={actualStatus} />
           </div>
           <div className="budget-detail-info">
             <p>

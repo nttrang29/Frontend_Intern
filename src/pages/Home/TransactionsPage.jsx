@@ -1,4 +1,10 @@
-import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { useCurrency } from "../../hooks/useCurrency";
 
 import { useLocation } from "react-router-dom";
@@ -20,7 +26,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
-import { getAllFunds, getFundTransactions } from "../../services/fund.service";
+import { scheduledTransactionAPI } from "../../services/scheduled-transaction.service";
 import { API_BASE_URL } from "../../services/api-client";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
 
@@ -33,6 +39,106 @@ const TABS = {
   FUND: "fund",
   SCHEDULE: "schedule",
 };
+
+// Schedule type labels for display
+const SCHEDULE_TYPE_LABELS = {
+  ONCE: "Một lần",
+  ONE_TIME: "Một lần",
+  DAILY: "Hằng ngày",
+  WEEKLY: "Hằng tuần",
+  MONTHLY: "Hằng tháng",
+  YEARLY: "Hằng năm",
+};
+
+// Schedule status metadata
+const SCHEDULE_STATUS_META = {
+  PENDING: {
+    label: "Chờ chạy",
+    className: "schedule-status schedule-status--pending",
+  },
+  RUNNING: {
+    label: "Đang chạy",
+    className: "schedule-status schedule-status--running",
+  },
+  COMPLETED: {
+    label: "Hoàn tất",
+    className: "schedule-status schedule-status--success",
+  },
+  FAILED: {
+    label: "Thất bại",
+    className: "schedule-status schedule-status--failed",
+  },
+  CANCELLED: {
+    label: "Đã hủy",
+    className: "schedule-status schedule-status--muted",
+  },
+};
+
+// Schedule filter tabs
+const SCHEDULE_TABS = [
+  { value: "all", label: "Tất cả" },
+  { value: "pending", label: "Chờ chạy" },
+  { value: "active", label: "Đang hoạt động" },
+  { value: "completed", label: "Hoàn tất" },
+  { value: "failed", label: "Thất bại" },
+  { value: "cancelled", label: "Đã hủy" },
+];
+
+// Estimate total runs for a schedule
+// startValue = nextExecutionDate (ngày tiếp theo)
+// endValue = endDate (ngày kết thúc)
+// completedCount = số lần đã hoàn thành
+function estimateScheduleRuns(
+  startValue,
+  endValue,
+  scheduleType,
+  completedCount = 0
+) {
+  // ONE_TIME always runs exactly 1 time
+  if (scheduleType === "ONCE" || scheduleType === "ONE_TIME") {
+    return 1;
+  }
+
+  // No end date = unlimited runs, show ∞ symbol
+  if (!endValue) return "∞";
+
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+
+  // If start date is invalid or after end date, no more runs
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    return completedCount; // Only completed runs remain
+  }
+
+  const diffTime = Math.abs(end - start);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  let remainingRuns = 0;
+  switch (scheduleType) {
+    case "DAILY":
+      remainingRuns = diffDays + 1; // Include both start and end days
+      break;
+    case "WEEKLY":
+      remainingRuns = Math.floor(diffDays / 7) + 1;
+      break;
+    case "MONTHLY":
+      // Calculate months between two dates more accurately
+      const monthsDiff =
+        (end.getFullYear() - start.getFullYear()) * 12 +
+        (end.getMonth() - start.getMonth());
+      remainingRuns = Math.max(1, monthsDiff + 1);
+      break;
+    case "YEARLY":
+      const yearsDiff = end.getFullYear() - start.getFullYear();
+      remainingRuns = Math.max(1, yearsDiff + 1);
+      break;
+    default:
+      remainingRuns = 0;
+  }
+
+  // Total = completed + remaining
+  return completedCount + remainingRuns;
+}
 
 const EXPENSE_TOKENS = [
   "EXPENSE",
@@ -226,7 +332,8 @@ const ATTACHMENT_HINTS = [
   "evidence",
 ];
 
-const MEDIA_EXTENSION_PATTERN = /\.(png|jpe?g|gif|bmp|webp|svg|heic|heif|tiff?|pdf|jpeg)(?:$|[?#])/i;
+const MEDIA_EXTENSION_PATTERN =
+  /\.(png|jpe?g|gif|bmp|webp|svg|heic|heif|tiff?|pdf|jpeg)(?:$|[?#])/i;
 const BASE64_BODY_PATTERN = /^[A-Za-z0-9+/=\s]+$/;
 
 const looksLikeBase64Payload = (value) => {
@@ -249,7 +356,12 @@ const looksLikeRelativeMediaPath = (value) => {
   if (value.startsWith("/")) return true;
   if (value.includes("/") || value.includes("\\")) return true;
   if (MEDIA_EXTENSION_PATTERN.test(value)) return true;
-  if (/^uploads/i.test(value) || /^files/i.test(value) || /^images/i.test(value)) return true;
+  if (
+    /^uploads/i.test(value) ||
+    /^files/i.test(value) ||
+    /^images/i.test(value)
+  )
+    return true;
   if (value.includes("?")) return true;
   return false;
 };
@@ -274,7 +386,9 @@ const formatAttachmentUrl = (value) => {
 
   const base = (API_BASE_URL || "").replace(/\/$/, "");
   if (!base) {
-    return trimmed.startsWith("/") ? trimmed : `/${trimmed}`.replace(/\/+/g, "/");
+    return trimmed.startsWith("/")
+      ? trimmed
+      : `/${trimmed}`.replace(/\/+/g, "/");
   }
 
   if (trimmed.startsWith("/")) {
@@ -335,7 +449,7 @@ const normalizeAttachmentCandidate = (value) => {
 
 const resolveAttachmentFromTransaction = (tx) => {
   if (!tx) return "";
-  
+
   // Ưu tiên các field trực tiếp của transaction (imageUrl, attachmentUrl, etc.)
   for (const key of ATTACHMENT_KEYS) {
     if (Object.prototype.hasOwnProperty.call(tx, key)) {
@@ -346,7 +460,7 @@ const resolveAttachmentFromTransaction = (tx) => {
       }
     }
   }
-  
+
   // Fallback sources trực tiếp
   const fallbackSources = [tx.media, tx.attachments, tx.files, tx.images];
   for (const source of fallbackSources) {
@@ -359,13 +473,13 @@ const resolveAttachmentFromTransaction = (tx) => {
   // Chỉ scan vào các object liên quan đến attachment, TRÁNH scan vào user/creator để không lấy avatar
   const scanObjectForHints = (obj, depth = 0, skipKeys = []) => {
     if (!obj || depth > 2) return ""; // Giảm depth để tránh scan quá sâu
-    
+
     // Nếu là string, format và return
     if (typeof obj === "string") {
       const formatted = formatAttachmentUrl(obj);
       return formatted || "";
     }
-    
+
     // Nếu là array, scan từng item
     if (Array.isArray(obj)) {
       for (const item of obj) {
@@ -374,29 +488,42 @@ const resolveAttachmentFromTransaction = (tx) => {
       }
       return "";
     }
-    
+
     // Nếu là object
     if (typeof obj === "object") {
       // Bỏ qua các key không liên quan đến attachment (user, creator, owner, etc.)
-      const excludedKeys = ['user', 'creator', 'owner', 'createdBy', 'updatedBy', 'performedBy', 'executor', 'actor', 'avatar'];
-      
+      const excludedKeys = [
+        "user",
+        "creator",
+        "owner",
+        "createdBy",
+        "updatedBy",
+        "performedBy",
+        "executor",
+        "actor",
+        "avatar",
+      ];
+
       for (const key of Object.keys(obj)) {
         const lower = key.toLowerCase();
-        
+
         // Skip nếu key bị exclude hoặc trong skipKeys
         if (excludedKeys.includes(lower) || skipKeys.includes(lower)) {
           continue;
         }
-        
+
         // Nếu key có hint về attachment, xử lý ngay
         if (ATTACHMENT_HINTS.some((hint) => lower.includes(hint))) {
           const normalized = normalizeAttachmentCandidate(obj[key]);
           if (normalized) return normalized;
         }
-        
+
         // Chỉ scan nested nếu không phải là user/creator object và depth còn cho phép
         if (depth < 2 && !excludedKeys.includes(lower)) {
-          const nested = scanObjectForHints(obj[key], depth + 1, [...skipKeys, ...excludedKeys]);
+          const nested = scanObjectForHints(obj[key], depth + 1, [
+            ...skipKeys,
+            ...excludedKeys,
+          ]);
           if (nested) return nested;
         }
       }
@@ -412,14 +539,15 @@ const resolveAttachmentFromTransaction = (tx) => {
   delete txWithoutUser.owner;
   delete txWithoutUser.createdBy;
   delete txWithoutUser.updatedBy;
-  
+
   return scanObjectForHints(txWithoutUser, 0, []);
 };
 
 const extractListFromResponse = (payload, preferredKey) => {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
-  if (preferredKey && Array.isArray(payload[preferredKey])) return payload[preferredKey];
+  if (preferredKey && Array.isArray(payload[preferredKey]))
+    return payload[preferredKey];
   if (Array.isArray(payload.data)) return payload.data;
   if (Array.isArray(payload.items)) return payload.items;
   return [];
@@ -427,7 +555,9 @@ const extractListFromResponse = (payload, preferredKey) => {
 
 const getWalletRoleLabel = (wallet) => {
   if (!wallet) return "";
-  return ((wallet.walletRole || wallet.sharedRole || wallet.role || "") + "").toUpperCase();
+  return (
+    (wallet.walletRole || wallet.sharedRole || wallet.role || "") + ""
+  ).toUpperCase();
 };
 
 const isViewerOnlyWallet = (wallet) => {
@@ -441,21 +571,19 @@ function toDateObj(str) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-
 /**
  * Format số tiền với độ chính xác cao (tối đa 8 chữ số thập phân)
  * Để hiển thị chính xác số tiền nhỏ khi chuyển đổi tiền tệ
  */
-
-
 
 export default function TransactionsPage() {
   const { formatCurrency } = useCurrency();
   const { t } = useLanguage();
   const [externalTransactions, setExternalTransactions] = useState([]);
   const [internalTransactions, setInternalTransactions] = useState([]);
-  const [groupExternalTransactions, setGroupExternalTransactions] = useState([]);
-  const [fundTransactions, setFundTransactions] = useState([]);
+  const [groupExternalTransactions, setGroupExternalTransactions] = useState(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(TABS.EXTERNAL);
 
@@ -468,34 +596,47 @@ export default function TransactionsPage() {
   const [viewing, setViewing] = useState(null);
   const [editing, setEditing] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
-  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+    type: "success",
+  });
   const [expandedPanel, setExpandedPanel] = useState(null); // "form" | "history" | null
 
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [scheduledTransactions, setScheduledTransactions] = useState(MOCK_SCHEDULES);
+  const [scheduledTransactions, setScheduledTransactions] = useState([]);
+  const [scheduledLoading, setScheduledLoading] = useState(false);
   const [scheduleFilter, setScheduleFilter] = useState("all");
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
 
   // Get shared data from contexts
-  const { budgets, getSpentAmount, getSpentForBudget, updateTransactionsByCategory, updateAllExternalTransactions, refreshBudgets } = useBudgetData();
+  const {
+    budgets,
+    getSpentAmount,
+    getSpentForBudget,
+    updateTransactionsByCategory,
+    updateAllExternalTransactions,
+    refreshBudgets,
+  } = useBudgetData();
   const { expenseCategories, incomeCategories } = useCategoryData();
   const { wallets, loadWallets, loading: walletsLoading } = useWalletData();
-  const { loadNotifications, notifications: allNotifications } = useNotifications() || {};
+  const { loadNotifications, notifications: allNotifications } =
+    useNotifications() || {};
   const { currentUser } = useAuth();
   const location = useLocation();
   const [appliedFocusParam, setAppliedFocusParam] = useState("");
-  
+
   // Budget warning state
   const [budgetWarning, setBudgetWarning] = useState(null);
   const [pendingTransaction, setPendingTransaction] = useState(null);
-  
+
   // Lưu danh sách walletIds mà user đã bị kick/rời ví
   // Khôi phục từ localStorage khi mount để persist qua F5
   const [leftWalletIds, setLeftWalletIds] = useState(() => {
     try {
-      const saved = localStorage.getItem('leftWalletIds');
+      const saved = localStorage.getItem("leftWalletIds");
       if (saved) {
         const parsed = JSON.parse(saved);
         return new Set(Array.isArray(parsed) ? parsed : []);
@@ -505,55 +646,56 @@ export default function TransactionsPage() {
     }
     return new Set();
   });
-  
+
   // Lưu leftWalletIds vào localStorage mỗi khi thay đổi
   useEffect(() => {
     try {
       const idsArray = Array.from(leftWalletIds);
       if (idsArray.length > 0) {
-        localStorage.setItem('leftWalletIds', JSON.stringify(idsArray));
+        localStorage.setItem("leftWalletIds", JSON.stringify(idsArray));
       } else {
-        localStorage.removeItem('leftWalletIds');
+        localStorage.removeItem("leftWalletIds");
       }
     } catch (e) {
       console.error("Failed to save leftWalletIds to localStorage:", e);
     }
   }, [leftWalletIds]);
-  
+
   // Ref để track leftWalletIds string để so sánh thay đổi
-  const leftWalletIdsStrRef = useRef('');
-  
+  const leftWalletIdsStrRef = useRef("");
+
   // Khôi phục leftWalletIds từ notifications khi component mount (khi F5)
   // Chạy khi notifications được load hoặc thay đổi
   useEffect(() => {
     if (!allNotifications || allNotifications.length === 0) {
       return;
     }
-    
+
     // Tìm tất cả notifications WALLET_MEMBER_REMOVED hoặc WALLET_MEMBER_LEFT
-    const memberLeftNotifs = allNotifications.filter(n => 
-      n.type === "WALLET_MEMBER_REMOVED" || n.type === "WALLET_MEMBER_LEFT"
+    const memberLeftNotifs = allNotifications.filter(
+      (n) =>
+        n.type === "WALLET_MEMBER_REMOVED" || n.type === "WALLET_MEMBER_LEFT"
     );
-    
+
     if (memberLeftNotifs.length > 0) {
       const removedWalletIds = new Set();
-      memberLeftNotifs.forEach(n => {
+      memberLeftNotifs.forEach((n) => {
         const walletId = n.referenceId || n.walletId || n.reference_id;
         if (walletId) {
           removedWalletIds.add(String(walletId));
         }
       });
-      
+
       if (removedWalletIds.size > 0) {
-        setLeftWalletIds(prev => {
+        setLeftWalletIds((prev) => {
           const newSet = new Set(prev);
-          removedWalletIds.forEach(id => newSet.add(id));
+          removedWalletIds.forEach((id) => newSet.add(id));
           return newSet;
         });
       }
     }
   }, [allNotifications]);
-  
+
   // Cập nhật leftWalletIds khi wallets thay đổi (wallet bị xóa khỏi danh sách)
   // Tự động phát hiện wallet đã bị kick bằng cách kiểm tra wallets list và transactions
   // QUAN TRỌNG: Không xóa leftWalletIds nếu wallet không có trong wallets list
@@ -562,58 +704,58 @@ export default function TransactionsPage() {
     if (walletsLoading) {
       return;
     }
-    
+
     // Nếu wallets chưa load xong, không làm gì
     if (!wallets || wallets.length === 0) {
       return;
     }
-    
+
     // Lấy danh sách walletIds hiện tại (chỉ wallets không bị deleted)
     const currentWalletIds = new Set(
       wallets
-        .filter(w => !w.deleted && !w.isDeleted)
-        .map(w => String(w.id || w.walletId))
+        .filter((w) => !w.deleted && !w.isDeleted)
+        .map((w) => String(w.id || w.walletId))
         .filter(Boolean)
     );
-    
+
     // Tự động phát hiện wallet đã bị kick từ transactions (nếu đã load)
     const transactionWalletIds = new Set();
-    
+
     // Từ external transactions
     if (externalTransactions && externalTransactions.length > 0) {
-      externalTransactions.forEach(tx => {
+      externalTransactions.forEach((tx) => {
         if (tx.walletId) {
           transactionWalletIds.add(String(tx.walletId));
         }
       });
     }
-    
+
     if (groupExternalTransactions && groupExternalTransactions.length > 0) {
-      groupExternalTransactions.forEach(tx => {
+      groupExternalTransactions.forEach((tx) => {
         if (tx.walletId) {
           transactionWalletIds.add(String(tx.walletId));
         }
       });
     }
-    
+
     // Tìm các walletId có trong transactions nhưng không có trong wallets list
     const missingWalletIds = new Set();
-    transactionWalletIds.forEach(walletId => {
+    transactionWalletIds.forEach((walletId) => {
       if (!currentWalletIds.has(walletId)) {
         missingWalletIds.add(walletId);
       }
     });
-    
+
     // Cập nhật leftWalletIds:
     // 1. QUAN TRỌNG: Giữ lại TẤT CẢ walletId đã có trong prev leftWalletIds (từ localStorage)
     //    Chỉ xóa nếu wallet thực sự quay lại trong wallets list
     // 2. Thêm những walletId mới phát hiện từ transactions (không có trong wallets list)
-    setLeftWalletIds(prev => {
+    setLeftWalletIds((prev) => {
       const newSet = new Set();
-      
+
       // Giữ lại những walletId đã có trong prev
       // CHỈ xóa nếu wallet thực sự quay lại trong wallets list
-      prev.forEach(walletId => {
+      prev.forEach((walletId) => {
         // Nếu wallet không có trong wallets list, giữ nguyên (đã bị kick)
         // Nếu wallet có trong wallets list, xóa khỏi leftWalletIds (đã quay lại)
         if (!currentWalletIds.has(walletId)) {
@@ -621,23 +763,43 @@ export default function TransactionsPage() {
         }
         // Nếu wallet đã quay lại, không thêm vào newSet (xóa khỏi leftWalletIds)
       });
-      
+
       // Thêm những walletId mới phát hiện từ transactions
-      missingWalletIds.forEach(walletId => {
+      missingWalletIds.forEach((walletId) => {
         // Chỉ thêm nếu chưa có trong newSet
         if (!newSet.has(walletId)) {
           newSet.add(walletId);
         }
       });
-      
+
       return newSet;
     });
-  }, [wallets, walletsLoading, externalTransactions, groupExternalTransactions]);
+  }, [
+    wallets,
+    walletsLoading,
+    externalTransactions,
+    groupExternalTransactions,
+  ]);
 
   // Memoize currentUser identifiers - chỉ thay đổi khi giá trị thực sự thay đổi
-  const currentUserId = currentUser?.userId || currentUser?.id || currentUser?.accountId || currentUser?.userID || currentUser?.accountID || null;
-  const currentUserEmail = (currentUser?.email || currentUser?.userEmail || currentUser?.username || currentUser?.login || currentUser?.accountEmail || "").trim().toLowerCase();
-  
+  const currentUserId =
+    currentUser?.userId ||
+    currentUser?.id ||
+    currentUser?.accountId ||
+    currentUser?.userID ||
+    currentUser?.accountID ||
+    null;
+  const currentUserEmail = (
+    currentUser?.email ||
+    currentUser?.userEmail ||
+    currentUser?.username ||
+    currentUser?.login ||
+    currentUser?.accountEmail ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+
   const currentUserIdentifiers = useMemo(() => {
     return {
       id: currentUserId !== null ? String(currentUserId) : null,
@@ -662,7 +824,9 @@ export default function TransactionsPage() {
             value.ownerId ??
             value.createdBy ??
             null;
-          return nestedId === null || nestedId === undefined ? null : String(nestedId);
+          return nestedId === null || nestedId === undefined
+            ? null
+            : String(nestedId);
         }
         return String(value);
       };
@@ -722,7 +886,11 @@ export default function TransactionsPage() {
   );
 
   const showViewerRestrictionToast = useCallback(() => {
-    setToast({ open: true, message: t("transactions.error.viewer_wallet_restricted"), type: "error" });
+    setToast({
+      open: true,
+      message: t("transactions.error.viewer_wallet_restricted"),
+      type: "error",
+    });
   }, [t, setToast]);
 
   const actionableWallets = useMemo(() => {
@@ -761,7 +929,7 @@ export default function TransactionsPage() {
   // Memoize wallets map để tránh tìm kiếm lại mỗi lần
   const walletsMap = useMemo(() => {
     const map = new Map();
-    (wallets || []).forEach(w => {
+    (wallets || []).forEach((w) => {
       const id = w.walletId || w.id;
       if (id) {
         map.set(id, w);
@@ -772,314 +940,126 @@ export default function TransactionsPage() {
 
   // Memoize wallets IDs string để so sánh thay đổi
   const walletsIds = useMemo(() => {
-    return (wallets || []).map(w => w.walletId || w.id).filter(Boolean).sort().join(',');
+    return (wallets || [])
+      .map((w) => w.walletId || w.id)
+      .filter(Boolean)
+      .sort()
+      .join(",");
   }, [wallets]);
 
   // Helper function to map Transaction entity to frontend format
-  const mapTransactionToFrontend = useCallback((tx) => {
-    if (!tx) return null;
-    const walletId = tx.wallet?.walletId || tx.walletId;
-    const wallet = walletId ? walletsMap.get(walletId) : null;
-    let walletName =
-          wallet?.walletName ||
-          wallet?.name ||
-          tx.wallet?.walletName ||
-          tx.wallet?.name ||
-          tx.walletName ||
-          "Unknown";
-    
-    // Kiểm tra xem wallet có bị deleted không
-    const isWalletDeleted = 
-      tx.wallet?.deleted === true || 
-      wallet?.deleted === true ||
-      tx.wallet?.isDeleted === true ||
-      wallet?.isDeleted === true;
-    
-    // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
-    if (isWalletDeleted) {
-      walletName = `${walletName} (đã xóa)`;
-    }
-    
-    const categoryName =
-      tx.category?.categoryName ||
-      tx.category?.name ||
-      tx.categoryName ||
-      tx.category ||
-      "Unknown";
-    const type = resolveTransactionDirection(tx);
+  const mapTransactionToFrontend = useCallback(
+    (tx) => {
+      if (!tx) return null;
+      const walletId = tx.wallet?.walletId || tx.walletId;
+      const wallet = walletId ? walletsMap.get(walletId) : null;
+      let walletName =
+        wallet?.walletName ||
+        wallet?.name ||
+        tx.wallet?.walletName ||
+        tx.wallet?.name ||
+        tx.walletName ||
+        "Unknown";
 
-    // Ưu tiên createdAt/created_at cho cột thời gian trong lịch sử giao dịch
-    const rawDateValue =
-      tx.createdAt ||
-      tx.created_at ||
-      tx.transactionDate ||
-      tx.transaction_date ||
-      tx.date ||
-      new Date().toISOString();
+      // Kiểm tra xem wallet có bị deleted không
+      const isWalletDeleted =
+        tx.wallet?.deleted === true ||
+        wallet?.deleted === true ||
+        tx.wallet?.isDeleted === true ||
+        wallet?.isDeleted === true;
 
-    const dateValue = ensureIsoDateWithTimezone(rawDateValue);
-
-    // Sử dụng amount đã chuyển đổi (nếu có) hoặc amount gốc
-    // Backend trả về amount đã được chuyển đổi theo currency của wallet hiện tại
-    const displayAmount = parseFloat(tx.amount || 0);
-    
-    // Currency hiện tại của wallet (sau khi merge)
-    const currentCurrency = tx.wallet?.currencyCode || tx.currencyCode || "VND";
-
-    // Lấy ownerEmail từ wallet để hiển thị trong cột "Chủ ví" cho tab group_external
-    // QUAN TRỌNG: Phải lấy từ nhiều nguồn để đảm bảo có thông tin ngay cả khi wallet đã rời hoặc bị xóa
-    // Ưu tiên: 
-    // 1. wallet từ walletsMap (kể cả khi deleted - vì soft delete vẫn có trong list)
-    // 2. tx.wallet từ transaction entity (luôn có ngay cả khi wallet đã rời/xóa)
-    // 3. Tìm trong wallets list (kể cả deleted) nếu không có trong walletsMap
-    // 4. tx.ownerEmail trực tiếp từ transaction entity (nếu có)
-    let ownerEmail = "";
-    
-    // Ưu tiên 1: Lấy từ wallet trong walletsMap (kể cả khi deleted - soft delete vẫn có trong list)
-    // Đây là nguồn đáng tin cậy nhất vì walletsMap được load từ API và có đầy đủ thông tin
-    if (wallet) {
-      ownerEmail = wallet.ownerEmail || 
-                   wallet.ownerName || 
-                   "";
-    }
-    
-    // Ưu tiên 2: Nếu không có trong walletsMap, tìm trong wallets list (kể cả deleted)
-    // Vì walletsMap chỉ chứa wallets không bị filter, nhưng wallets list có thể có deleted wallets
-    if (!ownerEmail && walletId && wallets && wallets.length > 0) {
-      const foundWallet = wallets.find(w => 
-        String(w.id || w.walletId) === String(walletId)
-      );
-      if (foundWallet) {
-        ownerEmail = foundWallet.ownerEmail || 
-                     foundWallet.ownerName || 
-                     "";
-      }
-    }
-    
-    // Ưu tiên 3: Nếu không có, lấy từ tx.wallet (transaction entity luôn có thông tin này, kể cả khi soft deleted)
-    if (!ownerEmail && tx.wallet) {
-      // Thử nhiều cách lấy ownerEmail từ tx.wallet
-      // Backend có thể trả về ownerEmail trực tiếp hoặc trong owner object
-      // Kiểm tra tất cả các keys có thể có trong tx.wallet
-      ownerEmail = tx.wallet.ownerEmail || 
-                   tx.wallet.owner?.email || 
-                   tx.wallet.owner?.userEmail ||
-                   tx.wallet.owner?.accountEmail ||
-                   tx.wallet.ownerName || 
-                   tx.wallet.ownerFullName ||
-                   tx.wallet.owner?.name ||
-                   tx.wallet.owner?.fullName ||
-                   "";
-      
-      // Nếu vẫn không có, thử scan tất cả các keys trong tx.wallet để tìm email
-      if (!ownerEmail) {
-        const txWalletKeys = Object.keys(tx.wallet || {});
-        for (const key of txWalletKeys) {
-          const value = tx.wallet[key];
-          if (typeof value === "string" && value.includes("@")) {
-            ownerEmail = value;
-            break;
-          }
-          if (typeof value === "object" && value !== null) {
-            // Scan nested object
-            const nestedKeys = Object.keys(value);
-            for (const nestedKey of nestedKeys) {
-              const nestedValue = value[nestedKey];
-              if (typeof nestedValue === "string" && nestedValue.includes("@")) {
-                ownerEmail = nestedValue;
-                break;
-              }
-            }
-            if (ownerEmail) break;
-          }
-        }
-      }
-    }
-    
-    // Ưu tiên 4: Nếu vẫn không có, thử lấy trực tiếp từ transaction entity
-    if (!ownerEmail) {
-      ownerEmail = tx.ownerEmail || 
-                   tx.owner?.email || 
-                   tx.owner?.userEmail ||
-                   tx.ownerName ||
-                   tx.ownerFullName ||
-                   "";
-    }
-
-    // Kiểm tra xem user đã rời ví chưa
-    // CHỈ đánh dấu "đã rời ví" nếu:
-    // 1. WalletId có trong leftWalletIds (đã bị kick/rời ví - từ notification) - luôn đúng
-    // 2. HOẶC wallets đã được load xong VÀ wallet không tìm thấy trong walletsMap VÀ không phải deleted
-    // (Tránh false positive khi wallets chưa load xong sau khi F5)
-    // Lưu ý: Kiểm tra cả wallets list để đảm bảo wallet thực sự không còn trong danh sách
-    const walletIdStr = walletId ? String(walletId) : null;
-    const walletExistsInList = walletIdStr && wallets.some(w => 
-      String(w.id || w.walletId) === walletIdStr && !w.deleted && !w.isDeleted
-    );
-    const isLeftWallet = (walletIdStr && leftWalletIds.has(walletIdStr)) || 
-                         (!walletsLoading && !wallet && walletId && !isWalletDeleted && !walletExistsInList);
-
-    // Kiểm tra xem wallet có phải là VIEWER không
-    // Nếu wallet không có trong walletsMap (đã rời ví), không thể kiểm tra role
-    // Nếu wallet có trong walletsMap, kiểm tra role
-    const isViewerWallet = wallet ? isViewerOnlyWallet(wallet) : false;
-
-    // Lấy walletType để phân biệt PERSONAL và GROUP
-    // Ưu tiên lấy từ wallet trong walletsMap, sau đó từ tx.wallet
-    let walletType = "";
-    if (wallet) {
-      walletType = (wallet.walletType || wallet.type || "").toString().toUpperCase();
-    } else if (tx.wallet?.walletType) {
-      walletType = String(tx.wallet.walletType).toUpperCase();
-    }
-    const isPersonalWallet = walletType !== "GROUP";
-
-    // Thêm "(đã rời ví)" vào tên ví nếu user đã rời ví
-    // Lưu ý:
-    // - Nếu được mời lại với role VIEWER, vẫn không hiện "(đã rời ví)" nhưng vẫn ẩn hành động
-    // - Nếu ví đã bị xóa (bất kể PERSONAL hay GROUP), chỉ hiển thị "(đã xóa)", KHÔNG hiển thị "(đã rời ví)"
-    let displayWalletName = walletName;
-    if (isLeftWallet) {
-      // Nếu ví đã bị xóa, không thêm "(đã rời ví)" nữa (tránh chuỗi "(đã xóa)(đã rời ví)")
+      // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
       if (isWalletDeleted) {
-        // Đã có "(đã xóa)" rồi, không thêm gì nữa
-        displayWalletName = walletName;
-      } else {
-        displayWalletName = `${walletName} (đã rời ví)`;
+        walletName = `${walletName} (đã xóa)`;
       }
-    }
 
-    return {
-      id: tx.transactionId,
-      code: `TX-${String(tx.transactionId).padStart(4, "0")}`,
-      type,
-      walletId: walletId ? Number(walletId) : null, // Thêm walletId để so sánh chính xác trong budget
-      walletName: displayWalletName,
-      ownerEmail: ownerEmail || "", // Thêm ownerEmail để hiển thị trong cột "Chủ ví" và modal chi tiết
-      amount: displayAmount,
-      currency: currentCurrency,
-      date: dateValue,
-      category: categoryName,
-      note: tx.note || "",
-      creatorCode: `USR${String(tx.user?.userId || 0).padStart(3, "0")}`,
-      attachment: resolveAttachmentFromTransaction(tx),
-      // Lưu thông tin gốc để hiển thị nếu cần
-      originalAmount: tx.originalAmount ? parseFloat(tx.originalAmount) : null,
-      originalCurrency: tx.originalCurrency || null,
-      exchangeRate: tx.exchangeRate ? parseFloat(tx.exchangeRate) : null,
-      // Lưu trạng thái deleted của wallet để ẩn nút sửa/xóa
-      isWalletDeleted: isWalletDeleted,
-      // Lưu trạng thái đã rời ví để ẩn nút sửa/xóa
-      isLeftWallet: isLeftWallet,
-      // Lưu trạng thái viewer wallet để ẩn nút sửa/xóa (ngay cả khi không còn trong leftWalletIds)
-      isViewerWallet: isViewerWallet,
-    };
-  }, [walletsMap, leftWalletIds, walletsLoading, wallets]);
+      const categoryName =
+        tx.category?.categoryName ||
+        tx.category?.name ||
+        tx.categoryName ||
+        tx.category ||
+        "Unknown";
+      const type = resolveTransactionDirection(tx);
 
-  const mapTransferToFrontend = useCallback((transfer) => {
-    if (!transfer) return null;
-    const fromWalletId = transfer.fromWallet?.walletId;
-    const toWalletId = transfer.toWallet?.walletId;
-    const fromWallet = fromWalletId ? walletsMap.get(fromWalletId) : null;
-    const toWallet = toWalletId ? walletsMap.get(toWalletId) : null;
-    
-    let sourceWalletName =
-      fromWallet?.walletName ||
-      fromWallet?.name ||
-      transfer.fromWallet?.walletName ||
-      transfer.fromWallet?.name ||
-      "Unknown";
-    
-    // Kiểm tra xem fromWallet có bị deleted không
-    const isFromWalletDeleted = 
-      transfer.fromWallet?.deleted === true || 
-      fromWallet?.deleted === true ||
-      transfer.fromWallet?.isDeleted === true ||
-      fromWallet?.isDeleted === true;
-    
-    // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
-    if (isFromWalletDeleted) {
-      sourceWalletName = `${sourceWalletName} (đã xóa)`;
-    }
-    
-    let targetWalletName =
-      toWallet?.walletName ||
-      toWallet?.name ||
-      transfer.toWallet?.walletName ||
-      transfer.toWallet?.name ||
-      "Unknown";
-    
-    // Kiểm tra xem toWallet có bị deleted không
-    const isToWalletDeleted = 
-      transfer.toWallet?.deleted === true || 
-      toWallet?.deleted === true ||
-      transfer.toWallet?.isDeleted === true ||
-      toWallet?.isDeleted === true;
-    
-    // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
-    if (isToWalletDeleted) {
-      targetWalletName = `${targetWalletName} (đã xóa)`;
-    }
+      // Ưu tiên createdAt/created_at cho cột thời gian trong lịch sử giao dịch
+      const rawDateValue =
+        tx.createdAt ||
+        tx.created_at ||
+        tx.transactionDate ||
+        tx.transaction_date ||
+        tx.date ||
+        new Date().toISOString();
 
-    // Nếu một trong hai wallet bị deleted, đánh dấu transfer không thể sửa/xóa
-    const isWalletDeleted = isFromWalletDeleted || isToWalletDeleted;
+      const dateValue = ensureIsoDateWithTimezone(rawDateValue);
 
-    // Lấy ownerEmail cho sourceWallet và targetWallet (tương tự như mapTransactionToFrontend)
-    // Helper function để lấy ownerEmail từ wallet
-    const getOwnerEmailFromWallet = (wallet, walletId, transferWallet) => {
+      // Sử dụng amount đã chuyển đổi (nếu có) hoặc amount gốc
+      // Backend trả về amount đã được chuyển đổi theo currency của wallet hiện tại
+      const displayAmount = parseFloat(tx.amount || 0);
+
+      // Currency hiện tại của wallet (sau khi merge)
+      const currentCurrency =
+        tx.wallet?.currencyCode || tx.currencyCode || "VND";
+
+      // Lấy ownerEmail từ wallet để hiển thị trong cột "Chủ ví" cho tab group_external
+      // QUAN TRỌNG: Phải lấy từ nhiều nguồn để đảm bảo có thông tin ngay cả khi wallet đã rời hoặc bị xóa
+      // Ưu tiên:
+      // 1. wallet từ walletsMap (kể cả khi deleted - vì soft delete vẫn có trong list)
+      // 2. tx.wallet từ transaction entity (luôn có ngay cả khi wallet đã rời/xóa)
+      // 3. Tìm trong wallets list (kể cả deleted) nếu không có trong walletsMap
+      // 4. tx.ownerEmail trực tiếp từ transaction entity (nếu có)
       let ownerEmail = "";
-      
-      // Ưu tiên 1: Lấy từ wallet trong walletsMap
+
+      // Ưu tiên 1: Lấy từ wallet trong walletsMap (kể cả khi deleted - soft delete vẫn có trong list)
+      // Đây là nguồn đáng tin cậy nhất vì walletsMap được load từ API và có đầy đủ thông tin
       if (wallet) {
-        ownerEmail = wallet.ownerEmail || 
-                     wallet.ownerContact || 
-                     wallet.owner?.email ||
-                     wallet.ownerUser?.email ||
-                     wallet.ownerName || 
-                     "";
+        ownerEmail = wallet.ownerEmail || wallet.ownerName || "";
       }
-      
-      // Ưu tiên 2: Nếu không có trong walletsMap, tìm trong wallets list
+
+      // Ưu tiên 2: Nếu không có trong walletsMap, tìm trong wallets list (kể cả deleted)
+      // Vì walletsMap chỉ chứa wallets không bị filter, nhưng wallets list có thể có deleted wallets
       if (!ownerEmail && walletId && wallets && wallets.length > 0) {
-        const foundWallet = wallets.find(w => 
-          String(w.id || w.walletId) === String(walletId)
+        const foundWallet = wallets.find(
+          (w) => String(w.id || w.walletId) === String(walletId)
         );
         if (foundWallet) {
-          ownerEmail = foundWallet.ownerEmail || 
-                       foundWallet.ownerContact ||
-                       foundWallet.owner?.email ||
-                       foundWallet.ownerUser?.email ||
-                       foundWallet.ownerName || 
-                       "";
+          ownerEmail = foundWallet.ownerEmail || foundWallet.ownerName || "";
         }
       }
-      
-      // Ưu tiên 3: Lấy từ transferWallet (transfer entity luôn có thông tin này)
-      if (!ownerEmail && transferWallet) {
-        ownerEmail = transferWallet.ownerEmail || 
-                     transferWallet.owner?.email || 
-                     transferWallet.owner?.userEmail ||
-                     transferWallet.owner?.accountEmail ||
-                     transferWallet.ownerName || 
-                     transferWallet.ownerFullName ||
-                     transferWallet.owner?.name ||
-                     transferWallet.owner?.fullName ||
-                     "";
-        
-        // Nếu vẫn không có, thử scan tất cả các keys trong transferWallet
+
+      // Ưu tiên 3: Nếu không có, lấy từ tx.wallet (transaction entity luôn có thông tin này, kể cả khi soft deleted)
+      if (!ownerEmail && tx.wallet) {
+        // Thử nhiều cách lấy ownerEmail từ tx.wallet
+        // Backend có thể trả về ownerEmail trực tiếp hoặc trong owner object
+        // Kiểm tra tất cả các keys có thể có trong tx.wallet
+        ownerEmail =
+          tx.wallet.ownerEmail ||
+          tx.wallet.owner?.email ||
+          tx.wallet.owner?.userEmail ||
+          tx.wallet.owner?.accountEmail ||
+          tx.wallet.ownerName ||
+          tx.wallet.ownerFullName ||
+          tx.wallet.owner?.name ||
+          tx.wallet.owner?.fullName ||
+          "";
+
+        // Nếu vẫn không có, thử scan tất cả các keys trong tx.wallet để tìm email
         if (!ownerEmail) {
-          const walletKeys = Object.keys(transferWallet || {});
-          for (const key of walletKeys) {
-            const value = transferWallet[key];
+          const txWalletKeys = Object.keys(tx.wallet || {});
+          for (const key of txWalletKeys) {
+            const value = tx.wallet[key];
             if (typeof value === "string" && value.includes("@")) {
               ownerEmail = value;
               break;
             }
             if (typeof value === "object" && value !== null) {
+              // Scan nested object
               const nestedKeys = Object.keys(value);
               for (const nestedKey of nestedKeys) {
                 const nestedValue = value[nestedKey];
-                if (typeof nestedValue === "string" && nestedValue.includes("@")) {
+                if (
+                  typeof nestedValue === "string" &&
+                  nestedValue.includes("@")
+                ) {
                   ownerEmail = nestedValue;
                   break;
                 }
@@ -1089,135 +1069,415 @@ export default function TransactionsPage() {
           }
         }
       }
-      
-      return ownerEmail;
-    };
-    
-    const sourceWalletOwnerEmail = getOwnerEmailFromWallet(fromWallet, fromWalletId, transfer.fromWallet);
-    const targetWalletOwnerEmail = getOwnerEmailFromWallet(toWallet, toWalletId, transfer.toWallet);
 
-    // Ưu tiên createdAt/created_at cho cột thời gian trong lịch sử giao dịch giữa các ví
-    const rawDateValue =
-      transfer.createdAt ||
-      transfer.created_at ||
-      transfer.transferDate ||
-      transfer.transfer_date ||
-      transfer.date ||
-      new Date().toISOString();
+      // Ưu tiên 4: Nếu vẫn không có, thử lấy trực tiếp từ transaction entity
+      if (!ownerEmail) {
+        ownerEmail =
+          tx.ownerEmail ||
+          tx.owner?.email ||
+          tx.owner?.userEmail ||
+          tx.ownerName ||
+          tx.ownerFullName ||
+          "";
+      }
 
-    const dateValue = ensureIsoDateWithTimezone(rawDateValue);
+      // Kiểm tra xem user đã rời ví chưa
+      // CHỈ đánh dấu "đã rời ví" nếu:
+      // 1. WalletId có trong leftWalletIds (đã bị kick/rời ví - từ notification) - luôn đúng
+      // 2. HOẶC wallets đã được load xong VÀ wallet không tìm thấy trong walletsMap VÀ không phải deleted
+      // (Tránh false positive khi wallets chưa load xong sau khi F5)
+      // Lưu ý: Kiểm tra cả wallets list để đảm bảo wallet thực sự không còn trong danh sách
+      const walletIdStr = walletId ? String(walletId) : null;
+      const walletExistsInList =
+        walletIdStr &&
+        wallets.some(
+          (w) =>
+            String(w.id || w.walletId) === walletIdStr &&
+            !w.deleted &&
+            !w.isDeleted
+        );
+      const isLeftWallet =
+        (walletIdStr && leftWalletIds.has(walletIdStr)) ||
+        (!walletsLoading &&
+          !wallet &&
+          walletId &&
+          !isWalletDeleted &&
+          !walletExistsInList);
 
-    // Kiểm tra xem user đã rời ví chưa (logic tương tự mapTransactionToFrontend)
-    // CHỈ đánh dấu "đã rời ví" nếu:
-    // 1. WalletId có trong leftWalletIds (đã bị kick/rời ví - từ notification) - luôn đúng
-    // 2. HOẶC wallets đã được load xong VÀ wallet không tìm thấy trong walletsMap VÀ không phải deleted
-    const fromWalletIdStr = fromWalletId ? String(fromWalletId) : null;
-    const toWalletIdStr = toWalletId ? String(toWalletId) : null;
-    
-    // Kiểm tra xem wallet có tồn tại trong wallets list không
-    const fromWalletExistsInList = fromWalletIdStr && wallets.some(w => 
-      String(w.id || w.walletId) === fromWalletIdStr && !w.deleted && !w.isDeleted
-    );
-    const toWalletExistsInList = toWalletIdStr && wallets.some(w => 
-      String(w.id || w.walletId) === toWalletIdStr && !w.deleted && !w.isDeleted
-    );
-    
-    const isFromWalletLeft = (fromWalletIdStr && leftWalletIds.has(fromWalletIdStr)) || 
-                             (!walletsLoading && !fromWallet && fromWalletId && !isFromWalletDeleted && !fromWalletExistsInList);
-    const isToWalletLeft = (toWalletIdStr && leftWalletIds.has(toWalletIdStr)) || 
-                           (!walletsLoading && !toWallet && toWalletId && !isToWalletDeleted && !toWalletExistsInList);
-    const isLeftWallet = isFromWalletLeft || isToWalletLeft;
+      // Kiểm tra xem wallet có phải là VIEWER không
+      // Nếu wallet không có trong walletsMap (đã rời ví), không thể kiểm tra role
+      // Nếu wallet có trong walletsMap, kiểm tra role
+      const isViewerWallet = wallet ? isViewerOnlyWallet(wallet) : false;
 
-    // Kiểm tra xem wallet có phải là VIEWER không
-    // Nếu wallet không có trong walletsMap (đã rời ví), không thể kiểm tra role
-    // Nếu wallet có trong walletsMap, kiểm tra role
-    const isFromWalletViewer = fromWallet ? isViewerOnlyWallet(fromWallet) : false;
-    const isToWalletViewer = toWallet ? isViewerOnlyWallet(toWallet) : false;
-    const isViewerWallet = isFromWalletViewer || isToWalletViewer;
+      // Lấy walletType để phân biệt PERSONAL và GROUP
+      // Ưu tiên lấy từ wallet trong walletsMap, sau đó từ tx.wallet
+      let walletType = "";
+      if (wallet) {
+        walletType = (wallet.walletType || wallet.type || "")
+          .toString()
+          .toUpperCase();
+      } else if (tx.wallet?.walletType) {
+        walletType = String(tx.wallet.walletType).toUpperCase();
+      }
+      const isPersonalWallet = walletType !== "GROUP";
 
-    // Lấy walletType để phân biệt PERSONAL và GROUP cho cả sourceWallet và targetWallet
-    // Ưu tiên lấy từ wallet trong walletsMap, sau đó từ transfer.fromWallet/toWallet
-    let fromWalletType = "";
-    if (fromWallet) {
-      fromWalletType = (fromWallet.walletType || fromWallet.type || "").toString().toUpperCase();
-    } else if (transfer.fromWallet?.walletType) {
-      fromWalletType = String(transfer.fromWallet.walletType).toUpperCase();
-    }
-    const isFromPersonalWallet = fromWalletType !== "GROUP";
+      // Thêm "(đã rời ví)" vào tên ví nếu user đã rời ví
+      // Lưu ý:
+      // - Nếu được mời lại với role VIEWER, vẫn không hiện "(đã rời ví)" nhưng vẫn ẩn hành động
+      // - Nếu ví đã bị xóa (bất kể PERSONAL hay GROUP), chỉ hiển thị "(đã xóa)", KHÔNG hiển thị "(đã rời ví)"
+      let displayWalletName = walletName;
+      if (isLeftWallet) {
+        // Nếu ví đã bị xóa, không thêm "(đã rời ví)" nữa (tránh chuỗi "(đã xóa)(đã rời ví)")
+        if (isWalletDeleted) {
+          // Đã có "(đã xóa)" rồi, không thêm gì nữa
+          displayWalletName = walletName;
+        } else {
+          displayWalletName = `${walletName} (đã rời ví)`;
+        }
+      }
 
-    let toWalletType = "";
-    if (toWallet) {
-      toWalletType = (toWallet.walletType || toWallet.type || "").toString().toUpperCase();
-    } else if (transfer.toWallet?.walletType) {
-      toWalletType = String(transfer.toWallet.walletType).toUpperCase();
-    }
-    const isToPersonalWallet = toWalletType !== "GROUP";
+      return {
+        id: tx.transactionId,
+        code: `TX-${String(tx.transactionId).padStart(4, "0")}`,
+        type,
+        walletId: walletId ? Number(walletId) : null, // Thêm walletId để so sánh chính xác trong budget
+        walletName: displayWalletName,
+        ownerEmail: ownerEmail || "", // Thêm ownerEmail để hiển thị trong cột "Chủ ví" và modal chi tiết
+        amount: displayAmount,
+        currency: currentCurrency,
+        date: dateValue,
+        category: categoryName,
+        note: tx.note || "",
+        creatorCode: `USR${String(tx.user?.userId || 0).padStart(3, "0")}`,
+        attachment: resolveAttachmentFromTransaction(tx),
+        // Lưu thông tin gốc để hiển thị nếu cần
+        originalAmount: tx.originalAmount
+          ? parseFloat(tx.originalAmount)
+          : null,
+        originalCurrency: tx.originalCurrency || null,
+        exchangeRate: tx.exchangeRate ? parseFloat(tx.exchangeRate) : null,
+        // Lưu trạng thái deleted của wallet để ẩn nút sửa/xóa
+        isWalletDeleted: isWalletDeleted,
+        // Lưu trạng thái đã rời ví để ẩn nút sửa/xóa
+        isLeftWallet: isLeftWallet,
+        // Lưu trạng thái viewer wallet để ẩn nút sửa/xóa (ngay cả khi không còn trong leftWalletIds)
+        isViewerWallet: isViewerWallet,
+      };
+    },
+    [walletsMap, leftWalletIds, walletsLoading, wallets]
+  );
 
-    // Thêm "(đã rời ví)" vào tên ví nếu user đã rời ví
-    // Lưu ý: 
-    // - Nếu được mời lại với role VIEWER, vẫn không hiện "(đã rời ví)" nhưng vẫn ẩn hành động
-    // - Với ví cá nhân (PERSONAL), nếu đã bị xóa thì chỉ hiển thị "(đã xóa)", không hiển thị "(đã rời ví)"
-    // - Với ví nhóm (GROUP), nếu đã bị xóa thì chỉ hiển thị "(đã xóa)", không hiển thị "(đã rời ví)"
-    let displaySourceWalletName = sourceWalletName;
-    let displayTargetWalletName = targetWalletName;
-    if (isFromWalletLeft) {
-      // Với ví cá nhân hoặc ví nhóm, nếu đã bị xóa thì không thêm "(đã rời ví)" nữa
+  const mapTransferToFrontend = useCallback(
+    (transfer) => {
+      if (!transfer) return null;
+      const fromWalletId = transfer.fromWallet?.walletId;
+      const toWalletId = transfer.toWallet?.walletId;
+      const fromWallet = fromWalletId ? walletsMap.get(fromWalletId) : null;
+      const toWallet = toWalletId ? walletsMap.get(toWalletId) : null;
+
+      let sourceWalletName =
+        fromWallet?.walletName ||
+        fromWallet?.name ||
+        transfer.fromWallet?.walletName ||
+        transfer.fromWallet?.name ||
+        "Unknown";
+
+      // Kiểm tra xem fromWallet có bị deleted không
+      const isFromWalletDeleted =
+        transfer.fromWallet?.deleted === true ||
+        fromWallet?.deleted === true ||
+        transfer.fromWallet?.isDeleted === true ||
+        fromWallet?.isDeleted === true;
+
+      // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
       if (isFromWalletDeleted) {
-        // Đã có "(đã xóa)" rồi, không thêm gì nữa
-        displaySourceWalletName = sourceWalletName;
-      } else {
-        displaySourceWalletName = `${sourceWalletName} (đã rời ví)`;
+        sourceWalletName = `${sourceWalletName} (đã xóa)`;
       }
-    }
-    if (isToWalletLeft) {
-      // Với ví cá nhân hoặc ví nhóm, nếu đã bị xóa thì không thêm "(đã rời ví)" nữa
+
+      let targetWalletName =
+        toWallet?.walletName ||
+        toWallet?.name ||
+        transfer.toWallet?.walletName ||
+        transfer.toWallet?.name ||
+        "Unknown";
+
+      // Kiểm tra xem toWallet có bị deleted không
+      const isToWalletDeleted =
+        transfer.toWallet?.deleted === true ||
+        toWallet?.deleted === true ||
+        transfer.toWallet?.isDeleted === true ||
+        toWallet?.isDeleted === true;
+
+      // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
       if (isToWalletDeleted) {
-        // Đã có "(đã xóa)" rồi, không thêm gì nữa
-        displayTargetWalletName = targetWalletName;
-      } else {
-        displayTargetWalletName = `${targetWalletName} (đã rời ví)`;
+        targetWalletName = `${targetWalletName} (đã xóa)`;
       }
-    }
 
-    // Lấy role và walletType cho sourceWallet và targetWallet để lưu vào transaction object
-    // (giữ lại thông tin ban đầu kể cả khi wallet đã bị xóa/rời)
-    const sourceWalletRole = fromWallet 
-      ? (fromWallet.walletRole || fromWallet.sharedRole || fromWallet.role || "").toString().toUpperCase()
-      : (transfer.fromWallet?.walletRole || transfer.fromWallet?.sharedRole || transfer.fromWallet?.role || "").toString().toUpperCase();
-    
-    const targetWalletRole = toWallet
-      ? (toWallet.walletRole || toWallet.sharedRole || toWallet.role || "").toString().toUpperCase()
-      : (transfer.toWallet?.walletRole || transfer.toWallet?.sharedRole || transfer.toWallet?.role || "").toString().toUpperCase();
+      // Nếu một trong hai wallet bị deleted, đánh dấu transfer không thể sửa/xóa
+      const isWalletDeleted = isFromWalletDeleted || isToWalletDeleted;
 
-    return {
-      id: transfer.transferId,
-      code: `TR-${String(transfer.transferId).padStart(4, "0")}`,
-      type: "transfer",
-      sourceWallet: displaySourceWalletName,
-      targetWallet: displayTargetWalletName,
-      sourceWalletId: fromWalletId ? Number(fromWalletId) : null, // Thêm sourceWalletId để filter
-      targetWalletId: toWalletId ? Number(toWalletId) : null, // Thêm targetWalletId để filter
-      sourceWalletOwnerEmail: sourceWalletOwnerEmail || "", // Thêm ownerEmail cho sourceWallet
-      targetWalletOwnerEmail: targetWalletOwnerEmail || "", // Thêm ownerEmail cho targetWallet
-      sourceWalletRole: sourceWalletRole || "", // Lưu role của sourceWallet
-      targetWalletRole: targetWalletRole || "", // Lưu role của targetWallet
-      amount: parseFloat(transfer.amount || 0),
-      currency: transfer.currencyCode || "VND",
-      date: dateValue,
-      category: "Chuyển tiền giữa các ví",
-      note: transfer.note || "",
-      creatorCode: `USR${String(transfer.user?.userId || 0).padStart(3, "0")}`,
-      attachment: "",
-      // Lưu raw transfer để có thể lấy walletType sau này
-      rawTransfer: transfer,
-      // Lưu trạng thái deleted của wallet để ẩn nút sửa/xóa
-      isWalletDeleted: isWalletDeleted,
-      // Lưu trạng thái đã rời ví để ẩn nút sửa/xóa
-      isLeftWallet: isLeftWallet,
-      // Lưu trạng thái viewer wallet để ẩn nút sửa/xóa (ngay cả khi không còn trong leftWalletIds)
-      isViewerWallet: isViewerWallet,
-    };
-  }, [walletsMap, leftWalletIds, walletsLoading, wallets]);
+      // Lấy ownerEmail cho sourceWallet và targetWallet (tương tự như mapTransactionToFrontend)
+      // Helper function để lấy ownerEmail từ wallet
+      const getOwnerEmailFromWallet = (wallet, walletId, transferWallet) => {
+        let ownerEmail = "";
+
+        // Ưu tiên 1: Lấy từ wallet trong walletsMap
+        if (wallet) {
+          ownerEmail =
+            wallet.ownerEmail ||
+            wallet.ownerContact ||
+            wallet.owner?.email ||
+            wallet.ownerUser?.email ||
+            wallet.ownerName ||
+            "";
+        }
+
+        // Ưu tiên 2: Nếu không có trong walletsMap, tìm trong wallets list
+        if (!ownerEmail && walletId && wallets && wallets.length > 0) {
+          const foundWallet = wallets.find(
+            (w) => String(w.id || w.walletId) === String(walletId)
+          );
+          if (foundWallet) {
+            ownerEmail =
+              foundWallet.ownerEmail ||
+              foundWallet.ownerContact ||
+              foundWallet.owner?.email ||
+              foundWallet.ownerUser?.email ||
+              foundWallet.ownerName ||
+              "";
+          }
+        }
+
+        // Ưu tiên 3: Lấy từ transferWallet (transfer entity luôn có thông tin này)
+        if (!ownerEmail && transferWallet) {
+          ownerEmail =
+            transferWallet.ownerEmail ||
+            transferWallet.owner?.email ||
+            transferWallet.owner?.userEmail ||
+            transferWallet.owner?.accountEmail ||
+            transferWallet.ownerName ||
+            transferWallet.ownerFullName ||
+            transferWallet.owner?.name ||
+            transferWallet.owner?.fullName ||
+            "";
+
+          // Nếu vẫn không có, thử scan tất cả các keys trong transferWallet
+          if (!ownerEmail) {
+            const walletKeys = Object.keys(transferWallet || {});
+            for (const key of walletKeys) {
+              const value = transferWallet[key];
+              if (typeof value === "string" && value.includes("@")) {
+                ownerEmail = value;
+                break;
+              }
+              if (typeof value === "object" && value !== null) {
+                const nestedKeys = Object.keys(value);
+                for (const nestedKey of nestedKeys) {
+                  const nestedValue = value[nestedKey];
+                  if (
+                    typeof nestedValue === "string" &&
+                    nestedValue.includes("@")
+                  ) {
+                    ownerEmail = nestedValue;
+                    break;
+                  }
+                }
+                if (ownerEmail) break;
+              }
+            }
+          }
+        }
+
+        return ownerEmail;
+      };
+
+      const sourceWalletOwnerEmail = getOwnerEmailFromWallet(
+        fromWallet,
+        fromWalletId,
+        transfer.fromWallet
+      );
+      const targetWalletOwnerEmail = getOwnerEmailFromWallet(
+        toWallet,
+        toWalletId,
+        transfer.toWallet
+      );
+
+      // Ưu tiên createdAt/created_at cho cột thời gian trong lịch sử giao dịch giữa các ví
+      const rawDateValue =
+        transfer.createdAt ||
+        transfer.created_at ||
+        transfer.transferDate ||
+        transfer.transfer_date ||
+        transfer.date ||
+        new Date().toISOString();
+
+      const dateValue = ensureIsoDateWithTimezone(rawDateValue);
+
+      // Kiểm tra xem user đã rời ví chưa (logic tương tự mapTransactionToFrontend)
+      // CHỈ đánh dấu "đã rời ví" nếu:
+      // 1. WalletId có trong leftWalletIds (đã bị kick/rời ví - từ notification) - luôn đúng
+      // 2. HOẶC wallets đã được load xong VÀ wallet không tìm thấy trong walletsMap VÀ không phải deleted
+      const fromWalletIdStr = fromWalletId ? String(fromWalletId) : null;
+      const toWalletIdStr = toWalletId ? String(toWalletId) : null;
+
+      // Kiểm tra xem wallet có tồn tại trong wallets list không
+      const fromWalletExistsInList =
+        fromWalletIdStr &&
+        wallets.some(
+          (w) =>
+            String(w.id || w.walletId) === fromWalletIdStr &&
+            !w.deleted &&
+            !w.isDeleted
+        );
+      const toWalletExistsInList =
+        toWalletIdStr &&
+        wallets.some(
+          (w) =>
+            String(w.id || w.walletId) === toWalletIdStr &&
+            !w.deleted &&
+            !w.isDeleted
+        );
+
+      const isFromWalletLeft =
+        (fromWalletIdStr && leftWalletIds.has(fromWalletIdStr)) ||
+        (!walletsLoading &&
+          !fromWallet &&
+          fromWalletId &&
+          !isFromWalletDeleted &&
+          !fromWalletExistsInList);
+      const isToWalletLeft =
+        (toWalletIdStr && leftWalletIds.has(toWalletIdStr)) ||
+        (!walletsLoading &&
+          !toWallet &&
+          toWalletId &&
+          !isToWalletDeleted &&
+          !toWalletExistsInList);
+      const isLeftWallet = isFromWalletLeft || isToWalletLeft;
+
+      // Kiểm tra xem wallet có phải là VIEWER không
+      // Nếu wallet không có trong walletsMap (đã rời ví), không thể kiểm tra role
+      // Nếu wallet có trong walletsMap, kiểm tra role
+      const isFromWalletViewer = fromWallet
+        ? isViewerOnlyWallet(fromWallet)
+        : false;
+      const isToWalletViewer = toWallet ? isViewerOnlyWallet(toWallet) : false;
+      const isViewerWallet = isFromWalletViewer || isToWalletViewer;
+
+      // Lấy walletType để phân biệt PERSONAL và GROUP cho cả sourceWallet và targetWallet
+      // Ưu tiên lấy từ wallet trong walletsMap, sau đó từ transfer.fromWallet/toWallet
+      let fromWalletType = "";
+      if (fromWallet) {
+        fromWalletType = (fromWallet.walletType || fromWallet.type || "")
+          .toString()
+          .toUpperCase();
+      } else if (transfer.fromWallet?.walletType) {
+        fromWalletType = String(transfer.fromWallet.walletType).toUpperCase();
+      }
+      const isFromPersonalWallet = fromWalletType !== "GROUP";
+
+      let toWalletType = "";
+      if (toWallet) {
+        toWalletType = (toWallet.walletType || toWallet.type || "")
+          .toString()
+          .toUpperCase();
+      } else if (transfer.toWallet?.walletType) {
+        toWalletType = String(transfer.toWallet.walletType).toUpperCase();
+      }
+      const isToPersonalWallet = toWalletType !== "GROUP";
+
+      // Thêm "(đã rời ví)" vào tên ví nếu user đã rời ví
+      // Lưu ý:
+      // - Nếu được mời lại với role VIEWER, vẫn không hiện "(đã rời ví)" nhưng vẫn ẩn hành động
+      // - Với ví cá nhân (PERSONAL), nếu đã bị xóa thì chỉ hiển thị "(đã xóa)", không hiển thị "(đã rời ví)"
+      // - Với ví nhóm (GROUP), nếu đã bị xóa thì chỉ hiển thị "(đã xóa)", không hiển thị "(đã rời ví)"
+      let displaySourceWalletName = sourceWalletName;
+      let displayTargetWalletName = targetWalletName;
+      if (isFromWalletLeft) {
+        // Với ví cá nhân hoặc ví nhóm, nếu đã bị xóa thì không thêm "(đã rời ví)" nữa
+        if (isFromWalletDeleted) {
+          // Đã có "(đã xóa)" rồi, không thêm gì nữa
+          displaySourceWalletName = sourceWalletName;
+        } else {
+          displaySourceWalletName = `${sourceWalletName} (đã rời ví)`;
+        }
+      }
+      if (isToWalletLeft) {
+        // Với ví cá nhân hoặc ví nhóm, nếu đã bị xóa thì không thêm "(đã rời ví)" nữa
+        if (isToWalletDeleted) {
+          // Đã có "(đã xóa)" rồi, không thêm gì nữa
+          displayTargetWalletName = targetWalletName;
+        } else {
+          displayTargetWalletName = `${targetWalletName} (đã rời ví)`;
+        }
+      }
+
+      // Lấy role và walletType cho sourceWallet và targetWallet để lưu vào transaction object
+      // (giữ lại thông tin ban đầu kể cả khi wallet đã bị xóa/rời)
+      const sourceWalletRole = fromWallet
+        ? (
+            fromWallet.walletRole ||
+            fromWallet.sharedRole ||
+            fromWallet.role ||
+            ""
+          )
+            .toString()
+            .toUpperCase()
+        : (
+            transfer.fromWallet?.walletRole ||
+            transfer.fromWallet?.sharedRole ||
+            transfer.fromWallet?.role ||
+            ""
+          )
+            .toString()
+            .toUpperCase();
+
+      const targetWalletRole = toWallet
+        ? (toWallet.walletRole || toWallet.sharedRole || toWallet.role || "")
+            .toString()
+            .toUpperCase()
+        : (
+            transfer.toWallet?.walletRole ||
+            transfer.toWallet?.sharedRole ||
+            transfer.toWallet?.role ||
+            ""
+          )
+            .toString()
+            .toUpperCase();
+
+      return {
+        id: transfer.transferId,
+        code: `TR-${String(transfer.transferId).padStart(4, "0")}`,
+        type: "transfer",
+        sourceWallet: displaySourceWalletName,
+        targetWallet: displayTargetWalletName,
+        sourceWalletId: fromWalletId ? Number(fromWalletId) : null, // Thêm sourceWalletId để filter
+        targetWalletId: toWalletId ? Number(toWalletId) : null, // Thêm targetWalletId để filter
+        sourceWalletOwnerEmail: sourceWalletOwnerEmail || "", // Thêm ownerEmail cho sourceWallet
+        targetWalletOwnerEmail: targetWalletOwnerEmail || "", // Thêm ownerEmail cho targetWallet
+        sourceWalletRole: sourceWalletRole || "", // Lưu role của sourceWallet
+        targetWalletRole: targetWalletRole || "", // Lưu role của targetWallet
+        amount: parseFloat(transfer.amount || 0),
+        currency: transfer.currencyCode || "VND",
+        date: dateValue,
+        category: "Chuyển tiền giữa các ví",
+        note: transfer.note || "",
+        creatorCode: `USR${String(transfer.user?.userId || 0).padStart(
+          3,
+          "0"
+        )}`,
+        attachment: "",
+        // Lưu raw transfer để có thể lấy walletType sau này
+        rawTransfer: transfer,
+        // Lưu trạng thái deleted của wallet để ẩn nút sửa/xóa
+        isWalletDeleted: isWalletDeleted,
+        // Lưu trạng thái đã rời ví để ẩn nút sửa/xóa
+        isLeftWallet: isLeftWallet,
+        // Lưu trạng thái viewer wallet để ẩn nút sửa/xóa (ngay cả khi không còn trong leftWalletIds)
+        isViewerWallet: isViewerWallet,
+      };
+    },
+    [walletsMap, leftWalletIds, walletsLoading, wallets]
+  );
 
   // Helper function to map Fund Transaction to frontend format
   const mapFundTransactionToFrontend = useCallback((fundTx, fund) => {
@@ -1343,13 +1603,16 @@ export default function TransactionsPage() {
 
   const refreshTransactionsData = useCallback(async () => {
     // Lấy walletIds từ walletsIds string
-    const walletIds = walletsIds ? walletsIds.split(',').filter(Boolean) : [];
+    const walletIds = walletsIds ? walletsIds.split(",").filter(Boolean) : [];
 
     const fetchScopedHistory = async () => {
       if (!walletIds.length) {
         return { external: [], internal: [] };
       }
-      if (!transactionAPI.getWalletTransactions || !walletAPI.getWalletTransfers) {
+      if (
+        !transactionAPI.getWalletTransactions ||
+        !walletAPI.getWalletTransfers
+      ) {
         throw new Error("Scoped history APIs are unavailable");
       }
 
@@ -1477,92 +1740,19 @@ export default function TransactionsPage() {
       const filteredScopedExternal = scoped.external.filter(matchesCurrentUser);
       const filteredScopedInternal = scoped.internal.filter(matchesCurrentUser);
       // Map transactions và lưu raw transaction data để có thể lấy walletType sau này
-      const mappedExternal = filteredScopedExternal.map(tx => {
-        const mapped = mapTransactionToFrontend(tx);
-        if (mapped) {
-          // Lưu raw transaction để có thể lấy walletType từ tx.wallet
-          mapped.rawTx = tx;
-        }
-        return mapped;
-      }).filter(Boolean);
-      
-      // Tách transactions từ ví quỹ (fund wallets) ra khỏi mappedExternal
-      // Các transaction từ ví quỹ sẽ được thêm vào fundTransactions
-      const transactionsFromFundWallets = [];
-      const walletTransactions = mappedExternal.filter(tx => {
-        // Check xem transaction có walletId trùng với targetWalletId của fund không
-        const txWalletId = tx.walletId ? String(tx.walletId) : null;
-        if (txWalletId && fundWalletIds.has(txWalletId)) {
-          // Đây là transaction từ ví quỹ, cần thêm vào fundTransactions
-          // Tìm fund tương ứng
-          const relatedFund = fundsList.find(f => {
-            const targetWalletId = f.targetWalletId || f.walletId || f.targetWallet?.walletId || f.targetWallet?.id;
-            return targetWalletId && String(targetWalletId) === txWalletId;
-          });
-          
-          if (relatedFund) {
-            // Lấy ví nguồn của quỹ (ví mà tiền được nạp từ đó vào quỹ)
-            const sourceWalletId = relatedFund.sourceWalletId || null;
-            const sourceWallet = sourceWalletId ? walletsMap.get(sourceWalletId) : null;
-            
-            let displayWalletName = sourceWallet?.walletName || 
-                                   sourceWallet?.name || 
-                                   tx.sourceWallet ||
-                                   "Unknown";
-            
-            // Kiểm tra xem wallet có bị deleted không
-            if (sourceWallet && (sourceWallet.deleted === true || sourceWallet.isDeleted === true)) {
-              displayWalletName = `${displayWalletName} (đã xóa)`;
-            }
-            
-            // Map transaction này như fund transaction
-            const fundTx = {
-              ...tx,
-              walletName: displayWalletName, // Hiển thị tên ví nguồn
-              walletId: sourceWalletId ? Number(sourceWalletId) : tx.walletId, // Cập nhật walletId thành sourceWalletId
-              isFundTransaction: true,
-              fundId: relatedFund.fundId || relatedFund.id,
-              fundName: relatedFund.fundName || relatedFund.name || "Unknown Fund",
-              fundHasDeadline: relatedFund.hasDeadline ?? relatedFund.hasTerm ?? false,
-              fundTransactionStatus: "SUCCESS", // Transactions từ ví quỹ đều là SUCCESS (đã được thực hiện)
-              rawFund: relatedFund,
-            };
-            transactionsFromFundWallets.push(fundTx);
-            return false; // Loại bỏ khỏi walletTransactions
+      const mappedExternal = filteredScopedExternal
+        .map((tx) => {
+          const mapped = mapTransactionToFrontend(tx);
+          if (mapped) {
+            // Lưu raw transaction để có thể lấy walletType từ tx.wallet
+            mapped.rawTx = tx;
           }
-        }
-        return true; // Giữ lại trong walletTransactions
-      });
-      
-      // Gộp fund transactions từ API và transactions từ ví quỹ
-      const allFundTransactions = [...fundTransactionsList, ...transactionsFromFundWallets];
-      
-      // Tách fund transactions ra riêng - KHÔNG merge vào mappedExternal
-      const allExternalTransactions = walletTransactions;
-      
-      // Lưu fund transactions vào state riêng (bao gồm cả transactions từ ví quỹ)
-      setFundTransactions((prev) => {
-        const prevIds = new Set(prev.map(t => t.id || t.transactionId || t.code));
-        const newIds = new Set(allFundTransactions.map(t => t.id || t.transactionId || t.code));
-        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
-          const hasChanged = allFundTransactions.some(tx => {
-            const prevTx = prev.find(p => (p.id || p.transactionId || p.code) === (tx.id || tx.transactionId || tx.code));
-            if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || 
-                   prevTx.date !== tx.date || 
-                   prevTx.category !== tx.category ||
-                   prevTx.walletName !== tx.walletName;
-          });
-          if (!hasChanged) {
-            return prev;
-          }
-        }
-        return allFundTransactions;
-      });
-      
+          return mapped;
+        })
+        .filter(Boolean);
       const mappedInternal = filteredScopedInternal.map(mapTransferToFrontend);
-      
-      // Phân chia transactions theo walletType (chỉ wallet transactions, không bao gồm fund transactions)
+
+      // Phân chia transactions theo walletType
       // PERSONAL: walletType !== "GROUP" (bao gồm PERSONAL hoặc không có walletType)
       // GROUP: walletType === "GROUP"
       // Lưu ý: Lấy walletType từ raw transaction entity trước, fallback về wallets list
@@ -1571,24 +1761,29 @@ export default function TransactionsPage() {
         // Loại bỏ fund transactions - chúng chỉ hiển thị trong tab FUND
         if (tx.isFundTransaction) return false;
         if (!tx.walletName && !tx.walletId) return false;
-        
+
         // Ưu tiên lấy walletType từ raw transaction entity
         let walletType = "";
         if (tx.rawTx?.wallet?.walletType) {
           walletType = String(tx.rawTx.wallet.walletType).toUpperCase();
         } else {
           // Fallback: tìm trong wallets list
-          const wallet = wallets.find(w => 
-            (w.name === tx.walletName) || 
-            (w.walletName === tx.walletName) ||
-            (w.id && tx.walletId && String(w.id) === String(tx.walletId)) ||
-            (w.walletId && tx.walletId && String(w.walletId) === String(tx.walletId))
+          const wallet = wallets.find(
+            (w) =>
+              w.name === tx.walletName ||
+              w.walletName === tx.walletName ||
+              (w.id && tx.walletId && String(w.id) === String(tx.walletId)) ||
+              (w.walletId &&
+                tx.walletId &&
+                String(w.walletId) === String(tx.walletId))
           );
           if (wallet) {
-            walletType = (wallet.walletType || wallet.type || "").toString().toUpperCase();
+            walletType = (wallet.walletType || wallet.type || "")
+              .toString()
+              .toUpperCase();
           }
         }
-        
+
         // Nếu không có walletType, mặc định là PERSONAL (không phải GROUP)
         // Chỉ lấy PERSONAL (không phải GROUP)
         // Không bao gồm fund transactions (đã tách ra riêng)
@@ -1598,131 +1793,177 @@ export default function TransactionsPage() {
         // Loại bỏ fund transactions - chúng chỉ hiển thị trong tab FUND
         if (tx.isFundTransaction) return false;
         if (!tx.walletName && !tx.walletId) return false;
-        
+
         // Ưu tiên lấy walletType từ raw transaction entity
         let walletType = "";
         if (tx.rawTx?.wallet?.walletType) {
           walletType = String(tx.rawTx.wallet.walletType).toUpperCase();
         } else {
           // Fallback: tìm trong wallets list
-          const wallet = wallets.find(w => 
-            (w.name === tx.walletName) || 
-            (w.walletName === tx.walletName) ||
-            (w.id && tx.walletId && String(w.id) === String(tx.walletId)) ||
-            (w.walletId && tx.walletId && String(w.walletId) === String(tx.walletId))
+          const wallet = wallets.find(
+            (w) =>
+              w.name === tx.walletName ||
+              w.walletName === tx.walletName ||
+              (w.id && tx.walletId && String(w.id) === String(tx.walletId)) ||
+              (w.walletId &&
+                tx.walletId &&
+                String(w.walletId) === String(tx.walletId))
           );
           if (wallet) {
-            walletType = (wallet.walletType || wallet.type || "").toString().toUpperCase();
+            walletType = (wallet.walletType || wallet.type || "")
+              .toString()
+              .toUpperCase();
           }
         }
-        
+
         // Chỉ lấy GROUP
         // Không bao gồm fund transactions (đã tách ra riêng)
         return walletType === "GROUP";
       });
-      
+
       const personalInternal = mappedInternal.filter((tx) => {
         if (!tx.sourceWallet || !tx.targetWallet) return false;
         // Lấy tên ví từ transaction (đã được map, có thể có "(đã rời ví)" hoặc "(đã xóa)")
-        const sourceWalletName = tx.sourceWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-        const targetWalletName = tx.targetWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-        
+        const sourceWalletName = tx.sourceWallet
+          .replace(/\s*\(đã rời ví\)\s*$/, "")
+          .replace(/\s*\(đã xóa\)\s*$/, "");
+        const targetWalletName = tx.targetWallet
+          .replace(/\s*\(đã rời ví\)\s*$/, "")
+          .replace(/\s*\(đã xóa\)\s*$/, "");
+
         // Tìm wallet trong wallets list (bao gồm cả deleted wallets)
-        const sourceWallet = wallets.find(w => 
-          w.name === sourceWalletName || 
-          w.walletName === sourceWalletName ||
-          (tx.sourceWalletId && (String(w.id || w.walletId) === String(tx.sourceWalletId)))
+        const sourceWallet = wallets.find(
+          (w) =>
+            w.name === sourceWalletName ||
+            w.walletName === sourceWalletName ||
+            (tx.sourceWalletId &&
+              String(w.id || w.walletId) === String(tx.sourceWalletId))
         );
-        const targetWallet = wallets.find(w => 
-          w.name === targetWalletName || 
-          w.walletName === targetWalletName ||
-          (tx.targetWalletId && (String(w.id || w.walletId) === String(tx.targetWalletId)))
+        const targetWallet = wallets.find(
+          (w) =>
+            w.name === targetWalletName ||
+            w.walletName === targetWalletName ||
+            (tx.targetWalletId &&
+              String(w.id || w.walletId) === String(tx.targetWalletId))
         );
-        
+
         // Nếu không tìm thấy wallet, vẫn hiển thị transaction (có thể wallet đã rời hoặc bị xóa)
         // Nhưng cần kiểm tra walletType từ raw transaction data nếu có
         let sourceType = "";
         let targetType = "";
-        
+
         if (sourceWallet) {
-          sourceType = (sourceWallet.walletType || sourceWallet.type || "").toString().toUpperCase();
+          sourceType = (sourceWallet.walletType || sourceWallet.type || "")
+            .toString()
+            .toUpperCase();
         } else if (tx.rawTransfer?.fromWallet?.walletType) {
-          sourceType = String(tx.rawTransfer.fromWallet.walletType).toUpperCase();
+          sourceType = String(
+            tx.rawTransfer.fromWallet.walletType
+          ).toUpperCase();
         }
-        
+
         if (targetWallet) {
-          targetType = (targetWallet.walletType || targetWallet.type || "").toString().toUpperCase();
+          targetType = (targetWallet.walletType || targetWallet.type || "")
+            .toString()
+            .toUpperCase();
         } else if (tx.rawTransfer?.toWallet?.walletType) {
           targetType = String(tx.rawTransfer.toWallet.walletType).toUpperCase();
         }
-        
+
         // Nếu không có walletType, mặc định là PERSONAL (không phải GROUP)
         if (!sourceType) sourceType = "PERSONAL";
         if (!targetType) targetType = "PERSONAL";
-        
+
         // PERSONAL với PERSONAL (cả 2 đều không phải GROUP)
         return sourceType !== "GROUP" && targetType !== "GROUP";
       });
       const groupInternal = mappedInternal.filter((tx) => {
         if (!tx.sourceWallet || !tx.targetWallet) return false;
         // Lấy tên ví từ transaction (đã được map, có thể có "(đã rời ví)" hoặc "(đã xóa)")
-        const sourceWalletName = tx.sourceWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-        const targetWalletName = tx.targetWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-        
+        const sourceWalletName = tx.sourceWallet
+          .replace(/\s*\(đã rời ví\)\s*$/, "")
+          .replace(/\s*\(đã xóa\)\s*$/, "");
+        const targetWalletName = tx.targetWallet
+          .replace(/\s*\(đã rời ví\)\s*$/, "")
+          .replace(/\s*\(đã xóa\)\s*$/, "");
+
         // Tìm wallet trong wallets list (bao gồm cả deleted wallets)
-        const sourceWallet = wallets.find(w => 
-          w.name === sourceWalletName || 
-          w.walletName === sourceWalletName ||
-          (tx.sourceWalletId && (String(w.id || w.walletId) === String(tx.sourceWalletId)))
+        const sourceWallet = wallets.find(
+          (w) =>
+            w.name === sourceWalletName ||
+            w.walletName === sourceWalletName ||
+            (tx.sourceWalletId &&
+              String(w.id || w.walletId) === String(tx.sourceWalletId))
         );
-        const targetWallet = wallets.find(w => 
-          w.name === targetWalletName || 
-          w.walletName === targetWalletName ||
-          (tx.targetWalletId && (String(w.id || w.walletId) === String(tx.targetWalletId)))
+        const targetWallet = wallets.find(
+          (w) =>
+            w.name === targetWalletName ||
+            w.walletName === targetWalletName ||
+            (tx.targetWalletId &&
+              String(w.id || w.walletId) === String(tx.targetWalletId))
         );
-        
+
         // Nếu không tìm thấy wallet, vẫn hiển thị transaction (có thể wallet đã rời hoặc bị xóa)
         // Nhưng cần kiểm tra walletType từ raw transaction data nếu có
         let sourceType = "";
         let targetType = "";
-        
+
         if (sourceWallet) {
-          sourceType = (sourceWallet.walletType || sourceWallet.type || "").toString().toUpperCase();
+          sourceType = (sourceWallet.walletType || sourceWallet.type || "")
+            .toString()
+            .toUpperCase();
         } else if (tx.rawTransfer?.fromWallet?.walletType) {
-          sourceType = String(tx.rawTransfer.fromWallet.walletType).toUpperCase();
+          sourceType = String(
+            tx.rawTransfer.fromWallet.walletType
+          ).toUpperCase();
         }
-        
+
         if (targetWallet) {
-          targetType = (targetWallet.walletType || targetWallet.type || "").toString().toUpperCase();
+          targetType = (targetWallet.walletType || targetWallet.type || "")
+            .toString()
+            .toUpperCase();
         } else if (tx.rawTransfer?.toWallet?.walletType) {
           targetType = String(tx.rawTransfer.toWallet.walletType).toUpperCase();
         }
-        
+
         // Nếu không có walletType, mặc định là PERSONAL (không phải GROUP)
         if (!sourceType) sourceType = "PERSONAL";
         if (!targetType) targetType = "PERSONAL";
-        
+
         // GROUP với GROUP, hoặc PERSONAL với GROUP (ít nhất 1 ví là GROUP)
         return sourceType === "GROUP" || targetType === "GROUP";
       });
-      
+
       // Chỉ update state nếu dữ liệu thực sự thay đổi
       // QUAN TRỌNG: Cũng kiểm tra isLeftWallet, isWalletDeleted và walletName để đảm bảo cập nhật khi trạng thái thay đổi
       setExternalTransactions((prev) => {
-        const prevIds = new Set(prev.map(t => t.id || t.transactionId || t.code));
-        const newIds = new Set(mappedExternal.map(t => t.id || t.transactionId || t.code));
-        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
+        const prevIds = new Set(
+          prev.map((t) => t.id || t.transactionId || t.code)
+        );
+        const newIds = new Set(
+          mappedExternal.map((t) => t.id || t.transactionId || t.code)
+        );
+        if (
+          prevIds.size === newIds.size &&
+          [...prevIds].every((id) => newIds.has(id))
+        ) {
           // Kiểm tra xem có transaction nào thay đổi không (so sánh bằng amount, date, category, attachment, isLeftWallet, isWalletDeleted, walletName)
-          const hasChanged = mappedExternal.some(tx => {
-            const prevTx = prev.find(p => (p.id || p.transactionId || p.code) === (tx.id || tx.transactionId || tx.code));
+          const hasChanged = mappedExternal.some((tx) => {
+            const prevTx = prev.find(
+              (p) =>
+                (p.id || p.transactionId || p.code) ===
+                (tx.id || tx.transactionId || tx.code)
+            );
             if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || 
-                   prevTx.date !== tx.date || 
-                   prevTx.category !== tx.category ||
-                   prevTx.attachment !== tx.attachment ||
-                   prevTx.isLeftWallet !== tx.isLeftWallet ||
-                   prevTx.isWalletDeleted !== tx.isWalletDeleted ||
-                   prevTx.walletName !== tx.walletName; // walletName có thể thay đổi khi thêm "(đã rời ví)"
+            return (
+              prevTx.amount !== tx.amount ||
+              prevTx.date !== tx.date ||
+              prevTx.category !== tx.category ||
+              prevTx.attachment !== tx.attachment ||
+              prevTx.isLeftWallet !== tx.isLeftWallet ||
+              prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+              prevTx.walletName !== tx.walletName
+            ); // walletName có thể thay đổi khi thêm "(đã rời ví)"
           });
           if (!hasChanged) {
             return prev; // Không thay đổi, giữ nguyên
@@ -1730,22 +1971,35 @@ export default function TransactionsPage() {
         }
         return personalExternal;
       });
-      
+
       setGroupExternalTransactions((prev) => {
-        const prevIds = new Set(prev.map(t => t.id || t.transactionId || t.code));
-        const newIds = new Set(groupExternal.map(t => t.id || t.transactionId || t.code));
-        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
-          const hasChanged = groupExternal.some(tx => {
-            const prevTx = prev.find(p => (p.id || p.transactionId || p.code) === (tx.id || tx.transactionId || tx.code));
+        const prevIds = new Set(
+          prev.map((t) => t.id || t.transactionId || t.code)
+        );
+        const newIds = new Set(
+          groupExternal.map((t) => t.id || t.transactionId || t.code)
+        );
+        if (
+          prevIds.size === newIds.size &&
+          [...prevIds].every((id) => newIds.has(id))
+        ) {
+          const hasChanged = groupExternal.some((tx) => {
+            const prevTx = prev.find(
+              (p) =>
+                (p.id || p.transactionId || p.code) ===
+                (tx.id || tx.transactionId || tx.code)
+            );
             if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || 
-                   prevTx.date !== tx.date || 
-                   prevTx.category !== tx.category ||
-                   prevTx.attachment !== tx.attachment ||
-                   prevTx.isLeftWallet !== tx.isLeftWallet ||
-                   prevTx.isWalletDeleted !== tx.isWalletDeleted ||
-                   prevTx.isViewerWallet !== tx.isViewerWallet ||
-                   prevTx.walletName !== tx.walletName; // walletName có thể thay đổi khi thêm "(đã rời ví)"
+            return (
+              prevTx.amount !== tx.amount ||
+              prevTx.date !== tx.date ||
+              prevTx.category !== tx.category ||
+              prevTx.attachment !== tx.attachment ||
+              prevTx.isLeftWallet !== tx.isLeftWallet ||
+              prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+              prevTx.isViewerWallet !== tx.isViewerWallet ||
+              prevTx.walletName !== tx.walletName
+            ); // walletName có thể thay đổi khi thêm "(đã rời ví)"
           });
           if (!hasChanged) {
             return prev;
@@ -1753,23 +2007,36 @@ export default function TransactionsPage() {
         }
         return groupExternal;
       });
-      
+
       // Gộp personalInternal và groupInternal thành internalTransactions
       const allInternal = [...personalInternal, ...groupInternal];
       setInternalTransactions((prev) => {
-        const prevIds = new Set(prev.map(t => t.id || t.transferId || t.code));
-        const newIds = new Set(allInternal.map(t => t.id || t.transferId || t.code));
-        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
-          const hasChanged = allInternal.some(tx => {
-            const prevTx = prev.find(p => (p.id || p.transferId || p.code) === (tx.id || tx.transferId || tx.code));
+        const prevIds = new Set(
+          prev.map((t) => t.id || t.transferId || t.code)
+        );
+        const newIds = new Set(
+          allInternal.map((t) => t.id || t.transferId || t.code)
+        );
+        if (
+          prevIds.size === newIds.size &&
+          [...prevIds].every((id) => newIds.has(id))
+        ) {
+          const hasChanged = allInternal.some((tx) => {
+            const prevTx = prev.find(
+              (p) =>
+                (p.id || p.transferId || p.code) ===
+                (tx.id || tx.transferId || tx.code)
+            );
             if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || 
-                   prevTx.date !== tx.date ||
-                   prevTx.isLeftWallet !== tx.isLeftWallet ||
-                   prevTx.isWalletDeleted !== tx.isWalletDeleted ||
-                   prevTx.isViewerWallet !== tx.isViewerWallet ||
-                   prevTx.sourceWallet !== tx.sourceWallet ||
-                   prevTx.targetWallet !== tx.targetWallet; // sourceWallet/targetWallet có thể thay đổi khi thêm "(đã rời ví)"
+            return (
+              prevTx.amount !== tx.amount ||
+              prevTx.date !== tx.date ||
+              prevTx.isLeftWallet !== tx.isLeftWallet ||
+              prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+              prevTx.isViewerWallet !== tx.isViewerWallet ||
+              prevTx.sourceWallet !== tx.sourceWallet ||
+              prevTx.targetWallet !== tx.targetWallet
+            ); // sourceWallet/targetWallet có thể thay đổi khi thêm "(đã rời ví)"
           });
           if (!hasChanged) {
             return prev; // Không thay đổi, giữ nguyên
@@ -1778,21 +2045,26 @@ export default function TransactionsPage() {
         return allInternal;
       });
     } catch (scopedError) {
-      console.warn("TransactionsPage: scoped history fetch failed, using legacy APIs", scopedError);
+      console.warn(
+        "TransactionsPage: scoped history fetch failed, using legacy APIs",
+        scopedError
+      );
       const legacy = await fetchLegacyHistory();
       const filteredLegacyExternal = legacy.external.filter(matchesCurrentUser);
       const filteredLegacyInternal = legacy.internal.filter(matchesCurrentUser);
       // Map transactions và lưu raw transaction data để có thể lấy walletType sau này
-      const mappedExternal = filteredLegacyExternal.map(tx => {
-        const mapped = mapTransactionToFrontend(tx);
-        if (mapped) {
-          // Lưu raw transaction để có thể lấy walletType từ tx.wallet
-          mapped.rawTx = tx;
-        }
-        return mapped;
-      }).filter(Boolean);
+      const mappedExternal = filteredLegacyExternal
+        .map((tx) => {
+          const mapped = mapTransactionToFrontend(tx);
+          if (mapped) {
+            // Lưu raw transaction để có thể lấy walletType từ tx.wallet
+            mapped.rawTx = tx;
+          }
+          return mapped;
+        })
+        .filter(Boolean);
       const mappedInternal = filteredLegacyInternal.map(mapTransferToFrontend);
-      
+
       // Phân chia transactions theo walletType (legacy fallback)
       // Lưu ý: Lấy walletType từ raw transaction entity trước, fallback về wallets list
       // QUAN TRỌNG: Loại bỏ fund transactions khỏi personalExternalLegacy và groupExternalLegacy
@@ -1800,24 +2072,29 @@ export default function TransactionsPage() {
         // Loại bỏ fund transactions - chúng chỉ hiển thị trong tab FUND
         if (tx.isFundTransaction) return false;
         if (!tx.walletName && !tx.walletId) return false;
-        
+
         // Ưu tiên lấy walletType từ raw transaction entity
         let walletType = "";
         if (tx.rawTx?.wallet?.walletType) {
           walletType = String(tx.rawTx.wallet.walletType).toUpperCase();
         } else {
           // Fallback: tìm trong wallets list
-          const wallet = wallets.find(w => 
-            (w.name === tx.walletName) || 
-            (w.walletName === tx.walletName) ||
-            (w.id && tx.walletId && String(w.id) === String(tx.walletId)) ||
-            (w.walletId && tx.walletId && String(w.walletId) === String(tx.walletId))
+          const wallet = wallets.find(
+            (w) =>
+              w.name === tx.walletName ||
+              w.walletName === tx.walletName ||
+              (w.id && tx.walletId && String(w.id) === String(tx.walletId)) ||
+              (w.walletId &&
+                tx.walletId &&
+                String(w.walletId) === String(tx.walletId))
           );
           if (wallet) {
-            walletType = (wallet.walletType || wallet.type || "").toString().toUpperCase();
+            walletType = (wallet.walletType || wallet.type || "")
+              .toString()
+              .toUpperCase();
           }
         }
-        
+
         // Nếu không có walletType, mặc định là PERSONAL (không phải GROUP)
         // Chỉ lấy PERSONAL (không phải GROUP)
         return walletType !== "GROUP";
@@ -1826,129 +2103,175 @@ export default function TransactionsPage() {
         // Loại bỏ fund transactions - chúng chỉ hiển thị trong tab FUND
         if (tx.isFundTransaction) return false;
         if (!tx.walletName && !tx.walletId) return false;
-        
+
         // Ưu tiên lấy walletType từ raw transaction entity
         let walletType = "";
         if (tx.rawTx?.wallet?.walletType) {
           walletType = String(tx.rawTx.wallet.walletType).toUpperCase();
         } else {
           // Fallback: tìm trong wallets list
-          const wallet = wallets.find(w => 
-            (w.name === tx.walletName) || 
-            (w.walletName === tx.walletName) ||
-            (w.id && tx.walletId && String(w.id) === String(tx.walletId)) ||
-            (w.walletId && tx.walletId && String(w.walletId) === String(tx.walletId))
+          const wallet = wallets.find(
+            (w) =>
+              w.name === tx.walletName ||
+              w.walletName === tx.walletName ||
+              (w.id && tx.walletId && String(w.id) === String(tx.walletId)) ||
+              (w.walletId &&
+                tx.walletId &&
+                String(w.walletId) === String(tx.walletId))
           );
           if (wallet) {
-            walletType = (wallet.walletType || wallet.type || "").toString().toUpperCase();
+            walletType = (wallet.walletType || wallet.type || "")
+              .toString()
+              .toUpperCase();
           }
         }
-        
+
         // Chỉ lấy GROUP
         return walletType === "GROUP";
       });
-      
+
       const personalInternalLegacy = mappedInternal.filter((tx) => {
         if (!tx.sourceWallet || !tx.targetWallet) return false;
         // Lấy tên ví từ transaction (đã được map, có thể có "(đã rời ví)" hoặc "(đã xóa)")
-        const sourceWalletName = tx.sourceWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-        const targetWalletName = tx.targetWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-        
+        const sourceWalletName = tx.sourceWallet
+          .replace(/\s*\(đã rời ví\)\s*$/, "")
+          .replace(/\s*\(đã xóa\)\s*$/, "");
+        const targetWalletName = tx.targetWallet
+          .replace(/\s*\(đã rời ví\)\s*$/, "")
+          .replace(/\s*\(đã xóa\)\s*$/, "");
+
         // Tìm wallet trong wallets list (bao gồm cả deleted wallets)
-        const sourceWallet = wallets.find(w => 
-          w.name === sourceWalletName || 
-          w.walletName === sourceWalletName ||
-          (tx.sourceWalletId && (String(w.id || w.walletId) === String(tx.sourceWalletId)))
+        const sourceWallet = wallets.find(
+          (w) =>
+            w.name === sourceWalletName ||
+            w.walletName === sourceWalletName ||
+            (tx.sourceWalletId &&
+              String(w.id || w.walletId) === String(tx.sourceWalletId))
         );
-        const targetWallet = wallets.find(w => 
-          w.name === targetWalletName || 
-          w.walletName === targetWalletName ||
-          (tx.targetWalletId && (String(w.id || w.walletId) === String(tx.targetWalletId)))
+        const targetWallet = wallets.find(
+          (w) =>
+            w.name === targetWalletName ||
+            w.walletName === targetWalletName ||
+            (tx.targetWalletId &&
+              String(w.id || w.walletId) === String(tx.targetWalletId))
         );
-        
+
         // Nếu không tìm thấy wallet, vẫn hiển thị transaction (có thể wallet đã rời hoặc bị xóa)
         // Nhưng cần kiểm tra walletType từ raw transaction data nếu có
         let sourceType = "";
         let targetType = "";
-        
+
         if (sourceWallet) {
-          sourceType = (sourceWallet.walletType || sourceWallet.type || "").toString().toUpperCase();
+          sourceType = (sourceWallet.walletType || sourceWallet.type || "")
+            .toString()
+            .toUpperCase();
         } else if (tx.rawTransfer?.fromWallet?.walletType) {
-          sourceType = String(tx.rawTransfer.fromWallet.walletType).toUpperCase();
+          sourceType = String(
+            tx.rawTransfer.fromWallet.walletType
+          ).toUpperCase();
         }
-        
+
         if (targetWallet) {
-          targetType = (targetWallet.walletType || targetWallet.type || "").toString().toUpperCase();
+          targetType = (targetWallet.walletType || targetWallet.type || "")
+            .toString()
+            .toUpperCase();
         } else if (tx.rawTransfer?.toWallet?.walletType) {
           targetType = String(tx.rawTransfer.toWallet.walletType).toUpperCase();
         }
-        
+
         // Nếu không có walletType, mặc định là PERSONAL (không phải GROUP)
         if (!sourceType) sourceType = "PERSONAL";
         if (!targetType) targetType = "PERSONAL";
-        
+
         // PERSONAL với PERSONAL (cả 2 đều không phải GROUP)
         return sourceType !== "GROUP" && targetType !== "GROUP";
       });
       const groupInternalLegacy = mappedInternal.filter((tx) => {
         if (!tx.sourceWallet || !tx.targetWallet) return false;
         // Lấy tên ví từ transaction (đã được map, có thể có "(đã rời ví)" hoặc "(đã xóa)")
-        const sourceWalletName = tx.sourceWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-        const targetWalletName = tx.targetWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-        
+        const sourceWalletName = tx.sourceWallet
+          .replace(/\s*\(đã rời ví\)\s*$/, "")
+          .replace(/\s*\(đã xóa\)\s*$/, "");
+        const targetWalletName = tx.targetWallet
+          .replace(/\s*\(đã rời ví\)\s*$/, "")
+          .replace(/\s*\(đã xóa\)\s*$/, "");
+
         // Tìm wallet trong wallets list (bao gồm cả deleted wallets)
-        const sourceWallet = wallets.find(w => 
-          w.name === sourceWalletName || 
-          w.walletName === sourceWalletName ||
-          (tx.sourceWalletId && (String(w.id || w.walletId) === String(tx.sourceWalletId)))
+        const sourceWallet = wallets.find(
+          (w) =>
+            w.name === sourceWalletName ||
+            w.walletName === sourceWalletName ||
+            (tx.sourceWalletId &&
+              String(w.id || w.walletId) === String(tx.sourceWalletId))
         );
-        const targetWallet = wallets.find(w => 
-          w.name === targetWalletName || 
-          w.walletName === targetWalletName ||
-          (tx.targetWalletId && (String(w.id || w.walletId) === String(tx.targetWalletId)))
+        const targetWallet = wallets.find(
+          (w) =>
+            w.name === targetWalletName ||
+            w.walletName === targetWalletName ||
+            (tx.targetWalletId &&
+              String(w.id || w.walletId) === String(tx.targetWalletId))
         );
-        
+
         // Nếu không tìm thấy wallet, vẫn hiển thị transaction (có thể wallet đã rời hoặc bị xóa)
         // Nhưng cần kiểm tra walletType từ raw transaction data nếu có
         let sourceType = "";
         let targetType = "";
-        
+
         if (sourceWallet) {
-          sourceType = (sourceWallet.walletType || sourceWallet.type || "").toString().toUpperCase();
+          sourceType = (sourceWallet.walletType || sourceWallet.type || "")
+            .toString()
+            .toUpperCase();
         } else if (tx.rawTransfer?.fromWallet?.walletType) {
-          sourceType = String(tx.rawTransfer.fromWallet.walletType).toUpperCase();
+          sourceType = String(
+            tx.rawTransfer.fromWallet.walletType
+          ).toUpperCase();
         }
-        
+
         if (targetWallet) {
-          targetType = (targetWallet.walletType || targetWallet.type || "").toString().toUpperCase();
+          targetType = (targetWallet.walletType || targetWallet.type || "")
+            .toString()
+            .toUpperCase();
         } else if (tx.rawTransfer?.toWallet?.walletType) {
           targetType = String(tx.rawTransfer.toWallet.walletType).toUpperCase();
         }
-        
+
         // Nếu không có walletType, mặc định là PERSONAL (không phải GROUP)
         if (!sourceType) sourceType = "PERSONAL";
         if (!targetType) targetType = "PERSONAL";
-        
+
         // GROUP với GROUP, hoặc PERSONAL với GROUP (ít nhất 1 ví là GROUP)
         return sourceType === "GROUP" || targetType === "GROUP";
       });
-      
+
       // Chỉ update state nếu dữ liệu thực sự thay đổi
       setExternalTransactions((prev) => {
-        const prevIds = new Set(prev.map(t => t.id || t.transactionId || t.code));
-        const newIds = new Set(mappedExternal.map(t => t.id || t.transactionId || t.code));
-        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
-          const hasChanged = mappedExternal.some(tx => {
-            const prevTx = prev.find(p => (p.id || p.transactionId || p.code) === (tx.id || tx.transactionId || tx.code));
+        const prevIds = new Set(
+          prev.map((t) => t.id || t.transactionId || t.code)
+        );
+        const newIds = new Set(
+          mappedExternal.map((t) => t.id || t.transactionId || t.code)
+        );
+        if (
+          prevIds.size === newIds.size &&
+          [...prevIds].every((id) => newIds.has(id))
+        ) {
+          const hasChanged = mappedExternal.some((tx) => {
+            const prevTx = prev.find(
+              (p) =>
+                (p.id || p.transactionId || p.code) ===
+                (tx.id || tx.transactionId || tx.code)
+            );
             if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || 
-                   prevTx.date !== tx.date || 
-                   prevTx.category !== tx.category ||
-                   prevTx.attachment !== tx.attachment ||
-                   prevTx.isLeftWallet !== tx.isLeftWallet ||
-                   prevTx.isWalletDeleted !== tx.isWalletDeleted ||
-                   prevTx.isViewerWallet !== tx.isViewerWallet ||
-                   prevTx.walletName !== tx.walletName;
+            return (
+              prevTx.amount !== tx.amount ||
+              prevTx.date !== tx.date ||
+              prevTx.category !== tx.category ||
+              prevTx.attachment !== tx.attachment ||
+              prevTx.isLeftWallet !== tx.isLeftWallet ||
+              prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+              prevTx.isViewerWallet !== tx.isViewerWallet ||
+              prevTx.walletName !== tx.walletName
+            );
           });
           if (!hasChanged) {
             return prev;
@@ -1956,18 +2279,31 @@ export default function TransactionsPage() {
         }
         return personalExternalLegacy;
       });
-      
+
       setGroupExternalTransactions((prev) => {
-        const prevIds = new Set(prev.map(t => t.id || t.transactionId || t.code));
-        const newIds = new Set(groupExternalLegacy.map(t => t.id || t.transactionId || t.code));
-        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
-          const hasChanged = groupExternalLegacy.some(tx => {
-            const prevTx = prev.find(p => (p.id || p.transactionId || p.code) === (tx.id || tx.transactionId || tx.code));
+        const prevIds = new Set(
+          prev.map((t) => t.id || t.transactionId || t.code)
+        );
+        const newIds = new Set(
+          groupExternalLegacy.map((t) => t.id || t.transactionId || t.code)
+        );
+        if (
+          prevIds.size === newIds.size &&
+          [...prevIds].every((id) => newIds.has(id))
+        ) {
+          const hasChanged = groupExternalLegacy.some((tx) => {
+            const prevTx = prev.find(
+              (p) =>
+                (p.id || p.transactionId || p.code) ===
+                (tx.id || tx.transactionId || tx.code)
+            );
             if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || 
-                   prevTx.date !== tx.date || 
-                   prevTx.category !== tx.category ||
-                   prevTx.attachment !== tx.attachment;
+            return (
+              prevTx.amount !== tx.amount ||
+              prevTx.date !== tx.date ||
+              prevTx.category !== tx.category ||
+              prevTx.attachment !== tx.attachment
+            );
           });
           if (!hasChanged) {
             return prev;
@@ -1975,23 +2311,39 @@ export default function TransactionsPage() {
         }
         return groupExternalLegacy;
       });
-      
+
       // Gộp personalInternalLegacy và groupInternalLegacy thành internalTransactions
-      const allInternalLegacy = [...personalInternalLegacy, ...groupInternalLegacy];
+      const allInternalLegacy = [
+        ...personalInternalLegacy,
+        ...groupInternalLegacy,
+      ];
       setInternalTransactions((prev) => {
-        const prevIds = new Set(prev.map(t => t.id || t.transferId || t.code));
-        const newIds = new Set(allInternalLegacy.map(t => t.id || t.transferId || t.code));
-        if (prevIds.size === newIds.size && [...prevIds].every(id => newIds.has(id))) {
-          const hasChanged = allInternalLegacy.some(tx => {
-            const prevTx = prev.find(p => (p.id || p.transferId || p.code) === (tx.id || tx.transferId || tx.code));
+        const prevIds = new Set(
+          prev.map((t) => t.id || t.transferId || t.code)
+        );
+        const newIds = new Set(
+          allInternalLegacy.map((t) => t.id || t.transferId || t.code)
+        );
+        if (
+          prevIds.size === newIds.size &&
+          [...prevIds].every((id) => newIds.has(id))
+        ) {
+          const hasChanged = allInternalLegacy.some((tx) => {
+            const prevTx = prev.find(
+              (p) =>
+                (p.id || p.transferId || p.code) ===
+                (tx.id || tx.transferId || tx.code)
+            );
             if (!prevTx) return true;
-            return prevTx.amount !== tx.amount || 
-                   prevTx.date !== tx.date ||
-                   prevTx.isLeftWallet !== tx.isLeftWallet ||
-                   prevTx.isWalletDeleted !== tx.isWalletDeleted ||
-                   prevTx.isViewerWallet !== tx.isViewerWallet ||
-                   prevTx.sourceWallet !== tx.sourceWallet ||
-                   prevTx.targetWallet !== tx.targetWallet;
+            return (
+              prevTx.amount !== tx.amount ||
+              prevTx.date !== tx.date ||
+              prevTx.isLeftWallet !== tx.isLeftWallet ||
+              prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+              prevTx.isViewerWallet !== tx.isViewerWallet ||
+              prevTx.sourceWallet !== tx.sourceWallet ||
+              prevTx.targetWallet !== tx.targetWallet
+            );
           });
           if (!hasChanged) {
             return prev;
@@ -2000,10 +2352,16 @@ export default function TransactionsPage() {
         return allInternalLegacy;
       });
     }
-  }, [walletsIds, mapTransactionToFrontend, mapTransferToFrontend, matchesCurrentUser, wallets]);
+  }, [
+    walletsIds,
+    mapTransactionToFrontend,
+    mapTransferToFrontend,
+    matchesCurrentUser,
+    wallets,
+  ]);
 
   // Ref để track lần cuối cùng refresh
-  const lastRefreshRef = useRef({ walletsIds: '', timestamp: 0 });
+  const lastRefreshRef = useRef({ walletsIds: "", timestamp: 0 });
   const isRefreshingRef = useRef(false);
 
   const runInitialLoad = useCallback(async () => {
@@ -2012,9 +2370,12 @@ export default function TransactionsPage() {
     if (isRefreshingRef.current) {
       return;
     }
-    
+
     // Chỉ refresh nếu wallets thực sự thay đổi hoặc chưa từng refresh
-    if (lastRefreshRef.current.walletsIds === currentWalletsIds && lastRefreshRef.current.timestamp > 0) {
+    if (
+      lastRefreshRef.current.walletsIds === currentWalletsIds &&
+      lastRefreshRef.current.timestamp > 0
+    ) {
       return;
     }
 
@@ -2024,7 +2385,7 @@ export default function TransactionsPage() {
       await refreshTransactionsData();
       lastRefreshRef.current = {
         walletsIds: currentWalletsIds,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
     } finally {
       setLoading(false);
@@ -2035,7 +2396,7 @@ export default function TransactionsPage() {
   // Force refresh transactions khi leftWalletIds thay đổi
   // Phải đặt sau khi refreshTransactionsData được định nghĩa
   useEffect(() => {
-    const currentStr = Array.from(leftWalletIds).sort().join(',');
+    const currentStr = Array.from(leftWalletIds).sort().join(",");
     if (currentStr !== leftWalletIdsStrRef.current) {
       leftWalletIdsStrRef.current = currentStr;
       // Force refresh transactions trực tiếp, không qua runInitialLoad
@@ -2050,13 +2411,16 @@ export default function TransactionsPage() {
           // Gọi refreshTransactionsData trực tiếp để map lại transactions với leftWalletIds mới
           await refreshTransactionsData();
         } catch (error) {
-          console.error("Failed to refresh transactions after leftWalletIds changed:", error);
+          console.error(
+            "Failed to refresh transactions after leftWalletIds changed:",
+            error
+          );
         } finally {
           setLoading(false);
           isRefreshingRef.current = false;
         }
       };
-      
+
       forceRefresh();
     }
   }, [leftWalletIds, refreshTransactionsData]);
@@ -2066,15 +2430,19 @@ export default function TransactionsPage() {
 
     const handleUserChange = () => {
       // Reset last refresh khi user thay đổi
-      lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
+      lastRefreshRef.current = { walletsIds: "", timestamp: 0 };
       runInitialLoad();
     };
     window.addEventListener("userChanged", handleUserChange);
 
     const handleStorageChange = (e) => {
-      if (e.key === "accessToken" || e.key === "user" || e.key === "auth_user") {
+      if (
+        e.key === "accessToken" ||
+        e.key === "user" ||
+        e.key === "auth_user"
+      ) {
         // Reset last refresh khi storage thay đổi
-        lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
+        lastRefreshRef.current = { walletsIds: "", timestamp: 0 };
         runInitialLoad();
       }
     };
@@ -2092,56 +2460,63 @@ export default function TransactionsPage() {
     // Lắng nghe notification về việc bị kick/rời ví hoặc được mời lại
     const handleWalletMemberLeft = async (event) => {
       const { walletIds, notifications } = event.detail || {};
-      
+
       if (!notifications || !Array.isArray(notifications)) {
         return;
       }
 
       // Kiểm tra xem có notification WALLET_MEMBER_REMOVED hoặc WALLET_MEMBER_LEFT không
-      const memberLeftNotifs = notifications.filter(n => 
-        n.type === "WALLET_MEMBER_REMOVED" || n.type === "WALLET_MEMBER_LEFT"
+      const memberLeftNotifs = notifications.filter(
+        (n) =>
+          n.type === "WALLET_MEMBER_REMOVED" || n.type === "WALLET_MEMBER_LEFT"
       );
 
       if (memberLeftNotifs.length > 0) {
         // Lưu walletIds vào state để đánh dấu là đã rời ví
         const removedWalletIds = new Set();
-        memberLeftNotifs.forEach(n => {
+        memberLeftNotifs.forEach((n) => {
           const walletId = n.referenceId || n.walletId || n.reference_id;
           if (walletId) {
             removedWalletIds.add(String(walletId));
           }
         });
-        
+
         if (removedWalletIds.size > 0) {
           // Cập nhật leftWalletIds state ngay lập tức
-          setLeftWalletIds(prev => {
+          setLeftWalletIds((prev) => {
             const newSet = new Set(prev);
-            removedWalletIds.forEach(id => newSet.add(id));
+            removedWalletIds.forEach((id) => newSet.add(id));
             return newSet;
           });
-          
+
           // Force reload wallets và transactions ngay lập tức
           // Reset isRefreshingRef để đảm bảo refresh được thực hiện
           isRefreshingRef.current = false;
-          
+
           // Force reload wallets trước
           if (loadWallets && typeof loadWallets === "function") {
             try {
               await loadWallets();
             } catch (error) {
-              console.error("Failed to reload wallets after member left:", error);
+              console.error(
+                "Failed to reload wallets after member left:",
+                error
+              );
             }
           }
-          
+
           // Reset last refresh để force reload transactions
-          lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
-          
+          lastRefreshRef.current = { walletsIds: "", timestamp: 0 };
+
           // Force refresh transactions ngay lập tức, không đợi
           setLoading(true);
           try {
             await refreshTransactionsData();
           } catch (error) {
-            console.error("Failed to refresh transactions after member left:", error);
+            console.error(
+              "Failed to refresh transactions after member left:",
+              error
+            );
           } finally {
             setLoading(false);
             isRefreshingRef.current = false;
@@ -2155,56 +2530,63 @@ export default function TransactionsPage() {
     // QUAN TRỌNG: Lắng nghe cả walletNotificationReceived để bắt tất cả notifications
     const handleWalletNotification = async (event) => {
       const { notifications } = event.detail || {};
-      
+
       if (!notifications || !Array.isArray(notifications)) {
         return;
       }
 
       // Kiểm tra xem có notification WALLET_MEMBER_REMOVED hoặc WALLET_MEMBER_LEFT không
       // (để xử lý trường hợp notification đã được đọc nhưng vẫn cần reload)
-      const memberLeftNotifs = notifications.filter(n => 
-        n.type === "WALLET_MEMBER_REMOVED" || n.type === "WALLET_MEMBER_LEFT"
+      const memberLeftNotifs = notifications.filter(
+        (n) =>
+          n.type === "WALLET_MEMBER_REMOVED" || n.type === "WALLET_MEMBER_LEFT"
       );
 
       if (memberLeftNotifs.length > 0) {
         // Lưu walletIds vào state để đánh dấu là đã rời ví
         const removedWalletIds = new Set();
-        memberLeftNotifs.forEach(n => {
+        memberLeftNotifs.forEach((n) => {
           const walletId = n.referenceId || n.walletId || n.reference_id;
           if (walletId) {
             removedWalletIds.add(String(walletId));
           }
         });
-        
+
         if (removedWalletIds.size > 0) {
           // Cập nhật leftWalletIds state ngay lập tức
-          setLeftWalletIds(prev => {
+          setLeftWalletIds((prev) => {
             const newSet = new Set(prev);
-            removedWalletIds.forEach(id => newSet.add(id));
+            removedWalletIds.forEach((id) => newSet.add(id));
             return newSet;
           });
-          
+
           // Force reload wallets và transactions ngay lập tức
           isRefreshingRef.current = false;
-          
+
           // Force reload wallets trước
           if (loadWallets && typeof loadWallets === "function") {
             try {
               await loadWallets();
             } catch (error) {
-              console.error("Failed to reload wallets after member left:", error);
+              console.error(
+                "Failed to reload wallets after member left:",
+                error
+              );
             }
           }
-          
+
           // Reset last refresh để force reload transactions
-          lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
-          
+          lastRefreshRef.current = { walletsIds: "", timestamp: 0 };
+
           // Force refresh transactions ngay lập tức
           setLoading(true);
           try {
             await refreshTransactionsData();
           } catch (error) {
-            console.error("Failed to refresh transactions after member left:", error);
+            console.error(
+              "Failed to refresh transactions after member left:",
+              error
+            );
           } finally {
             setLoading(false);
             isRefreshingRef.current = false;
@@ -2214,28 +2596,30 @@ export default function TransactionsPage() {
       }
 
       // Kiểm tra xem có notification WALLET_INVITED không
-      const invitedNotifs = notifications.filter(n => n.type === "WALLET_INVITED");
+      const invitedNotifs = notifications.filter(
+        (n) => n.type === "WALLET_INVITED"
+      );
 
       if (invitedNotifs.length > 0) {
         // Xóa walletIds khỏi danh sách đã rời ví (vì được mời lại)
         const invitedWalletIds = new Set();
-        invitedNotifs.forEach(n => {
+        invitedNotifs.forEach((n) => {
           const walletId = n.referenceId || n.walletId || n.reference_id;
           if (walletId) {
             invitedWalletIds.add(String(walletId));
           }
         });
-        
+
         if (invitedWalletIds.size > 0) {
-          setLeftWalletIds(prev => {
+          setLeftWalletIds((prev) => {
             const newSet = new Set(prev);
-            invitedWalletIds.forEach(id => newSet.delete(id));
+            invitedWalletIds.forEach((id) => newSet.delete(id));
             return newSet;
           });
-          
+
           // Force reload wallets và transactions để cập nhật isViewerWallet
           isRefreshingRef.current = false;
-          
+
           // Force reload wallets trước
           if (loadWallets && typeof loadWallets === "function") {
             try {
@@ -2244,16 +2628,19 @@ export default function TransactionsPage() {
               console.error("Failed to reload wallets after invited:", error);
             }
           }
-          
+
           // Reset last refresh để force reload transactions
-          lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
-          
+          lastRefreshRef.current = { walletsIds: "", timestamp: 0 };
+
           // Force refresh transactions ngay lập tức để cập nhật isViewerWallet
           setLoading(true);
           try {
             await refreshTransactionsData();
           } catch (error) {
-            console.error("Failed to refresh transactions after invited:", error);
+            console.error(
+              "Failed to refresh transactions after invited:",
+              error
+            );
           } finally {
             setLoading(false);
             isRefreshingRef.current = false;
@@ -2261,12 +2648,15 @@ export default function TransactionsPage() {
         }
       }
     };
-    window.addEventListener("walletNotificationReceived", handleWalletNotification);
-    
+    window.addEventListener(
+      "walletNotificationReceived",
+      handleWalletNotification
+    );
+
     // Lắng nghe event khi wallets được reload để tự động refresh transactions
     const handleWalletsReloaded = () => {
       // Reset last refresh để force reload transactions
-      lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
+      lastRefreshRef.current = { walletsIds: "", timestamp: 0 };
       setTimeout(() => {
         runInitialLoad();
       }, 300);
@@ -2286,14 +2676,17 @@ export default function TransactionsPage() {
           }
         }
         // Reset last refresh để force reload transactions
-        lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
+        lastRefreshRef.current = { walletsIds: "", timestamp: 0 };
         // Force refresh transactions để cập nhật isViewerWallet
         isRefreshingRef.current = false;
         setLoading(true);
         try {
           await refreshTransactionsData();
         } catch (error) {
-          console.error("Failed to refresh transactions after role update:", error);
+          console.error(
+            "Failed to refresh transactions after role update:",
+            error
+          );
         } finally {
           setLoading(false);
           isRefreshingRef.current = false;
@@ -2307,7 +2700,10 @@ export default function TransactionsPage() {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("walletMerged", handleWalletMerged);
       window.removeEventListener("walletMemberLeft", handleWalletMemberLeft);
-      window.removeEventListener("walletNotificationReceived", handleWalletNotification);
+      window.removeEventListener(
+        "walletNotificationReceived",
+        handleWalletNotification
+      );
       window.removeEventListener("walletsReloaded", handleWalletsReloaded);
       window.removeEventListener("walletRoleUpdated", handleWalletRoleUpdated);
     };
@@ -2335,17 +2731,22 @@ export default function TransactionsPage() {
     let walletNameToApply = normalizedFocus;
 
     const walletById = wallets.find(
-      (wallet) => String(wallet.id) === normalizedFocus || String(wallet.walletId) === normalizedFocus
+      (wallet) =>
+        String(wallet.id) === normalizedFocus ||
+        String(wallet.walletId) === normalizedFocus
     );
 
     if (walletById) {
-      walletNameToApply = walletById.name || walletById.walletName || walletNameToApply;
+      walletNameToApply =
+        walletById.name || walletById.walletName || walletNameToApply;
     } else {
       const walletByName = wallets.find(
-        (wallet) => (wallet.name || wallet.walletName || "").toLowerCase() === focusLower
+        (wallet) =>
+          (wallet.name || wallet.walletName || "").toLowerCase() === focusLower
       );
       if (walletByName) {
-        walletNameToApply = walletByName.name || walletByName.walletName || walletNameToApply;
+        walletNameToApply =
+          walletByName.name || walletByName.walletName || walletNameToApply;
       }
     }
 
@@ -2364,85 +2765,102 @@ export default function TransactionsPage() {
     setSearchText("");
   };
 
-  const evaluateBudgetWarning = useCallback((payload, walletEntity) => {
-    if (!payload || !walletEntity) return null;
-    if (!budgets || budgets.length === 0) return null;
-    const normalizedCategory = normalizeBudgetCategoryKey(payload.category);
-    if (!normalizedCategory) return null;
+  const evaluateBudgetWarning = useCallback(
+    (payload, walletEntity) => {
+      if (!payload || !walletEntity) return null;
+      if (!budgets || budgets.length === 0) return null;
+      const normalizedCategory = normalizeBudgetCategoryKey(payload.category);
+      if (!normalizedCategory) return null;
 
-    const txDate = (() => {
-      if (payload.date) {
-        const parsed = new Date(payload.date);
-        if (!Number.isNaN(parsed.getTime())) {
-          return parsed;
+      const txDate = (() => {
+        if (payload.date) {
+          const parsed = new Date(payload.date);
+          if (!Number.isNaN(parsed.getTime())) {
+            return parsed;
+          }
+        }
+        return new Date();
+      })();
+
+      const orderedBudgets = [...budgets].sort((a, b) => {
+        const aGlobal = a?.walletId === null || a?.walletId === undefined;
+        const bGlobal = b?.walletId === null || b?.walletId === undefined;
+        if (aGlobal === bGlobal) return 0;
+        return aGlobal ? 1 : -1;
+      });
+
+      let alertCandidate = null;
+
+      for (const budget of orderedBudgets) {
+        if (!budget) continue;
+        if ((budget.categoryType || "expense").toLowerCase() !== "expense")
+          continue;
+        const budgetCategory = normalizeBudgetCategoryKey(budget.categoryName);
+        if (!budgetCategory || budgetCategory !== normalizedCategory) continue;
+        if (!isTransactionWithinBudgetPeriod(budget, txDate)) continue;
+        if (!doesBudgetMatchWallet(budget, walletEntity, payload.walletName))
+          continue;
+
+        const limit = Number(budget.limitAmount || budget.amountLimit || 0);
+        const amount = Number(payload.amount || 0);
+        if (!limit || !amount) continue;
+
+        const spent = Number(getSpentForBudget(budget) || 0);
+        const totalAfterTx = spent + amount;
+        const warnPercent = Number(
+          budget.alertPercentage ?? budget.warningThreshold ?? 80
+        );
+        const warningAmount = limit * (warnPercent / 100);
+        const isExceeding = totalAfterTx > limit;
+        const crossesWarning =
+          !isExceeding &&
+          spent < warningAmount &&
+          totalAfterTx >= warningAmount;
+
+        if (isExceeding || crossesWarning) {
+          const snapshot = {
+            categoryName: budget.categoryName,
+            walletName: budget.walletName || payload.walletName,
+            budgetLimit: limit,
+            spent,
+            transactionAmount: amount,
+            totalAfterTx,
+            isExceeding,
+          };
+
+          if (isExceeding) {
+            return snapshot;
+          }
+
+          if (!alertCandidate) {
+            alertCandidate = snapshot;
+          }
         }
       }
-      return new Date();
-    })();
 
-    const orderedBudgets = [...budgets].sort((a, b) => {
-      const aGlobal = a?.walletId === null || a?.walletId === undefined;
-      const bGlobal = b?.walletId === null || b?.walletId === undefined;
-      if (aGlobal === bGlobal) return 0;
-      return aGlobal ? 1 : -1;
-    });
+      return alertCandidate;
+    },
+    [budgets, getSpentForBudget]
+  );
 
-    let alertCandidate = null;
-
-    for (const budget of orderedBudgets) {
-      if (!budget) continue;
-      if ((budget.categoryType || "expense").toLowerCase() !== "expense") continue;
-      const budgetCategory = normalizeBudgetCategoryKey(budget.categoryName);
-      if (!budgetCategory || budgetCategory !== normalizedCategory) continue;
-      if (!isTransactionWithinBudgetPeriod(budget, txDate)) continue;
-      if (!doesBudgetMatchWallet(budget, walletEntity, payload.walletName)) continue;
-
-      const limit = Number(budget.limitAmount || budget.amountLimit || 0);
-      const amount = Number(payload.amount || 0);
-      if (!limit || !amount) continue;
-
-      const spent = Number(getSpentForBudget(budget) || 0);
-      const totalAfterTx = spent + amount;
-      const warnPercent = Number(budget.alertPercentage ?? budget.warningThreshold ?? 80);
-      const warningAmount = limit * (warnPercent / 100);
-      const isExceeding = totalAfterTx > limit;
-      const crossesWarning = !isExceeding && spent < warningAmount && totalAfterTx >= warningAmount;
-
-      if (isExceeding || crossesWarning) {
-        const snapshot = {
-          categoryName: budget.categoryName,
-          walletName: budget.walletName || payload.walletName,
-          budgetLimit: limit,
-          spent,
-          transactionAmount: amount,
-          totalAfterTx,
-          isExceeding,
-        };
-
-        if (isExceeding) {
-          return snapshot;
-        }
-
-        if (!alertCandidate) {
-          alertCandidate = snapshot;
-        }
-      }
-    }
-
-    return alertCandidate;
-  }, [budgets, getSpentForBudget]);
-  
   const handleCreate = async (payload, options = {}) => {
     const skipBudgetCheck = options.skipBudgetCheck === true;
     try {
-        if (activeTab === TABS.EXTERNAL || activeTab === TABS.GROUP_EXTERNAL) {
+      if (activeTab === TABS.EXTERNAL || activeTab === TABS.GROUP_EXTERNAL) {
         // Find walletId and categoryId
         // Ưu tiên tìm theo walletId (tránh nhầm khi có nhiều ví trùng tên)
         const wallet =
           (payload.walletId && findWalletById(payload.walletId)) ||
           findWalletByDisplayName(payload.walletName);
         if (!wallet) {
-          setToast({ open: true, message: t("transactions.error.wallet_not_found").replace("{wallet}", payload.walletName), type: "error" });
+          setToast({
+            open: true,
+            message: t("transactions.error.wallet_not_found").replace(
+              "{wallet}",
+              payload.walletName
+            ),
+            type: "error",
+          });
           return;
         }
 
@@ -2453,34 +2871,45 @@ export default function TransactionsPage() {
 
         // Tìm category trong đúng danh sách dựa trên loại giao dịch
         // Tránh tìm nhầm category cùng tên nhưng khác loại
-        const categoryList = payload.type === "income" 
-          ? (incomeCategories || [])
-          : (expenseCategories || []);
-        
+        const categoryList =
+          payload.type === "income"
+            ? incomeCategories || []
+            : expenseCategories || [];
+
         const category = categoryList.find(
-          c => c.name === payload.category || 
-               c.categoryName === payload.category ||
-               (c.name && c.name.trim() === payload.category?.trim()) ||
-               (c.categoryName && c.categoryName.trim() === payload.category?.trim())
+          (c) =>
+            c.name === payload.category ||
+            c.categoryName === payload.category ||
+            (c.name && c.name.trim() === payload.category?.trim()) ||
+            (c.categoryName &&
+              c.categoryName.trim() === payload.category?.trim())
         );
-        
+
         if (!category) {
-          setToast({ 
-            open: true, 
-            message: `Không tìm thấy danh mục "${payload.category}" trong loại ${payload.type === "income" ? "thu nhập" : "chi tiêu"}.`,
-            type: "error"
+          setToast({
+            open: true,
+            message: `Không tìm thấy danh mục "${
+              payload.category
+            }" trong loại ${
+              payload.type === "income" ? "thu nhập" : "chi tiêu"
+            }.`,
+            type: "error",
           });
           return;
         }
 
         const walletId = wallet.walletId || wallet.id;
         const categoryId = category.categoryId || category.id;
-        
+
         if (!categoryId) {
-          setToast({ open: true, message: "Không tìm thấy ID của danh mục. Vui lòng thử lại.", type: "error" });
+          setToast({
+            open: true,
+            message: "Không tìm thấy ID của danh mục. Vui lòng thử lại.",
+            type: "error",
+          });
           return;
         }
-        
+
         if (payload.type === "expense" && !skipBudgetCheck) {
           const warningData = evaluateBudgetWarning(payload, wallet);
           if (warningData) {
@@ -2490,7 +2919,9 @@ export default function TransactionsPage() {
           }
         }
 
-        const transactionDate = payload.date ? new Date(payload.date).toISOString() : new Date().toISOString();
+        const transactionDate = payload.date
+          ? new Date(payload.date).toISOString()
+          : new Date().toISOString();
 
         // Call API
         if (payload.type === "expense") {
@@ -2502,7 +2933,7 @@ export default function TransactionsPage() {
             payload.note || "",
             payload.attachment || null
           );
-    } else {
+        } else {
           await transactionAPI.addIncome(
             payload.amount,
             transactionDate,
@@ -2523,13 +2954,20 @@ export default function TransactionsPage() {
         const targetWallet =
           (payload.targetWalletId && findWalletById(payload.targetWalletId)) ||
           findWalletByDisplayName(payload.targetWallet);
-        
+
         if (!sourceWallet || !targetWallet) {
-          setToast({ open: true, message: t("transactions.error.wallet_not_found_pair"), type: "error" });
+          setToast({
+            open: true,
+            message: t("transactions.error.wallet_not_found_pair"),
+            type: "error",
+          });
           return;
         }
 
-        if (isViewerOnlyWallet(sourceWallet) || isViewerOnlyWallet(targetWallet)) {
+        if (
+          isViewerOnlyWallet(sourceWallet) ||
+          isViewerOnlyWallet(targetWallet)
+        ) {
           showViewerRestrictionToast();
           return;
         }
@@ -2551,7 +2989,7 @@ export default function TransactionsPage() {
       // Điều này đảm bảo trang ví tiền tự động cập nhật mà không cần reload
       await loadWallets();
       await refreshTransactionsData();
-      
+
       // Reload budgets để cập nhật spent amount sau khi tạo giao dịch chi tiêu
       if (refreshBudgets && typeof refreshBudgets === "function") {
         try {
@@ -2564,7 +3002,13 @@ export default function TransactionsPage() {
       setCurrentPage(1);
     } catch (error) {
       console.error("Error creating transaction:", error);
-      setToast({ open: true, message: t("transactions.error.create_failed") + (error?.message ? `: ${error.message}` : ""), type: "error" });
+      setToast({
+        open: true,
+        message:
+          t("transactions.error.create_failed") +
+          (error?.message ? `: ${error.message}` : ""),
+        type: "error",
+      });
     }
   };
 
@@ -2594,29 +3038,44 @@ export default function TransactionsPage() {
 
     if (!editing.id) {
       console.error("handleUpdate: editing.id is missing", editing);
-      setToast({ open: true, message: t("transactions.error.id_not_found"), type: "error" });
+      setToast({
+        open: true,
+        message: t("transactions.error.id_not_found"),
+        type: "error",
+      });
       return;
     }
 
     try {
       // Xử lý giao dịch chuyển tiền (transfer)
       if (editing.type === "transfer") {
-        const sourceWalletEntity = findWalletByDisplayName(editing.sourceWallet || "");
-        const targetWalletEntity = findWalletByDisplayName(editing.targetWallet || "");
-        if (isViewerOnlyWallet(sourceWalletEntity) || isViewerOnlyWallet(targetWalletEntity)) {
+        const sourceWalletEntity = findWalletByDisplayName(
+          editing.sourceWallet || ""
+        );
+        const targetWalletEntity = findWalletByDisplayName(
+          editing.targetWallet || ""
+        );
+        if (
+          isViewerOnlyWallet(sourceWalletEntity) ||
+          isViewerOnlyWallet(targetWalletEntity)
+        ) {
           showViewerRestrictionToast();
           return;
         }
-        
+
         const response = await walletAPI.updateTransfer(
           editing.id,
           payload.note || ""
         );
-        
+
         await refreshTransactionsData();
 
         setEditing(null);
-        setToast({ open: true, message: t("transactions.toast.update_success"), type: "success" });
+        setToast({
+          open: true,
+          message: t("transactions.toast.update_success"),
+          type: "success",
+        });
         return;
       }
 
@@ -2628,21 +3087,25 @@ export default function TransactionsPage() {
       }
 
       // Tìm categoryId từ category name
-      const categoryList = editing.type === "income" 
-        ? (incomeCategories || [])
-        : (expenseCategories || []);
-      
+      const categoryList =
+        editing.type === "income"
+          ? incomeCategories || []
+          : expenseCategories || [];
+
       const category = categoryList.find(
-        c => c.name === payload.category || 
-             c.categoryName === payload.category ||
-             (c.name && c.name.trim() === payload.category?.trim()) ||
-             (c.categoryName && c.categoryName.trim() === payload.category?.trim())
+        (c) =>
+          c.name === payload.category ||
+          c.categoryName === payload.category ||
+          (c.name && c.name.trim() === payload.category?.trim()) ||
+          (c.categoryName && c.categoryName.trim() === payload.category?.trim())
       );
-      
+
       if (!category) {
-        setToast({ 
-          open: true, 
-          message: `Không tìm thấy danh mục "${payload.category}" trong loại ${editing.type === "income" ? "thu nhập" : "chi tiêu"}.`,
+        setToast({
+          open: true,
+          message: `Không tìm thấy danh mục "${payload.category}" trong loại ${
+            editing.type === "income" ? "thu nhập" : "chi tiêu"
+          }.`,
           type: "error",
         });
         return;
@@ -2650,7 +3113,11 @@ export default function TransactionsPage() {
 
       const categoryId = category.categoryId || category.id;
       if (!categoryId) {
-        setToast({ open: true, message: "Không tìm thấy ID của danh mục. Vui lòng thử lại.", type: "error" });
+        setToast({
+          open: true,
+          message: "Không tìm thấy ID của danh mục. Vui lòng thử lại.",
+          type: "error",
+        });
         return;
       }
 
@@ -2661,20 +3128,32 @@ export default function TransactionsPage() {
         payload.note || "",
         payload.attachment || null
       );
-      
+
       // Force refresh bằng cách reset lastRefreshRef để đảm bảo refresh ngay lập tức
-      lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
+      lastRefreshRef.current = { walletsIds: "", timestamp: 0 };
       await refreshTransactionsData();
 
       setEditing(null);
-      setToast({ open: true, message: t("transactions.toast.update_success"), type: "success" });
+      setToast({
+        open: true,
+        message: t("transactions.toast.update_success"),
+        type: "success",
+      });
     } catch (error) {
       console.error("Error updating transaction/transfer:", error);
       const errorMessage = error.message || "Lỗi không xác định";
       if (editing.type === "transfer") {
-        setToast({ open: true, message: t("transactions.error.update_failed") + ": " + errorMessage, type: "error" });
+        setToast({
+          open: true,
+          message: t("transactions.error.update_failed") + ": " + errorMessage,
+          type: "error",
+        });
       } else {
-        setToast({ open: true, message: t("transactions.error.update_failed") + ": " + errorMessage, type: "error" });
+        setToast({
+          open: true,
+          message: t("transactions.error.update_failed") + ": " + errorMessage,
+          type: "error",
+        });
       }
     }
   };
@@ -2685,9 +3164,16 @@ export default function TransactionsPage() {
     const item = confirmDel;
 
     if (item.type === "transfer") {
-      const sourceWalletEntity = findWalletByDisplayName(item.sourceWallet || "");
-      const targetWalletEntity = findWalletByDisplayName(item.targetWallet || "");
-      if (isViewerOnlyWallet(sourceWalletEntity) || isViewerOnlyWallet(targetWalletEntity)) {
+      const sourceWalletEntity = findWalletByDisplayName(
+        item.sourceWallet || ""
+      );
+      const targetWalletEntity = findWalletByDisplayName(
+        item.targetWallet || ""
+      );
+      if (
+        isViewerOnlyWallet(sourceWalletEntity) ||
+        isViewerOnlyWallet(targetWalletEntity)
+      ) {
         showViewerRestrictionToast();
         setConfirmDel(null);
         return;
@@ -2713,7 +3199,11 @@ export default function TransactionsPage() {
         await loadWallets();
         await refreshTransactionsData();
 
-        setToast({ open: true, message: t("transactions.toast.delete_success"), type: "success" });
+        setToast({
+          open: true,
+          message: t("transactions.toast.delete_success"),
+          type: "success",
+        });
         return;
       }
 
@@ -2725,21 +3215,43 @@ export default function TransactionsPage() {
       await loadWallets();
       await refreshTransactionsData();
 
-      setToast({ open: true, message: t("transactions.toast.delete_success"), type: "success" });
+      setToast({
+        open: true,
+        message: t("transactions.toast.delete_success"),
+        type: "success",
+      });
     } catch (error) {
       console.error("Error deleting transaction/transfer:", error);
       // Kiểm tra nếu lỗi là về ví âm tiền
       const errorMessage = error.message || "Lỗi không xác định";
-      if (errorMessage.includes("Không thể xóa giao dịch vì ví không được âm tiền") || 
-          errorMessage.includes("ví không được âm tiền") || 
-          errorMessage.includes("ví âm tiền") ||
-          errorMessage.includes("âm tiền")) {
-        setToast({ open: true, message: t("transactions.error.delete_wallet_negative"), type: "error" });
+      if (
+        errorMessage.includes(
+          "Không thể xóa giao dịch vì ví không được âm tiền"
+        ) ||
+        errorMessage.includes("ví không được âm tiền") ||
+        errorMessage.includes("ví âm tiền") ||
+        errorMessage.includes("âm tiền")
+      ) {
+        setToast({
+          open: true,
+          message: t("transactions.error.delete_wallet_negative"),
+          type: "error",
+        });
       } else {
         if (item.type === "transfer") {
-          setToast({ open: true, message: t("transactions.error.delete_failed") + ": " + errorMessage, type: "error" });
+          setToast({
+            open: true,
+            message:
+              t("transactions.error.delete_failed") + ": " + errorMessage,
+            type: "error",
+          });
         } else {
-          setToast({ open: true, message: t("transactions.error.delete_failed") + ": " + errorMessage, type: "error" });
+          setToast({
+            open: true,
+            message:
+              t("transactions.error.delete_failed") + ": " + errorMessage,
+            type: "error",
+          });
         }
       }
     }
@@ -2750,9 +3262,16 @@ export default function TransactionsPage() {
       if (!tx) return;
 
       if (tx.type === "transfer") {
-        const sourceWalletEntity = findWalletByDisplayName(tx.sourceWallet || "");
-        const targetWalletEntity = findWalletByDisplayName(tx.targetWallet || "");
-        if (isViewerOnlyWallet(sourceWalletEntity) || isViewerOnlyWallet(targetWalletEntity)) {
+        const sourceWalletEntity = findWalletByDisplayName(
+          tx.sourceWallet || ""
+        );
+        const targetWalletEntity = findWalletByDisplayName(
+          tx.targetWallet || ""
+        );
+        if (
+          isViewerOnlyWallet(sourceWalletEntity) ||
+          isViewerOnlyWallet(targetWalletEntity)
+        ) {
           showViewerRestrictionToast();
           return;
         }
@@ -2774,9 +3293,16 @@ export default function TransactionsPage() {
       if (!tx) return;
 
       if (tx.type === "transfer") {
-        const sourceWalletEntity = findWalletByDisplayName(tx.sourceWallet || "");
-        const targetWalletEntity = findWalletByDisplayName(tx.targetWallet || "");
-        if (isViewerOnlyWallet(sourceWalletEntity) || isViewerOnlyWallet(targetWalletEntity)) {
+        const sourceWalletEntity = findWalletByDisplayName(
+          tx.sourceWallet || ""
+        );
+        const targetWalletEntity = findWalletByDisplayName(
+          tx.targetWallet || ""
+        );
+        if (
+          isViewerOnlyWallet(sourceWalletEntity) ||
+          isViewerOnlyWallet(targetWalletEntity)
+        ) {
           showViewerRestrictionToast();
           return;
         }
@@ -2797,7 +3323,7 @@ export default function TransactionsPage() {
   const categoryMapRef = useRef({});
   const externalTransactionsRef = useRef([]);
   const updateTimeoutRef = useRef(null);
-  
+
   useEffect(() => {
     // Clear timeout trước đó nếu có
     if (updateTimeoutRef.current) {
@@ -2811,7 +3337,10 @@ export default function TransactionsPage() {
       const categoryMap = {};
       const categoryAllTotals = {}; // Temp to sum by category
 
-      const allExternalTx = [...externalTransactions, ...groupExternalTransactions];
+      const allExternalTx = [
+        ...externalTransactions,
+        ...groupExternalTransactions,
+      ];
       allExternalTx.forEach((t) => {
         if (t.type === "expense" && t.category && t.walletName) {
           // Add to specific wallet key
@@ -2819,7 +3348,8 @@ export default function TransactionsPage() {
           categoryMap[walletKey] = (categoryMap[walletKey] || 0) + t.amount;
 
           // Track total for category:all calculation
-          categoryAllTotals[t.category] = (categoryAllTotals[t.category] || 0) + t.amount;
+          categoryAllTotals[t.category] =
+            (categoryAllTotals[t.category] || 0) + t.amount;
         }
       });
 
@@ -2838,10 +3368,22 @@ export default function TransactionsPage() {
 
       // Chỉ update external transactions list nếu thực sự thay đổi (so sánh bằng IDs)
       // Cập nhật cho cả PERSONAL và GROUP external transactions
-      const allExternalTransactions = [...externalTransactions, ...groupExternalTransactions];
-      const currentIds = new Set(allExternalTransactions.map(t => t.id || t.transactionId || t.code));
-      const prevIds = new Set(externalTransactionsRef.current.map(t => t.id || t.transactionId || t.code));
-      if (currentIds.size !== prevIds.size || [...currentIds].some(id => !prevIds.has(id))) {
+      const allExternalTransactions = [
+        ...externalTransactions,
+        ...groupExternalTransactions,
+      ];
+      const currentIds = new Set(
+        allExternalTransactions.map((t) => t.id || t.transactionId || t.code)
+      );
+      const prevIds = new Set(
+        externalTransactionsRef.current.map(
+          (t) => t.id || t.transactionId || t.code
+        )
+      );
+      if (
+        currentIds.size !== prevIds.size ||
+        [...currentIds].some((id) => !prevIds.has(id))
+      ) {
         externalTransactionsRef.current = allExternalTransactions;
         updateAllExternalTransactions(allExternalTransactions);
       }
@@ -2852,7 +3394,12 @@ export default function TransactionsPage() {
         clearTimeout(updateTimeoutRef.current);
       }
     };
-  }, [externalTransactions, groupExternalTransactions, updateTransactionsByCategory, updateAllExternalTransactions]);
+  }, [
+    externalTransactions,
+    groupExternalTransactions,
+    updateTransactionsByCategory,
+    updateAllExternalTransactions,
+  ]);
 
   const currentTransactions = useMemo(() => {
     if (activeTab === TABS.EXTERNAL) {
@@ -2865,10 +3412,17 @@ export default function TransactionsPage() {
       return fundTransactions;
     }
     return [];
-  }, [activeTab, externalTransactions, internalTransactions, groupExternalTransactions, fundTransactions]);
+  }, [
+    activeTab,
+    externalTransactions,
+    internalTransactions,
+    groupExternalTransactions,
+  ]);
 
   const allCategories = useMemo(() => {
-    const s = new Set(currentTransactions.map((t) => t.category).filter(Boolean));
+    const s = new Set(
+      currentTransactions.map((t) => t.category).filter(Boolean)
+    );
     return Array.from(s);
   }, [currentTransactions]);
 
@@ -2888,23 +3442,60 @@ export default function TransactionsPage() {
   }, [activeTab, currentTransactions]);
 
   const scheduleCounts = useMemo(() => {
-    const counts = { all: scheduledTransactions.length, pending: 0, recurring: 0 };
+    const counts = {
+      all: scheduledTransactions.length,
+      pending: 0,
+      active: 0,
+      completed: 0,
+      failed: 0,
+      cancelled: 0,
+    };
     scheduledTransactions.forEach((item) => {
-      if (item.status === "PENDING" || item.status === "RUNNING") counts.pending += 1;
-      if (item.scheduleType !== "ONE_TIME") counts.recurring += 1;
+      const status = String(item.status).toUpperCase();
+      const hasRuns = (item.successRuns || 0) > 0;
+
+      if (status === "COMPLETED") {
+        counts.completed += 1;
+      } else if (status === "FAILED") {
+        counts.failed += 1;
+      } else if (status === "CANCELLED") {
+        counts.cancelled += 1;
+      } else if (status === "PENDING" || status === "RUNNING") {
+        // Đang hoạt động = đã chạy ít nhất 1 lần nhưng chưa hoàn tất
+        if (hasRuns) {
+          counts.active += 1;
+        } else {
+          counts.pending += 1;
+        }
+      }
     });
     return counts;
   }, [scheduledTransactions]);
 
   const filteredSchedules = useMemo(() => {
     return scheduledTransactions.filter((item) => {
+      const status = String(item.status).toUpperCase();
+      const hasRuns = (item.successRuns || 0) > 0;
+      const isPendingOrRunning = status === "PENDING" || status === "RUNNING";
+
       if (scheduleFilter === "pending") {
-        return item.status === "PENDING" || item.status === "RUNNING";
+        // Chờ chạy = chưa có lần chạy nào thành công
+        return isPendingOrRunning && !hasRuns;
       }
-      if (scheduleFilter === "recurring") {
-        return item.scheduleType !== "ONE_TIME";
+      if (scheduleFilter === "active") {
+        // Đang hoạt động = đã chạy ít nhất 1 lần nhưng chưa hoàn tất
+        return isPendingOrRunning && hasRuns;
       }
-      return true;
+      if (scheduleFilter === "completed") {
+        return status === "COMPLETED";
+      }
+      if (scheduleFilter === "failed") {
+        return status === "FAILED";
+      }
+      if (scheduleFilter === "cancelled") {
+        return status === "CANCELLED";
+      }
+      return true; // all
     });
   }, [scheduledTransactions, scheduleFilter]);
 
@@ -2920,7 +3511,8 @@ export default function TransactionsPage() {
         if (filterType !== "all" && t.type !== filterType) return false;
       }
 
-      if (filterCategory !== "all" && t.category !== filterCategory) return false;
+      if (filterCategory !== "all" && t.category !== filterCategory)
+        return false;
 
       if (filterWallet !== "all") {
         if (activeTab === TABS.EXTERNAL || activeTab === TABS.GROUP_EXTERNAL || activeTab === TABS.FUND) {
@@ -2950,15 +3542,8 @@ export default function TransactionsPage() {
       if (searchText) {
         const keyword = searchText.toLowerCase();
         const joined =
-          activeTab === TABS.EXTERNAL || activeTab === TABS.GROUP_EXTERNAL || activeTab === TABS.FUND
-            ? [
-                t.code,
-                t.walletName,
-                ...(t.fundName ? [t.fundName] : []),
-                t.category,
-                t.note,
-                t.amount?.toString(),
-              ]
+          activeTab === TABS.EXTERNAL || activeTab === TABS.GROUP_EXTERNAL
+            ? [t.code, t.walletName, t.category, t.note, t.amount?.toString()]
                 .join(" ")
                 .toLowerCase()
             : [
@@ -3048,367 +3633,686 @@ export default function TransactionsPage() {
     setCurrentPage(1);
   };
 
-  const handleScheduleSubmit = (payload) => {
+  // Load scheduled transactions from API
+  const loadScheduledTransactions = useCallback(async () => {
+    setScheduledLoading(true);
+    try {
+      const response = await scheduledTransactionAPI.getAll();
+      const items = response?.scheduledTransactions || [];
+
+      // Map backend response to frontend format
+      const mapped = items.map((item) => ({
+        id: item.scheduleId,
+        walletId: item.walletId,
+        walletName: item.walletName,
+        categoryId: item.categoryId,
+        categoryName: item.categoryName,
+        transactionType:
+          item.transactionTypeName === "Chi tiêu" ? "expense" : "income",
+        transactionTypeName: item.transactionTypeName,
+        amount: parseFloat(item.amount) || 0,
+        currency: "VND",
+        scheduleType: item.scheduleType,
+        scheduleTypeLabel:
+          SCHEDULE_TYPE_LABELS[item.scheduleType] || item.scheduleType,
+        status: item.status,
+        firstRun:
+          item.nextExecutionDate && item.executionTime
+            ? `${item.nextExecutionDate}T${item.executionTime}`
+            : null,
+        nextRun:
+          item.nextExecutionDate && item.executionTime
+            ? `${item.nextExecutionDate}T${item.executionTime}`
+            : null,
+        endDate: item.endDate,
+        successRuns: item.completedCount || 0,
+        failedRuns: item.failedCount || 0,
+        totalRuns: estimateScheduleRuns(
+          item.nextExecutionDate,
+          item.endDate,
+          item.scheduleType,
+          item.completedCount || 0
+        ),
+        warning:
+          item.failedCount > 0 ? `Thất bại ${item.failedCount} lần` : null,
+        note: item.note,
+        logs: [], // Will be loaded separately when viewing details
+        dayOfWeek: item.dayOfWeek,
+        dayOfMonth: item.dayOfMonth,
+        month: item.month,
+        day: item.day,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      }));
+
+      setScheduledTransactions(mapped);
+    } catch (error) {
+      console.error("Failed to load scheduled transactions:", error);
+      setToast({
+        open: true,
+        message: "Không thể tải danh sách lịch hẹn giao dịch",
+        type: "error",
+      });
+    } finally {
+      setScheduledLoading(false);
+    }
+  }, []);
+
+  // Ref để track lần cuối refresh schedule tab - tránh refresh liên tục
+  const lastScheduleRefreshRef = useRef(0);
+  const SCHEDULE_REFRESH_COOLDOWN = 5000; // 5 giây cooldown
+
+  // Load scheduled transactions when tab changes to SCHEDULE
+  // Chỉ reload nếu đã qua cooldown period
+  useEffect(() => {
+    if (activeTab === TABS.SCHEDULE) {
+      const now = Date.now();
+      if (now - lastScheduleRefreshRef.current > SCHEDULE_REFRESH_COOLDOWN) {
+        lastScheduleRefreshRef.current = now;
+        loadScheduledTransactions();
+        loadWallets?.();
+      }
+    }
+  }, [activeTab, loadScheduledTransactions, loadWallets]);
+
+  // Auto-refresh scheduled transactions and wallets every 60 seconds when on Schedule tab
+  // Chỉ chạy khi tab đang active và không bị lag
+  useEffect(() => {
+    if (activeTab !== TABS.SCHEDULE) return;
+
+    const intervalId = setInterval(() => {
+      // Chỉ refresh nếu tab vẫn đang focus
+      if (document.visibilityState === "visible") {
+        loadScheduledTransactions();
+        loadWallets?.();
+      }
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(intervalId);
+  }, [activeTab, loadScheduledTransactions, loadWallets]);
+
+  const handleScheduleSubmit = async (payload) => {
     const scheduleWallet = findWalletById(payload.walletId);
     if (scheduleWallet && isViewerOnlyWallet(scheduleWallet)) {
       showViewerRestrictionToast();
       return;
     }
 
-    const scheduleId = Date.now();
-    const totalRuns = estimateScheduleRuns(payload.firstRun, payload.endDate, payload.scheduleType);
-    const newSchedule = {
-      id: scheduleId,
-      walletId: payload.walletId,
-      walletName: payload.walletName,
-      categoryName: payload.categoryName,
-      transactionType: payload.transactionType,
-      amount: payload.amount,
-      currency: "VND",
-      scheduleType: payload.scheduleType,
-      scheduleTypeLabel: SCHEDULE_TYPE_LABELS[payload.scheduleType] || payload.scheduleType,
-      status: "PENDING",
-      firstRun: payload.firstRun,
-      nextRun: payload.firstRun,
-      endDate: payload.endDate,
-      successRuns: 0,
-      totalRuns,
-      warning: null,
-      logs: [],
-    };
+    try {
+      // Parse firstRun datetime
+      const firstRunDate = payload.firstRun ? new Date(payload.firstRun) : null;
 
-    setScheduledTransactions((prev) => [newSchedule, ...prev]);
-    setScheduleModalOpen(false);
-    setToast({ open: true, message: t("transactions.toast.schedule_created"), type: "success" });
+      // Format date as YYYY-MM-DD in local timezone (not UTC)
+      const formatLocalDate = (date) => {
+        if (!date) return null;
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      };
+
+      // Format time as HH:mm in local timezone
+      const formatLocalTime = (date) => {
+        if (!date) return "08:00";
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        return `${hours}:${minutes}`;
+      };
+
+      // Build API request
+      const requestData = {
+        walletId: parseInt(payload.walletId),
+        transactionTypeId: payload.transactionType === "expense" ? 1 : 2, // 1 = Chi tiêu, 2 = Thu nhập
+        categoryId: parseInt(payload.categoryId),
+        amount: parseFloat(payload.amount),
+        note: payload.note || "",
+        scheduleType:
+          payload.scheduleType === "ONE_TIME" ? "ONCE" : payload.scheduleType,
+        startDate: formatLocalDate(firstRunDate),
+        executionTime: formatLocalTime(firstRunDate),
+        endDate: payload.endDate || null,
+      };
+
+      // Add schedule-type specific fields
+      if (payload.scheduleType === "WEEKLY") {
+        // Get day of week from firstRun (1-7, Monday-Sunday)
+        requestData.dayOfWeek = firstRunDate
+          ? firstRunDate.getDay() === 0
+            ? 7
+            : firstRunDate.getDay()
+          : 1;
+      } else if (payload.scheduleType === "MONTHLY") {
+        requestData.dayOfMonth = firstRunDate ? firstRunDate.getDate() : 1;
+      } else if (payload.scheduleType === "YEARLY") {
+        requestData.month = firstRunDate ? firstRunDate.getMonth() + 1 : 1;
+        requestData.day = firstRunDate ? firstRunDate.getDate() : 1;
+      }
+
+      const response = await scheduledTransactionAPI.create(requestData);
+
+      if (response.scheduledTransaction) {
+        // Reload the list
+        await loadScheduledTransactions();
+        setScheduleModalOpen(false);
+        setToast({
+          open: true,
+          message: t("transactions.toast.schedule_created"),
+          type: "success",
+        });
+      } else if (response.error) {
+        setToast({
+          open: true,
+          message: response.error,
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to create scheduled transaction:", error);
+      setToast({
+        open: true,
+        message:
+          error.response?.data?.error || "Không thể tạo lịch hẹn giao dịch",
+        type: "error",
+      });
+    }
   };
 
-  const handleScheduleCancel = (scheduleId) => {
-    setScheduledTransactions((prev) =>
-      prev.map((item) => {
-        if (item.id !== scheduleId) return item;
-        return {
-          ...item,
-          status: "CANCELLED",
-          warning: null,
-          logs: [
-            {
-              id: Date.now(),
-              time: new Date().toISOString(),
-              status: "FAILED",
-              message: "Người dùng đã hủy lịch.",
-            },
-            ...item.logs,
-          ],
-        };
-      })
-    );
+  const handleScheduleCancel = async (scheduleId) => {
+    try {
+      const response = await scheduledTransactionAPI.cancel(scheduleId);
 
-    setSelectedSchedule((prev) => (prev?.id === scheduleId ? null : prev));
-    setToast({ open: true, message: t("transactions.toast.schedule_cancelled"), type: "success" });
+      if (response.scheduledTransaction || response.message) {
+        // Reload the list
+        await loadScheduledTransactions();
+        setSelectedSchedule(null);
+        setToast({
+          open: true,
+          message: t("transactions.toast.schedule_cancelled"),
+          type: "success",
+        });
+      } else if (response.error) {
+        setToast({
+          open: true,
+          message: response.error,
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to cancel scheduled transaction:", error);
+      setToast({
+        open: true,
+        message: error.response?.data?.error || "Không thể hủy lịch hẹn",
+        type: "error",
+      });
+    }
+  };
+
+  // Load execution logs when selecting a schedule
+  const handleSelectSchedule = async (schedule) => {
+    // First set the schedule to show loading state quickly
+    setSelectedSchedule(schedule);
+
+    try {
+      // Load fresh schedule data and logs from server
+      const [scheduleResponse, logsResponse] = await Promise.all([
+        scheduledTransactionAPI.getById(schedule.id),
+        scheduledTransactionAPI.getLogs(schedule.id),
+      ]);
+
+      // Map fresh schedule data
+      const freshSchedule = scheduleResponse?.scheduledTransaction;
+      const logs = logsResponse?.logs || [];
+
+      // Map logs to frontend format
+      const mappedLogs = logs.map((log) => ({
+        id: log.logId,
+        time: log.executionTime,
+        status: log.status,
+        message: log.message,
+        amount: log.amount,
+        balanceBefore: log.walletBalanceBefore,
+        balanceAfter: log.walletBalanceAfter,
+      }));
+
+      // Update selected schedule with fresh data and logs
+      if (freshSchedule) {
+        // Estimate total runs based on schedule type and dates
+        const totalRunsEstimate = estimateScheduleRuns(
+          freshSchedule.nextExecutionDate,
+          freshSchedule.endDate,
+          freshSchedule.scheduleType,
+          freshSchedule.completedCount || 0
+        );
+
+        setSelectedSchedule({
+          ...schedule,
+          status: freshSchedule.status,
+          nextRun:
+            freshSchedule.nextExecutionDate && freshSchedule.executionTime
+              ? `${freshSchedule.nextExecutionDate}T${freshSchedule.executionTime}`
+              : null,
+          successRuns: freshSchedule.completedCount || 0,
+          failedRuns: freshSchedule.failedCount || 0,
+          totalRuns: totalRunsEstimate,
+          logs: mappedLogs,
+        });
+
+        // Also update in the main list
+        setScheduledTransactions((prev) =>
+          prev.map((s) =>
+            s.id === schedule.id
+              ? {
+                  ...s,
+                  status: freshSchedule.status,
+                  successRuns: freshSchedule.completedCount || 0,
+                  failedRuns: freshSchedule.failedCount || 0,
+                  totalRuns: totalRunsEstimate,
+                  nextRun:
+                    freshSchedule.nextExecutionDate &&
+                    freshSchedule.executionTime
+                      ? `${freshSchedule.nextExecutionDate}T${freshSchedule.executionTime}`
+                      : null,
+                }
+              : s
+          )
+        );
+      } else {
+        setSelectedSchedule((prev) =>
+          prev ? { ...prev, logs: mappedLogs } : null
+        );
+      }
+
+      // Reload wallets if there are completed logs
+      const hasNewCompletedLogs = mappedLogs.some(
+        (log) => log.status === "COMPLETED"
+      );
+      const now = Date.now();
+      if (
+        hasNewCompletedLogs &&
+        now - lastScheduleRefreshRef.current > SCHEDULE_REFRESH_COOLDOWN
+      ) {
+        lastScheduleRefreshRef.current = now;
+        loadWallets?.();
+      }
+    } catch (error) {
+      console.error("Failed to load schedule details:", error);
+    }
   };
 
   return (
     <div className="tx-page container-fluid py-4">
       <div className="tx-page-inner">
-      <div className="wallet-header">
-        <div className="wallet-header-left">
-          <div className="wallet-header-icon">
-            <i className="bi bi-cash-stack" />
+        <div className="wallet-header">
+          <div className="wallet-header-left">
+            <div className="wallet-header-icon">
+              <i className="bi bi-cash-stack" />
+            </div>
+            <div>
+              <h2 className="wallet-header-title">
+                {t("transactions.page.title")}
+              </h2>
+              <p className="wallet-header-subtitle">
+                {t("transactions.page.subtitle")}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="wallet-header-title">{t("transactions.page.title")}</h2>
-            <p className="wallet-header-subtitle">{t("transactions.page.subtitle")}</p>
-          </div>
-        </div>
 
-        <div className="wallet-header-center d-flex justify-content-end">
-          <div className="funds-tabs">
-            <button
-              type="button"
-              className={`funds-tab ${activeTab === TABS.EXTERNAL ? "funds-tab--active" : ""}`}
-              onClick={() => handleTabChange({ target: { value: TABS.EXTERNAL } })}
-            >
-              {t("transactions.tab.external")}
-            </button>
-            <button
-              type="button"
-              className={`funds-tab ${activeTab === TABS.GROUP_EXTERNAL ? "funds-tab--active" : ""}`}
-              onClick={() => handleTabChange({ target: { value: TABS.GROUP_EXTERNAL } })}
-            >
-              Giao dịch ví nhóm
-            </button>
-            <button
-              type="button"
-              className={`funds-tab ${activeTab === TABS.INTERNAL ? "funds-tab--active" : ""}`}
-              onClick={() => handleTabChange({ target: { value: TABS.INTERNAL } })}
-            >
-              {t("transactions.tab.internal")}
-            </button>
-            <button
-              type="button"
-              className={`funds-tab ${activeTab === TABS.FUND ? "funds-tab--active" : ""}`}
-              onClick={() => handleTabChange({ target: { value: TABS.FUND } })}
-            >
-              Giao dịch quỹ
-            </button>
-            <button
-              type="button"
-              className={`funds-tab ${activeTab === TABS.SCHEDULE ? "funds-tab--active" : ""}`}
-              onClick={() => handleTabChange({ target: { value: TABS.SCHEDULE } })}
-            >
-              {t("transactions.tab.schedule")}
-            </button>
-          </div>
-        </div>
-
-        <div className="wallet-header-right d-flex align-items-center justify-content-end gap-2">
-          {/* Không cần nút toggle form nữa vì form luôn hiển thị */}
-        </div>
-      </div>
-
-
-      {isScheduleView ? (
-        <div className="scheduled-section card border-0 shadow-sm mb-4">
-          <div className="card-body">
-            <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-              <div>
-                <h5 className="mb-1">{t("transactions.schedule.title")}</h5>
-                <p className="text-muted mb-0">{t("transactions.schedule.desc")}</p>
-              </div>
-              <button className="btn btn-primary" type="button" onClick={() => setScheduleModalOpen(true)}>
-                <i className="bi bi-plus-lg me-2" />{t("transactions.schedule.create_btn")}
+          <div className="wallet-header-center d-flex justify-content-end">
+            <div className="funds-tabs">
+              <button
+                type="button"
+                className={`funds-tab ${
+                  activeTab === TABS.EXTERNAL ? "funds-tab--active" : ""
+                }`}
+                onClick={() =>
+                  handleTabChange({ target: { value: TABS.EXTERNAL } })
+                }
+              >
+                {t("transactions.tab.external")}
+              </button>
+              <button
+                type="button"
+                className={`funds-tab ${
+                  activeTab === TABS.GROUP_EXTERNAL ? "funds-tab--active" : ""
+                }`}
+                onClick={() =>
+                  handleTabChange({ target: { value: TABS.GROUP_EXTERNAL } })
+                }
+              >
+                Giao dịch ví nhóm
+              </button>
+              <button
+                type="button"
+                className={`funds-tab ${
+                  activeTab === TABS.INTERNAL ? "funds-tab--active" : ""
+                }`}
+                onClick={() =>
+                  handleTabChange({ target: { value: TABS.INTERNAL } })
+                }
+              >
+                {t("transactions.tab.internal")}
+              </button>
+              <button
+                type="button"
+                className={`funds-tab ${
+                  activeTab === TABS.SCHEDULE ? "funds-tab--active" : ""
+                }`}
+                onClick={() =>
+                  handleTabChange({ target: { value: TABS.SCHEDULE } })
+                }
+              >
+                {t("transactions.tab.schedule")}
               </button>
             </div>
+          </div>
 
-            <div className="schedule-tabs mb-3">
-              {SCHEDULE_TABS.map((tab) => (
+          <div className="wallet-header-right d-flex align-items-center justify-content-end gap-2">
+            {/* Không cần nút toggle form nữa vì form luôn hiển thị */}
+          </div>
+        </div>
+
+        {isScheduleView ? (
+          <div className="scheduled-section card border-0 shadow-sm mb-4">
+            <div className="card-body">
+              <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                  <h5 className="mb-1">{t("transactions.schedule.title")}</h5>
+                  <p className="text-muted mb-0"></p>
+                </div>
                 <button
-                  key={tab.value}
+                  className="btn btn-primary"
                   type="button"
-                  className={`schedule-tab ${scheduleFilter === tab.value ? "active" : ""}`}
-                  onClick={() => setScheduleFilter(tab.value)}
+                  onClick={() => setScheduleModalOpen(true)}
                 >
-                  {t(`transactions.schedule.tab.${tab.value}`)}
-                  <span className="badge rounded-pill bg-light text-dark ms-2">
-                    {scheduleCounts[tab.value] ?? 0}
-                  </span>
+                  <i className="bi bi-plus-lg me-2" />
+                  {t("transactions.schedule.create_btn")}
                 </button>
-              ))}
-            </div>
-
-            {filteredSchedules.length === 0 ? (
-              <div className="text-center text-muted py-4">
-                Chưa có lịch nào phù hợp.
               </div>
-            ) : (
-              <div className="schedule-list">
-                {filteredSchedules.map((schedule) => {
-                  const meta = SCHEDULE_STATUS_META[schedule.status] || SCHEDULE_STATUS_META.PENDING;
-                  const progress = schedule.totalRuns > 0 ? Math.min(100, Math.round((schedule.successRuns / schedule.totalRuns) * 100)) : 0;
-                  return (
-                    <div className="scheduled-card" key={schedule.id}>
-                      <div className="d-flex justify-content-between align-items-start mb-2">
-                        <div>
-                          <h6 className="mb-1">
-                            {schedule.walletName} • {schedule.transactionType === "income" ? t("transactions.type.income") : t("transactions.type.expense")}
-                          </h6>
-                          <p className="mb-1 text-muted">
-                            {schedule.categoryName} · {schedule.scheduleTypeLabel}
-                          </p>
+
+              <div className="schedule-tabs mb-3">
+                {SCHEDULE_TABS.map((tab) => (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    className={`schedule-tab ${
+                      scheduleFilter === tab.value ? "active" : ""
+                    }`}
+                    onClick={() => setScheduleFilter(tab.value)}
+                  >
+                    {t(`transactions.schedule.tab.${tab.value}`)}
+                    <span className="badge rounded-pill bg-light text-dark ms-2">
+                      {scheduleCounts[tab.value] ?? 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {filteredSchedules.length === 0 ? (
+                <div className="text-center text-muted py-4">
+                  Chưa có lịch nào phù hợp.
+                </div>
+              ) : (
+                <div className="schedule-list">
+                  {filteredSchedules.map((schedule) => {
+                    const meta =
+                      SCHEDULE_STATUS_META[schedule.status] ||
+                      SCHEDULE_STATUS_META.PENDING;
+                    const progress =
+                      schedule.totalRuns > 0
+                        ? Math.min(
+                            100,
+                            Math.round(
+                              (schedule.successRuns / schedule.totalRuns) * 100
+                            )
+                          )
+                        : 0;
+                    return (
+                      <div
+                        className="scheduled-card d-flex flex-column"
+                        key={schedule.id}
+                        style={{ minHeight: "180px" }}
+                      >
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <div>
+                            <h6 className="mb-1">
+                              {schedule.walletName} •{" "}
+                              {schedule.transactionType === "income"
+                                ? t("transactions.type.income")
+                                : t("transactions.type.expense")}
+                            </h6>
+                            <p className="mb-1 text-muted">
+                              {schedule.categoryName} ·{" "}
+                              {schedule.scheduleTypeLabel}
+                            </p>
+                          </div>
+                          <span className={meta.className}>
+                            {t(
+                              `transactions.schedule.status.${String(
+                                schedule.status
+                              ).toLowerCase()}`
+                            )}
+                          </span>
                         </div>
-                        <span className={meta.className}>{t(`transactions.schedule.status.${String(schedule.status).toLowerCase()}`)}</span>
-                      </div>
-                      <div className="d-flex flex-wrap gap-3 mb-2 small text-muted">
-                        <span>{t("transactions.schedule.amount")} {formatCurrency(schedule.amount)}</span>
-                        <span>{t("transactions.schedule.next_run")} {formatVietnamDateTime(schedule.nextRun)}</span>
-                        <span>
-                          {t("transactions.schedule.completed_runs")} {schedule.successRuns}/{schedule.totalRuns || "∞"}
-                        </span>
-                      </div>
-                      <div className="progress schedule-progress">
-                        <div className="progress-bar" style={{ width: `${progress}%` }}></div>
-                      </div>
-                      {schedule.warning && (
-                        <div className="schedule-warning">
-                          <i className="bi bi-exclamation-triangle-fill me-1" />
-                          {schedule.warning}
+                        <div className="d-flex flex-wrap gap-3 mb-2 small text-muted">
+                          <span>
+                            {t("transactions.schedule.amount")}{" "}
+                            {formatCurrency(schedule.amount)}
+                          </span>
+                          <span>
+                            {t("transactions.schedule.next_run")}{" "}
+                            {formatVietnamDateTime(schedule.nextRun)}
+                          </span>
+                          <span>
+                            {t("transactions.schedule.completed_runs")}{" "}
+                            {schedule.successRuns}/{schedule.totalRuns || "∞"}
+                          </span>
                         </div>
-                      )}
-                      <div className="scheduled-card-actions">
-                        <button type="button" className="btn btn-link px-0" onClick={() => setSelectedSchedule(schedule)}>
-                          {t("transactions.schedule.view_history")}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-link px-0 text-danger"
-                          disabled={schedule.status === "CANCELLED"}
-                          onClick={() => handleScheduleCancel(schedule.id)}
-                        >
-                          {t("transactions.schedule.cancel")}
-                        </button>
+                        <div className="progress schedule-progress">
+                          <div
+                            className="progress-bar"
+                            style={{ width: `${progress}%` }}
+                          ></div>
+                        </div>
+                        <div className="flex-grow-1 d-flex flex-column justify-content-between">
+                          <div
+                            className="schedule-warning-container"
+                            style={{ minHeight: "24px" }}
+                          >
+                            {schedule.warning && (
+                              <div className="schedule-warning">
+                                <i className="bi bi-exclamation-triangle-fill me-1" />
+                                {schedule.warning}
+                              </div>
+                            )}
+                          </div>
+                          <div className="scheduled-card-actions d-flex justify-content-end gap-3 mt-auto">
+                            <button
+                              type="button"
+                              className="btn btn-link px-0"
+                              onClick={() => handleSelectSchedule(schedule)}
+                            >
+                              {t("transactions.schedule.view_history")}
+                            </button>
+                            {schedule.status !== "COMPLETED" &&
+                              schedule.status !== "CANCELLED" && (
+                                <button
+                                  type="button"
+                                  className="btn btn-link px-0 text-danger"
+                                  onClick={() =>
+                                    handleScheduleCancel(schedule.id)
+                                  }
+                                >
+                                  {t("transactions.schedule.cancel")}
+                                </button>
+                              )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div
+            className={`transactions-layout ${
+              expandedPanel
+                ? "transactions-layout--expanded"
+                : "transactions-layout--with-history"
+            }`}
+          >
+            {/* LEFT: Create Transaction Form */}
+            {(!expandedPanel || expandedPanel === "form") && (
+              <div
+                className={`transactions-form-panel ${
+                  expandedPanel === "form" ? "expanded" : ""
+                }`}
+              >
+                <TransactionForm
+                  mode="create"
+                  variant={
+                    activeTab === TABS.INTERNAL ? "internal" : "external"
+                  }
+                  onSubmit={handleCreate}
+                  onReset={() => {
+                    // Reset form sau khi submit
+                  }}
+                  expanded={expandedPanel === "form"}
+                  onToggleExpand={() =>
+                    setExpandedPanel(expandedPanel === "form" ? null : "form")
+                  }
+                  availableWallets={actionableWallets}
+                  activeTab={activeTab}
+                />
+              </div>
+            )}
+
+            {/* RIGHT: Transaction History */}
+            {(!expandedPanel || expandedPanel === "history") && (
+              <div
+                className={`transactions-history-panel ${
+                  expandedPanel === "history" ? "expanded" : ""
+                }`}
+              >
+                <TransactionList
+                  transactions={filteredSorted}
+                  activeTab={activeTab}
+                  loading={loading}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  paginationRange={paginationRange}
+                  onPageChange={handlePageChange}
+                  onView={setViewing}
+                  onEdit={handleTransactionEditRequest}
+                  onDelete={handleTransactionDeleteRequest}
+                  filterType={filterType}
+                  onFilterTypeChange={(value) => {
+                    setFilterType(value);
+                    setCurrentPage(1);
+                  }}
+                  searchText={searchText}
+                  onSearchChange={(value) => {
+                    setSearchText(value);
+                    setCurrentPage(1);
+                  }}
+                  fromDateTime={fromDateTime}
+                  onFromDateTimeChange={(value) => {
+                    setFromDateTime(value);
+                    setCurrentPage(1);
+                  }}
+                  toDateTime={toDateTime}
+                  onToDateTimeChange={(value) => {
+                    setToDateTime(value);
+                    setCurrentPage(1);
+                  }}
+                  expanded={expandedPanel === "history"}
+                  onToggleExpand={() =>
+                    setExpandedPanel(
+                      expandedPanel === "history" ? null : "history"
+                    )
+                  }
+                />
               </div>
             )}
           </div>
-        </div>
-      ) : (
-        <div className={`transactions-layout ${activeTab === TABS.FUND ? "transactions-layout--fund-only" : expandedPanel ? "transactions-layout--expanded" : "transactions-layout--with-history"}`}>
-          {/* LEFT: Create Transaction Form - Ẩn khi ở tab giao dịch quỹ */}
-          {activeTab !== TABS.FUND && (!expandedPanel || expandedPanel === "form") && (
-            <div className={`transactions-form-panel ${expandedPanel === "form" ? "expanded" : ""}`}>
-              <TransactionForm
-                mode="create"
-                variant={
-                  activeTab === TABS.INTERNAL
-                    ? "internal"
-                    : "external"
-                }
-                onSubmit={handleCreate}
-                onReset={() => {
-                  // Reset form sau khi submit
-                }}
-                expanded={expandedPanel === "form"}
-                onToggleExpand={() => setExpandedPanel(expandedPanel === "form" ? null : "form")}
-                availableWallets={actionableWallets}
-                activeTab={activeTab}
-              />
-            </div>
-          )}
+        )}
 
-          {/* RIGHT: Transaction History */}
-          {(!expandedPanel || expandedPanel === "history") && (
-            <div className={`transactions-history-panel ${expandedPanel === "history" ? "expanded" : ""}`}>
-              <TransactionList
-                transactions={filteredSorted}
-                activeTab={activeTab}
-                loading={loading}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                paginationRange={paginationRange}
-                onPageChange={handlePageChange}
-                onView={setViewing}
-                onEdit={handleTransactionEditRequest}
-                onDelete={handleTransactionDeleteRequest}
-                filterType={filterType}
-                onFilterTypeChange={(value) => {
-                  setFilterType(value);
-                  setCurrentPage(1);
-                }}
-                searchText={searchText}
-                onSearchChange={(value) => {
-                  setSearchText(value);
-                  setCurrentPage(1);
-                }}
-                fromDateTime={fromDateTime}
-                onFromDateTimeChange={(value) => {
-                  setFromDateTime(value);
-                  setCurrentPage(1);
-                }}
-                toDateTime={toDateTime}
-                onToDateTimeChange={(value) => {
-                  setToDateTime(value);
-                  setCurrentPage(1);
-                }}
-                expanded={expandedPanel === "history"}
-                onToggleExpand={() => setExpandedPanel(expandedPanel === "history" ? null : "history")}
-              />
-            </div>
-          )}
-        </div>
-      )}
+        <ScheduledTransactionModal
+          open={scheduleModalOpen}
+          wallets={actionableWallets}
+          expenseCategories={expenseCategories}
+          incomeCategories={incomeCategories}
+          onSubmit={handleScheduleSubmit}
+          onClose={() => setScheduleModalOpen(false)}
+        />
 
-      <ScheduledTransactionModal
-        open={scheduleModalOpen}
-        wallets={actionableWallets}
-        expenseCategories={expenseCategories}
-        incomeCategories={incomeCategories}
-        onSubmit={handleScheduleSubmit}
-        onClose={() => setScheduleModalOpen(false)}
-      />
+        <ScheduledTransactionDrawer
+          open={!!selectedSchedule}
+          schedule={selectedSchedule}
+          onClose={() => setSelectedSchedule(null)}
+          onCancel={handleScheduleCancel}
+        />
 
-      <ScheduledTransactionDrawer
-        open={!!selectedSchedule}
-        schedule={selectedSchedule}
-        onClose={() => setSelectedSchedule(null)}
-        onCancel={handleScheduleCancel}
-      />
+        <TransactionViewModal
+          open={!!viewing}
+          tx={viewing}
+          onClose={() => setViewing(null)}
+        />
 
-      <TransactionViewModal
-        open={!!viewing}
-        tx={viewing}
-        onClose={() => setViewing(null)}
-      />
+        <TransactionFormModal
+          open={!!editing}
+          mode="edit"
+          variant={editing && editing.sourceWallet ? "internal" : "external"}
+          initialData={editing}
+          onSubmit={handleUpdate}
+          onClose={() => setEditing(null)}
+          availableWallets={actionableWallets}
+          activeTab={activeTab}
+        />
 
-      <TransactionFormModal
-        open={!!editing}
-        mode="edit"
-        variant={editing && editing.sourceWallet ? "internal" : "external"}
-        initialData={editing}
-        onSubmit={handleUpdate}
-        onClose={() => setEditing(null)}
-        availableWallets={actionableWallets}
-        activeTab={activeTab}
-      />
+        <ConfirmModal
+          open={!!confirmDel}
+          title={t("transactions.confirm.delete_title")}
+          message={
+            confirmDel
+              ? t("transactions.confirm.delete_message").replace(
+                  "{code}",
+                  confirmDel.code
+                )
+              : ""
+          }
+          okText={t("transactions.confirm.delete_ok")}
+          cancelText={t("transactions.confirm.delete_cancel")}
+          onOk={handleDelete}
+          onClose={() => setConfirmDel(null)}
+        />
 
-      <ConfirmModal
-        open={!!confirmDel}
-        title={t("transactions.confirm.delete_title")}
-        message={
-          confirmDel ? t("transactions.confirm.delete_message").replace("{code}", confirmDel.code) : ""
-        }
-        okText={t("transactions.confirm.delete_ok")}
-        cancelText={t("transactions.confirm.delete_cancel")}
-        onOk={handleDelete}
-        onClose={() => setConfirmDel(null)}
-      />
+        <BudgetWarningModal
+          open={!!budgetWarning}
+          categoryName={budgetWarning?.categoryName}
+          walletName={budgetWarning?.walletName}
+          budgetLimit={budgetWarning?.budgetLimit || 0}
+          spent={budgetWarning?.spent || 0}
+          transactionAmount={budgetWarning?.transactionAmount || 0}
+          totalAfterTx={budgetWarning?.totalAfterTx || 0}
+          isExceeding={budgetWarning?.isExceeding || false}
+          onConfirm={handleBudgetWarningConfirm}
+          onCancel={handleBudgetWarningCancel}
+        />
 
-      <BudgetWarningModal
-        open={!!budgetWarning}
-        categoryName={budgetWarning?.categoryName}
-        walletName={budgetWarning?.walletName}
-        budgetLimit={budgetWarning?.budgetLimit || 0}
-        spent={budgetWarning?.spent || 0}
-        transactionAmount={budgetWarning?.transactionAmount || 0}
-        totalAfterTx={budgetWarning?.totalAfterTx || 0}
-        isExceeding={budgetWarning?.isExceeding || false}
-        onConfirm={handleBudgetWarningConfirm}
-        onCancel={handleBudgetWarningCancel}
-      />
-
-      <Toast
-        open={toast.open}
-        message={toast.message}
-        type={toast.type}
-        duration={2200}
-        onClose={() => setToast({ open: false, message: "", type: "success" })}
-      />
+        <Toast
+          open={toast.open}
+          message={toast.message}
+          type={toast.type}
+          duration={2200}
+          onClose={() =>
+            setToast({ open: false, message: "", type: "success" })
+          }
+        />
       </div>
     </div>
   );
-}
-
-function estimateScheduleRuns(startValue, endValue, scheduleType) {
-  if (scheduleType === "ONE_TIME") return 1;
-  if (!startValue || !endValue) return 0;
-  const start = new Date(startValue);
-  const end = new Date(endValue);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
-  const diffDays = Math.floor((end - start) / (1000 * 60 * 60 * 24));
-  switch (scheduleType) {
-    case "DAILY":
-      return diffDays + 1;
-    case "WEEKLY":
-      return Math.floor(diffDays / 7) + 1;
-    case "MONTHLY":
-      return Math.max(1, Math.round(diffDays / 30));
-    case "YEARLY":
-      return Math.max(1, Math.round(diffDays / 365));
-    default:
-      return 0;
-  }
 }
 
 function normalizeBudgetCategoryKey(value) {
@@ -3447,7 +4351,9 @@ function doesBudgetMatchWallet(budget, walletEntity, fallbackWalletName) {
   if (budget.walletId === null || budget.walletId === undefined) {
     return true;
   }
-  const walletId = walletEntity ? (walletEntity.walletId ?? walletEntity.id) : null;
+  const walletId = walletEntity
+    ? walletEntity.walletId ?? walletEntity.id
+    : null;
   if (walletId !== null && walletId !== undefined) {
     if (Number(budget.walletId) === Number(walletId)) {
       return true;
@@ -3459,71 +4365,3 @@ function doesBudgetMatchWallet(budget, walletEntity, fallbackWalletName) {
   );
   return !!budgetWalletName && budgetWalletName === walletName;
 }
-
-const SCHEDULE_TYPE_LABELS = {
-  ONE_TIME: "Một lần",
-  DAILY: "Hằng ngày",
-  WEEKLY: "Hằng tuần",
-  MONTHLY: "Hằng tháng",
-  YEARLY: "Hằng năm",
-};
-
-const SCHEDULE_STATUS_META = {
-  PENDING: { label: "Chờ chạy", className: "schedule-status schedule-status--pending" },
-  RUNNING: { label: "Đang chạy", className: "schedule-status schedule-status--running" },
-  COMPLETED: { label: "Hoàn tất", className: "schedule-status schedule-status--success" },
-  FAILED: { label: "Thất bại", className: "schedule-status schedule-status--failed" },
-  CANCELLED: { label: "Đã hủy", className: "schedule-status schedule-status--muted" },
-};
-
-const SCHEDULE_TABS = [
-  { value: "all", label: "Tất cả" },
-  { value: "pending", label: "Chờ chạy" },
-  { value: "recurring", label: "Định kỳ" },
-];
-const MOCK_SCHEDULES = [
-  {
-    id: 101,
-    walletId: "wallet-main",
-    walletName: "Ví chính",
-    categoryName: "Hóa đơn",
-    transactionType: "expense",
-    amount: 2500000,
-    currency: "VND",
-    scheduleType: "MONTHLY",
-    scheduleTypeLabel: SCHEDULE_TYPE_LABELS.MONTHLY,
-    status: "PENDING",
-    firstRun: "2025-01-05T08:00",
-    nextRun: "2025-03-05T08:00",
-    endDate: "2025-12-31",
-    successRuns: 1,
-    totalRuns: 12,
-    warning: null,
-    logs: [
-      { id: 1, time: "2025-02-05T08:00", status: "FAILED", message: "Không đủ số dư" },
-      { id: 2, time: "2025-01-05T08:00", status: "COMPLETED", message: "Thành công" },
-    ],
-  },
-  {
-    id: 102,
-    walletId: "wallet-travel",
-    walletName: "Ví du lịch",
-    categoryName: "Tiền lãi",
-    transactionType: "income",
-    amount: 1000000,
-    currency: "VND",
-    scheduleType: "DAILY",
-    scheduleTypeLabel: SCHEDULE_TYPE_LABELS.DAILY,
-    status: "FAILED",
-    firstRun: "2025-02-01T09:00",
-    nextRun: "2025-02-22T09:00",
-    endDate: null,
-    successRuns: 3,
-    totalRuns: 5,
-    warning: "Không đủ số dư ở lần gần nhất",
-    logs: [
-      { id: 3, time: "2025-02-10T09:00", status: "FAILED", message: "Không đủ số dư ví du lịch" },
-      { id: 4, time: "2025-02-09T09:00", status: "COMPLETED", message: "Thành công" },
-    ],
-  },
-];

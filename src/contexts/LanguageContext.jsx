@@ -25,7 +25,7 @@ const translations = {
     "topbar.welcome": "Xin chào, {name}!",
     "topbar.default_user": "Người dùng",
     "topbar.search_placeholder": "Tìm kiếm chức năng...",
-    "topbar.search_no_result": "Không tìm thấy chức năng \"{text}\"",
+    "topbar.search_no_result": 'Không tìm thấy chức năng "{text}"',
     "topbar.actions": "Tác vụ topbar",
     "topbar.account": "Tài khoản",
     "topbar.logout": "Đăng xuất",
@@ -36,10 +36,11 @@ const translations = {
 
     // Settings Page
     "settings.title": "Cài đặt",
-    "settings.subtitle": "Quản lý bảo mật và cài đặt hệ thống cho tài khoản của bạn.",
+    "settings.subtitle":
+      "Quản lý bảo mật và cài đặt hệ thống cho tài khoản của bạn.",
     "settings.security_group": "Bảo mật",
     "settings.system_group": "Cài đặt hệ thống",
-    
+
     // Security Items
     "settings.profile": "Chỉnh hồ sơ cá nhân",
     "settings.password": "Đổi mật khẩu",
@@ -57,7 +58,8 @@ const translations = {
 
     // Language Detail
     "settings.language.title": "Chọn ngôn ngữ hệ thống",
-    "settings.language.desc": "Ngôn ngữ hiển thị cho toàn bộ giao diện ứng dụng.",
+    "settings.language.desc":
+      "Ngôn ngữ hiển thị cho toàn bộ giao diện ứng dụng.",
     "settings.language.label": "Ngôn ngữ",
     "settings.language.save": "Lưu ngôn ngữ",
     "settings.language.saved": "Đã lưu ngôn ngữ",
@@ -76,19 +78,23 @@ const translations = {
     "settings.error.network_load": "Lỗi kết nối khi tải thông tin profile",
     "settings.error.avatar_invalid": "Vui lòng chọn file ảnh hợp lệ",
     "settings.error.avatar_size": "Kích thước ảnh không được vượt quá 5MB",
-    "settings.error.enter_name_or_avatar": "Vui lòng nhập tên hoặc chọn ảnh đại diện",
+    "settings.error.enter_name_or_avatar":
+      "Vui lòng nhập tên hoặc chọn ảnh đại diện",
     "settings.error.network_update": "Lỗi kết nối khi cập nhật",
 
     // Password detail
-    "settings.password.has_desc": "Nên sử dụng mật khẩu mạnh, khó đoán để bảo vệ tài khoản.",
-    "settings.password.no_password_desc": "Bạn đang đăng nhập bằng Google. Hãy đặt mật khẩu để có thể đăng nhập bằng email và mật khẩu.",
+    "settings.password.has_desc":
+      "Nên sử dụng mật khẩu mạnh, khó đoán để bảo vệ tài khoản.",
+    "settings.password.no_password_desc":
+      "Bạn đang đăng nhập bằng Google. Hãy đặt mật khẩu để có thể đăng nhập bằng email và mật khẩu.",
     "settings.password.current_label": "Current password",
     "settings.password.new_label": "New password",
     "settings.password.confirm_label": "Confirm new password",
     "settings.password.placeholder_current": "Enter current password",
     "settings.password.placeholder_new": "Enter new password",
     "settings.password.placeholder_confirm": "Confirm new password",
-    "settings.password.error.fill": "Vui lòng nhập đầy đủ mật khẩu mới và xác nhận mật khẩu",
+    "settings.password.error.fill":
+      "Vui lòng nhập đầy đủ mật khẩu mới và xác nhận mật khẩu",
     "settings.password.error.mismatch": "Mật khẩu mới và xác nhận không khớp",
     "settings.password.error.need_current": "Vui lòng nhập mật khẩu hiện tại",
     "settings.password.updating": "Đang cập nhật...",
@@ -100,7 +106,8 @@ const translations = {
     // 2FA
     "settings.2fa.desc": "Thêm một lớp bảo mật bằng mã xác thực khi đăng nhập.",
     "settings.2fa.status_label": "Trạng thái 2FA",
-    "settings.2fa.hint": "Sau khi bật, mỗi lần đăng nhập bạn sẽ cần nhập mã xác thực gửi qua ứng dụng hoặc email.",
+    "settings.2fa.hint":
+      "Sau khi bật, mỗi lần đăng nhập bạn sẽ cần nhập mã xác thực gửi qua ứng dụng hoặc email.",
     "settings.2fa.configure": "Cấu hình 2FA",
     "settings.2fa.enable_success": "Đã bật xác thực 2 lớp thành công",
     "settings.2fa.enable_error": "Không thể bật xác thực 2 lớp",
@@ -110,7 +117,8 @@ const translations = {
     "settings.2fa.change_success": "Đã đổi mã xác thực 2 lớp thành công",
 
     // Login log
-    "settings.login_log.desc": "Kiểm tra các lần đăng nhập gần đây để phát hiện hoạt động bất thường.",
+    "settings.login_log.desc":
+      "Kiểm tra các lần đăng nhập gần đây để phát hiện hoạt động bất thường.",
     "settings.login_log.col.time": "Thời gian",
     "settings.login_log.col.account": "Tài khoản",
     "settings.login_log.col.device": "Thiết bị",
@@ -121,20 +129,26 @@ const translations = {
     "settings.login_log.refresh": "Làm mới nhật ký",
 
     // Logout all
-    "settings.logout_all.desc": "Tính năng này sẽ đăng xuất tài khoản khỏi tất cả thiết bị đang đăng nhập ngoại trừ thiết bị hiện tại.",
-    "settings.logout_all.note1": "Nên sử dụng khi bạn nghi ngờ tài khoản bị lộ.",
-    "settings.logout_all.note2": "Sau khi đăng xuất, bạn cần đăng nhập lại bằng mật khẩu hiện tại.",
+    "settings.logout_all.desc":
+      "Tính năng này sẽ đăng xuất tài khoản khỏi tất cả thiết bị đang đăng nhập ngoại trừ thiết bị hiện tại.",
+    "settings.logout_all.note1":
+      "Nên sử dụng khi bạn nghi ngờ tài khoản bị lộ.",
+    "settings.logout_all.note2":
+      "Sau khi đăng xuất, bạn cần đăng nhập lại bằng mật khẩu hiện tại.",
     "settings.logout_all.btn": "Đăng xuất tất cả thiết bị",
 
     // Currency & formats
-    "settings.currency.desc": "Đơn vị tiền tệ mặc định dùng để hiển thị số dư và báo cáo.",
+    "settings.currency.desc":
+      "Đơn vị tiền tệ mặc định dùng để hiển thị số dư và báo cáo.",
     "settings.currency.label": "Đơn vị tiền tệ mặc định",
     "settings.currency.saved": "Đã lưu cài đặt đơn vị tiền tệ",
 
     "settings.currency_format": "Định dạng tiền tệ",
-    "settings.currency_format.desc": "Chọn cách hiển thị số tiền trên ứng dụng.",
+    "settings.currency_format.desc":
+      "Chọn cách hiển thị số tiền trên ứng dụng.",
     "settings.currency_format.label": "Kiểu hiển thị",
-    "settings.currency_format.opt.space": "1 234 567 (cách nhau bằng khoảng trắng)",
+    "settings.currency_format.opt.space":
+      "1 234 567 (cách nhau bằng khoảng trắng)",
     "settings.currency_format.opt.dot": "1.234.567 (dấu chấm)",
     "settings.currency_format.opt.comma": "1,234,567 (dấu phẩy)",
     "settings.currency_format.decimals_label": "Số chữ số thập phân",
@@ -142,7 +156,8 @@ const translations = {
     "settings.currency_format.opt.decimals.2": "2 (ví dụ: 1.000,50)",
     "settings.currency_format.saved": "Đã lưu định dạng tiền tệ",
 
-    "settings.date_format.desc": "Chọn cách hiển thị ngày tháng trên toàn hệ thống.",
+    "settings.date_format.desc":
+      "Chọn cách hiển thị ngày tháng trên toàn hệ thống.",
     "settings.date_format.label": "Định dạng",
     "settings.date_format.opt.ddMMyyyy": "dd/MM/yyyy (31/12/2025)",
     "settings.date_format.opt.MMddyyyy": "MM/dd/yyyy (12/31/2025)",
@@ -158,12 +173,13 @@ const translations = {
     "settings.theme.opt.system": "Tự động theo hệ thống",
 
     // Backup
-    "settings.backup.desc": "Đảm bảo dữ liệu ví của bạn luôn được an toàn và có thể khôi phục.",
+    "settings.backup.desc":
+      "Đảm bảo dữ liệu ví của bạn luôn được an toàn và có thể khôi phục.",
     "settings.backup.manual": "Sao lưu thủ công dữ liệu hiện tại.",
     "settings.backup.auto": "Bật đồng bộ tự động với tài khoản của bạn.",
     "settings.backup.backup_now": "Sao lưu ngay",
     "settings.backup.enable_sync": "Bật đồng bộ tự động",
-    
+
     // Common
     "common.loading": "Đang tải...",
     "common.save": "Lưu thay đổi",
@@ -183,7 +199,8 @@ const translations = {
 
     // Dashboard
     "dashboard.title": "Tổng quan tài chính",
-    "dashboard.subtitle": "Xem nhanh tình hình thu chi, biến động số dư và giao dịch gần đây.",
+    "dashboard.subtitle":
+      "Xem nhanh tình hình thu chi, biến động số dư và giao dịch gần đây.",
     "dashboard.title_icon_alt": "Biểu tượng trang tổng quan",
     "dashboard.period.week": "Tuần này",
     "dashboard.period.month": "Tháng này",
@@ -212,9 +229,11 @@ const translations = {
 
     // Activity
     "activity.title": "Lịch sử hoạt động",
-    "activity.subtitle": "Lịch sử các hành động: tạo, xóa, gộp ví; tạo quỹ; thêm ngân sách…",
+    "activity.subtitle":
+      "Lịch sử các hành động: tạo, xóa, gộp ví; tạo quỹ; thêm ngân sách…",
     "activity.no_data": "Chưa có hoạt động nào.",
-    "activity.empty_hint": "Các hoạt động như tạo ví, quỹ, ngân sách sẽ được hiển thị tại đây.",
+    "activity.empty_hint":
+      "Các hoạt động như tạo ví, quỹ, ngân sách sẽ được hiển thị tại đây.",
     "activity.search.title": "Tìm kiếm lịch sử giao dịch",
     "activity.search.placeholder": "Tìm theo từ khóa (type, mô tả, email...)",
     "activity.search.from": "Từ",
@@ -235,9 +254,14 @@ const translations = {
     "activity.type.remove_user": "Xóa người dùng",
     "activity.type.add_user": "Thêm người dùng",
     "activity.type.create_budget": "Tạo ngân sách",
+    "activity.type.update_budget": "Cập nhật ngân sách",
     "activity.type.delete_budget": "Xóa ngân sách",
     "activity.type.create_fund": "Tạo quỹ",
     "activity.type.delete_fund": "Xóa quỹ",
+    "activity.type.settle_fund": "Tất toán quỹ",
+    "activity.type.create_category": "Tạo danh mục",
+    "activity.type.fund_deposit": "Nạp quỹ",
+    "activity.type.fund_withdraw": "Rút quỹ",
     "activity.description.by": "— bởi",
     "activity.description.merge_prefix": "Gộp ",
     "activity.description.merge_into": " vào ",
@@ -246,7 +270,8 @@ const translations = {
     "activity.description.edit_prefix": "Sửa ",
     "activity.description.update_info_prefix": "Cập nhật thông tin cho ",
     "activity.description.convert_prefix": "Chuyển ",
-    "activity.description.convert_to_group_suffix": " thành ví nhóm ({count} thành viên)",
+    "activity.description.convert_to_group_suffix":
+      " thành ví nhóm ({count} thành viên)",
     "activity.description.remove_prefix": "Xóa ",
     "activity.description.remove_from_wallet": " khỏi ví ",
     "activity.description.add_prefix": "Thêm ",
@@ -254,17 +279,26 @@ const translations = {
     "activity.description.with_role": " với vai trò ",
     "activity.description.create_budget_prefix": "Tạo ngân sách ",
     "activity.description.create_budget_for_category": "Tạo ngân sách cho danh mục ",
+    "activity.description.update_budget_prefix": "Cập nhật ngân sách ",
     "activity.description.category_separator": " — danh mục: ",
     "activity.description.category_unknown": " — chưa xác định danh mục",
     "activity.description.wallet_separator": " — ví: ",
     "activity.description.delete_budget_prefix": "Xóa ngân sách ",
-    "activity.description.delete_budget_of_category": "Xóa ngân sách của danh mục ",
+    "activity.description.delete_budget_of_category":
+      "Xóa ngân sách của danh mục ",
     "activity.description.create_fund_prefix": "Tạo quỹ ",
     "activity.description.delete_fund_prefix": "Xóa quỹ ",
+    "activity.description.settle_fund_prefix": "Tất toán quỹ ",
+    "activity.description.create_category_prefix": "Tạo danh mục ",
+    "activity.description.fund_deposit_prefix": "Nạp ",
+    "activity.description.fund_deposit_into": " vào quỹ ",
+    "activity.description.fund_withdraw_prefix": "Rút ",
+    "activity.description.fund_withdraw_from": " từ quỹ ",
     "activity.placeholder.wallet_name": "(tên ví)",
     "activity.placeholder.email": "(email)",
     "activity.placeholder.budget_name": "(tên ngân sách)",
     "activity.placeholder.fund_name": "(tên quỹ)",
+    "activity.placeholder.category_name": "(tên danh mục)",
     "activity.placeholder.many_members": "nhiều",
     "common.refresh": "Làm mới",
     "common.clear_search": "Xóa tìm kiếm",
@@ -276,7 +310,8 @@ const translations = {
 
     // Reports Page
     "reports.title": "Báo cáo Tài chính",
-    "reports.subtitle": "Theo dõi chi tiết dòng tiền vào/ra theo từng ví để ra quyết định chính xác hơn.",
+    "reports.subtitle":
+      "Theo dõi chi tiết dòng tiền vào/ra theo từng ví để ra quyết định chính xác hơn.",
     "reports.overview_realtime": "Tổng quan realtime",
     "reports.wallets.title": "Danh sách ví",
     "reports.wallets.desc": "Chọn một ví để xem biểu đồ dòng tiền.",
@@ -290,15 +325,18 @@ const translations = {
     "reports.view_history": "Lịch sử giao dịch",
     "reports.view_chart": "Xem biểu đồ",
     "reports.select_wallet_prompt": "Hãy chọn một ví để xem báo cáo.",
-    "reports.no_transactions_in_period": "Chưa có giao dịch nào cho giai đoạn này.",
+    "reports.no_transactions_in_period":
+      "Chưa có giao dịch nào cho giai đoạn này.",
     "reports.range.day": "Ngày",
     "reports.range.week": "Tuần",
     "reports.range.month": "Tháng",
     "reports.range.year": "Năm",
     "reports.export_pdf": "Xuất PDF",
-    "reports.export_pdf_error": "Không thể mở cửa sổ in. Vui lòng kiểm tra trình chặn popup.",
+    "reports.export_pdf_error":
+      "Không thể mở cửa sổ in. Vui lòng kiểm tra trình chặn popup.",
     "reports.funds.section_title": "Báo cáo quỹ",
-    "reports.funds.section_subtitle": "Theo dõi các quỹ tiết kiệm và mục tiêu tích lũy.",
+    "reports.funds.section_subtitle":
+      "Theo dõi các quỹ tiết kiệm và mục tiêu tích lũy.",
     "reports.funds.total_label": "Tổng quỹ đang mở",
     "reports.funds.raised": "Đã góp",
     "reports.funds.target": "Mục tiêu",
@@ -334,7 +372,8 @@ const translations = {
     "reports.funds.frequency.yearly": "Hằng năm",
     "reports.funds.frequency.custom": "Chu kỳ tùy chỉnh",
     "reports.funds.detail.selected_label": "Quỹ được chọn",
-    "reports.funds.detail.no_selection": "Hãy chọn một quỹ ở danh sách bên trái để xem chi tiết.",
+    "reports.funds.detail.no_selection":
+      "Hãy chọn một quỹ ở danh sách bên trái để xem chi tiết.",
     "reports.funds.detail.no_selection_short": "Chưa chọn quỹ",
     "reports.funds.detail.goal_focus": "Tiến độ mục tiêu",
     "reports.funds.detail.current": "Đã góp",
@@ -373,7 +412,8 @@ const translations = {
     "reports.funds.detail.history.type.adjustment": "Điều chỉnh số dư",
     "reports.funds.detail.history.type.unknown": "Giao dịch quỹ",
     "reports.budgets.section_title": "Báo cáo ngân sách",
-    "reports.budgets.section_subtitle": "Giám sát hạn mức và chi tiêu theo danh mục.",
+    "reports.budgets.section_subtitle":
+      "Giám sát hạn mức và chi tiêu theo danh mục.",
     "reports.budgets.total_limit": "Tổng hạn mức",
     "reports.budgets.total_spent": "Đã chi",
     "reports.budgets.utilization": "Mức sử dụng",
@@ -383,6 +423,49 @@ const translations = {
     "reports.budgets.status.warning": "Cảnh báo",
     "reports.budgets.status.exceeded": "Vượt hạn mức",
     "reports.budgets.period": "Kỳ",
+    "reports.budgets.overview.total_budgets": "Tổng ngân sách",
+    "reports.budgets.overview.total_spent": "Tổng đã chi",
+    "reports.budgets.overview.usage_percent": "% sử dụng",
+    "reports.budgets.overview.safe_count": "Số ngân sách an toàn",
+    "reports.budgets.overview.warning_count": "Số ngân sách cảnh báo",
+    "reports.budgets.overview.exceeded_count": "Số ngân sách vượt",
+    "reports.budgets.status_distribution.title": "Phân tích trạng thái ngân sách",
+    "reports.budgets.status_distribution.subtitle": "Phân bố ngân sách theo trạng thái",
+    "reports.budgets.detail_list.title": "Danh sách ngân sách chi tiết",
+    "reports.budgets.detail_list.category": "Danh mục",
+    "reports.budgets.detail_list.wallet": "Ví áp dụng",
+    "reports.budgets.detail_list.time": "Thời gian",
+    "reports.budgets.detail_list.limit": "Hạn mức",
+    "reports.budgets.detail_list.spent": "Đã chi",
+    "reports.budgets.detail_list.remaining": "Còn lại",
+    "reports.budgets.detail_list.exceeded": "Vượt",
+    "reports.budgets.detail_list.view_detail": "Xem chi tiết",
+    "reports.budgets.time_comparison.title": "So sánh theo thời gian",
+    "reports.budgets.time_comparison.this_period": "Kỳ này",
+    "reports.budgets.time_comparison.last_period": "Kỳ trước",
+    "reports.budgets.time_comparison.insight_more": "Tháng này bạn tiêu nhiều hơn {percent}% so với tháng trước",
+    "reports.budgets.time_comparison.insight_less": "Tháng này bạn tiêu ít hơn {percent}% so với tháng trước",
+    "reports.budgets.top_dangerous.title": "Top ngân sách nguy hiểm",
+    "reports.budgets.top_dangerous.subtitle": "Top 3 ngân sách có % sử dụng cao nhất",
+    "reports.budgets.analysis.title": "Phân tích nguyên nhân",
+    "reports.budgets.analysis.daily_chart": "Biểu đồ chi tiêu theo ngày",
+    "reports.budgets.analysis.top_transactions": "Top giao dịch lớn nhất",
+    "reports.budgets.analysis.peak_day": "Ngày tiêu mạnh nhất",
+    "reports.budgets.suggestions.title": "Gợi ý thông minh",
+    "reports.budgets.suggestions.weekly_pattern": "Bạn thường vượt ngân sách {category} vào tuần cuối tháng",
+    "reports.budgets.suggestions.increase_limit": "Bạn nên tăng ngân sách {category} thêm {percent}%",
+    "reports.budgets.suggestions.end_period": "{percent}% ngân sách bị vượt trong 5 ngày cuối kỳ",
+    "reports.budgets.filters.wallet": "Chọn Ví",
+    "reports.budgets.filters.time": "Chọn Thời gian",
+    "reports.budgets.filters.status": "Chọn Trạng thái",
+    "reports.budgets.filters.category": "Chọn Danh mục",
+    "reports.budgets.filters.all_wallets": "Tất cả ví",
+    "reports.budgets.filters.all_status": "Tất cả trạng thái",
+    "reports.budgets.filters.all_categories": "Tất cả danh mục",
+    "reports.budgets.time_period.this_month": "Tháng này",
+    "reports.budgets.time_period.last_month": "Tháng trước",
+    "reports.budgets.time_period.this_week": "Tuần này",
+    "reports.budgets.time_period.last_week": "Tuần trước",
 
     // Wallets Page
     "wallets.title": "Danh sách ví",
@@ -400,7 +483,8 @@ const translations = {
     "wallets.create_new": "Tạo ví mới",
     "wallets.create_desc": "Nhập thông tin để tạo ví",
     "wallets.total_balance": "TỔNG SỐ DƯ",
-    "wallets.total_balance_desc": "Tổng hợp tất cả số dư các ví (chỉ tính ví đang bật).",
+    "wallets.total_balance_desc":
+      "Tổng hợp tất cả số dư các ví (chỉ tính ví đang bật).",
     "wallets.metric.overall": "Theo tất cả ví",
     "wallets.metric.personal_count": "Ví cá nhân",
     "wallets.metric.group_count": "Ví nhóm",
@@ -411,18 +495,24 @@ const translations = {
     "wallets.metric.shared_with_me_balance": "Số dư các ví được chia sẻ",
     "wallets.metric.shared_by_me_balance": "Số dư các ví đã chia sẻ",
     "wallets.tooltip.total_balance.title": "Tổng số dư",
-    "wallets.tooltip.total_balance.body": "Tổng số dư của tất cả ví của bạn (không bao gồm các ví bạn chỉ có quyền xem). Giá trị đã được quy đổi về tiền hiển thị để dễ so sánh.",
-    "wallets.tooltip.total_balance.meta": "Ví tính: {count} • Cập nhật gần nhất: ngay bây giờ",
+    "wallets.tooltip.total_balance.body":
+      "Tổng số dư của tất cả ví của bạn (không bao gồm các ví bạn chỉ có quyền xem). Giá trị đã được quy đổi về tiền hiển thị để dễ so sánh.",
+    "wallets.tooltip.total_balance.meta":
+      "Ví tính: {count} • Cập nhật gần nhất: ngay bây giờ",
     "wallets.tooltip.personal.title": "Ví cá nhân",
-    "wallets.tooltip.personal.body": "Tổng số dư của các ví cá nhân (ví thuộc sở hữu và quản lý trực tiếp bởi bạn).",
+    "wallets.tooltip.personal.body":
+      "Tổng số dư của các ví cá nhân (ví thuộc sở hữu và quản lý trực tiếp bởi bạn).",
     "wallets.tooltip.personal.meta": "Số ví: {count}",
     "wallets.tooltip.group.title": "Ví nhóm",
-    "wallets.tooltip.group.body": "Tổng số dư của các ví nhóm mà bạn sở hữu hoặc tham gia quản lý. Bao gồm các ví bạn đã chia sẻ cho nhóm.",
+    "wallets.tooltip.group.body":
+      "Tổng số dư của các ví nhóm mà bạn sở hữu hoặc tham gia quản lý. Bao gồm các ví bạn đã chia sẻ cho nhóm.",
     "wallets.tooltip.group.meta": "Số ví nhóm: {count}",
     "wallets.tooltip.shared_with_me.title": "Được chia sẻ cho tôi",
-    "wallets.tooltip.shared_with_me.body": "Tổng số dư các ví mà người khác chia sẻ cho bạn — bạn có thể xem hoặc thao tác theo quyền được cấp.",
+    "wallets.tooltip.shared_with_me.body":
+      "Tổng số dư các ví mà người khác chia sẻ cho bạn — bạn có thể xem hoặc thao tác theo quyền được cấp.",
     "wallets.tooltip.shared_with_me.meta": "Số ví: {count}",
-    "wallets.create_hint": "Hoặc dùng nút \"Tạo ví mới\" ở góc trên bên phải để tạo ví mới.",
+    "wallets.create_hint":
+      'Hoặc dùng nút "Tạo ví mới" ở góc trên bên phải để tạo ví mới.',
     "wallets.tab.personal": "Ví cá nhân",
     "wallets.tab.group": "Ví nhóm",
     "wallets.tab.shared": "Ví chia sẻ",
@@ -438,7 +528,8 @@ const translations = {
     "wallets.role.member": "Ví thành viên",
     "wallets.role.viewer": "Ví theo dõi",
     "wallets.no_shared_with_me": "Không có ví nào được chia sẻ cho bạn.",
-    "wallets.shared_owner_hint": "Chọn một người chia sẻ để xem các ví họ đã chia sẻ cho bạn ở ô chi tiết bên phải.",
+    "wallets.shared_owner_hint":
+      "Chọn một người chia sẻ để xem các ví họ đã chia sẻ cho bạn ở ô chi tiết bên phải.",
     "wallets.empty_list": "Không có ví nào trong mục này.",
     "wallets.no_name": "Chưa đặt tên",
     "wallets.type.group": "Nhóm",
@@ -449,15 +540,19 @@ const translations = {
     "wallets.members_count": "{count} thành viên",
     "wallets.no_members": "Chưa có thành viên",
     "wallets.more": "khác",
-    "wallets.header_subtitle": "Tạo ví cá nhân, nạp – rút – chuyển, gộp và chia sẻ… tất cả trên một màn hình.",
+    "wallets.header_subtitle":
+      "Tạo ví cá nhân, nạp – rút – chuyển, gộp và chia sẻ… tất cả trên một màn hình.",
     "wallets.demo_navigating_title": "Đang điều hướng đến trang…",
-    "wallets.demo_hint": "Đây là bản demo, chức năng sẽ được hoàn thiện trong bản chính thức.",
-    "wallets.toast.topup_success": "Nạp tiền thành công. Giao dịch đã được lưu vào lịch sử.",
+    "wallets.demo_hint":
+      "Đây là bản demo, chức năng sẽ được hoàn thiện trong bản chính thức.",
+    "wallets.toast.topup_success":
+      "Nạp tiền thành công. Giao dịch đã được lưu vào lịch sử.",
     "wallets.toast.transfer_success": "Chuyển tiền thành công",
     "wallets.share_success": "Đã chia sẻ ví cho",
     "wallets.error.email_invalid": "Vui lòng nhập email hợp lệ.",
     "wallets.error.select_wallet_first": "Vui lòng chọn ví trước khi chia sẻ.",
-    "wallets.error.email_already_shared": "Email này đã nằm trong danh sách chia sẻ.",
+    "wallets.error.email_already_shared":
+      "Email này đã nằm trong danh sách chia sẻ.",
     "wallets.error.no_created_info": "Không nhận được thông tin ví vừa tạo",
     "wallets.toast.shared_count_suffix": "đã chia sẻ cho {count} người",
     "wallets.toast.share_failed_for": "không thể chia sẻ cho",
@@ -466,12 +561,16 @@ const translations = {
     "wallets.personal_wallets": "Ví cá nhân",
     "wallets.count_unit": "ví",
     "wallets.total_balance_personal": "TỔNG SỐ DƯ (CÁ NHÂN)",
-    "wallets.total_balance_personal_desc": "Tổng hợp số dư của các ví cá nhân đang bật.",
-    "wallets.no_personal_wallets": "Chưa có ví nào. Nhấn <strong>Tạo ví mới</strong> để thêm ví đầu tiên.",
+    "wallets.total_balance_personal_desc":
+      "Tổng hợp số dư của các ví cá nhân đang bật.",
+    "wallets.no_personal_wallets":
+      "Chưa có ví nào. Nhấn <strong>Tạo ví mới</strong> để thêm ví đầu tiên.",
     "wallets.group_wallets": "Ví nhóm",
     "wallets.total_balance_group": "TỔNG SỐ DƯ (NHÓM)",
-    "wallets.total_balance_group_desc": "Tổng hợp số dư của các ví nhóm đang bật.",
-    "wallets.no_group_wallets": "Chưa có ví nhóm nào. Chọn <strong>Tạo ví nhóm</strong> trong menu “Tạo ví mới”.",
+    "wallets.total_balance_group_desc":
+      "Tổng hợp số dư của các ví nhóm đang bật.",
+    "wallets.no_group_wallets":
+      "Chưa có ví nhóm nào. Chọn <strong>Tạo ví nhóm</strong> trong menu “Tạo ví mới”.",
     "wallets.toast.deleted": "Đã xóa ví",
     "wallets.toast.created_personal": "Đã tạo ví cá nhân",
     "wallets.toast.created_group": "Đã tạo ví nhóm",
@@ -481,14 +580,21 @@ const translations = {
     "wallets.toast.withdraw_error": "Không thể rút tiền",
     "wallets.toast.merge_error": "Không thể gộp ví",
     "wallets.toast.merged": "Đã gộp",
-    "wallets.toast.merge_set_default": "Đã gộp và đặt ví đích làm mặc định mới.",
-    "wallets.toast.merge_cleared_default": "Đã gộp ví và tạm thời không còn ví mặc định.",
-    "wallets.toast.merge_default_error": "Gộp ví thành công nhưng không thể cập nhật trạng thái mặc định.",
-    "wallets.error.merge_personal_only": "Chỉ có thể gộp giữa các ví cá nhân thuộc sở hữu của bạn.",
+    "wallets.toast.merge_set_default":
+      "Đã gộp và đặt ví đích làm mặc định mới.",
+    "wallets.toast.merge_cleared_default":
+      "Đã gộp ví và tạm thời không còn ví mặc định.",
+    "wallets.toast.merge_default_error":
+      "Gộp ví thành công nhưng không thể cập nhật trạng thái mặc định.",
+    "wallets.error.merge_personal_only":
+      "Chỉ có thể gộp giữa các ví cá nhân thuộc sở hữu của bạn.",
     "wallets.toast.converted": "Chuyển đổi loại ví thành công",
-    "wallets.toast.delete_requires_zero_balance": "Vui lòng rút hết số dư trước khi xóa ví này.",
-    "wallets.toast.deleted_with_transactions": "Đã xóa ví và {count} giao dịch liên quan.",
-    "wallets.toast.delete_transactions_failed": "Không thể xóa lịch sử giao dịch của ví này.",
+    "wallets.toast.delete_requires_zero_balance":
+      "Vui lòng rút hết số dư trước khi xóa ví này.",
+    "wallets.toast.deleted_with_transactions":
+      "Đã xóa ví và {count} giao dịch liên quan.",
+    "wallets.toast.delete_transactions_failed":
+      "Không thể xóa lịch sử giao dịch của ví này.",
     "wallets.modal.delete_title": "Xóa ví",
     "wallets.modal.delete_confirm": "Xóa ví",
     "wallets.modal.delete_btn": "Xóa",
@@ -510,7 +616,8 @@ const translations = {
     "wallets.inspector.tab.merge": "Gộp ví",
     "wallets.inspector.tab.convert": "Chuyển đổi ví",
     "wallets.inspector.no_wallet_selected": "Chưa có ví được chọn",
-    "wallets.inspector.select_hint": "Nhấp vào một ví ở bên trái để xem thông tin.",
+    "wallets.inspector.select_hint":
+      "Nhấp vào một ví ở bên trái để xem thông tin.",
     "wallets.inspector.details_desc": "Quản lý giao dịch và số dư của ví này.",
     "wallets.inspector.current_balance": "Số dư hiện tại",
     "wallets.inspector.spent": "Đã sử dụng",
@@ -526,7 +633,8 @@ const translations = {
     "wallets.inspector.withdraw_amount": "Số tiền rút",
     "wallets.inspector.withdraw_placeholder": "Nhập số tiền cần rút",
     "wallets.inspector.current_balance_colon": "Số dư hiện tại:",
-    "wallets.inspector.withdraw_error": "Số tiền không hợp lệ hoặc vượt quá số dư.",
+    "wallets.inspector.withdraw_error":
+      "Số tiền không hợp lệ hoặc vượt quá số dư.",
     "wallets.inspector.withdraw_confirm": "Xác nhận rút",
     "wallets.inspector.transfer_direction": "Chiều chuyển",
     "wallets.inspector.transfer_this_to_other": "Chuyển từ ví này sang ví khác",
@@ -534,22 +642,27 @@ const translations = {
     "wallets.inspector.select_target": "Chọn ví nhận",
     "wallets.inspector.select_source": "Chọn ví gửi",
     "wallets.inspector.select_wallet_placeholder": "-- Chọn ví --",
-    "wallets.inspector.diff_currency_warning": "⚠ Khác loại tiền tệ — sẽ quy đổi theo tiền của ví nhận.",
+    "wallets.inspector.diff_currency_warning":
+      "⚠ Khác loại tiền tệ — sẽ quy đổi theo tiền của ví nhận.",
     "wallets.inspector.transfer_amount": "Số tiền chuyển",
     "wallets.inspector.transfer_amount_placeholder": "Nhập số tiền bằng",
     "wallets.inspector.source": "nguồn",
     "wallets.inspector.source_balance": "Số dư nguồn:",
     "wallets.inspector.exchange_rate": "Tỷ giá:",
-    "wallets.inspector.transfer_error": "Số tiền không hợp lệ hoặc vượt quá số dư nguồn.",
+    "wallets.inspector.transfer_error":
+      "Số tiền không hợp lệ hoặc vượt quá số dư nguồn.",
     "wallets.inspector.sender_wallet": "Ví gửi:",
     "wallets.inspector.receiver_wallet": "Ví nhận:",
     "wallets.inspector.before": "Trước:",
     "wallets.inspector.after": "Sau:",
     "wallets.inspector.change": "Thay đổi:",
     "wallets.inspector.converted": "Quy đổi:",
-    "wallets.inspector.transfer_warning_1": "Sẽ trừ tiền ở ví nguồn và cộng vào ví nhận.",
-    "wallets.inspector.transfer_warning_2": "Có quy đổi tiền tệ theo tỷ giá tại thời điểm thực hiện.",
-    "wallets.inspector.transfer_warning_3": "Hành động này có thể tạo giao dịch điều chuyển.",
+    "wallets.inspector.transfer_warning_1":
+      "Sẽ trừ tiền ở ví nguồn và cộng vào ví nhận.",
+    "wallets.inspector.transfer_warning_2":
+      "Có quy đổi tiền tệ theo tỷ giá tại thời điểm thực hiện.",
+    "wallets.inspector.transfer_warning_3":
+      "Hành động này có thể tạo giao dịch điều chuyển.",
     "wallets.inspector.transfer_confirm": "Xác nhận chuyển",
     "wallets.inspector.merge_mode": "Chế độ gộp",
     "wallets.inspector.merge_this_to_other": "Gộp ví này vào ví khác",
@@ -559,15 +672,18 @@ const translations = {
     "wallets.inspector.follow_target": "theo ví đích",
     "wallets.inspector.follow_source": "theo ví nguồn",
     "wallets.inspector.same_currency": "Hai ví cùng loại tiền:",
-    "wallets.inspector.skip_currency_selection": "Bỏ qua bước lựa chọn tiền tệ.",
+    "wallets.inspector.skip_currency_selection":
+      "Bỏ qua bước lựa chọn tiền tệ.",
     "wallets.inspector.source_wallet": "Ví nguồn:",
     "wallets.inspector.merge_into": "Gộp vào:",
     "wallets.inspector.after_merge": "Sau khi gộp",
     "wallets.inspector.currency_type": "Loại tiền:",
     "wallets.inspector.new_balance": "Số dư mới:",
     "wallets.inspector.total_tx": "Tổng giao dịch:",
-    "wallets.inspector.merge_warning_1": "Ví nguồn sẽ bị <b>xóa vĩnh viễn</b> sau khi gộp.",
-    "wallets.inspector.merge_warning_2": "Tất cả giao dịch sẽ chuyển sang ví đích.",
+    "wallets.inspector.merge_warning_1":
+      "Ví nguồn sẽ bị <b>xóa vĩnh viễn</b> sau khi gộp.",
+    "wallets.inspector.merge_warning_2":
+      "Tất cả giao dịch sẽ chuyển sang ví đích.",
     "wallets.inspector.merge_warning_3": "Hành động này không thể hoàn tác.",
     "wallets.inspector.merging": "Đang gộp...",
     "wallets.inspector.merge_confirm": "Xác nhận gộp",
@@ -592,7 +708,8 @@ const translations = {
     "wallets.modal.note_label": "Ghi chú (tùy chọn)",
     "wallets.modal.description_label": "Mô tả (tùy chọn)",
     "wallets.modal.note_placeholder": "Thêm ghi chú cho ví",
-    "wallets.modal.group_note_placeholder": "Ghi chú cho ví nhóm (tối đa 200 ký tự)",
+    "wallets.modal.group_note_placeholder":
+      "Ghi chú cho ví nhóm (tối đa 200 ký tự)",
     "wallets.modal.characters": "ký tự",
     "wallets.modal.share_wallet": "Chia sẻ ví này với người khác",
     "wallets.modal.share_email_label": "Email người được chia sẻ",
@@ -600,57 +717,66 @@ const translations = {
     "wallets.modal.cancel": "Hủy",
     "wallets.transfer.note_placeholder": "Ghi chú cho lần chuyển này...",
     "wallets.detail.empty_share_owner": "Bạn chưa chia sẻ ví này cho ai.",
-    "wallets.detail.empty_share_viewer": "Ví này đang được người khác chia sẻ cho bạn.",
+    "wallets.detail.empty_share_viewer":
+      "Ví này đang được người khác chia sẻ cho bạn.",
     "wallets.detail.empty_share_member": "Chưa có thành viên nào được chia sẻ.",
     "wallets.detail.no_note": "Chưa có ghi chú.",
-    
+
     // Topup Tab
     "wallets.topup.title": "Nạp tiền vào ví",
     "wallets.topup.subtitle": "Nạp thêm số dư cho ví hiện tại.",
     "wallets.topup.category_label": "Danh mục",
     "wallets.topup.category_placeholder": "Chọn danh mục",
     "wallets.topup.amount_label": "Số tiền nạp",
-    "wallets.topup.amount_placeholder": "Nhập số tiền (VD: 1.000.000,5 hoặc 20,5)",
+    "wallets.topup.amount_placeholder":
+      "Nhập số tiền (VD: 1.000.000,5 hoặc 20,5)",
     "wallets.topup.current_balance": "Số dư hiện tại",
     "wallets.topup.note_placeholder": "Nhập ghi chú (tùy chọn)",
     "wallets.topup.error.category_required": "Vui lòng chọn danh mục.",
     "wallets.topup.error.invalid_amount": "Số tiền không hợp lệ.",
     "wallets.topup.confirm_button": "Xác nhận nạp",
-    
+
     // Withdraw Tab
     "wallets.withdraw.title": "Rút tiền từ ví",
     "wallets.withdraw.subtitle": "Rút tiền và chọn danh mục phù hợp.",
     "wallets.withdraw.category_label": "Danh mục",
     "wallets.withdraw.category_placeholder": "Chọn danh mục",
     "wallets.withdraw.amount_label": "Số tiền rút",
-    "wallets.withdraw.amount_placeholder": "Nhập số tiền (VD: 1.000.000,5 hoặc 20,5)",
+    "wallets.withdraw.amount_placeholder":
+      "Nhập số tiền (VD: 1.000.000,5 hoặc 20,5)",
     "wallets.withdraw.current_balance": "Số dư hiện tại",
     "wallets.withdraw.note_placeholder": "Nhập ghi chú (tùy chọn)",
     "wallets.withdraw.error.category_required": "Vui lòng chọn danh mục.",
-    "wallets.withdraw.error.invalid_amount": "Số tiền không hợp lệ hoặc vượt quá số dư.",
+    "wallets.withdraw.error.invalid_amount":
+      "Số tiền không hợp lệ hoặc vượt quá số dư.",
     "wallets.withdraw.confirm_button": "Xác nhận rút",
-    
+
     // Transfer Tab
     "wallets.transfer.title": "Chuyển tiền giữa các ví",
-    "wallets.transfer.subtitle": "Chuyển tiền từ ví hiện tại sang ví khác (chỉ hỗ trợ VND).",
+    "wallets.transfer.subtitle":
+      "Chuyển tiền từ ví hiện tại sang ví khác (chỉ hỗ trợ VND).",
     "wallets.transfer.source_label": "Ví nguồn",
     "wallets.transfer.current_wallet": "Ví hiện tại",
     "wallets.transfer.source_balance": "Số dư ví nguồn",
     "wallets.transfer.target_label": "Ví đích",
     "wallets.transfer.target_placeholder": "-- Chọn ví đích --",
-    "wallets.transfer.target_hint": "Chỉ những ví bạn có quyền thao tác mới hiển thị trong danh sách này.",
+    "wallets.transfer.target_hint":
+      "Chỉ những ví bạn có quyền thao tác mới hiển thị trong danh sách này.",
     "wallets.transfer.target_balance": "Số dư ví đích",
     "wallets.transfer.amount_label": "Số tiền chuyển (VND)",
-    "wallets.transfer.amount_placeholder": "Nhập số tiền (VD: 1.000.000 hoặc 20) bằng VND",
-    "wallets.transfer.error.invalid_amount": "Số tiền không hợp lệ hoặc vượt quá số dư.",
+    "wallets.transfer.amount_placeholder":
+      "Nhập số tiền (VD: 1.000.000 hoặc 20) bằng VND",
+    "wallets.transfer.error.invalid_amount":
+      "Số tiền không hợp lệ hoặc vượt quá số dư.",
     "wallets.transfer.confirm_button": "Xác nhận chuyển",
     "wallets.transfer.group_tag": "(Nhóm)",
     "wallets.transfer.personal_tag": "(Cá nhân)",
     "wallets.no_name": "Chưa đặt tên",
-    
+
     // Detail View Tab
     "wallets.detail.title": "Chi tiết ví",
-    "wallets.detail.subtitle": "Thông tin cơ bản, chia sẻ và lịch sử giao dịch.",
+    "wallets.detail.subtitle":
+      "Thông tin cơ bản, chia sẻ và lịch sử giao dịch.",
     "wallets.detail.info_section": "Thông tin & chia sẻ",
     "wallets.detail.type_label": "Loại ví",
     "wallets.detail.currency_label": "Tiền tệ",
@@ -661,47 +787,60 @@ const translations = {
     "wallets.detail.transaction_count_label": "Số giao dịch",
     "wallets.detail.loading_transactions": "Đang tải lịch sử giao dịch...",
     "wallets.detail.no_transactions": "Chưa có giao dịch cho ví này.",
-    
+
     // Edit Tab
-    "wallets.edit.subtitle": "Chỉnh thông tin cơ bản của ví. Thêm thành viên tại tab \"Quản lý người dùng\".",
+    "wallets.edit.subtitle":
+      'Chỉnh thông tin cơ bản của ví. Thêm thành viên tại tab "Quản lý người dùng".',
     "wallets.edit.current_balance_label": "Số dư hiện tại",
     "wallets.edit.currency_label": "Tiền tệ",
     "wallets.edit.created_at_label": "Thời gian tạo",
     "wallets.edit.delete_button": "Xóa ví này",
     "wallets.edit.save_button": "Lưu thay đổi",
     "wallets.edit.delete_confirm_title": "Xác nhận xóa ví",
-    "wallets.edit.delete_confirm_message": "Bạn có chắc chắn muốn xóa ví \"{name}\"? Hành động này không thể hoàn tác.",
-    
+    "wallets.edit.delete_confirm_message":
+      'Bạn có chắc chắn muốn xóa ví "{name}"? Hành động này không thể hoàn tác.',
+
     // Convert Tab
     "wallets.convert.tab_title": "Chuyển thành ví nhóm",
     "wallets.convert.title": "Chuyển thành ví nhóm",
-    "wallets.convert.subtitle": "Sau khi chuyển, ví này sẽ trở thành ví nhóm. Bạn có thể thêm thành viên ở phần chia sẻ.",
+    "wallets.convert.subtitle":
+      "Sau khi chuyển, ví này sẽ trở thành ví nhóm. Bạn có thể thêm thành viên ở phần chia sẻ.",
     "wallets.convert.summary_label": "Tóm tắt ví",
     "wallets.convert.name_label": "Tên ví",
     "wallets.convert.status_label": "Trạng thái",
     "wallets.convert.status_group": "Đã là ví nhóm",
     "wallets.convert.status_personal": "Hiện là ví cá nhân",
-    "wallets.convert.warning_title": "Bạn đang chuyển một ví mặc định sang ví nhóm",
-    "wallets.convert.warning_message_1": "hiện đang là ví mặc định của hệ thống.",
-    "wallets.convert.warning_message_2": "Ví nhóm không được phép đặt làm ví mặc định, vì vậy cần chọn cách xử lý ví mặc định hiện tại.",
+    "wallets.convert.warning_title":
+      "Bạn đang chuyển một ví mặc định sang ví nhóm",
+    "wallets.convert.warning_message_1":
+      "hiện đang là ví mặc định của hệ thống.",
+    "wallets.convert.warning_message_2":
+      "Ví nhóm không được phép đặt làm ví mặc định, vì vậy cần chọn cách xử lý ví mặc định hiện tại.",
     "wallets.convert.default_handling_title": "Chọn cách xử lý ví mặc định",
-    "wallets.convert.option_choose_other_title": "Chọn một ví cá nhân khác làm ví mặc định mới",
-    "wallets.convert.option_choose_other_desc": "Sau khi chuyển sang ví nhóm, ví được chọn dưới đây sẽ trở thành ví mặc định.",
+    "wallets.convert.option_choose_other_title":
+      "Chọn một ví cá nhân khác làm ví mặc định mới",
+    "wallets.convert.option_choose_other_desc":
+      "Sau khi chuyển sang ví nhóm, ví được chọn dưới đây sẽ trở thành ví mặc định.",
     "wallets.convert.option_no_default_title": "Tạm thời không có ví mặc định",
-    "wallets.convert.option_no_default_desc": "Hệ thống sẽ tạm thời không có ví mặc định. Bạn có thể đặt lại ví mặc định sau trong phần quản lý ví.",
-    "wallets.convert.no_other_wallet_hint": "Hiện tại bạn không có ví cá nhân nào khác. Sau khi chuyển ví này thành ví nhóm, hệ thống sẽ tạm thời không có ví mặc định. Bạn có thể tạo ví cá nhân mới và đặt làm mặc định sau.",
+    "wallets.convert.option_no_default_desc":
+      "Hệ thống sẽ tạm thời không có ví mặc định. Bạn có thể đặt lại ví mặc định sau trong phần quản lý ví.",
+    "wallets.convert.no_other_wallet_hint":
+      "Hiện tại bạn không có ví cá nhân nào khác. Sau khi chuyển ví này thành ví nhóm, hệ thống sẽ tạm thời không có ví mặc định. Bạn có thể tạo ví cá nhân mới và đặt làm mặc định sau.",
     "wallets.convert.other_personal_wallet": "Ví cá nhân khác",
     "wallets.convert.already_group": "Đã là ví nhóm",
     "wallets.convert.convert_button": "Chuyển sang ví nhóm",
-    
+
     // Merge Tab
     "wallets.merge.title": "Gộp ví",
-    "wallets.merge.budget_blocking": "Không thể gộp vì ví đang được dùng cho ngân sách.",
+    "wallets.merge.budget_blocking":
+      "Không thể gộp vì ví đang được dùng cho ngân sách.",
     "wallets.merge.select_wallet_hint": "Hãy chọn một ví để gộp.",
     "wallets.merge.step_2_title": "Bước 2 – Chọn ví đích",
     "wallets.merge.step_pill": "Gộp ví · 5 bước",
-    "wallets.merge.relation_this_into_other": "Gộp ví {thisName} vào {otherName}",
-    "wallets.merge.relation_other_into_this": "Gộp ví {otherName} vào {thisName}",
+    "wallets.merge.relation_this_into_other":
+      "Gộp ví {thisName} vào {otherName}",
+    "wallets.merge.relation_other_into_this":
+      "Gộp ví {otherName} vào {thisName}",
     "wallets.merge.summary_title": "Tóm tắt ví nguồn & ví đích",
     "wallets.merge.summary_subtitle": "Kiểm tra lại trước khi tiếp tục gộp ví.",
     "wallets.merge.current_wallet_title": "VÍ HIỆN TẠI",
@@ -717,17 +856,20 @@ const translations = {
     "wallets.merge.setup_subtitle": "Chọn chiều gộp và ví đích muốn gộp.",
     "wallets.merge.direction_this_into_other": "Gộp ví này vào ví khác",
     "wallets.merge.direction_other_into_this": "Gộp ví khác vào ví này",
-    "wallets.merge.direction_hint": "Số dư và giao dịch của ví hiện tại sẽ chuyển sang ví bạn chọn.",
+    "wallets.merge.direction_hint":
+      "Số dư và giao dịch của ví hiện tại sẽ chuyển sang ví bạn chọn.",
     "wallets.merge.select_target_title_1": "Chọn ví đích để gộp vào",
     "wallets.merge.select_target_title_2": "Chọn ví cần gộp vào ví này",
-    "wallets.merge.select_target_hint": "Chỉ các ví cá nhân do chính bạn sở hữu mới được phép gộp với nhau. Ví nhóm hoặc ví người khác chia sẻ cho bạn sẽ không xuất hiện tại đây.",
+    "wallets.merge.select_target_hint":
+      "Chỉ các ví cá nhân do chính bạn sở hữu mới được phép gộp với nhau. Ví nhóm hoặc ví người khác chia sẻ cho bạn sẽ không xuất hiện tại đây.",
     "wallets.merge.search_placeholder": "Tìm theo tên ví...",
     "wallets.merge.continue_button": "Tiếp tục",
-    
+
     // Manage Members Tab
     "wallets.manage_members.tab_title": "Quản lý người dùng",
     "wallets.manage_members.title": "Quản lý người dùng",
-    "wallets.manage_members.subtitle": "Kiểm soát danh sách người được chia sẻ ví \"{name}\".",
+    "wallets.manage_members.subtitle":
+      'Kiểm soát danh sách người được chia sẻ ví "{name}".',
     "wallets.manage_members.add_member": "+ Thêm người chia sẻ",
     "wallets.manage_members.collapse_add": "- Thêm",
     "wallets.manage_members.loading": "Đang tải danh sách...",
@@ -735,11 +877,14 @@ const translations = {
     "wallets.manage_members.removing": "Đang xóa...",
     "wallets.manage_members.remove": "Xóa",
     "wallets.manage_members.confirm_share_title": "Xác nhận chia sẻ",
-    "wallets.manage_members.confirm_share_message": "Bạn có chắc muốn chia sẻ ví \"{name}\" cho {email}?",
+    "wallets.manage_members.confirm_share_message":
+      'Bạn có chắc muốn chia sẻ ví "{name}" cho {email}?',
     "wallets.manage_members.confirm_remove_title": "Xóa người dùng",
-    "wallets.manage_members.confirm_remove_message": "Bạn có chắc muốn xóa quyền truy cập của {name}?",
+    "wallets.manage_members.confirm_remove_message":
+      "Bạn có chắc muốn xóa quyền truy cập của {name}?",
     "wallets.manage_members.confirm_role_title": "Xác nhận phân quyền",
-    "wallets.manage_members.confirm_role_message": "Bạn có chắc muốn đặt quyền của {name} thành \"{role}\"?",
+    "wallets.manage_members.confirm_role_message":
+      'Bạn có chắc muốn đặt quyền của {name} thành "{role}"?',
     "wallets.manage_members.role_owner": "Chủ ví",
     "wallets.manage_members.role_member": "Thành viên",
     "wallets.manage_members.role_viewer": "Người xem",
@@ -781,25 +926,31 @@ const translations = {
 
     // Funds Page
     "funds.title": "Quỹ của bạn",
-    "funds.subtitle": "Theo dõi và quản lý các quỹ tiết kiệm, quỹ nhóm và quỹ bạn tham gia.",
+    "funds.subtitle":
+      "Theo dõi và quản lý các quỹ tiết kiệm, quỹ nhóm và quỹ bạn tham gia.",
     "funds.btn.create_personal": "Tạo quỹ cá nhân",
     "funds.btn.create_group": "Tạo quỹ nhóm",
     "funds.btn.manage_participate": "Quản lý quỹ tham gia",
     "funds.btn.back": "Quay lại danh sách quỹ",
     "funds.empty.title": "Chưa có quỹ nào",
-    "funds.empty.desc": "Hãy bắt đầu bằng cách tạo <strong>quỹ cá nhân</strong> hoặc <strong>quỹ nhóm</strong> phù hợp với mục tiêu tài chính của bạn.",
+    "funds.empty.desc":
+      "Hãy bắt đầu bằng cách tạo <strong>quỹ cá nhân</strong> hoặc <strong>quỹ nhóm</strong> phù hợp với mục tiêu tài chính của bạn.",
     "funds.section.personal": "Quỹ cá nhân",
-    "funds.section.personal_desc": "Các quỹ tiết kiệm do riêng bạn sở hữu và quản lý.",
+    "funds.section.personal_desc":
+      "Các quỹ tiết kiệm do riêng bạn sở hữu và quản lý.",
     "funds.section.group": "Quỹ nhóm",
-    "funds.section.group_desc": "Quỹ góp chung với bạn bè, gia đình hoặc lớp/nhóm.",
+    "funds.section.group_desc":
+      "Quỹ góp chung với bạn bè, gia đình hoặc lớp/nhóm.",
     "funds.section.personal_term": "Quỹ cá nhân có thời hạn",
     "funds.section.personal_term_desc": "Các quỹ có ngày kết thúc rõ ràng.",
     "funds.section.personal_no_term": "Quỹ cá nhân không thời hạn",
-    "funds.section.personal_no_term_desc": "Quỹ tích luỹ dài hạn, không xác định ngày kết thúc.",
+    "funds.section.personal_no_term_desc":
+      "Quỹ tích luỹ dài hạn, không xác định ngày kết thúc.",
     "funds.section.group_term": "Quỹ nhóm có thời hạn",
     "funds.section.group_term_desc": "Quỹ góp chung có mục tiêu thời hạn.",
     "funds.section.group_no_term": "Quỹ nhóm không thời hạn",
-    "funds.section.group_no_term_desc": "Quỹ nhóm dùng lâu dài, không cố định thời gian.",
+    "funds.section.group_no_term_desc":
+      "Quỹ nhóm dùng lâu dài, không cố định thời gian.",
     "funds.card.members": "người tham gia",
     "funds.card.completed": "hoàn thành",
     "funds.detail.personal_fund": "Quỹ cá nhân",
@@ -824,7 +975,8 @@ const translations = {
     "funds.detail.role.view": "Chỉ xem",
     "funds.detail.btn.edit": "Sửa quỹ này",
     "funds.detail.edit_title": "Chỉnh sửa quỹ",
-    "funds.detail.edit_hint": "Bấm nút <strong>Sửa quỹ này</strong> ở bên trái để bật chế độ chỉnh sửa đầy đủ.",
+    "funds.detail.edit_hint":
+      "Bấm nút <strong>Sửa quỹ này</strong> ở bên trái để bật chế độ chỉnh sửa đầy đủ.",
     "funds.form.name": "Tên quỹ",
     "funds.form.type": "Loại quỹ",
     "funds.form.term": "Thời hạn",
@@ -836,69 +988,86 @@ const translations = {
     "funds.form.note": "Ghi chú",
     "funds.form.note_placeholder": "Mục tiêu, ghi chú thêm...",
     "funds.form.members": "Thành viên quỹ",
-    "funds.form.members_hint": "Bạn có thể thêm, xoá và cập nhật thông tin thành viên.",
+    "funds.form.members_hint":
+      "Bạn có thể thêm, xoá và cập nhật thông tin thành viên.",
     "funds.form.add_member": "Thêm thành viên",
     "funds.form.cancel": "Huỷ",
     "funds.form.save": "Lưu thay đổi",
     "funds.participate.view_title": "Quỹ tham gia (chỉ xem)",
     "funds.participate.view_desc": "Bạn chỉ có quyền xem số dư và lịch sử.",
     "funds.participate.use_title": "Quỹ tham gia (được sử dụng)",
-    "funds.participate.use_desc": "Bạn được phép thao tác tiền và quản lý thành viên (tuỳ quyền).",
+    "funds.participate.use_desc":
+      "Bạn được phép thao tác tiền và quản lý thành viên (tuỳ quyền).",
     "funds.participate.select_hint_title": "Chọn một quỹ được sử dụng",
-    "funds.participate.select_hint_desc": "Hãy bấm vào một quỹ trong phần <strong>Quỹ tham gia (được sử dụng)</strong> bên trái để xem chi tiết và quản lý thành viên.",
+    "funds.participate.select_hint_desc":
+      "Hãy bấm vào một quỹ trong phần <strong>Quỹ tham gia (được sử dụng)</strong> bên trái để xem chi tiết và quản lý thành viên.",
     "funds.participate.manage_title": "Quản lý quỹ được tham gia",
-    "funds.participate.name_hint": "Bạn có thể đổi tên quỹ này (đang demo trên FE).",
+    "funds.participate.name_hint":
+      "Bạn có thể đổi tên quỹ này (đang demo trên FE).",
     "funds.participate.role": "Vai trò của bạn",
-    "funds.participate.role_hint": "Bạn chỉ có quyền xem. Không thể chỉnh sửa thành viên trong quỹ này.",
-    "funds.participate.role_manage_hint": "Bạn có thể thêm, xoá và sửa tên / email / quyền của thành viên.",
+    "funds.participate.role_hint":
+      "Bạn chỉ có quyền xem. Không thể chỉnh sửa thành viên trong quỹ này.",
+    "funds.participate.role_manage_hint":
+      "Bạn có thể thêm, xoá và sửa tên / email / quyền của thành viên.",
     "funds.participate.close": "Đóng chi tiết",
 
     // Funds Form & Blocks
     "funds.form.target_invalid": "Vui lòng nhập số tiền mục tiêu hợp lệ.",
-    "funds.form.target_error_balance": "Số tiền mục tiêu phải lớn hơn số dư hiện tại của ví ({balance} {currency}).",
+    "funds.form.target_error_balance":
+      "Số tiền mục tiêu phải lớn hơn số dư hiện tại của ví ({balance} {currency}).",
     "funds.form.freq_day": "Theo ngày",
     "funds.form.freq_week": "Theo tuần",
     "funds.form.freq_month": "Theo tháng",
     "funds.form.freq_year": "Theo năm",
-    "funds.form.estimate_text": "Dự kiến hoàn thành sau khoảng {duration}, vào khoảng ngày {date}.",
+    "funds.form.estimate_text":
+      "Dự kiến hoàn thành sau khoảng {duration}, vào khoảng ngày {date}.",
     "funds.form.alert_wallet": "Vui lòng chọn ví nguồn trước khi lưu quỹ.",
     "funds.form.alert_target": "Vui lòng nhập số tiền mục tiêu quỹ.",
-    "funds.form.alert_target_invalid": "Số tiền mục tiêu chưa hợp lệ, vui lòng kiểm tra lại.",
+    "funds.form.alert_target_invalid":
+      "Số tiền mục tiêu chưa hợp lệ, vui lòng kiểm tra lại.",
     "funds.form.info_legend": "Thông tin quỹ",
     "funds.form.name_placeholder": "Ví dụ: Quỹ mua xe máy",
     "funds.form.name_hint": "Tối đa 50 ký tự.",
-    
+
     // Fund Form Sections
     "funds.form.section.info": "Thông tin quỹ",
     "funds.form.section.goal_frequency": "Mục tiêu & tần suất gửi",
     "funds.form.section.frequency_optional": "Tần suất gửi (tuỳ chọn)",
-    
+
     // Fund Form Fields (additional)
     "funds.form.name_placeholder_term": "Ví dụ: Quỹ mua xe máy",
     "funds.form.name_placeholder_no_term": "Ví dụ: Quỹ khẩn cấp",
-    "funds.form.name_hint_full": "Tối đa 50 ký tự. Ví quỹ sẽ được tự động tạo với số dư ban đầu là 0đ.",
+    "funds.form.name_hint_full":
+      "Tối đa 50 ký tự. Ví quỹ sẽ được tự động tạo với số dư ban đầu là 0đ.",
     "funds.form.currency_hint": "Loại tiền tệ cố định: VND.",
     "funds.form.source_wallet": "Chọn ví nguồn để nạp tiền vào quỹ",
     "funds.form.source_wallet_placeholder": "-- Chọn ví nguồn --",
-    "funds.form.no_wallet_available": "-- Không có ví nào với loại tiền tệ này --",
-    "funds.form.source_wallet_hint": "Tất cả giao dịch nạp tiền vào quỹ sẽ được thực hiện từ ví này.",
+    "funds.form.no_wallet_available":
+      "-- Không có ví nào với loại tiền tệ này --",
+    "funds.form.source_wallet_hint":
+      "Tất cả giao dịch nạp tiền vào quỹ sẽ được thực hiện từ ví này.",
     "funds.form.source_wallet_balance": "Số dư ví nguồn",
     "funds.form.created_date": "Ngày tạo quỹ",
-    "funds.form.created_date_hint": "Ngày và giờ tạo quỹ sẽ được tự động ghi nhận.",
+    "funds.form.created_date_hint":
+      "Ngày và giờ tạo quỹ sẽ được tự động ghi nhận.",
     "funds.form.note_placeholder": "Ghi chú cho quỹ này (không bắt buộc)",
     "funds.form.target_amount": "Số tiền mục tiêu",
-    "funds.form.target_placeholder": "Nhập số tiền mục tiêu (tối thiểu {min} {currency})",
-    "funds.form.target_hint": "Số tiền bạn muốn đạt được, tối thiểu {min}. Quỹ bắt đầu từ 0.",
+    "funds.form.target_placeholder":
+      "Nhập số tiền mục tiêu (tối thiểu {min} {currency})",
+    "funds.form.target_hint":
+      "Số tiền bạn muốn đạt được, tối thiểu {min}. Quỹ bắt đầu từ 0.",
     "funds.form.frequency": "Tần suất gửi",
     "funds.form.period_amount": "Số tiền gửi mỗi kỳ",
     "funds.form.period_amount_placeholder": "Nhập số tiền mỗi kỳ",
     "funds.form.period_amount_optional": "Tuỳ chọn",
     "funds.form.period_amount_hint": "Dùng để gợi ý thời gian hoàn thành.",
     "funds.form.start_date": "Ngày bắt đầu",
-    "funds.form.start_date_hint": "Chỉ được chọn từ ngày hôm nay ({today}) trở đi. Không thể chọn ngày quá khứ.",
+    "funds.form.start_date_hint":
+      "Chỉ được chọn từ ngày hôm nay ({today}) trở đi. Không thể chọn ngày quá khứ.",
     "funds.form.end_date_auto": "Ngày kết thúc (tự động tính)",
     "funds.form.end_date_placeholder": "Nhập đủ thông tin để tính toán",
-    "funds.form.end_date_hint": "Tự động tính dựa trên số tiền mục tiêu và số tiền gửi mỗi kỳ.",
+    "funds.form.end_date_hint":
+      "Tự động tính dựa trên số tiền mục tiêu và số tiền gửi mỗi kỳ.",
     "funds.form.deposit_mode": "Chế độ nạp tiền",
     "funds.form.deposit_mode_manual": "Thủ công (nhắc nhở)",
     "funds.form.deposit_mode_auto": "Tự động",
@@ -907,36 +1076,50 @@ const translations = {
     "funds.form.save_button": "Lưu quỹ",
     "funds.form.creating": "Đang tạo...",
     "funds.form.saving": "Đang lưu...",
-    
+
     // Fund Form Errors
     "funds.form.error.name_required": "Vui lòng nhập tên quỹ.",
-    "funds.form.error.source_wallet_required": "Vui lòng chọn ví nguồn để nạp tiền vào quỹ.",
+    "funds.form.error.source_wallet_required":
+      "Vui lòng chọn ví nguồn để nạp tiền vào quỹ.",
     "funds.form.error.target_required": "Vui lòng nhập số tiền mục tiêu quỹ.",
-    "funds.form.error.target_min": "Số tiền mục tiêu phải lớn hơn hoặc bằng {min} {currency}.",
+    "funds.form.error.target_min":
+      "Số tiền mục tiêu phải lớn hơn hoặc bằng {min} {currency}.",
     "funds.form.error.start_date_required": "Vui lòng chọn ngày bắt đầu.",
-    "funds.form.error.start_date_future": "Ngày bắt đầu phải từ hôm nay trở đi.",
-    "funds.form.error.start_date_past": "Ngày bắt đầu không thể là ngày trong quá khứ!",
-    "funds.form.error.period_amount_required": "Vui lòng nhập số tiền gửi mỗi kỳ để tính ngày kết thúc.",
-    "funds.form.error.cannot_calculate_end_date": "Không thể tính ngày kết thúc. Vui lòng kiểm tra các thông tin đã nhập.",
+    "funds.form.error.start_date_future":
+      "Ngày bắt đầu phải từ hôm nay trở đi.",
+    "funds.form.error.start_date_past":
+      "Ngày bắt đầu không thể là ngày trong quá khứ!",
+    "funds.form.error.period_amount_required":
+      "Vui lòng nhập số tiền gửi mỗi kỳ để tính ngày kết thúc.",
+    "funds.form.error.cannot_calculate_end_date":
+      "Không thể tính ngày kết thúc. Vui lòng kiểm tra các thông tin đã nhập.",
     "funds.form.error.reminder_config_required": "Vui lòng cấu hình nhắc nhở.",
     "funds.form.error.reminder_time_required": "Vui lòng chọn giờ nhắc nhở.",
-    "funds.form.error.reminder_weekday_required": "Vui lòng chọn ngày trong tuần cho nhắc nhở.",
-    "funds.form.error.reminder_monthday_required": "Vui lòng chọn ngày trong tháng cho nhắc nhở.",
-    "funds.form.error.auto_topup_config_required": "Vui lòng cấu hình lịch tự động nạp.",
-    "funds.form.error.auto_topup_time_required": "Vui lòng chọn giờ tự động nạp.",
-    "funds.form.error.auto_topup_weekday_required": "Vui lòng chọn ngày trong tuần cho tự động nạp.",
-    "funds.form.error.auto_topup_monthday_required": "Vui lòng chọn ngày trong tháng cho tự động nạp.",
-    "funds.form.error.auto_topup_start_date_required": "Vui lòng chọn thời điểm bắt đầu nạp tự động.",
+    "funds.form.error.reminder_weekday_required":
+      "Vui lòng chọn ngày trong tuần cho nhắc nhở.",
+    "funds.form.error.reminder_monthday_required":
+      "Vui lòng chọn ngày trong tháng cho nhắc nhở.",
+    "funds.form.error.auto_topup_config_required":
+      "Vui lòng cấu hình lịch tự động nạp.",
+    "funds.form.error.auto_topup_time_required":
+      "Vui lòng chọn giờ tự động nạp.",
+    "funds.form.error.auto_topup_weekday_required":
+      "Vui lòng chọn ngày trong tuần cho tự động nạp.",
+    "funds.form.error.auto_topup_monthday_required":
+      "Vui lòng chọn ngày trong tháng cho tự động nạp.",
+    "funds.form.error.auto_topup_start_date_required":
+      "Vui lòng chọn thời điểm bắt đầu nạp tự động.",
     "funds.form.error.create_failed": "Không thể tạo quỹ: {error}",
-    "funds.form.error.create_generic": "Đã xảy ra lỗi khi tạo quỹ. Vui lòng thử lại.",
+    "funds.form.error.create_generic":
+      "Đã xảy ra lỗi khi tạo quỹ. Vui lòng thử lại.",
     "funds.form.error.currency_required": "Vui lòng chọn loại tiền tệ.",
     "funds.form.success.created": "Tạo quỹ thành công!",
-    
+
     // Fund Toast Messages
     "funds.toast.update_success": "Cập nhật quỹ thành công!",
     "funds.toast.update_failed": "Không thể cập nhật quỹ: {error}",
     "funds.toast.update_error": "Đã xảy ra lỗi khi cập nhật quỹ.",
-    
+
     // Fund History
     "funds.history.load_error": "Không thể tải lịch sử giao dịch",
     "funds.history.load_error_generic": "Lỗi khi tải lịch sử giao dịch",
@@ -946,78 +1129,96 @@ const translations = {
     "funds.history.message.recovery_success": "Nạp bù tự động thành công",
     "funds.history.message.auto_success": "Nạp tự động thành công",
     "funds.history.message.manual_success": "Nạp tiền thành công",
-    
+
     // Fund Deposit
-    "funds.deposit.error.fund_closed": "Quỹ đã đóng hoặc hoàn thành mục tiêu, không thể nạp thêm.",
+    "funds.deposit.error.fund_closed":
+      "Quỹ đã đóng hoặc hoàn thành mục tiêu, không thể nạp thêm.",
     "funds.deposit.error.amount_invalid": "Vui lòng nhập số tiền hợp lệ.",
     "funds.deposit.error.amount_min": "Số tiền nạp tối thiểu là 1,000.",
-    "funds.deposit.error.amount_less_than_period": "Số tiền nạp phải lớn hơn hoặc bằng số tiền theo tần suất: {amount}.",
+    "funds.deposit.error.amount_less_than_period":
+      "Số tiền nạp phải lớn hơn hoặc bằng số tiền theo tần suất: {amount}.",
     "funds.deposit.error.source_wallet_not_found": "Không tìm thấy ví nguồn.",
-    "funds.deposit.error.insufficient_balance": "Số dư ví nguồn không đủ! Số dư hiện tại: {balance}",
+    "funds.deposit.error.insufficient_balance":
+      "Số dư ví nguồn không đủ! Số dư hiện tại: {balance}",
     "funds.deposit.error.failed": "Không thể nạp tiền: {error}",
     "funds.deposit.error.generic": "Đã xảy ra lỗi khi nạp tiền.",
     "funds.deposit.success": "Nạp {amount} vào quỹ thành công!",
-    "funds.deposit.fund_completed": "Quỹ đã hoàn thành mục tiêu. Quỹ sẽ được đóng băng và không thể nạp thêm.",
+    "funds.deposit.fund_completed":
+      "Quỹ đã hoàn thành mục tiêu. Quỹ sẽ được đóng băng và không thể nạp thêm.",
     "funds.deposit.status.deposited_today": "Hôm nay đã nạp",
     "funds.deposit.status.not_deposited_today": "Chưa nạp hôm nay",
-    
+
     // Fund Withdraw
     "funds.withdraw.error.no_balance": "Quỹ không có số dư để rút.",
     "funds.withdraw.error.failed": "Không thể rút tiền: {error}",
     "funds.withdraw.error.generic": "Đã xảy ra lỗi khi rút tiền.",
     "funds.withdraw.success": "Rút toàn bộ {amount} về ví nguồn thành công!",
-    "funds.withdraw.success_complete": "🎉 Hoàn thành quỹ! Rút toàn bộ {amount} về ví nguồn thành công!",
-    
+    "funds.withdraw.success_complete":
+      "🎉 Hoàn thành quỹ! Rút toàn bộ {amount} về ví nguồn thành công!",
+
     // Fund Settle
     "funds.settle.error.no_balance": "Quỹ không có số dư để tất toán.",
     "funds.settle.error.failed": "Không thể tất toán quỹ: {error}",
     "funds.settle.error.generic": "Đã xảy ra lỗi khi tất toán quỹ.",
-    "funds.settle.success": "✅ Tất toán quỹ thành công! Đã rút toàn bộ {amount} về ví nguồn.",
-    
+    "funds.settle.success":
+      "✅ Tất toán quỹ thành công! Đã rút toàn bộ {amount} về ví nguồn.",
+
     // Fund Delete
     "funds.delete.success": "Xóa quỹ thành công!",
     "funds.delete.error.failed": "Không thể xóa quỹ: {error}",
     "funds.delete.error.generic": "Đã xảy ra lỗi khi xóa quỹ.",
-    
+
     // Reminder Block
     "funds.form.reminder_legend": "Nhắc nhở",
     "funds.form.reminder_toggle": "Bật nhắc nhở cho quỹ này",
-    "funds.form.reminder_toggle_hint": "Khi cần, bạn có thể bật lại để hệ thống nhắc theo tần suất mong muốn.",
-    "funds.form.reminder_hint": "Hệ thống sẽ nhắc nhở theo tần suất gửi quỹ ({freq}). Bạn chỉ cần chọn giờ / ngày cụ thể.",
+    "funds.form.reminder_toggle_hint":
+      "Khi cần, bạn có thể bật lại để hệ thống nhắc theo tần suất mong muốn.",
+    "funds.form.reminder_hint":
+      "Hệ thống sẽ nhắc nhở theo tần suất gửi quỹ ({freq}). Bạn chỉ cần chọn giờ / ngày cụ thể.",
     "funds.form.reminder_time_label": "Giờ nhắc trong ngày",
-    "funds.form.reminder_time_hint_daily": "Ví dụ: 08:00 mỗi ngày sẽ nhắc bạn gửi tiền vào quỹ.",
+    "funds.form.reminder_time_hint_daily":
+      "Ví dụ: 08:00 mỗi ngày sẽ nhắc bạn gửi tiền vào quỹ.",
     "funds.form.reminder_weekday_label": "Ngày trong tuần",
-    "funds.form.reminder_time_hint_weekly": "Ví dụ: Thứ 6 lúc 21:00 sẽ nhắc bạn gửi tiền mỗi tuần.",
+    "funds.form.reminder_time_hint_weekly":
+      "Ví dụ: Thứ 6 lúc 21:00 sẽ nhắc bạn gửi tiền mỗi tuần.",
     "funds.form.reminder_monthday_label": "Ngày nhắc trong tháng",
     "funds.form.reminder_monthday_placeholder": "Nhập ngày (1-31)",
     "funds.form.reminder_monthday_hint": "Chọn ngày từ 1-31. Ví dụ: ngày 5",
     "funds.form.reminder_monthday_warning_title": "Lưu ý ngày cuối tháng:",
-    "funds.form.reminder_monthday_warning_31": "• Tháng 30 ngày (4,6,9,11): nhắc ngày 30\n• Tháng 2: nhắc ngày 28 (hoặc 29 năm nhuận)",
-    "funds.form.reminder_monthday_warning_30": "• Tháng 2: nhắc ngày 28 (hoặc 29 năm nhuận)",
+    "funds.form.reminder_monthday_warning_31":
+      "• Tháng 30 ngày (4,6,9,11): nhắc ngày 30\n• Tháng 2: nhắc ngày 28 (hoặc 29 năm nhuận)",
+    "funds.form.reminder_monthday_warning_30":
+      "• Tháng 2: nhắc ngày 28 (hoặc 29 năm nhuận)",
     "funds.form.reminder_monthday_warning_29": "• Tháng 2 thường: nhắc ngày 28",
-    "funds.form.reminder_time_hint_monthly": "Ví dụ: ngày 5 hàng tháng lúc 09:00 sẽ nhắc bạn gửi tiền vào quỹ.",
-    "funds.form.reminder_time_apply_next": "Thời gian mới sẽ áp dụng cho lần nhắc nhở tiếp theo vào ngày {date}.",
-    "funds.form.reminder_time_apply_next_generic": "Thời gian mới sẽ áp dụng cho lần nhắc nhở tới.",
+    "funds.form.reminder_time_hint_monthly":
+      "Ví dụ: ngày 5 hàng tháng lúc 09:00 sẽ nhắc bạn gửi tiền vào quỹ.",
+    "funds.form.reminder_time_apply_next":
+      "Thời gian mới sẽ áp dụng cho lần nhắc nhở tiếp theo vào ngày {date}.",
+    "funds.form.reminder_time_apply_next_generic":
+      "Thời gian mới sẽ áp dụng cho lần nhắc nhở tới.",
     "funds.form.next_week": "tuần tới",
     "funds.form.next_month": "tháng tới",
     "funds.form.current_balance": "Số dư hiện tại của ví",
     "funds.form.auto_balance": "Tự động hiển thị sau khi chọn ví",
     "funds.form.create_date": "Ngày tạo quỹ",
-    "funds.form.target_legend": "Mục tiêu & tần suất", 
+    "funds.form.target_legend": "Mục tiêu & tần suất",
     "funds.form.target_amount": "Số tiền mục tiêu quỹ",
     "funds.form.target_placeholder": "Nhập số tiền mục tiêu",
-    "funds.form.target_hint": "Phải lớn hơn số dư ví nguồn. Đơn vị tiền tệ của quỹ sẽ dùng chung với ví nguồn.",
+    "funds.form.target_hint":
+      "Phải lớn hơn số dư ví nguồn. Đơn vị tiền tệ của quỹ sẽ dùng chung với ví nguồn.",
     "funds.form.freq_legend_optional": "Tần suất gửi (tuỳ chọn)",
     "funds.form.freq_label": "Tần suất gửi quỹ",
     "funds.form.period_amount": "Số tiền gửi mỗi kỳ",
     "funds.form.period_placeholder": "Nhập số tiền mỗi kỳ",
-    "funds.form.period_hint": "Dùng để gợi ý thời gian hoàn thành theo tần suất đã chọn.",
+    "funds.form.period_hint":
+      "Dùng để gợi ý thời gian hoàn thành theo tần suất đã chọn.",
     "funds.form.start_date": "Ngày bắt đầu",
     "funds.form.end_date": "Ngày kết thúc (có thể tự điều chỉnh)",
     "funds.form.save_personal": "Lưu quỹ cá nhân",
     "funds.form.name_placeholder_no_term": "Ví dụ: Quỹ khẩn cấp",
     "funds.form.period_placeholder_optional": "Tuỳ chọn",
-    "funds.form.alert_wallet_group": "Vui lòng chọn ví nguồn trước khi lưu quỹ nhóm.",
+    "funds.form.alert_wallet_group":
+      "Vui lòng chọn ví nguồn trước khi lưu quỹ nhóm.",
     "funds.form.info_legend_group": "Thông tin quỹ nhóm",
     "funds.form.name_group": "Tên quỹ nhóm",
     "funds.form.name_placeholder_group": "Ví dụ: Quỹ ăn uống team",
@@ -1025,7 +1226,8 @@ const translations = {
     "funds.form.wallet_source": "Ví nguồn",
     "funds.form.wallet_search_placeholder": "Nhập để tìm ví...",
     "funds.form.wallet_not_found": "Không tìm thấy ví phù hợp.",
-    "funds.form.wallet_hint": "Hiển thị các ví phù hợp với loại quỹ hiện tại (cá nhân / nhóm). Kéo ngang nếu danh sách dài.",
+    "funds.form.wallet_hint":
+      "Hiển thị các ví phù hợp với loại quỹ hiện tại (cá nhân / nhóm). Kéo ngang nếu danh sách dài.",
     "funds.form.week_mon": "Thứ 2",
     "funds.form.week_tue": "Thứ 3",
     "funds.form.week_wed": "Thứ 4",
@@ -1034,52 +1236,69 @@ const translations = {
     "funds.form.week_sat": "Thứ 7",
     "funds.form.week_sun": "Chủ nhật",
     "funds.form.reminder_time_day": "Giờ nhắc trong ngày",
-    "funds.form.reminder_hint_day": "Ví dụ: 08:00 mỗi ngày sẽ nhắc bạn gửi tiền vào quỹ.",
+    "funds.form.reminder_hint_day":
+      "Ví dụ: 08:00 mỗi ngày sẽ nhắc bạn gửi tiền vào quỹ.",
     "funds.form.reminder_day_week": "Ngày trong tuần",
-    "funds.form.reminder_hint_week": "Ví dụ: Thứ 6 lúc 21:00 sẽ nhắc bạn gửi tiền mỗi tuần.",
+    "funds.form.reminder_hint_week":
+      "Ví dụ: Thứ 6 lúc 21:00 sẽ nhắc bạn gửi tiền mỗi tuần.",
     "funds.form.reminder_day_month": "Ngày nhắc trong tháng",
-    "funds.form.reminder_hint_month": "Ví dụ: ngày 5 hàng tháng lúc 09:00 sẽ nhắc bạn gửi tiền vào quỹ.",
+    "funds.form.reminder_hint_month":
+      "Ví dụ: ngày 5 hàng tháng lúc 09:00 sẽ nhắc bạn gửi tiền vào quỹ.",
     "funds.form.reminder_time_custom_day": "Giờ nhắc (hàng ngày)",
-    "funds.form.reminder_hint_custom_day": "Hệ thống sẽ nhắc bạn mỗi ngày vào giờ đã chọn.",
-    "funds.form.reminder_hint_custom_week": "Ví dụ: Thứ 7 lúc 20:30 sẽ nhắc bạn, dù tần suất gửi quỹ đang là gì.",
-    "funds.form.reminder_hint_custom_month": "Ví dụ: ngày 25 hàng tháng lúc 19:00 sẽ nhắc bạn.",
+    "funds.form.reminder_hint_custom_day":
+      "Hệ thống sẽ nhắc bạn mỗi ngày vào giờ đã chọn.",
+    "funds.form.reminder_hint_custom_week":
+      "Ví dụ: Thứ 7 lúc 20:30 sẽ nhắc bạn, dù tần suất gửi quỹ đang là gì.",
+    "funds.form.reminder_hint_custom_month":
+      "Ví dụ: ngày 25 hàng tháng lúc 19:00 sẽ nhắc bạn.",
     "funds.form.reminder_legend": "Nhắc nhở",
     "funds.form.reminder_toggle": "Bật nhắc nhở cho quỹ này",
-    "funds.form.reminder_off_hint": "Khi cần, bạn có thể bật lại để hệ thống nhắc theo tần suất mong muốn.",
+    "funds.form.reminder_off_hint":
+      "Khi cần, bạn có thể bật lại để hệ thống nhắc theo tần suất mong muốn.",
     "funds.form.reminder_mode_follow": "Theo tần suất gửi quỹ ({freq})",
     "funds.form.reminder_mode_custom": "Tự tạo lịch nhắc riêng",
-    "funds.form.reminder_follow_hint": "Hệ thống sẽ dùng cùng tần suất với phần <strong>Số tiền gửi mỗi kỳ</strong>. Bạn chỉ cần chọn giờ / ngày cụ thể.",
+    "funds.form.reminder_follow_hint":
+      "Hệ thống sẽ dùng cùng tần suất với phần <strong>Số tiền gửi mỗi kỳ</strong>. Bạn chỉ cần chọn giờ / ngày cụ thể.",
     "funds.form.reminder_type_label": "Kiểu nhắc nhở",
     "funds.form.reminder_type_day": "Nhắc theo ngày",
     "funds.form.reminder_type_week": "Nhắc theo tuần",
     "funds.form.reminder_type_month": "Nhắc theo tháng",
-    "funds.form.reminder_custom_hint": "Bạn có thể chọn nhắc hàng ngày / hàng tuần / hàng tháng, không phụ thuộc tần suất gửi quỹ.",
+    "funds.form.reminder_custom_hint":
+      "Bạn có thể chọn nhắc hàng ngày / hàng tuần / hàng tháng, không phụ thuộc tần suất gửi quỹ.",
     "funds.form.auto_topup_time_day": "Thời gian & số tiền nạp (hàng ngày)",
     "funds.form.auto_topup_amount_day": "Số tiền tự nạp mỗi ngày",
-    "funds.form.auto_topup_hint_day": "Ví dụ: 08:00 – 100.000 VND, hệ thống sẽ tự nạp mỗi ngày.",
+    "funds.form.auto_topup_hint_day":
+      "Ví dụ: 08:00 – 100.000 VND, hệ thống sẽ tự nạp mỗi ngày.",
     "funds.form.auto_topup_time_week": "Thời gian & số tiền nạp (hàng tuần)",
     "funds.form.auto_topup_amount_week": "Số tiền tự nạp mỗi tuần",
-    "funds.form.auto_topup_hint_week": "Ví dụ: Thứ 6 lúc 21:00 – 200.000 VND, hệ thống sẽ tự nạp mỗi tuần.",
+    "funds.form.auto_topup_hint_week":
+      "Ví dụ: Thứ 6 lúc 21:00 – 200.000 VND, hệ thống sẽ tự nạp mỗi tuần.",
     "funds.form.auto_topup_time_month": "Thời gian & số tiền nạp (hàng tháng)",
     "funds.form.auto_topup_amount_month": "Số tiền tự nạp mỗi tháng",
-    "funds.form.auto_topup_hint_month": "Ví dụ: ngày 10 hàng tháng lúc 09:00 – 500.000 VND, hệ thống sẽ tự nạp.",
+    "funds.form.auto_topup_hint_month":
+      "Ví dụ: ngày 10 hàng tháng lúc 09:00 – 500.000 VND, hệ thống sẽ tự nạp.",
     "funds.form.auto_topup_legend": "Tự động nạp tiền",
     "funds.form.auto_topup_toggle": "Bật tự động nạp tiền vào quỹ",
-    "funds.form.auto_topup_off_hint": "Khi bật, hệ thống có thể tự nạp tiền vào quỹ theo lịch bạn cấu hình.",
+    "funds.form.auto_topup_off_hint":
+      "Khi bật, hệ thống có thể tự nạp tiền vào quỹ theo lịch bạn cấu hình.",
     "funds.form.auto_topup_mode_follow": "Nạp theo lịch nhắc nhở",
     "funds.form.auto_topup_mode_custom": "Tự thiết lập lịch nạp",
-    "funds.form.auto_topup_no_reminder_hint": "Để dùng chế độ <strong>nạp theo lịch nhắc nhở</strong>, hãy bật và cấu hình nhắc nhở ở phần trên.",
+    "funds.form.auto_topup_no_reminder_hint":
+      "Để dùng chế độ <strong>nạp theo lịch nhắc nhở</strong>, hãy bật và cấu hình nhắc nhở ở phần trên.",
     "funds.form.auto_topup_mode_follow_label": "Chế độ nạp theo lịch nhắc nhở",
-    "funds.form.auto_topup_mode_follow_hint": "Hệ thống sẽ tự nạp tiền theo <strong>cùng lịch</strong> với <strong>tần suất gửi quỹ</strong> ({freq}) và thời gian bạn đã chọn trong phần <strong>Nhắc nhở</strong>.",
+    "funds.form.auto_topup_mode_follow_hint":
+      "Hệ thống sẽ tự nạp tiền theo <strong>cùng lịch</strong> với <strong>tần suất gửi quỹ</strong> ({freq}) và thời gian bạn đã chọn trong phần <strong>Nhắc nhở</strong>.",
     "funds.form.auto_topup_type_label": "Kiểu lịch tự nạp",
     "funds.form.auto_topup_type_day": "Tự nạp theo ngày",
     "funds.form.auto_topup_type_week": "Tự nạp theo tuần",
     "funds.form.auto_topup_type_month": "Tự nạp theo tháng",
-    "funds.form.auto_topup_custom_hint": "Lịch tự nạp này <strong>không phụ thuộc</strong> vào tần suất gửi quỹ hay lịch nhắc nhở.",
+    "funds.form.auto_topup_custom_hint":
+      "Lịch tự nạp này <strong>không phụ thuộc</strong> vào tần suất gửi quỹ hay lịch nhắc nhở.",
 
     // Transactions Page
     "transactions.page.title": "Quản lý Giao dịch",
-    "transactions.page.subtitle": "Xem, tìm kiếm và quản lý các khoản thu chi gần đây.",
+    "transactions.page.subtitle":
+      "Xem, tìm kiếm và quản lý các khoản thu chi gần đây.",
     "transactions.tab.external": "Giao dịch ví cá nhân",
     "transactions.tab.internal": "Giao dịch giữa các ví",
     "transactions.btn.add": "Thêm giao dịch mới",
@@ -1113,11 +1332,13 @@ const translations = {
     "transactions.action.edit": "Sửa",
     "transactions.action.delete": "Xóa",
     "transactions.toast.add_success": "Đã thêm giao dịch mới.",
-    "transactions.toast.add_warning_success": "Đã thêm giao dịch mới (vượt hạn mức).",
+    "transactions.toast.add_warning_success":
+      "Đã thêm giao dịch mới (vượt hạn mức).",
     "transactions.toast.update_success": "Đã cập nhật giao dịch.",
     "transactions.toast.delete_success": "Đã xóa giao dịch.",
     "transactions.confirm.delete_title": "Xóa giao dịch",
-    "transactions.confirm.delete_message": "Bạn chắc chắn muốn xóa giao dịch {code}?",
+    "transactions.confirm.delete_message":
+      "Bạn chắc chắn muốn xóa giao dịch {code}?",
     "transactions.confirm.delete_ok": "Xóa",
     "transactions.confirm.delete_cancel": "Hủy",
 
@@ -1149,25 +1370,32 @@ const translations = {
     "transactions.form.choose_file": "Chọn tệp",
     "transactions.form.no_file_chosen": "Không có tệp nào được chọn",
     "transactions.form.transfer_legend": "Chuyển tiền giữa các ví",
-    "transactions.form.transfer_hint": "Chọn ví gửi, ví nhận và số tiền cần chuyển.",
+    "transactions.form.transfer_hint":
+      "Chọn ví gửi, ví nhận và số tiền cần chuyển.",
     "transactions.form.source_wallet": "Ví gửi",
     "transactions.form.source_wallet_placeholder": "Nhập hoặc chọn ví gửi...",
     "transactions.form.target_wallet": "Ví nhận",
     "transactions.form.target_wallet_placeholder": "Nhập hoặc chọn ví nhận...",
-    "transactions.form.transfer_note_placeholder": "Thêm ghi chú cho lần chuyển tiền...",
+    "transactions.form.transfer_note_placeholder":
+      "Thêm ghi chú cho lần chuyển tiền...",
     "transactions.form.select_option": "Chọn",
     "transactions.btn.cancel": "Hủy bỏ",
     "transactions.btn.save": "Lưu",
     "transactions.btn.expand": "Mở rộng",
     "transactions.btn.collapse": "Thu gọn",
-    "transactions.form.no_wallets": "Không có ví nào. Vui lòng tạo ví trước khi thêm giao dịch.",
-    "transactions.form.amount_invalid": "Số tiền không hợp lệ hoặc vượt quá số dư.",
+    "transactions.form.no_wallets":
+      "Không có ví nào. Vui lòng tạo ví trước khi thêm giao dịch.",
+    "transactions.form.amount_invalid":
+      "Số tiền không hợp lệ hoặc vượt quá số dư.",
     "transactions.form.auto_time_note": "Tự động lấy thời gian hiện tại",
     "transactions.form.converted_amount": "Tiền chuyển đổi:",
     "transactions.form.exchange_rate_prefix": "Tỷ giá:",
-    "transactions.form.file_too_large": "Kích thước file không được vượt quá 5MB",
-    "transactions.form.image_process_error": "Lỗi khi xử lý ảnh. Vui lòng thử lại.",
-    "transactions.form.need_two_wallets": "Cần ít nhất hai ví để chuyển tiền. Vui lòng tạo thêm ví.",
+    "transactions.form.file_too_large":
+      "Kích thước file không được vượt quá 5MB",
+    "transactions.form.image_process_error":
+      "Lỗi khi xử lý ảnh. Vui lòng thử lại.",
+    "transactions.form.need_two_wallets":
+      "Cần ít nhất hai ví để chuyển tiền. Vui lòng tạo thêm ví.",
     "transactions.history.title": "Lịch sử giao dịch",
 
     // Transaction View
@@ -1185,27 +1413,33 @@ const translations = {
     "transactions.view.code": "Mã giao dịch",
     "transactions.view.creator_code": "Mã người tạo",
     "transactions.view.attachment": "Ảnh đính kèm",
-    "transactions.view.attachment_hint": "Ảnh minh họa (demo). Sau này sẽ lấy từ API file thật.",
+    "transactions.view.attachment_hint":
+      "Ảnh minh họa (demo). Sau này sẽ lấy từ API file thật.",
     "transactions.btn.close": "Đóng",
     // Loading / Errors / Schedule (VI)
     "transactions.btn.clear": "Xóa lọc",
     "transactions.loading.list": "Đang tải danh sách giao dịch...",
     "transactions.error.wallet_not_found": "Không tìm thấy ví {wallet}.",
-    "transactions.error.wallet_not_found_pair": "Không tìm thấy ví nguồn/đích. Vui lòng kiểm tra tên ví.",
+    "transactions.error.wallet_not_found_pair":
+      "Không tìm thấy ví nguồn/đích. Vui lòng kiểm tra tên ví.",
     "transactions.error.create_failed": "Không thể tạo giao dịch.",
     "transactions.error.id_not_found": "Không tìm thấy ID giao dịch.",
     "transactions.error.update_failed": "Không thể cập nhật giao dịch.",
     "transactions.error.delete_failed": "Không thể xóa giao dịch.",
-    "transactions.error.delete_wallet_negative": "Không thể xóa giao dịch vì sẽ làm ví âm tiền.",
-    "transactions.error.viewer_wallet_restricted": "Bạn chỉ có quyền xem trên ví này nên không thể thực hiện thao tác.",
+    "transactions.error.delete_wallet_negative":
+      "Không thể xóa giao dịch vì sẽ làm ví âm tiền.",
+    "transactions.error.viewer_wallet_restricted":
+      "Bạn chỉ có quyền xem trên ví này nên không thể thực hiện thao tác.",
     // Schedule translations
     "transactions.tab.schedule": "Lịch giao dịch",
     "transactions.schedule.title": "Lịch giao dịch",
-    "transactions.schedule.desc": "Tạo và quản lý lịch giao dịch (định kỳ hoặc chờ chạy).",
     "transactions.schedule.create_btn": "Tạo lịch",
     "transactions.schedule.tab.all": "Tất cả",
     "transactions.schedule.tab.pending": "Chờ chạy",
-    "transactions.schedule.tab.recurring": "Định kỳ",
+    "transactions.schedule.tab.active": "Đang hoạt động",
+    "transactions.schedule.tab.completed": "Hoàn tất",
+    "transactions.schedule.tab.failed": "Thất bại",
+    "transactions.schedule.tab.cancelled": "Đã hủy",
     "transactions.schedule.amount": "Số tiền",
     "transactions.schedule.next_run": "Lần chạy tiếp theo:",
     "transactions.schedule.completed_runs": "Đã chạy",
@@ -1221,7 +1455,8 @@ const translations = {
 
     // Categories Page
     "categories.page.title": "Danh Mục",
-    "categories.page.subtitle": "Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ đây.",
+    "categories.page.subtitle":
+      "Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ đây.",
     "categories.tab.expense": "Chi phí",
     "categories.tab.income": "Thu nhập",
     "categories.tab.system": "Hệ thống",
@@ -1243,14 +1478,15 @@ const translations = {
     "categories.toast.add_success": "Đã thêm danh mục mới.",
     "categories.toast.update_success": "Đã cập nhật danh mục.",
     "categories.toast.delete_success": "Đã xóa danh mục.",
-    "categories.confirm.delete": "Xóa danh mục \"{name}\"?",
-    
+    "categories.confirm.delete": 'Xóa danh mục "{name}"?',
+
     // Category Form
     "categories.form.title_edit": "Sửa danh mục {type}",
     "categories.form.title_create": "Thêm danh mục {type}",
     "categories.form.title_edit_system": "Sửa danh mục hệ thống",
     "categories.form.title_create_system": "Thêm danh mục hệ thống",
-    "categories.form.subtitle": "Danh mục giúp bạn phân loại thu chi rõ ràng hơn.",
+    "categories.form.subtitle":
+      "Danh mục giúp bạn phân loại thu chi rõ ràng hơn.",
     "categories.form.icon_label": "Icon (tùy chọn)",
     "categories.form.choose_icon": "Chọn icon",
     "categories.form.hide_icon": "Ẩn icon",
@@ -1264,10 +1500,14 @@ const translations = {
     "categories.form.name_placeholder": "Nhập tên danh mục...",
     "categories.form.desc_label": "Mô tả (tùy chọn)",
     "categories.form.desc_placeholder": "Mô tả ngắn cho danh mục...",
-    "categories.form.desc_hint": "Bạn có thể ghi chú mục đích sử dụng của danh mục này.",
-    "categories.form.set_as_system": "Đặt làm Danh mục hệ thống (hiển thị cho tất cả người dùng)",
-    "categories.form.system_hint_active": "Danh mục sẽ xuất hiện trong phần Mặc định và áp dụng cho mọi tài khoản.",
-    "categories.form.system_hint_inactive": "Nếu không chọn, danh mục chỉ hiển thị cho riêng bạn.",
+    "categories.form.desc_hint":
+      "Bạn có thể ghi chú mục đích sử dụng của danh mục này.",
+    "categories.form.set_as_system":
+      "Đặt làm Danh mục hệ thống (hiển thị cho tất cả người dùng)",
+    "categories.form.system_hint_active":
+      "Danh mục sẽ xuất hiện trong phần Mặc định và áp dụng cho mọi tài khoản.",
+    "categories.form.system_hint_inactive":
+      "Nếu không chọn, danh mục chỉ hiển thị cho riêng bạn.",
     "categories.btn.cancel": "Hủy",
     "categories.btn.save": "Lưu thay đổi",
     "categories.btn.create": "Thêm mới",
@@ -1275,7 +1515,8 @@ const translations = {
     "categories.error.name_length": "Tên danh mục tối đa 40 ký tự",
     "categories.search_all": "Tất cả danh mục",
     "categories.search_none": "Không tìm thấy danh mục",
-    "categories.empty_hint": "Hãy thêm danh mục để quản lý chi tiết thu chi của bạn.",
+    "categories.empty_hint":
+      "Hãy thêm danh mục để quản lý chi tiết thu chi của bạn.",
     "categories.badge.system": "Mặc định hệ thống",
     "categories.sort.label": "Sắp xếp:",
     "categories.sort.priority": "Ưu tiên:",
@@ -1286,19 +1527,25 @@ const translations = {
     "categories.sort.nameDesc": "Tên (Z → A)",
     "categories.sort.newest": "Mới → Cũ",
     "categories.sort.oldest": "Cũ → Mới",
-    "categories.error.duplicate_expense": "Bạn đã có danh mục chi phí cá nhân này rồi.",
-    "categories.error.duplicate_income": "Bạn đã có danh mục thu nhập cá nhân này rồi.",
+    "categories.error.duplicate_expense":
+      "Bạn đã có danh mục chi phí cá nhân này rồi.",
+    "categories.error.duplicate_income":
+      "Bạn đã có danh mục thu nhập cá nhân này rồi.",
     "categories.error.delete_failed": "Lỗi khi xóa danh mục",
     "categories.modal.budget_warning.title": "Ngân sách liên kết",
-    "categories.modal.budget_warning.message": "Danh mục này đang được dùng trong {count} ngân sách đang hoạt động hoặc sắp áp dụng. Nếu tiếp tục chỉnh sửa, mọi ngân sách liên quan sẽ được đồng bộ theo thay đổi mới. Bạn có chắc chắn muốn tiếp tục?",
+    "categories.modal.budget_warning.message":
+      "Danh mục này đang được dùng trong {count} ngân sách đang hoạt động hoặc sắp áp dụng. Nếu tiếp tục chỉnh sửa, mọi ngân sách liên quan sẽ được đồng bộ theo thay đổi mới. Bạn có chắc chắn muốn tiếp tục?",
     "categories.modal.budget_warning.ok": "Tiếp tục cập nhật",
     "categories.modal.budget_warning.cancel": "Quay lại",
-    "categories.error.delete_has_budget": "Không thể xóa vì danh mục đang được dùng trong {count} ngân sách đang hoạt động hoặc chờ áp dụng.",
-    "categories.toast.update_sync_success": "Đã cập nhật danh mục và đồng bộ {count} ngân sách.",
+    "categories.error.delete_has_budget":
+      "Không thể xóa vì danh mục đang được dùng trong {count} ngân sách đang hoạt động hoặc chờ áp dụng.",
+    "categories.toast.update_sync_success":
+      "Đã cập nhật danh mục và đồng bộ {count} ngân sách.",
 
     // Budgets Page
     "budgets.page.title": "Quản lý Hạn mức Chi tiêu",
-    "budgets.page.subtitle": "Thiết lập và theo dõi hạn mức chi tiêu cho từng danh mục.",
+    "budgets.page.subtitle":
+      "Thiết lập và theo dõi hạn mức chi tiêu cho từng danh mục.",
     "budgets.btn.add": "Thêm Hạn mức",
     "budgets.filter.category": "Tên danh mục",
     "budgets.filter.category_placeholder": "VD: Ăn uống, Lương...",
@@ -1307,7 +1554,8 @@ const translations = {
     "budgets.btn.search": "Tìm kiếm",
     "budgets.btn.clear": "Xóa",
     "budgets.empty.title": "Bạn chưa thiết lập Hạn mức Chi tiêu",
-    "budgets.empty.desc": "Hãy bắt đầu bằng cách tạo hạn mức cho một danh mục để kiểm soát chi tiêu của bạn.",
+    "budgets.empty.desc":
+      "Hãy bắt đầu bằng cách tạo hạn mức cho một danh mục để kiểm soát chi tiêu của bạn.",
     "budgets.empty.btn": "Thiết lập Hạn mức Chi tiêu đầu tiên",
     "budgets.card.wallet": "Ví",
     "budgets.card.from_to": "Từ {start} đến {end}",
@@ -1321,7 +1569,8 @@ const translations = {
     "budgets.toast.update_success": "Đã cập nhật hạn mức chi tiêu.",
     "budgets.toast.delete_success": "Đã xóa hạn mức chi tiêu.",
     "budgets.confirm.delete_title": "Xóa Hạn mức Chi tiêu",
-    "budgets.confirm.delete_message": "Bạn chắc chắn muốn xóa hạn mức cho danh mục \"{category}\"?",
+    "budgets.confirm.delete_message":
+      'Bạn chắc chắn muốn xóa hạn mức cho danh mục "{category}"?',
     "budgets.confirm.delete_ok": "Xóa",
     "budgets.confirm.delete_cancel": "Hủy",
     "budgets.tab.all": "Tất cả",
@@ -1358,8 +1607,9 @@ const translations = {
     "budgets.action.detail": "Chi tiết",
     "budgets.action.remind": "Nhắc nhở",
     "budgets.action.create_tx": "Tạo giao dịch",
-    "budgets.toast.remind_sent": "Đã gửi nhắc nhở cho hạn mức \"{category}\"",
-    "budgets.toast.create_tx_placeholder": "Tính năng tạo giao dịch nhanh cho \"{category}\" đang được phát triển.",
+    "budgets.toast.remind_sent": 'Đã gửi nhắc nhở cho hạn mức "{category}"',
+    "budgets.toast.create_tx_placeholder":
+      'Tính năng tạo giao dịch nhanh cho "{category}" đang được phát triển.',
     "budgets.error.save_failed": "Không thể lưu hạn mức. Vui lòng thử lại.",
     "budgets.error.delete_failed": "Không thể xóa hạn mức. Vui lòng thử lại.",
 
@@ -1369,28 +1619,35 @@ const translations = {
     "budgets.form.breadcrumb_edit": "Chỉnh sửa hạn mức",
     "budgets.form.title_create": "Thêm Hạn mức Chi tiêu Mới",
     "budgets.form.title_edit": "Chỉnh sửa Hạn mức Chi tiêu",
-    "budgets.form.info_desc": "Thiết lập hạn mức theo danh mục và ví cụ thể để dễ dàng theo dõi tiến độ chi tiêu.",
-    "budgets.form.info_alert": "Bạn có thể bật cảnh báo khi mức sử dụng đạt ngưỡng mong muốn.",
+    "budgets.form.info_desc":
+      "Thiết lập hạn mức theo danh mục và ví cụ thể để dễ dàng theo dõi tiến độ chi tiêu.",
+    "budgets.form.info_alert":
+      "Bạn có thể bật cảnh báo khi mức sử dụng đạt ngưỡng mong muốn.",
     "budgets.form.category_label": "Chọn Danh mục",
     "budgets.form.category_placeholder": "-- Chọn danh mục --",
     "budgets.form.category_empty": "Không có danh mục phù hợp",
-    "budgets.form.category_edit_hint": "Không thể thay đổi danh mục khi chỉnh sửa hạn mức.",
+    "budgets.form.category_edit_hint":
+      "Không thể thay đổi danh mục khi chỉnh sửa hạn mức.",
     "budgets.form.wallet_label": "Áp dụng cho Ví",
     "budgets.form.wallet_placeholder": "-- Chọn ví --",
     "budgets.form.wallet_empty": "Không có ví khả dụng",
-    "budgets.form.wallet_edit_hint": "Không thể thay đổi ví áp dụng khi chỉnh sửa.",
+    "budgets.form.wallet_edit_hint":
+      "Không thể thay đổi ví áp dụng khi chỉnh sửa.",
     "budgets.form.wallet_placeholder": "-- Chọn ví --",
     "budgets.form.wallet_all": "Áp dụng cho tất cả ví",
     "budgets.form.limit_label": "Hạn mức Chi tiêu ({currency})",
     "budgets.form.date_range_label": "Khoảng thời gian áp dụng",
     "budgets.form.start_date_label": "Từ ngày",
     "budgets.form.end_date_label": "Đến ngày",
-    "budgets.form.date_range_hint": "Hạn mức sẽ được theo dõi trong khoảng thời gian này.",
+    "budgets.form.date_range_hint":
+      "Hạn mức sẽ được theo dõi trong khoảng thời gian này.",
     "budgets.form.alert_threshold_label": "Ngưỡng cảnh báo (%)",
-    "budgets.form.alert_threshold_hint": "Gửi cảnh báo khi mức sử dụng đạt ngưỡng này.",
+    "budgets.form.alert_threshold_hint":
+      "Gửi cảnh báo khi mức sử dụng đạt ngưỡng này.",
     "budgets.form.note_label": "Ghi chú (tùy chọn)",
     "budgets.form.note_placeholder": "Nhập lưu ý nội bộ cho hạn mức này",
-    "budgets.form.note_hint": "Ghi chú sẽ hiển thị trong thẻ hạn mức để cả nhóm dễ theo dõi.",
+    "budgets.form.note_hint":
+      "Ghi chú sẽ hiển thị trong thẻ hạn mức để cả nhóm dễ theo dõi.",
     "budgets.form.cancel": "Hủy",
     "budgets.form.submit_create": "Thêm Hạn mức",
     "budgets.form.submit_update": "Cập nhật",
@@ -1399,7 +1656,8 @@ const translations = {
     "budgets.card.wallet_label": "Ví: {wallet}",
     "budgets.form.date_from": "Từ",
     "budgets.form.date_to": "Đến",
-    "budgets.form.date_hint": "Hạn mức sẽ được theo dõi trong khoảng thời gian này.",
+    "budgets.form.date_hint":
+      "Hạn mức sẽ được theo dõi trong khoảng thời gian này.",
     "budgets.form.btn_cancel": "Hủy",
     "budgets.form.btn_create": "Thêm Hạn mức",
     "budgets.form.btn_update": "Cập nhật",
@@ -1407,8 +1665,10 @@ const translations = {
     "budgets.error.wallet": "Vui lòng chọn ví áp dụng hạn mức",
     "budgets.error.wallet_vnd_only": "Chỉ được chọn ví có đơn vị tiền tệ VND",
     "budgets.error.limit_required": "Vui lòng nhập hạn mức lớn hơn 0",
-    "budgets.error.start_date_past": "Ngày bắt đầu không được nhỏ hơn ngày hiện tại",
-    "budgets.error.alert_threshold": "Ngưỡng cảnh báo phải trong khoảng 50% - 100%",
+    "budgets.error.start_date_past":
+      "Ngày bắt đầu không được nhỏ hơn ngày hiện tại",
+    "budgets.error.alert_threshold":
+      "Ngưỡng cảnh báo phải trong khoảng 50% - 100%",
     "budgets.error.wallet": "Vui lòng chọn ví",
     "budgets.error.limit": "Vui lòng nhập hạn mức lớn hơn 0",
     "budgets.error.start_date": "Vui lòng chọn ngày bắt đầu",
@@ -1418,8 +1678,10 @@ const translations = {
     // Budget Warning Modal
     "budgets.warning.title_alert": "⚠️ Nhắc nhở Sắp Quá Hạn mức",
     "budgets.warning.title_exceed": "⛔ Cảnh báo Vượt Hạn mức",
-    "budgets.warning.message_alert": "Giao dịch này sẽ làm chi tiêu đạt {percent}% hạn mức. Vẫn còn 10% nữa là đầy hạn mức!",
-    "budgets.warning.message_exceed": "Giao dịch này sẽ vượt quá hạn mức chi tiêu đã đặt cho danh mục.",
+    "budgets.warning.message_alert":
+      "Giao dịch này sẽ làm chi tiêu đạt {percent}% hạn mức. Vẫn còn 10% nữa là đầy hạn mức!",
+    "budgets.warning.message_exceed":
+      "Giao dịch này sẽ vượt quá hạn mức chi tiêu đã đặt cho danh mục.",
     "budgets.warning.category": "Danh mục",
     "budgets.warning.limit": "Hạn mức",
     "budgets.warning.spent": "Đã chi",
@@ -1429,8 +1691,10 @@ const translations = {
     "budgets.warning.remaining_after": "Còn lại (sau giao dịch)",
     "budgets.warning.exceed_amount": "Sẽ vượt quá:",
     "budgets.warning.usage_after": "Mức sử dụng sau giao dịch:",
-    "budgets.warning.hint_alert": "Bạn vẫn có thể tiếp tục giao dịch nếu ví được chọn còn đủ tiền.",
-    "budgets.warning.hint_exceed": "Giao dịch này sẽ làm tổng chi tiêu vượt quá hạn mức. Bạn có thể tiếp tục nếu ví được chọn còn đủ tiền.",
+    "budgets.warning.hint_alert":
+      "Bạn vẫn có thể tiếp tục giao dịch nếu ví được chọn còn đủ tiền.",
+    "budgets.warning.hint_exceed":
+      "Giao dịch này sẽ làm tổng chi tiêu vượt quá hạn mức. Bạn có thể tiếp tục nếu ví được chọn còn đủ tiền.",
     "budgets.warning.btn_cancel": "Hủy Giao dịch",
     "budgets.warning.btn_continue": "Tiếp tục Giao dịch",
     "budgets.card.alert_suffix": "sử dụng",
@@ -1442,7 +1706,8 @@ const translations = {
 
     // Admin Users Page
     "admin.users.title": "Quản lý người dùng",
-    "admin.users.subtitle": "Xin chào {name}, bạn có thể phân quyền, khóa/mở, xóa tài khoản, xem nhật ký đăng nhập và toàn bộ lịch sử chỉnh sửa tài khoản tại đây.",
+    "admin.users.subtitle":
+      "Xin chào {name}, bạn có thể phân quyền, khóa/mở, xóa tài khoản, xem nhật ký đăng nhập và toàn bộ lịch sử chỉnh sửa tài khoản tại đây.",
     "admin.users.list_title": "Danh sách tài khoản",
     "admin.users.search_placeholder": "Tìm theo tên hoặc email...",
     "admin.users.filter_role_all": "Tất cả vai trò",
@@ -1461,7 +1726,8 @@ const translations = {
     "admin.users.btn.lock": "Khóa",
     "admin.users.btn.unlock": "Mở khóa",
     "admin.users.btn.delete": "Xóa",
-    "admin.users.select_hint": "Chọn một người dùng ở bảng bên trái để xem chi tiết & thao tác.",
+    "admin.users.select_hint":
+      "Chọn một người dùng ở bảng bên trái để xem chi tiết & thao tác.",
     "admin.users.tab.info": "Thông tin",
     "admin.users.tab.logs": "Nhật ký đăng nhập",
     "admin.users.tab.history": "Lịch sử chỉnh sửa",
@@ -1478,9 +1744,11 @@ const translations = {
     "admin.users.logs.loading": "Đang tải nhật ký...",
     "admin.users.logs.empty": "Chưa có nhật ký hoạt động cho người dùng này.",
     "admin.users.history.title": "Lịch sử chỉnh sửa tài khoản",
-    "admin.users.history.empty": "Chưa có thao tác chỉnh sửa nào cho tài khoản này trong phiên làm việc hiện tại.",
+    "admin.users.history.empty":
+      "Chưa có thao tác chỉnh sửa nào cho tài khoản này trong phiên làm việc hiện tại.",
     "admin.users.manage.title": "Quản lý tài khoản",
-    "admin.users.manage.desc": "Thực hiện các thao tác quản trị cho tài khoản đã chọn. Mỗi hành động sẽ hiển thị thông báo thành công và ghi vào lịch sử chỉnh sửa.",
+    "admin.users.manage.desc":
+      "Thực hiện các thao tác quản trị cho tài khoản đã chọn. Mỗi hành động sẽ hiển thị thông báo thành công và ghi vào lịch sử chỉnh sửa.",
     "admin.users.manage.role_title": "Vai trò",
     "admin.users.manage.role_desc": "Phân quyền cho người dùng.",
     "admin.users.manage.status_title": "Trạng thái",
@@ -1488,35 +1756,46 @@ const translations = {
     "admin.users.manage.btn_lock": "Khóa tài khoản",
     "admin.users.manage.btn_unlock": "Mở khóa tài khoản",
     "admin.users.manage.delete_title": "Xóa tài khoản",
-    "admin.users.manage.delete_desc": "Xóa vĩnh viễn tài khoản khỏi hệ thống (demo mock). Hành động này không thể hoàn tác.",
+    "admin.users.manage.delete_desc":
+      "Xóa vĩnh viễn tài khoản khỏi hệ thống (demo mock). Hành động này không thể hoàn tác.",
     "admin.users.manage.btn_delete": "Xóa tài khoản",
-    "admin.users.toast.role_updated": "Đã cập nhật vai trò cho {name} thành \"{role}\".",
+    "admin.users.toast.role_updated":
+      'Đã cập nhật vai trò cho {name} thành "{role}".',
     "admin.users.toast.role_updated_generic": "Đã cập nhật vai trò tài khoản.",
     "admin.users.toast.status_locked": "Đã khóa tài khoản {name}.",
     "admin.users.toast.status_unlocked": "Đã mở khóa tài khoản {name}.",
-    "admin.users.toast.status_updated_generic": "Đã cập nhật trạng thái tài khoản.",
+    "admin.users.toast.status_updated_generic":
+      "Đã cập nhật trạng thái tài khoản.",
     "admin.users.toast.deleted": "Đã xóa tài khoản {name}.",
     "admin.users.error.load_failed": "Không tải được danh sách người dùng.",
     "admin.users.error.logs_load_failed": "Không tải được nhật ký đăng nhập.",
-    "admin.users.error.cannot_change_own_role": "Không thể thay đổi vai trò của chính mình",
-    "admin.users.error.only_system_admin_change_role": "Chỉ admin hệ thống mới có thể thay đổi vai trò của admin khác",
+    "admin.users.error.cannot_change_own_role":
+      "Không thể thay đổi vai trò của chính mình",
+    "admin.users.error.only_system_admin_change_role":
+      "Chỉ admin hệ thống mới có thể thay đổi vai trò của admin khác",
     "admin.users.error.role_update_failed": "Đổi vai trò thất bại",
     "admin.users.error.cannot_toggle_self": "Không thể khóa/mở khóa chính mình",
-    "admin.users.error.only_system_admin_toggle": "Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác",
+    "admin.users.error.only_system_admin_toggle":
+      "Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác",
     "admin.users.error.status_update_failed": "Cập nhật trạng thái thất bại",
     "admin.users.error.cannot_delete_self": "Không thể xóa chính mình",
-    "admin.users.error.only_system_admin_delete": "Chỉ admin hệ thống mới có thể xóa admin khác",
+    "admin.users.error.only_system_admin_delete":
+      "Chỉ admin hệ thống mới có thể xóa admin khác",
     "admin.users.error.delete_failed": "Xóa tài khoản thất bại",
     "admin.users.history.role_change": "Đổi vai trò",
-    "admin.users.history.role_change_detail": "Đổi vai trò từ \"{old}\" sang \"{new}\".",
+    "admin.users.history.role_change_detail":
+      'Đổi vai trò từ "{old}" sang "{new}".',
     "admin.users.history.status_change": "Cập nhật trạng thái",
-    "admin.users.history.status_change_detail": "Thay đổi trạng thái từ \"{old}\" sang \"{new}\".",
+    "admin.users.history.status_change_detail":
+      'Thay đổi trạng thái từ "{old}" sang "{new}".',
     "admin.users.history.delete": "Xóa tài khoản",
-    "admin.users.history.delete_detail": "Tài khoản \"{name}\" đã bị xóa khỏi hệ thống (demo).",
+    "admin.users.history.delete_detail":
+      'Tài khoản "{name}" đã bị xóa khỏi hệ thống (demo).',
 
     // Admin Reviews Page
     "admin.reviews.title": "Đánh giá & bình luận người dùng",
-    "admin.reviews.subtitle": "Quản lý đánh giá, phản hồi trực tiếp cho người dùng.",
+    "admin.reviews.subtitle":
+      "Quản lý đánh giá, phản hồi trực tiếp cho người dùng.",
     "admin.reviews.average": "Trung bình:",
     "admin.reviews.total": "Tổng đánh giá:",
     "admin.reviews.replied": "Đã phản hồi:",
@@ -1526,7 +1805,8 @@ const translations = {
     "admin.reviews.filter.replied": "Đã phản hồi",
     "admin.reviews.sort.newest": "Mới nhất",
     "admin.reviews.sort.oldest": "Cũ nhất",
-    "admin.reviews.search_placeholder": "Tìm theo tên, email, nội dung, nguồn...",
+    "admin.reviews.search_placeholder":
+      "Tìm theo tên, email, nội dung, nguồn...",
     "admin.reviews.empty": "Không có đánh giá phù hợp.",
     "admin.reviews.date_prefix": "Ngày",
     "admin.reviews.btn.view_details": "Xem chi tiết",
@@ -1542,7 +1822,7 @@ const translations = {
     "admin.reviews.toast.success": "Đã gửi phản hồi thành công!",
     "admin.reviews.notification.title": "Admin đã phản hồi đánh giá của bạn",
     "admin.reviews.notification.time": "Vừa xong",
-    
+
     // Feedback
     "feedback.submit_success": "Gửi đánh giá thành công!",
   },
@@ -1568,7 +1848,7 @@ const translations = {
     "topbar.welcome": "Hello, {name}!",
     "topbar.default_user": "User",
     "topbar.search_placeholder": "Search features...",
-    "topbar.search_no_result": "No features found for \"{text}\"",
+    "topbar.search_no_result": 'No features found for "{text}"',
     "topbar.actions": "Topbar actions",
     "topbar.account": "Account",
     "topbar.logout": "Logout",
@@ -1580,7 +1860,8 @@ const translations = {
 
     // Settings Page
     "settings.title": "Settings",
-    "settings.subtitle": "Manage security and system settings for your account.",
+    "settings.subtitle":
+      "Manage security and system settings for your account.",
     "settings.security_group": "Security",
     "settings.system_group": "System Settings",
 
@@ -1620,20 +1901,25 @@ const translations = {
     "settings.error.network_load": "Network error while loading profile",
     "settings.error.avatar_invalid": "Please select a valid image file",
     "settings.error.avatar_size": "Image size must not exceed 5MB",
-    "settings.error.enter_name_or_avatar": "Please enter a name or choose an avatar",
+    "settings.error.enter_name_or_avatar":
+      "Please enter a name or choose an avatar",
     "settings.error.network_update": "Network error while updating",
 
     // Password detail
-    "settings.password.has_desc": "Use a strong, hard-to-guess password to protect your account.",
-    "settings.password.no_password_desc": "You are signed in with Google. Set a password to allow email/password sign-in.",
+    "settings.password.has_desc":
+      "Use a strong, hard-to-guess password to protect your account.",
+    "settings.password.no_password_desc":
+      "You are signed in with Google. Set a password to allow email/password sign-in.",
     "settings.password.current_label": "Current password",
     "settings.password.new_label": "New password",
     "settings.password.confirm_label": "Confirm new password",
     "settings.password.placeholder_current": "Enter current password",
     "settings.password.placeholder_new": "Enter new password",
     "settings.password.placeholder_confirm": "Confirm new password",
-    "settings.password.error.fill": "Please enter new password and confirmation",
-    "settings.password.error.mismatch": "New password and confirmation do not match",
+    "settings.password.error.fill":
+      "Please enter new password and confirmation",
+    "settings.password.error.mismatch":
+      "New password and confirmation do not match",
     "settings.password.error.need_current": "Please enter current password",
     "settings.password.updating": "Updating...",
     "settings.password.update_btn": "Update password",
@@ -1642,9 +1928,11 @@ const translations = {
     "settings.password.failed": "Failed to change password",
 
     // 2FA
-    "settings.2fa.desc": "Add an extra layer of security by using an authentication code during sign-in.",
+    "settings.2fa.desc":
+      "Add an extra layer of security by using an authentication code during sign-in.",
     "settings.2fa.status_label": "2FA status",
-    "settings.2fa.hint": "Once enabled, each login requires an authentication code from an app or email.",
+    "settings.2fa.hint":
+      "Once enabled, each login requires an authentication code from an app or email.",
     "settings.2fa.configure": "Configure 2FA",
     "settings.2fa.enable_success": "2FA enabled successfully",
     "settings.2fa.enable_error": "Failed to enable 2FA",
@@ -1654,7 +1942,8 @@ const translations = {
     "settings.2fa.change_success": "2FA code changed successfully",
 
     // Login log
-    "settings.login_log.desc": "Review recent sign-ins to detect suspicious activity.",
+    "settings.login_log.desc":
+      "Review recent sign-ins to detect suspicious activity.",
     "settings.login_log.col.time": "Time",
     "settings.login_log.col.account": "Account",
     "settings.login_log.col.device": "Device",
@@ -1665,18 +1954,23 @@ const translations = {
     "settings.login_log.refresh": "Refresh activity",
 
     // Logout all
-    "settings.logout_all.desc": "This will sign out your account from all devices except the current one.",
-    "settings.logout_all.note1": "Use when you suspect your account has been compromised.",
-    "settings.logout_all.note2": "After signing out, you'll need to sign in again using your password.",
+    "settings.logout_all.desc":
+      "This will sign out your account from all devices except the current one.",
+    "settings.logout_all.note1":
+      "Use when you suspect your account has been compromised.",
+    "settings.logout_all.note2":
+      "After signing out, you'll need to sign in again using your password.",
     "settings.logout_all.btn": "Log out all devices",
 
     // Currency & formats
-    "settings.currency.desc": "Default currency used to display balances and reports.",
+    "settings.currency.desc":
+      "Default currency used to display balances and reports.",
     "settings.currency.label": "Default currency",
     "settings.currency.saved": "Currency setting saved",
 
     "settings.currency_format": "Currency Format",
-    "settings.currency_format.desc": "Choose how monetary values are displayed in the app.",
+    "settings.currency_format.desc":
+      "Choose how monetary values are displayed in the app.",
     "settings.currency_format.label": "Display style",
     "settings.currency_format.opt.space": "1 234 567 (space separated)",
     "settings.currency_format.opt.dot": "1.234.567 (dot)",
@@ -1686,7 +1980,8 @@ const translations = {
     "settings.currency_format.opt.decimals.2": "2 (e.g. 1,000.50)",
     "settings.currency_format.saved": "Money format saved",
 
-    "settings.date_format.desc": "Choose how dates are displayed across the system.",
+    "settings.date_format.desc":
+      "Choose how dates are displayed across the system.",
     "settings.date_format.label": "Format",
     "settings.date_format.opt.ddMMyyyy": "dd/MM/yyyy (31/12/2025)",
     "settings.date_format.opt.MMddyyyy": "MM/dd/yyyy (12/31/2025)",
@@ -1729,7 +2024,8 @@ const translations = {
 
     // Dashboard
     "dashboard.title": "Financial Overview",
-    "dashboard.subtitle": "Quick view of income, expenses, balance fluctuations, and recent transactions.",
+    "dashboard.subtitle":
+      "Quick view of income, expenses, balance fluctuations, and recent transactions.",
     "dashboard.title_icon_alt": "Dashboard icon",
     "dashboard.period.week": "This Week",
     "dashboard.period.month": "This Month",
@@ -1758,11 +2054,14 @@ const translations = {
 
     // Activity
     "activity.title": "Activity History",
-    "activity.subtitle": "History of actions: create, delete, merge wallets; create funds; add budgets…",
+    "activity.subtitle":
+      "History of actions: create, delete, merge wallets; create funds; add budgets…",
     "activity.no_data": "No activities yet.",
-    "activity.empty_hint": "Activities such as creating wallets, funds, and budgets will be displayed here.",
+    "activity.empty_hint":
+      "Activities such as creating wallets, funds, and budgets will be displayed here.",
     "activity.search.title": "Search transaction history",
-    "activity.search.placeholder": "Search by keyword (type, description, email...)",
+    "activity.search.placeholder":
+      "Search by keyword (type, description, email...)",
     "activity.search.from": "From",
     "activity.search.to": "To",
     "activity.search.button": "Search",
@@ -1781,9 +2080,14 @@ const translations = {
     "activity.type.remove_user": "Remove user",
     "activity.type.add_user": "Add user",
     "activity.type.create_budget": "Create budget",
+    "activity.type.update_budget": "Update budget",
     "activity.type.delete_budget": "Delete budget",
     "activity.type.create_fund": "Create fund",
     "activity.type.delete_fund": "Delete fund",
+    "activity.type.settle_fund": "Settle fund",
+    "activity.type.create_category": "Create category",
+    "activity.type.fund_deposit": "Fund deposit",
+    "activity.type.fund_withdraw": "Fund withdraw",
     "activity.description.by": "— by",
     "activity.description.merge_prefix": "Merge ",
     "activity.description.merge_into": " into ",
@@ -1792,7 +2096,8 @@ const translations = {
     "activity.description.edit_prefix": "Edit ",
     "activity.description.update_info_prefix": "Update information for ",
     "activity.description.convert_prefix": "Convert ",
-    "activity.description.convert_to_group_suffix": " to group wallet ({count} members)",
+    "activity.description.convert_to_group_suffix":
+      " to group wallet ({count} members)",
     "activity.description.remove_prefix": "Remove ",
     "activity.description.remove_from_wallet": " from wallet ",
     "activity.description.add_prefix": "Add ",
@@ -1800,22 +2105,32 @@ const translations = {
     "activity.description.with_role": " with role ",
     "activity.description.create_budget_prefix": "Create budget ",
     "activity.description.create_budget_for_category": "Create budget for category ",
+    "activity.description.update_budget_prefix": "Update budget ",
     "activity.description.category_separator": " — category: ",
     "activity.description.category_unknown": " — category unknown",
     "activity.description.wallet_separator": " — wallet: ",
     "activity.description.delete_budget_prefix": "Delete budget ",
-    "activity.description.delete_budget_of_category": "Delete budget of category ",
+    "activity.description.delete_budget_of_category":
+      "Delete budget of category ",
     "activity.description.create_fund_prefix": "Create fund ",
     "activity.description.delete_fund_prefix": "Delete fund ",
+    "activity.description.settle_fund_prefix": "Settle fund ",
+    "activity.description.create_category_prefix": "Create category ",
+    "activity.description.fund_deposit_prefix": "Deposit ",
+    "activity.description.fund_deposit_into": " into fund ",
+    "activity.description.fund_withdraw_prefix": "Withdraw ",
+    "activity.description.fund_withdraw_from": " from fund ",
     "activity.placeholder.wallet_name": "(wallet name)",
     "activity.placeholder.email": "(email)",
     "activity.placeholder.budget_name": "(budget name)",
     "activity.placeholder.fund_name": "(fund name)",
+    "activity.placeholder.category_name": "(category name)",
     "activity.placeholder.many_members": "many",
 
     // Reports Page
     "reports.title": "Financial Reports",
-    "reports.subtitle": "Track detailed cash inflows/outflows per wallet to make better decisions.",
+    "reports.subtitle":
+      "Track detailed cash inflows/outflows per wallet to make better decisions.",
     "reports.overview_realtime": "Realtime Overview",
     "reports.wallets.title": "Wallet List",
     "reports.wallets.desc": "Select a wallet to view cashflow charts.",
@@ -1835,9 +2150,11 @@ const translations = {
     "reports.range.month": "Month",
     "reports.range.year": "Year",
     "reports.export_pdf": "Export PDF",
-    "reports.export_pdf_error": "Cannot open print window. Please check popup blocker.",
+    "reports.export_pdf_error":
+      "Cannot open print window. Please check popup blocker.",
     "reports.funds.section_title": "Fund overview",
-    "reports.funds.section_subtitle": "Monitor saving funds and long-term targets.",
+    "reports.funds.section_subtitle":
+      "Monitor saving funds and long-term targets.",
     "reports.funds.total_label": "Active funds",
     "reports.funds.raised": "Current balance",
     "reports.funds.target": "Combined goal",
@@ -1873,7 +2190,8 @@ const translations = {
     "reports.funds.frequency.yearly": "Yearly",
     "reports.funds.frequency.custom": "Custom cadence",
     "reports.funds.detail.selected_label": "Selected fund",
-    "reports.funds.detail.no_selection": "Pick a fund from the list to view its details.",
+    "reports.funds.detail.no_selection":
+      "Pick a fund from the list to view its details.",
     "reports.funds.detail.no_selection_short": "No fund selected",
     "reports.funds.detail.goal_focus": "Goal progress",
     "reports.funds.detail.current": "Saved",
@@ -1899,7 +2217,8 @@ const translations = {
     "reports.funds.detail.history_title": "Fund history",
     "reports.funds.detail.history_subtitle": "Most recent transactions",
     "reports.funds.detail.history_loading": "Loading history...",
-    "reports.funds.detail.history_empty": "No transactions recorded for this fund yet.",
+    "reports.funds.detail.history_empty":
+      "No transactions recorded for this fund yet.",
     "reports.funds.detail.history_error": "Unable to load fund history.",
     "reports.funds.detail.history_count": "{count} recent transactions",
     "reports.funds.detail.history_no_date": "Unknown time",
@@ -1912,7 +2231,8 @@ const translations = {
     "reports.funds.detail.history.type.adjustment": "Balance adjustment",
     "reports.funds.detail.history.type.unknown": "Fund activity",
     "reports.budgets.section_title": "Budget overview",
-    "reports.budgets.section_subtitle": "Track limits and actual spend per category.",
+    "reports.budgets.section_subtitle":
+      "Track limits and actual spend per category.",
     "reports.budgets.total_limit": "Total limit",
     "reports.budgets.total_spent": "Spent",
     "reports.budgets.utilization": "Utilization",
@@ -1922,6 +2242,49 @@ const translations = {
     "reports.budgets.status.warning": "Warning",
     "reports.budgets.status.exceeded": "Exceeded",
     "reports.budgets.period": "Period",
+    "reports.budgets.overview.total_budgets": "Total budgets",
+    "reports.budgets.overview.total_spent": "Total spent",
+    "reports.budgets.overview.usage_percent": "Usage %",
+    "reports.budgets.overview.safe_count": "Safe budgets",
+    "reports.budgets.overview.warning_count": "Warning budgets",
+    "reports.budgets.overview.exceeded_count": "Exceeded budgets",
+    "reports.budgets.status_distribution.title": "Budget status distribution",
+    "reports.budgets.status_distribution.subtitle": "Distribution of budgets by status",
+    "reports.budgets.detail_list.title": "Detailed budget list",
+    "reports.budgets.detail_list.category": "Category",
+    "reports.budgets.detail_list.wallet": "Applied wallet",
+    "reports.budgets.detail_list.time": "Time period",
+    "reports.budgets.detail_list.limit": "Limit",
+    "reports.budgets.detail_list.spent": "Spent",
+    "reports.budgets.detail_list.remaining": "Remaining",
+    "reports.budgets.detail_list.exceeded": "Exceeded",
+    "reports.budgets.detail_list.view_detail": "View details",
+    "reports.budgets.time_comparison.title": "Time comparison",
+    "reports.budgets.time_comparison.this_period": "This period",
+    "reports.budgets.time_comparison.last_period": "Last period",
+    "reports.budgets.time_comparison.insight_more": "This month you spent {percent}% more than last month",
+    "reports.budgets.time_comparison.insight_less": "This month you spent {percent}% less than last month",
+    "reports.budgets.top_dangerous.title": "Top dangerous budgets",
+    "reports.budgets.top_dangerous.subtitle": "Top 3 budgets with highest usage %",
+    "reports.budgets.analysis.title": "Cause analysis",
+    "reports.budgets.analysis.daily_chart": "Daily spending chart",
+    "reports.budgets.analysis.top_transactions": "Top largest transactions",
+    "reports.budgets.analysis.peak_day": "Peak spending day",
+    "reports.budgets.suggestions.title": "Smart suggestions",
+    "reports.budgets.suggestions.weekly_pattern": "You usually exceed {category} budget at the end of the month",
+    "reports.budgets.suggestions.increase_limit": "You should increase {category} budget by {percent}%",
+    "reports.budgets.suggestions.end_period": "{percent}% of budgets exceeded in the last 5 days of the period",
+    "reports.budgets.filters.wallet": "Select Wallet",
+    "reports.budgets.filters.time": "Select Time",
+    "reports.budgets.filters.status": "Select Status",
+    "reports.budgets.filters.category": "Select Category",
+    "reports.budgets.filters.all_wallets": "All wallets",
+    "reports.budgets.filters.all_status": "All statuses",
+    "reports.budgets.filters.all_categories": "All categories",
+    "reports.budgets.time_period.this_month": "This month",
+    "reports.budgets.time_period.last_month": "Last month",
+    "reports.budgets.time_period.this_week": "This week",
+    "reports.budgets.time_period.last_week": "Last week",
 
     // Wallets Page
     "wallets.title": "Wallet List",
@@ -1950,20 +2313,26 @@ const translations = {
     "wallets.metric.shared_with_me_balance": "Shared with me balance",
     "wallets.metric.shared_by_me_balance": "Shared by me balance",
     "wallets.tooltip.total_balance.title": "Total Balance",
-    "wallets.tooltip.total_balance.body": "Total balance of all your wallets (excluding wallets you only have view permission). Values have been converted to display currency for easy comparison.",
-    "wallets.tooltip.total_balance.meta": "Wallets counted: {count} • Last updated: just now",
+    "wallets.tooltip.total_balance.body":
+      "Total balance of all your wallets (excluding wallets you only have view permission). Values have been converted to display currency for easy comparison.",
+    "wallets.tooltip.total_balance.meta":
+      "Wallets counted: {count} • Last updated: just now",
     "wallets.tooltip.personal.title": "Personal Wallets",
-    "wallets.tooltip.personal.body": "Total balance of personal wallets (wallets owned and directly managed by you).",
+    "wallets.tooltip.personal.body":
+      "Total balance of personal wallets (wallets owned and directly managed by you).",
     "wallets.tooltip.personal.meta": "Wallets: {count}",
     "wallets.tooltip.group.title": "Group Wallets",
-    "wallets.tooltip.group.body": "Total balance of group wallets that you own or participate in managing. Includes wallets you have shared with groups.",
+    "wallets.tooltip.group.body":
+      "Total balance of group wallets that you own or participate in managing. Includes wallets you have shared with groups.",
     "wallets.tooltip.group.meta": "Group wallets: {count}",
     "wallets.tooltip.shared_with_me.title": "Shared With Me",
-    "wallets.tooltip.shared_with_me.body": "Total balance of wallets that others have shared with you — you can view or operate according to granted permissions.",
+    "wallets.tooltip.shared_with_me.body":
+      "Total balance of wallets that others have shared with you — you can view or operate according to granted permissions.",
     "wallets.tooltip.shared_with_me.meta": "Wallets: {count}",
     "wallets.members_count": "{count} members",
     "wallets.no_members": "No members yet",
-    "wallets.create_hint": "Or use the \"Create wallet\" button at top-right to add a new wallet.",
+    "wallets.create_hint":
+      'Or use the "Create wallet" button at top-right to add a new wallet.',
     "wallets.tab.personal": "Personal",
     "wallets.tab.group": "Group",
     "wallets.tab.shared": "Shared",
@@ -1979,7 +2348,8 @@ const translations = {
     "wallets.role.member": "Member Wallet",
     "wallets.role.viewer": "Viewer Wallet",
     "wallets.no_shared_with_me": "No shared wallets for you.",
-    "wallets.shared_owner_hint": "Select a shared owner to see their wallets in the details pane.",
+    "wallets.shared_owner_hint":
+      "Select a shared owner to see their wallets in the details pane.",
     "wallets.empty_list": "No wallets in this section.",
     "wallets.no_name": "Unnamed",
     "wallets.type.group": "Group",
@@ -1988,15 +2358,20 @@ const translations = {
     "wallets.type.edit": "Edit",
     "wallets.members": "Members",
     "wallets.more": "more",
-    "wallets.header_subtitle": "Create personal wallets, top-up, withdraw, transfer, merge and share... all on one screen.",
+    "wallets.header_subtitle":
+      "Create personal wallets, top-up, withdraw, transfer, merge and share... all on one screen.",
     "wallets.demo_navigating_title": "Navigating...",
-    "wallets.demo_hint": "This is a demo; functionality will be completed in the official release.",
-    "wallets.toast.topup_success": "Top-up successful. Transaction saved to history.",
+    "wallets.demo_hint":
+      "This is a demo; functionality will be completed in the official release.",
+    "wallets.toast.topup_success":
+      "Top-up successful. Transaction saved to history.",
     "wallets.toast.transfer_success": "Transfer successful",
     "wallets.share_success": "Shared wallet with",
     "wallets.error.email_invalid": "Please enter a valid email.",
-    "wallets.error.select_wallet_first": "Please select a wallet before sharing.",
-    "wallets.error.email_already_shared": "This email is already in the shared list.",
+    "wallets.error.select_wallet_first":
+      "Please select a wallet before sharing.",
+    "wallets.error.email_already_shared":
+      "This email is already in the shared list.",
     "wallets.error.no_created_info": "No wallet info returned after creation",
     "wallets.toast.shared_count_suffix": "shared with {count} people",
     "wallets.toast.share_failed_for": "failed to share for",
@@ -2005,12 +2380,16 @@ const translations = {
     "wallets.personal_wallets": "Personal Wallets",
     "wallets.count_unit": "wallets",
     "wallets.total_balance_personal": "TOTAL BALANCE (PERSONAL)",
-    "wallets.total_balance_personal_desc": "Total balance of active personal wallets.",
-    "wallets.no_personal_wallets": "No wallets yet. Click <strong>New Wallet</strong> to add your first one.",
+    "wallets.total_balance_personal_desc":
+      "Total balance of active personal wallets.",
+    "wallets.no_personal_wallets":
+      "No wallets yet. Click <strong>New Wallet</strong> to add your first one.",
     "wallets.group_wallets": "Group Wallets",
     "wallets.total_balance_group": "TOTAL BALANCE (GROUP)",
-    "wallets.total_balance_group_desc": "Total balance of active group wallets.",
-    "wallets.no_group_wallets": "No group wallets yet. Select <strong>Create Group Wallet</strong> in the “New Wallet” menu.",
+    "wallets.total_balance_group_desc":
+      "Total balance of active group wallets.",
+    "wallets.no_group_wallets":
+      "No group wallets yet. Select <strong>Create Group Wallet</strong> in the “New Wallet” menu.",
     "wallets.toast.deleted": "Deleted wallet",
     "wallets.toast.created_personal": "Created personal wallet",
     "wallets.toast.created_group": "Created group wallet",
@@ -2020,14 +2399,21 @@ const translations = {
     "wallets.toast.topup_error": "Failed to top up",
     "wallets.toast.withdraw_error": "Failed to withdraw",
     "wallets.toast.merge_error": "Failed to merge wallets",
-    "wallets.toast.merge_set_default": "Merged wallets and set the target as the new default.",
-    "wallets.toast.merge_cleared_default": "Merged wallets and cleared the default wallet.",
-    "wallets.toast.merge_default_error": "Merged successfully but could not update the default wallet state.",
-    "wallets.error.merge_personal_only": "You can only merge between personal wallets you own.",
+    "wallets.toast.merge_set_default":
+      "Merged wallets and set the target as the new default.",
+    "wallets.toast.merge_cleared_default":
+      "Merged wallets and cleared the default wallet.",
+    "wallets.toast.merge_default_error":
+      "Merged successfully but could not update the default wallet state.",
+    "wallets.error.merge_personal_only":
+      "You can only merge between personal wallets you own.",
     "wallets.toast.converted": "Wallet type converted successfully",
-    "wallets.toast.delete_requires_zero_balance": "Please empty this wallet before deleting it.",
-    "wallets.toast.deleted_with_transactions": "Deleted the wallet and {count} related transactions.",
-    "wallets.toast.delete_transactions_failed": "Unable to remove this wallet's transaction history.",
+    "wallets.toast.delete_requires_zero_balance":
+      "Please empty this wallet before deleting it.",
+    "wallets.toast.deleted_with_transactions":
+      "Deleted the wallet and {count} related transactions.",
+    "wallets.toast.delete_transactions_failed":
+      "Unable to remove this wallet's transaction history.",
     "wallets.modal.delete_title": "Delete Wallet",
     "wallets.modal.delete_confirm": "Delete wallet",
     "wallets.modal.delete_btn": "Delete",
@@ -2049,8 +2435,10 @@ const translations = {
     "wallets.inspector.tab.merge": "Merge",
     "wallets.inspector.tab.convert": "Convert",
     "wallets.inspector.no_wallet_selected": "No wallet selected",
-    "wallets.inspector.select_hint": "Click a wallet on the left to view details.",
-    "wallets.inspector.details_desc": "Manage transactions and balance for this wallet.",
+    "wallets.inspector.select_hint":
+      "Click a wallet on the left to view details.",
+    "wallets.inspector.details_desc":
+      "Manage transactions and balance for this wallet.",
     "wallets.inspector.current_balance": "Current Balance",
     "wallets.inspector.spent": "Spent",
     "wallets.inspector.remaining": "Remaining",
@@ -2068,31 +2456,39 @@ const translations = {
     "wallets.inspector.withdraw_error": "Invalid amount or exceeds balance.",
     "wallets.inspector.withdraw_confirm": "Confirm Withdraw",
     "wallets.inspector.transfer_direction": "Direction",
-    "wallets.inspector.transfer_this_to_other": "Transfer from this wallet to another",
-    "wallets.inspector.transfer_other_to_this": "Transfer from another wallet to this one",
+    "wallets.inspector.transfer_this_to_other":
+      "Transfer from this wallet to another",
+    "wallets.inspector.transfer_other_to_this":
+      "Transfer from another wallet to this one",
     "wallets.inspector.select_target": "Select Target Wallet",
     "wallets.inspector.select_source": "Select Source Wallet",
     "wallets.inspector.select_wallet_placeholder": "-- Select Wallet --",
-    "wallets.inspector.diff_currency_warning": "⚠ Different currencies — will be converted to target currency.",
+    "wallets.inspector.diff_currency_warning":
+      "⚠ Different currencies — will be converted to target currency.",
     "wallets.inspector.transfer_amount": "Transfer Amount",
     "wallets.inspector.transfer_amount_placeholder": "Enter amount in",
     "wallets.inspector.source": "source",
     "wallets.inspector.source_balance": "Source Balance:",
     "wallets.inspector.exchange_rate": "Exchange Rate:",
-    "wallets.inspector.transfer_error": "Invalid amount or exceeds source balance.",
+    "wallets.inspector.transfer_error":
+      "Invalid amount or exceeds source balance.",
     "wallets.inspector.sender_wallet": "Sender:",
     "wallets.inspector.receiver_wallet": "Receiver:",
     "wallets.inspector.before": "Before:",
     "wallets.inspector.after": "After:",
     "wallets.inspector.change": "Change:",
     "wallets.inspector.converted": "Converted:",
-    "wallets.inspector.transfer_warning_1": "Amount will be deducted from source and added to target.",
-    "wallets.inspector.transfer_warning_2": "Currency conversion will apply based on current rates.",
-    "wallets.inspector.transfer_warning_3": "This action may create a transfer transaction.",
+    "wallets.inspector.transfer_warning_1":
+      "Amount will be deducted from source and added to target.",
+    "wallets.inspector.transfer_warning_2":
+      "Currency conversion will apply based on current rates.",
+    "wallets.inspector.transfer_warning_3":
+      "This action may create a transfer transaction.",
     "wallets.inspector.transfer_confirm": "Confirm Transfer",
     "wallets.inspector.merge_mode": "Merge Mode",
     "wallets.inspector.merge_this_to_other": "Merge this wallet into another",
-    "wallets.inspector.merge_other_to_this": "Merge another wallet into this one",
+    "wallets.inspector.merge_other_to_this":
+      "Merge another wallet into this one",
     "wallets.inspector.diff_currency": "⚠ Different currencies",
     "wallets.inspector.keep": "Keep",
     "wallets.inspector.follow_target": "(target currency)",
@@ -2105,8 +2501,10 @@ const translations = {
     "wallets.inspector.currency_type": "Currency:",
     "wallets.inspector.new_balance": "New Balance:",
     "wallets.inspector.total_tx": "Total Tx:",
-    "wallets.inspector.merge_warning_1": "Source wallet will be <b>permanently deleted</b> after merge.",
-    "wallets.inspector.merge_warning_2": "All transactions will be moved to target wallet.",
+    "wallets.inspector.merge_warning_1":
+      "Source wallet will be <b>permanently deleted</b> after merge.",
+    "wallets.inspector.merge_warning_2":
+      "All transactions will be moved to target wallet.",
     "wallets.inspector.merge_warning_3": "This action cannot be undone.",
     "wallets.inspector.merging": "Merging...",
     "wallets.inspector.merge_confirm": "Confirm Merge",
@@ -2131,7 +2529,8 @@ const translations = {
     "wallets.modal.note_label": "Note (optional)",
     "wallets.modal.description_label": "Description (optional)",
     "wallets.modal.note_placeholder": "Note for this wallet (max 200 chars)",
-    "wallets.modal.group_note_placeholder": "Note for group wallet (max 200 chars)",
+    "wallets.modal.group_note_placeholder":
+      "Note for group wallet (max 200 chars)",
     "wallets.modal.default_label": "Set as default wallet for {currency}",
     "wallets.modal.edit_default_label": "Set as default wallet",
     "wallets.modal.characters": "characters",
@@ -2140,58 +2539,69 @@ const translations = {
     "wallets.modal.add": "Add",
     "wallets.modal.cancel": "Cancel",
     "wallets.transfer.note_placeholder": "Note for this transfer...",
-    "wallets.detail.empty_share_owner": "You haven't shared this wallet with anyone yet.",
-    "wallets.detail.empty_share_viewer": "This wallet is being shared with you by someone else.",
+    "wallets.detail.empty_share_owner":
+      "You haven't shared this wallet with anyone yet.",
+    "wallets.detail.empty_share_viewer":
+      "This wallet is being shared with you by someone else.",
     "wallets.detail.empty_share_member": "No members have been shared yet.",
     "wallets.detail.no_note": "No note yet.",
-    
+
     // Topup Tab
     "wallets.topup.title": "Top up wallet",
     "wallets.topup.subtitle": "Add more balance to the current wallet.",
     "wallets.topup.category_label": "Category",
     "wallets.topup.category_placeholder": "Select category",
     "wallets.topup.amount_label": "Top up amount",
-    "wallets.topup.amount_placeholder": "Enter amount (e.g.: 1,000,000.5 or 20.5)",
+    "wallets.topup.amount_placeholder":
+      "Enter amount (e.g.: 1,000,000.5 or 20.5)",
     "wallets.topup.current_balance": "Current balance",
     "wallets.topup.note_placeholder": "Enter note (optional)",
     "wallets.topup.error.category_required": "Please select a category.",
     "wallets.topup.error.invalid_amount": "Invalid amount.",
     "wallets.topup.confirm_button": "Confirm top up",
-    
+
     // Withdraw Tab
     "wallets.withdraw.title": "Withdraw from wallet",
-    "wallets.withdraw.subtitle": "Withdraw money and select appropriate category.",
+    "wallets.withdraw.subtitle":
+      "Withdraw money and select appropriate category.",
     "wallets.withdraw.category_label": "Category",
     "wallets.withdraw.category_placeholder": "Select category",
     "wallets.withdraw.amount_label": "Withdraw amount",
-    "wallets.withdraw.amount_placeholder": "Enter amount (e.g.: 1,000,000.5 or 20.5)",
+    "wallets.withdraw.amount_placeholder":
+      "Enter amount (e.g.: 1,000,000.5 or 20.5)",
     "wallets.withdraw.current_balance": "Current balance",
     "wallets.withdraw.note_placeholder": "Enter note (optional)",
     "wallets.withdraw.error.category_required": "Please select a category.",
-    "wallets.withdraw.error.invalid_amount": "Invalid amount or exceeds balance.",
+    "wallets.withdraw.error.invalid_amount":
+      "Invalid amount or exceeds balance.",
     "wallets.withdraw.confirm_button": "Confirm withdraw",
-    
+
     // Transfer Tab
     "wallets.transfer.title": "Transfer between wallets",
-    "wallets.transfer.subtitle": "Transfer money from current wallet to another wallet (VND only).",
+    "wallets.transfer.subtitle":
+      "Transfer money from current wallet to another wallet (VND only).",
     "wallets.transfer.source_label": "Source wallet",
     "wallets.transfer.current_wallet": "Current wallet",
     "wallets.transfer.source_balance": "Source wallet balance",
     "wallets.transfer.target_label": "Target wallet",
     "wallets.transfer.target_placeholder": "-- Select target wallet --",
-    "wallets.transfer.target_hint": "Only wallets you have permission to operate will appear in this list.",
+    "wallets.transfer.target_hint":
+      "Only wallets you have permission to operate will appear in this list.",
     "wallets.transfer.target_balance": "Target wallet balance",
     "wallets.transfer.amount_label": "Transfer amount (VND)",
-    "wallets.transfer.amount_placeholder": "Enter amount (e.g.: 1,000,000 or 20) in VND",
-    "wallets.transfer.error.invalid_amount": "Invalid amount or exceeds balance.",
+    "wallets.transfer.amount_placeholder":
+      "Enter amount (e.g.: 1,000,000 or 20) in VND",
+    "wallets.transfer.error.invalid_amount":
+      "Invalid amount or exceeds balance.",
     "wallets.transfer.confirm_button": "Confirm transfer",
     "wallets.transfer.group_tag": "(Group)",
     "wallets.transfer.personal_tag": "(Personal)",
     "wallets.no_name": "Untitled",
-    
+
     // Detail View Tab
     "wallets.detail.title": "Wallet details",
-    "wallets.detail.subtitle": "Basic information, sharing and transaction history.",
+    "wallets.detail.subtitle":
+      "Basic information, sharing and transaction history.",
     "wallets.detail.info_section": "Information & sharing",
     "wallets.detail.type_label": "Wallet type",
     "wallets.detail.currency_label": "Currency",
@@ -2202,49 +2612,63 @@ const translations = {
     "wallets.detail.transaction_count_label": "Transaction count",
     "wallets.detail.loading_transactions": "Loading transaction history...",
     "wallets.detail.no_transactions": "No transactions for this wallet yet.",
-    
+
     // Edit Tab
-    "wallets.edit.subtitle": "Edit basic wallet information. Add members in the \"Manage Members\" tab.",
+    "wallets.edit.subtitle":
+      'Edit basic wallet information. Add members in the "Manage Members" tab.',
     "wallets.edit.current_balance_label": "Current balance",
     "wallets.edit.currency_label": "Currency",
     "wallets.edit.created_at_label": "Created at",
     "wallets.edit.delete_button": "Delete this wallet",
     "wallets.edit.save_button": "Save changes",
     "wallets.edit.delete_confirm_title": "Confirm delete wallet",
-    "wallets.edit.delete_confirm_message": "Are you sure you want to delete wallet \"{name}\"? This action cannot be undone.",
-    
+    "wallets.edit.delete_confirm_message":
+      'Are you sure you want to delete wallet "{name}"? This action cannot be undone.',
+
     // Convert Tab
     "wallets.convert.tab_title": "Convert to group wallet",
     "wallets.convert.title": "Convert to group wallet",
-    "wallets.convert.subtitle": "After conversion, this wallet will become a group wallet. You can add members in the sharing section.",
+    "wallets.convert.subtitle":
+      "After conversion, this wallet will become a group wallet. You can add members in the sharing section.",
     "wallets.convert.summary_label": "Wallet summary",
     "wallets.convert.name_label": "Wallet name",
     "wallets.convert.status_label": "Status",
     "wallets.convert.status_group": "Already a group wallet",
     "wallets.convert.status_personal": "Currently a personal wallet",
-    "wallets.convert.warning_title": "You are converting a default wallet to a group wallet",
-    "wallets.convert.warning_message_1": "is currently the default wallet of the system.",
-    "wallets.convert.warning_message_2": "Group wallets are not allowed to be set as default, so you need to choose how to handle the current default wallet.",
+    "wallets.convert.warning_title":
+      "You are converting a default wallet to a group wallet",
+    "wallets.convert.warning_message_1":
+      "is currently the default wallet of the system.",
+    "wallets.convert.warning_message_2":
+      "Group wallets are not allowed to be set as default, so you need to choose how to handle the current default wallet.",
     "wallets.convert.default_handling_title": "Choose default wallet handling",
-    "wallets.convert.option_choose_other_title": "Select another personal wallet as new default",
-    "wallets.convert.option_choose_other_desc": "After converting to group wallet, the selected wallet below will become the default.",
+    "wallets.convert.option_choose_other_title":
+      "Select another personal wallet as new default",
+    "wallets.convert.option_choose_other_desc":
+      "After converting to group wallet, the selected wallet below will become the default.",
     "wallets.convert.option_no_default_title": "Temporarily no default wallet",
-    "wallets.convert.option_no_default_desc": "The system will temporarily have no default wallet. You can set a default wallet later in wallet management.",
-    "wallets.convert.no_other_wallet_hint": "You currently have no other personal wallets. After converting this wallet to a group wallet, the system will temporarily have no default wallet. You can create a new personal wallet and set it as default later.",
+    "wallets.convert.option_no_default_desc":
+      "The system will temporarily have no default wallet. You can set a default wallet later in wallet management.",
+    "wallets.convert.no_other_wallet_hint":
+      "You currently have no other personal wallets. After converting this wallet to a group wallet, the system will temporarily have no default wallet. You can create a new personal wallet and set it as default later.",
     "wallets.convert.other_personal_wallet": "Other personal wallet",
     "wallets.convert.already_group": "Already a group wallet",
     "wallets.convert.convert_button": "Convert to group wallet",
-    
+
     // Merge Tab
     "wallets.merge.title": "Merge wallets",
-    "wallets.merge.budget_blocking": "Cannot merge because wallet is being used for budget.",
+    "wallets.merge.budget_blocking":
+      "Cannot merge because wallet is being used for budget.",
     "wallets.merge.select_wallet_hint": "Please select a wallet to merge.",
     "wallets.merge.step_2_title": "Step 2 – Select target wallet",
     "wallets.merge.step_pill": "Merge wallet · 5 steps",
-    "wallets.merge.relation_this_into_other": "Merge wallet {thisName} into {otherName}",
-    "wallets.merge.relation_other_into_this": "Merge wallet {otherName} into {thisName}",
+    "wallets.merge.relation_this_into_other":
+      "Merge wallet {thisName} into {otherName}",
+    "wallets.merge.relation_other_into_this":
+      "Merge wallet {otherName} into {thisName}",
     "wallets.merge.summary_title": "Source & target wallet summary",
-    "wallets.merge.summary_subtitle": "Review before proceeding with wallet merge.",
+    "wallets.merge.summary_subtitle":
+      "Review before proceeding with wallet merge.",
     "wallets.merge.current_wallet_title": "CURRENT WALLET",
     "wallets.merge.currency_label": "Currency",
     "wallets.merge.balance_label": "Balance",
@@ -2257,18 +2681,23 @@ const translations = {
     "wallets.merge.setup_title": "Set up merge & select wallet",
     "wallets.merge.setup_subtitle": "Choose merge direction and target wallet.",
     "wallets.merge.direction_this_into_other": "Merge this wallet into another",
-    "wallets.merge.direction_other_into_this": "Merge another wallet into this one",
-    "wallets.merge.direction_hint": "The balance and transactions of the current wallet will be transferred to the selected wallet.",
+    "wallets.merge.direction_other_into_this":
+      "Merge another wallet into this one",
+    "wallets.merge.direction_hint":
+      "The balance and transactions of the current wallet will be transferred to the selected wallet.",
     "wallets.merge.select_target_title_1": "Select target wallet to merge into",
-    "wallets.merge.select_target_title_2": "Select wallet to merge into this one",
-    "wallets.merge.select_target_hint": "Only personal wallets owned by you are allowed to be merged. Group wallets or wallets shared by others will not appear here.",
+    "wallets.merge.select_target_title_2":
+      "Select wallet to merge into this one",
+    "wallets.merge.select_target_hint":
+      "Only personal wallets owned by you are allowed to be merged. Group wallets or wallets shared by others will not appear here.",
     "wallets.merge.search_placeholder": "Search by wallet name...",
     "wallets.merge.continue_button": "Continue",
-    
+
     // Manage Members Tab
     "wallets.manage_members.tab_title": "Manage users",
     "wallets.manage_members.title": "Manage users",
-    "wallets.manage_members.subtitle": "Control the list of people shared with wallet \"{name}\".",
+    "wallets.manage_members.subtitle":
+      'Control the list of people shared with wallet "{name}".',
     "wallets.manage_members.add_member": "+ Add shared member",
     "wallets.manage_members.collapse_add": "- Add",
     "wallets.manage_members.loading": "Loading list...",
@@ -2276,11 +2705,14 @@ const translations = {
     "wallets.manage_members.removing": "Removing...",
     "wallets.manage_members.remove": "Remove",
     "wallets.manage_members.confirm_share_title": "Confirm share",
-    "wallets.manage_members.confirm_share_message": "Are you sure you want to share wallet \"{name}\" with {email}?",
+    "wallets.manage_members.confirm_share_message":
+      'Are you sure you want to share wallet "{name}" with {email}?',
     "wallets.manage_members.confirm_remove_title": "Remove user",
-    "wallets.manage_members.confirm_remove_message": "Are you sure you want to remove access rights of {name}?",
+    "wallets.manage_members.confirm_remove_message":
+      "Are you sure you want to remove access rights of {name}?",
     "wallets.manage_members.confirm_role_title": "Confirm permission",
-    "wallets.manage_members.confirm_role_message": "Are you sure you want to set {name}'s permission to \"{role}\"?",
+    "wallets.manage_members.confirm_role_message":
+      'Are you sure you want to set {name}\'s permission to "{role}"?',
     "wallets.manage_members.role_owner": "Owner",
     "wallets.manage_members.role_member": "Member",
     "wallets.manage_members.role_viewer": "Viewer",
@@ -2320,21 +2752,25 @@ const translations = {
 
     // Funds Page
     "funds.title": "Your Funds",
-    "funds.subtitle": "Track and manage savings funds, group funds, and funds you participate in.",
+    "funds.subtitle":
+      "Track and manage savings funds, group funds, and funds you participate in.",
     "funds.btn.create_personal": "Create Personal Fund",
     "funds.btn.create_group": "Create Group Fund",
     "funds.btn.manage_participate": "Manage Participated Funds",
     "funds.btn.back": "Back to Funds List",
     "funds.empty.title": "No funds yet",
-    "funds.empty.desc": "Start by creating a <strong>personal fund</strong> or <strong>group fund</strong> that suits your financial goals.",
+    "funds.empty.desc":
+      "Start by creating a <strong>personal fund</strong> or <strong>group fund</strong> that suits your financial goals.",
     "funds.section.personal": "Personal Funds",
     "funds.section.personal_desc": "Savings funds owned and managed by you.",
     "funds.section.group": "Group Funds",
-    "funds.section.group_desc": "Funds shared with friends, family, or class/group.",
+    "funds.section.group_desc":
+      "Funds shared with friends, family, or class/group.",
     "funds.section.personal_term": "Term Personal Funds",
     "funds.section.personal_term_desc": "Funds with a clear end date.",
     "funds.section.personal_no_term": "No-Term Personal Funds",
-    "funds.section.personal_no_term_desc": "Long-term accumulation funds, no fixed end date.",
+    "funds.section.personal_no_term_desc":
+      "Long-term accumulation funds, no fixed end date.",
     "funds.section.group_term": "Term Group Funds",
     "funds.section.group_term_desc": "Shared funds with a target deadline.",
     "funds.section.group_no_term": "No-Term Group Funds",
@@ -2363,7 +2799,8 @@ const translations = {
     "funds.detail.role.view": "Viewer",
     "funds.detail.btn.edit": "Edit this fund",
     "funds.detail.edit_title": "Edit Fund",
-    "funds.detail.edit_hint": "Click <strong>Edit this fund</strong> on the left to enable full editing mode.",
+    "funds.detail.edit_hint":
+      "Click <strong>Edit this fund</strong> on the left to enable full editing mode.",
     "funds.form.name": "Fund Name",
     "funds.form.type": "Fund Type",
     "funds.form.term": "Term",
@@ -2375,34 +2812,43 @@ const translations = {
     "funds.form.note": "Note",
     "funds.form.note_placeholder": "Goal, additional notes...",
     "funds.form.members": "Fund Members",
-    "funds.form.members_hint": "You can add, remove, and update member information.",
+    "funds.form.members_hint":
+      "You can add, remove, and update member information.",
     "funds.form.add_member": "Add Member",
     "funds.form.cancel": "Cancel",
     "funds.form.save": "Save Changes",
     "funds.participate.view_title": "Participated Funds (View Only)",
-    "funds.participate.view_desc": "You only have permission to view balance and history.",
+    "funds.participate.view_desc":
+      "You only have permission to view balance and history.",
     "funds.participate.use_title": "Participated Funds (Usage Allowed)",
-    "funds.participate.use_desc": "You are allowed to manipulate funds and manage members (depending on role).",
+    "funds.participate.use_desc":
+      "You are allowed to manipulate funds and manage members (depending on role).",
     "funds.participate.select_hint_title": "Select a fund to use",
-    "funds.participate.select_hint_desc": "Click on a fund in the <strong>Participated Funds (Usage Allowed)</strong> section on the left to view details and manage members.",
+    "funds.participate.select_hint_desc":
+      "Click on a fund in the <strong>Participated Funds (Usage Allowed)</strong> section on the left to view details and manage members.",
     "funds.participate.manage_title": "Manage Participated Fund",
     "funds.participate.name_hint": "You can rename this fund (demo on FE).",
     "funds.participate.role": "Your Role",
-    "funds.participate.role_hint": "You only have view permission. Cannot edit members in this fund.",
-    "funds.participate.role_manage_hint": "You can add, remove, and edit name / email / role of members.",
+    "funds.participate.role_hint":
+      "You only have view permission. Cannot edit members in this fund.",
+    "funds.participate.role_manage_hint":
+      "You can add, remove, and edit name / email / role of members.",
     "funds.participate.close": "Close Details",
 
     // Funds Form & Blocks
     "funds.form.target_invalid": "Please enter a valid target amount.",
-    "funds.form.target_error_balance": "Target amount must be greater than current wallet balance ({balance} {currency}).",
+    "funds.form.target_error_balance":
+      "Target amount must be greater than current wallet balance ({balance} {currency}).",
     "funds.form.freq_day": "Daily",
     "funds.form.freq_week": "Weekly",
     "funds.form.freq_month": "Monthly",
     "funds.form.freq_year": "Yearly",
-    "funds.form.estimate_text": "Estimated completion in about {duration}, around {date}.",
+    "funds.form.estimate_text":
+      "Estimated completion in about {duration}, around {date}.",
     "funds.form.alert_wallet": "Please select a source wallet before saving.",
     "funds.form.alert_target": "Please enter a target amount.",
-    "funds.form.alert_target_invalid": "Invalid target amount, please check again.",
+    "funds.form.alert_target_invalid":
+      "Invalid target amount, please check again.",
     "funds.form.info_legend": "Fund Information",
     "funds.form.name_placeholder": "Ex: Motorbike Fund",
     "funds.form.name_hint": "Max 50 characters.",
@@ -2412,18 +2858,21 @@ const translations = {
     "funds.form.target_legend": "Target & Frequency",
     "funds.form.target_amount": "Target Amount",
     "funds.form.target_placeholder": "Enter target amount",
-    "funds.form.target_hint": "Must be greater than source wallet balance. Fund currency will match source wallet.",
+    "funds.form.target_hint":
+      "Must be greater than source wallet balance. Fund currency will match source wallet.",
     "funds.form.freq_legend_optional": "Deposit Frequency (Optional)",
     "funds.form.freq_label": "Deposit Frequency",
     "funds.form.period_amount": "Amount per Period",
     "funds.form.period_placeholder": "Enter amount per period",
-    "funds.form.period_hint": "Used to estimate completion time based on selected frequency.",
+    "funds.form.period_hint":
+      "Used to estimate completion time based on selected frequency.",
     "funds.form.start_date": "Start Date",
     "funds.form.end_date": "End date (Adjustable)",
     "funds.form.save_personal": "Save Personal Fund",
     "funds.form.name_placeholder_no_term": "Ex: Emergency Fund",
     "funds.form.period_placeholder_optional": "Optional",
-    "funds.form.alert_wallet_group": "Please select a source wallet before saving group fund.",
+    "funds.form.alert_wallet_group":
+      "Please select a source wallet before saving group fund.",
     "funds.form.info_legend_group": "Group Fund Information",
     "funds.form.name_group": "Group Fund Name",
     "funds.form.name_placeholder_group": "Ex: Team Lunch Fund",
@@ -2431,7 +2880,8 @@ const translations = {
     "funds.form.wallet_source": "Source Wallet",
     "funds.form.wallet_search_placeholder": "Type to search wallet...",
     "funds.form.wallet_not_found": "No suitable wallet found.",
-    "funds.form.wallet_hint": "Shows wallets matching current fund type (personal/group). Scroll horizontally if list is long.",
+    "funds.form.wallet_hint":
+      "Shows wallets matching current fund type (personal/group). Scroll horizontally if list is long.",
     "funds.form.week_mon": "Mon",
     "funds.form.week_tue": "Tue",
     "funds.form.week_wed": "Wed",
@@ -2444,111 +2894,145 @@ const translations = {
     "funds.form.reminder_day_week": "Day of Week",
     "funds.form.reminder_hint_week": "Ex: Friday at 21:00 weekly reminder.",
     "funds.form.reminder_day_month": "Day of Month",
-    "funds.form.reminder_hint_month": "Ex: 5th of every month at 09:00 reminder.",
+    "funds.form.reminder_hint_month":
+      "Ex: 5th of every month at 09:00 reminder.",
     "funds.form.reminder_time_custom_day": "Reminder Time (Daily)",
-    "funds.form.reminder_hint_custom_day": "System will remind you daily at selected time.",
-    "funds.form.reminder_hint_custom_week": "Ex: Saturday at 20:30 reminder, regardless of deposit frequency.",
-    "funds.form.reminder_hint_custom_month": "Ex: 25th of every month at 19:00 reminder.",
+    "funds.form.reminder_hint_custom_day":
+      "System will remind you daily at selected time.",
+    "funds.form.reminder_hint_custom_week":
+      "Ex: Saturday at 20:30 reminder, regardless of deposit frequency.",
+    "funds.form.reminder_hint_custom_month":
+      "Ex: 25th of every month at 19:00 reminder.",
     "funds.form.reminder_legend": "Reminder",
     "funds.form.reminder_toggle": "Enable reminder for this fund",
     "funds.form.reminder_off_hint": "You can enable it later to get reminders.",
     "funds.form.reminder_mode_follow": "Follow Deposit Frequency ({freq})",
     "funds.form.reminder_mode_custom": "Custom Schedule",
-    "funds.form.reminder_follow_hint": "System will use same frequency as <strong>Amount per Period</strong>. You just select specific time/day.",
+    "funds.form.reminder_follow_hint":
+      "System will use same frequency as <strong>Amount per Period</strong>. You just select specific time/day.",
     "funds.form.reminder_type_label": "Reminder Type",
     "funds.form.reminder_type_day": "Daily",
     "funds.form.reminder_type_week": "Weekly",
     "funds.form.reminder_type_month": "Monthly",
-    "funds.form.reminder_custom_hint": "You can choose daily/weekly/monthly reminder, independent of deposit frequency.",
+    "funds.form.reminder_custom_hint":
+      "You can choose daily/weekly/monthly reminder, independent of deposit frequency.",
     "funds.form.auto_topup_time_day": "Time & Amount (Daily)",
     "funds.form.auto_topup_amount_day": "Auto-deposit amount daily",
-    "funds.form.auto_topup_hint_day": "Ex: 08:00 – 100,000 VND, system auto-deposits daily.",
+    "funds.form.auto_topup_hint_day":
+      "Ex: 08:00 – 100,000 VND, system auto-deposits daily.",
     "funds.form.auto_topup_time_week": "Time & Amount (Weekly)",
     "funds.form.auto_topup_amount_week": "Auto-deposit amount weekly",
-    "funds.form.auto_topup_hint_week": "Ex: Friday 21:00 – 200,000 VND, system auto-deposits weekly.",
+    "funds.form.auto_topup_hint_week":
+      "Ex: Friday 21:00 – 200,000 VND, system auto-deposits weekly.",
     "funds.form.auto_topup_time_month": "Time & Amount (Monthly)",
     "funds.form.auto_topup_amount_month": "Auto-deposit amount monthly",
-    "funds.form.auto_topup_hint_month": "Ex: 10th 09:00 – 500,000 VND, system auto-deposits.",
+    "funds.form.auto_topup_hint_month":
+      "Ex: 10th 09:00 – 500,000 VND, system auto-deposits.",
     "funds.form.auto_topup_legend": "Auto Top-up",
     "funds.form.auto_topup_toggle": "Enable auto top-up",
-    "funds.form.auto_topup_off_hint": "When enabled, system can auto-deposit based on your schedule.",
+    "funds.form.auto_topup_off_hint":
+      "When enabled, system can auto-deposit based on your schedule.",
     "funds.form.auto_topup_mode_follow": "Follow Reminder Schedule",
     "funds.form.auto_topup_mode_custom": "Custom Schedule",
-    "funds.form.auto_topup_no_reminder_hint": "To use <strong>Follow Reminder Schedule</strong>, please enable and configure reminder above.",
+    "funds.form.auto_topup_no_reminder_hint":
+      "To use <strong>Follow Reminder Schedule</strong>, please enable and configure reminder above.",
     "funds.form.auto_topup_mode_follow_label": "Follow Reminder Mode",
-    "funds.form.auto_topup_mode_follow_hint": "System will auto-deposit on <strong>same schedule</strong> as <strong>Deposit Frequency</strong> ({freq}) and time selected in <strong>Reminder</strong>.",
+    "funds.form.auto_topup_mode_follow_hint":
+      "System will auto-deposit on <strong>same schedule</strong> as <strong>Deposit Frequency</strong> ({freq}) and time selected in <strong>Reminder</strong>.",
     "funds.form.auto_topup_type_label": "Auto-topup Type",
     "funds.form.auto_topup_type_day": "Daily",
     "funds.form.auto_topup_type_week": "Weekly",
     "funds.form.auto_topup_type_month": "Monthly",
-    "funds.form.auto_topup_custom_hint": "This schedule is <strong>independent</strong> of deposit frequency or reminder.",
-    
+    "funds.form.auto_topup_custom_hint":
+      "This schedule is <strong>independent</strong> of deposit frequency or reminder.",
+
     // Fund Form Errors (EN)
     "funds.form.error.name_required": "Please enter fund name.",
-    "funds.form.error.source_wallet_required": "Please select source wallet to deposit into fund.",
+    "funds.form.error.source_wallet_required":
+      "Please select source wallet to deposit into fund.",
     "funds.form.error.target_required": "Please enter fund target amount.",
-    "funds.form.error.target_min": "Target amount must be greater than or equal to {min} {currency}.",
+    "funds.form.error.target_min":
+      "Target amount must be greater than or equal to {min} {currency}.",
     "funds.form.error.start_date_required": "Please select start date.",
-    "funds.form.error.start_date_future": "Start date must be from today onwards.",
+    "funds.form.error.start_date_future":
+      "Start date must be from today onwards.",
     "funds.form.error.start_date_past": "Start date cannot be in the past!",
-    "funds.form.error.period_amount_required": "Please enter amount per period to calculate end date.",
-    "funds.form.error.cannot_calculate_end_date": "Cannot calculate end date. Please check entered information.",
+    "funds.form.error.period_amount_required":
+      "Please enter amount per period to calculate end date.",
+    "funds.form.error.cannot_calculate_end_date":
+      "Cannot calculate end date. Please check entered information.",
     "funds.form.error.reminder_config_required": "Please configure reminder.",
     "funds.form.error.reminder_time_required": "Please select reminder time.",
-    "funds.form.error.reminder_weekday_required": "Please select day of week for reminder.",
-    "funds.form.error.reminder_monthday_required": "Please select day of month for reminder.",
-    "funds.form.error.auto_topup_config_required": "Please configure auto deposit schedule.",
-    "funds.form.error.auto_topup_time_required": "Please select auto deposit time.",
-    "funds.form.error.auto_topup_weekday_required": "Please select day of week for auto deposit.",
-    "funds.form.error.auto_topup_monthday_required": "Please select day of month for auto deposit.",
-    "funds.form.error.auto_topup_start_date_required": "Please select auto deposit start time.",
+    "funds.form.error.reminder_weekday_required":
+      "Please select day of week for reminder.",
+    "funds.form.error.reminder_monthday_required":
+      "Please select day of month for reminder.",
+    "funds.form.error.auto_topup_config_required":
+      "Please configure auto deposit schedule.",
+    "funds.form.error.auto_topup_time_required":
+      "Please select auto deposit time.",
+    "funds.form.error.auto_topup_weekday_required":
+      "Please select day of week for auto deposit.",
+    "funds.form.error.auto_topup_monthday_required":
+      "Please select day of month for auto deposit.",
+    "funds.form.error.auto_topup_start_date_required":
+      "Please select auto deposit start time.",
     "funds.form.error.create_failed": "Failed to create fund: {error}",
-    "funds.form.error.create_generic": "An error occurred while creating fund. Please try again.",
+    "funds.form.error.create_generic":
+      "An error occurred while creating fund. Please try again.",
     "funds.form.error.currency_required": "Please select currency.",
     "funds.form.success.created": "Fund created successfully!",
-    
+
     // Fund Toast Messages (EN)
     "funds.toast.update_success": "Fund updated successfully!",
     "funds.toast.update_failed": "Failed to update fund: {error}",
     "funds.toast.update_error": "An error occurred while updating fund.",
-    
+
     // Fund History (EN)
     "funds.history.load_error": "Unable to load transaction history",
     "funds.history.load_error_generic": "Error loading transaction history",
     "funds.history.type.recovery": "Recovery auto deposit",
     "funds.history.type.auto": "Auto deposit",
     "funds.history.type.manual": "Manual deposit",
-    "funds.history.message.recovery_success": "Recovery auto deposit successful",
+    "funds.history.message.recovery_success":
+      "Recovery auto deposit successful",
     "funds.history.message.auto_success": "Auto deposit successful",
     "funds.history.message.manual_success": "Deposit successful",
-    
+
     // Fund Deposit (EN)
-    "funds.deposit.error.fund_closed": "Fund is closed or target completed, cannot deposit more.",
+    "funds.deposit.error.fund_closed":
+      "Fund is closed or target completed, cannot deposit more.",
     "funds.deposit.error.amount_invalid": "Please enter a valid amount.",
     "funds.deposit.error.amount_min": "Minimum deposit amount is 1,000.",
-    "funds.deposit.error.amount_less_than_period": "Deposit amount must be greater than or equal to period amount: {amount}.",
+    "funds.deposit.error.amount_less_than_period":
+      "Deposit amount must be greater than or equal to period amount: {amount}.",
     "funds.deposit.error.source_wallet_not_found": "Source wallet not found.",
-    "funds.deposit.error.insufficient_balance": "Insufficient source wallet balance! Current balance: {balance}",
+    "funds.deposit.error.insufficient_balance":
+      "Insufficient source wallet balance! Current balance: {balance}",
     "funds.deposit.error.failed": "Failed to deposit: {error}",
     "funds.deposit.error.generic": "An error occurred while depositing.",
     "funds.deposit.success": "Deposited {amount} into fund successfully!",
-    "funds.deposit.fund_completed": "Fund has completed target. Fund will be frozen and cannot deposit more.",
+    "funds.deposit.fund_completed":
+      "Fund has completed target. Fund will be frozen and cannot deposit more.",
     "funds.deposit.status.deposited_today": "Deposited today",
     "funds.deposit.status.not_deposited_today": "Not deposited today",
-    
+
     // Fund Withdraw (EN)
     "funds.withdraw.error.no_balance": "Fund has no balance to withdraw.",
     "funds.withdraw.error.failed": "Failed to withdraw: {error}",
     "funds.withdraw.error.generic": "An error occurred while withdrawing.",
-    "funds.withdraw.success": "Withdrew all {amount} to source wallet successfully!",
-    "funds.withdraw.success_complete": "🎉 Fund completed! Withdrew all {amount} to source wallet successfully!",
-    
+    "funds.withdraw.success":
+      "Withdrew all {amount} to source wallet successfully!",
+    "funds.withdraw.success_complete":
+      "🎉 Fund completed! Withdrew all {amount} to source wallet successfully!",
+
     // Fund Settle (EN)
     "funds.settle.error.no_balance": "Fund has no balance to settle.",
     "funds.settle.error.failed": "Failed to settle fund: {error}",
     "funds.settle.error.generic": "An error occurred while settling fund.",
-    "funds.settle.success": "✅ Fund settled successfully! Withdrew all {amount} to source wallet.",
-    
+    "funds.settle.success":
+      "✅ Fund settled successfully! Withdrew all {amount} to source wallet.",
+
     // Fund Delete (EN)
     "funds.delete.success": "Fund deleted successfully!",
     "funds.delete.error.failed": "Failed to delete fund: {error}",
@@ -2556,7 +3040,8 @@ const translations = {
 
     // Transactions Page
     "transactions.page.title": "Transaction Management",
-    "transactions.page.subtitle": "View, search, and manage recent income and expenses.",
+    "transactions.page.subtitle":
+      "View, search, and manage recent income and expenses.",
     "transactions.tab.external": "External Transactions",
     "transactions.tab.internal": "Internal Transfers",
     "transactions.btn.add": "Add New Transaction",
@@ -2590,11 +3075,13 @@ const translations = {
     "transactions.action.edit": "Edit",
     "transactions.action.delete": "Delete",
     "transactions.toast.add_success": "New transaction added.",
-    "transactions.toast.add_warning_success": "New transaction added (over budget).",
+    "transactions.toast.add_warning_success":
+      "New transaction added (over budget).",
     "transactions.toast.update_success": "Transaction updated.",
     "transactions.toast.delete_success": "Transaction deleted.",
     "transactions.confirm.delete_title": "Delete Transaction",
-    "transactions.confirm.delete_message": "Are you sure you want to delete transaction {code}?",
+    "transactions.confirm.delete_message":
+      "Are you sure you want to delete transaction {code}?",
     "transactions.confirm.delete_ok": "Delete",
     "transactions.confirm.delete_cancel": "Cancel",
 
@@ -2626,25 +3113,31 @@ const translations = {
     "transactions.form.choose_file": "Choose file",
     "transactions.form.no_file_chosen": "No file chosen",
     "transactions.form.transfer_legend": "Internal Transfer",
-    "transactions.form.transfer_hint": "Select source wallet, target wallet, and amount.",
+    "transactions.form.transfer_hint":
+      "Select source wallet, target wallet, and amount.",
     "transactions.form.source_wallet": "Source Wallet",
-    "transactions.form.source_wallet_placeholder": "Enter or select source wallet...",
+    "transactions.form.source_wallet_placeholder":
+      "Enter or select source wallet...",
     "transactions.form.target_wallet": "Target Wallet",
-    "transactions.form.target_wallet_placeholder": "Enter or select target wallet...",
+    "transactions.form.target_wallet_placeholder":
+      "Enter or select target wallet...",
     "transactions.form.transfer_note_placeholder": "Add note for transfer...",
     "transactions.form.select_option": "Select",
     "transactions.btn.cancel": "Cancel",
     "transactions.btn.save": "Save",
     "transactions.btn.expand": "Expand",
     "transactions.btn.collapse": "Collapse",
-    "transactions.form.no_wallets": "No wallets. Please create one before adding a transaction.",
+    "transactions.form.no_wallets":
+      "No wallets. Please create one before adding a transaction.",
     "transactions.form.amount_invalid": "Invalid amount or exceeds balance.",
     "transactions.form.auto_time_note": "Automatically uses current time",
     "transactions.form.converted_amount": "Converted amount:",
     "transactions.form.exchange_rate_prefix": "Exchange rate:",
     "transactions.form.file_too_large": "File size must not exceed 5MB",
-    "transactions.form.image_process_error": "Error processing image. Please try again.",
-    "transactions.form.need_two_wallets": "At least two wallets are required for transfers. Please create more wallets.",
+    "transactions.form.image_process_error":
+      "Error processing image. Please try again.",
+    "transactions.form.need_two_wallets":
+      "At least two wallets are required for transfers. Please create more wallets.",
     "transactions.history.title": "Transaction History",
 
     // Transaction View
@@ -2662,27 +3155,34 @@ const translations = {
     "transactions.view.code": "Transaction Code",
     "transactions.view.creator_code": "Creator Code",
     "transactions.view.attachment": "Attachment",
-    "transactions.view.attachment_hint": "Demo image. Will be fetched from API later.",
+    "transactions.view.attachment_hint":
+      "Demo image. Will be fetched from API later.",
     "transactions.btn.close": "Close",
     // Loading / Errors / Schedule (EN)
     "transactions.btn.clear": "Clear",
     "transactions.loading.list": "Loading transactions...",
-    "transactions.error.wallet_not_found": "Wallet \"{wallet}\" not found.",
-    "transactions.error.wallet_not_found_pair": "Source/target wallet not found. Please check wallet names.",
+    "transactions.error.wallet_not_found": 'Wallet "{wallet}" not found.',
+    "transactions.error.wallet_not_found_pair":
+      "Source/target wallet not found. Please check wallet names.",
     "transactions.error.create_failed": "Failed to create transaction",
     "transactions.error.id_not_found": "Transaction ID not found.",
     "transactions.error.update_failed": "Failed to update transaction",
     "transactions.error.delete_failed": "Failed to delete transaction",
-    "transactions.error.delete_wallet_negative": "Cannot delete transaction because it would make a wallet negative.",
-    "transactions.error.viewer_wallet_restricted": "You only have viewer permission on this wallet, so this action is not allowed.",
+    "transactions.error.delete_wallet_negative":
+      "Cannot delete transaction because it would make a wallet negative.",
+    "transactions.error.viewer_wallet_restricted":
+      "You only have viewer permission on this wallet, so this action is not allowed.",
     // Schedule translations
     "transactions.tab.schedule": "Schedules",
     "transactions.schedule.title": "Scheduled Transactions",
-    "transactions.schedule.desc": "Create and manage scheduled or pending transactions.",
+
     "transactions.schedule.create_btn": "Create Schedule",
     "transactions.schedule.tab.all": "All",
     "transactions.schedule.tab.pending": "Pending",
-    "transactions.schedule.tab.recurring": "Recurring",
+    "transactions.schedule.tab.active": "Active",
+    "transactions.schedule.tab.completed": "Completed",
+    "transactions.schedule.tab.failed": "Failed",
+    "transactions.schedule.tab.cancelled": "Cancelled",
     "transactions.schedule.amount": "Amount",
     "transactions.schedule.next_run": "Next run:",
     "transactions.schedule.completed_runs": "Completed runs",
@@ -2698,7 +3198,8 @@ const translations = {
 
     // Categories Page
     "categories.page.title": "Categories",
-    "categories.page.subtitle": "Add categories where you often spend money or receive money from.",
+    "categories.page.subtitle":
+      "Add categories where you often spend money or receive money from.",
     "categories.tab.expense": "Expense",
     "categories.tab.income": "Income",
     "categories.tab.system": "System",
@@ -2720,14 +3221,15 @@ const translations = {
     "categories.toast.add_success": "New category added.",
     "categories.toast.update_success": "Category updated.",
     "categories.toast.delete_success": "Category deleted.",
-    "categories.confirm.delete": "Delete category \"{name}\"?",
+    "categories.confirm.delete": 'Delete category "{name}"?',
 
     // Category Form
     "categories.form.title_edit": "Edit {type} Category",
     "categories.form.title_create": "Add {type} Category",
     "categories.form.title_edit_system": "Edit system category",
     "categories.form.title_create_system": "Add system category",
-    "categories.form.subtitle": "Categories help you classify income and expenses more clearly.",
+    "categories.form.subtitle":
+      "Categories help you classify income and expenses more clearly.",
     "categories.form.icon_label": "Icon (optional)",
     "categories.form.choose_icon": "Choose icon",
     "categories.form.hide_icon": "Hide icon",
@@ -2741,10 +3243,14 @@ const translations = {
     "categories.form.name_placeholder": "Enter category name...",
     "categories.form.desc_label": "Description (optional)",
     "categories.form.desc_placeholder": "Short description...",
-    "categories.form.desc_hint": "You can note the purpose of using this category.",
-    "categories.form.set_as_system": "Set as System Category (visible to all users)",
-    "categories.form.system_hint_active": "Category will appear in the Default section and apply to all accounts.",
-    "categories.form.system_hint_inactive": "If not selected, the category will only be visible to you.",
+    "categories.form.desc_hint":
+      "You can note the purpose of using this category.",
+    "categories.form.set_as_system":
+      "Set as System Category (visible to all users)",
+    "categories.form.system_hint_active":
+      "Category will appear in the Default section and apply to all accounts.",
+    "categories.form.system_hint_inactive":
+      "If not selected, the category will only be visible to you.",
     "categories.btn.cancel": "Cancel",
     "categories.btn.save": "Save Changes",
     "categories.btn.create": "Create New",
@@ -2752,7 +3258,8 @@ const translations = {
     "categories.error.name_length": "Category name max 40 characters",
     "categories.search_all": "All categories",
     "categories.search_none": "No categories found",
-    "categories.empty_hint": "Add categories to manage your income and expenses in detail.",
+    "categories.empty_hint":
+      "Add categories to manage your income and expenses in detail.",
     "categories.badge.system": "System default",
     "categories.sort.label": "Sort:",
     "categories.sort.priority": "Priority:",
@@ -2763,15 +3270,20 @@ const translations = {
     "categories.sort.nameDesc": "Name (Z → A)",
     "categories.sort.newest": "Newest → Oldest",
     "categories.sort.oldest": "Oldest → Newest",
-    "categories.error.duplicate_expense": "You already have this personal expense category.",
-    "categories.error.duplicate_income": "You already have this personal income category.",
+    "categories.error.duplicate_expense":
+      "You already have this personal expense category.",
+    "categories.error.duplicate_income":
+      "You already have this personal income category.",
     "categories.error.delete_failed": "Error deleting category",
     "categories.modal.budget_warning.title": "Linked Budgets",
-    "categories.modal.budget_warning.message": "This category is being used by {count} budgets that are active or scheduled to start. Continuing will sync your changes to every linked budget. Proceed?",
+    "categories.modal.budget_warning.message":
+      "This category is being used by {count} budgets that are active or scheduled to start. Continuing will sync your changes to every linked budget. Proceed?",
     "categories.modal.budget_warning.ok": "Update anyway",
     "categories.modal.budget_warning.cancel": "Go back",
-    "categories.error.delete_has_budget": "Cannot delete because this category is used by {count} active or upcoming budgets.",
-    "categories.toast.update_sync_success": "Category updated and synced with {count} budgets.",
+    "categories.error.delete_has_budget":
+      "Cannot delete because this category is used by {count} active or upcoming budgets.",
+    "categories.toast.update_sync_success":
+      "Category updated and synced with {count} budgets.",
 
     // Budgets Page
     "budgets.page.title": "Budget Management",
@@ -2784,7 +3296,8 @@ const translations = {
     "budgets.btn.search": "Search",
     "budgets.btn.clear": "Clear",
     "budgets.empty.title": "You haven't set any Spending Limits",
-    "budgets.empty.desc": "Start by creating a budget for a category to control your spending.",
+    "budgets.empty.desc":
+      "Start by creating a budget for a category to control your spending.",
     "budgets.empty.btn": "Set First Spending Limit",
     "budgets.card.wallet": "Wallet",
     "budgets.card.from_to": "From {start} to {end}",
@@ -2798,7 +3311,8 @@ const translations = {
     "budgets.toast.update_success": "Spending limit updated.",
     "budgets.toast.delete_success": "Spending limit deleted.",
     "budgets.confirm.delete_title": "Delete Spending Limit",
-    "budgets.confirm.delete_message": "Are you sure you want to delete the limit for category \"{category}\"?",
+    "budgets.confirm.delete_message":
+      'Are you sure you want to delete the limit for category "{category}"?',
     "budgets.confirm.delete_ok": "Delete",
     "budgets.confirm.delete_cancel": "Cancel",
     "budgets.tab.all": "All",
@@ -2835,8 +3349,9 @@ const translations = {
     "budgets.action.detail": "Details",
     "budgets.action.remind": "Remind",
     "budgets.action.create_tx": "Create Transaction",
-    "budgets.toast.remind_sent": "Reminder sent for budget \"{category}\"",
-    "budgets.toast.create_tx_placeholder": "Quick create for \"{category}\" is under development.",
+    "budgets.toast.remind_sent": 'Reminder sent for budget "{category}"',
+    "budgets.toast.create_tx_placeholder":
+      'Quick create for "{category}" is under development.',
     "budgets.error.save_failed": "Unable to save limit. Please try again.",
     "budgets.error.delete_failed": "Unable to delete limit. Please try again.",
 
@@ -2858,10 +3373,13 @@ const translations = {
     "budgets.form.btn_update": "Update",
     "budgets.error.category": "Please select a category",
     "budgets.error.wallet": "Please select wallet to apply limit",
-    "budgets.error.wallet_vnd_only": "Only wallets with VND currency can be selected",
+    "budgets.error.wallet_vnd_only":
+      "Only wallets with VND currency can be selected",
     "budgets.error.limit_required": "Please enter a limit greater than 0",
-    "budgets.error.start_date_past": "Start date cannot be less than current date",
-    "budgets.error.alert_threshold": "Alert threshold must be between 50% - 100%",
+    "budgets.error.start_date_past":
+      "Start date cannot be less than current date",
+    "budgets.error.alert_threshold":
+      "Alert threshold must be between 50% - 100%",
     "budgets.error.wallet": "Please select a wallet",
     "budgets.error.limit": "Please enter a limit greater than 0",
     "budgets.error.start_date": "Please select start date",
@@ -2871,8 +3389,10 @@ const translations = {
     // Budget Warning Modal
     "budgets.warning.title_alert": "⚠️ Approaching Limit Alert",
     "budgets.warning.title_exceed": "⛔ Exceeding Limit Warning",
-    "budgets.warning.message_alert": "This transaction will reach {percent}% of the limit. Only 10% left!",
-    "budgets.warning.message_exceed": "This transaction will exceed the spending limit set for the category.",
+    "budgets.warning.message_alert":
+      "This transaction will reach {percent}% of the limit. Only 10% left!",
+    "budgets.warning.message_exceed":
+      "This transaction will exceed the spending limit set for the category.",
     "budgets.warning.category": "Category",
     "budgets.warning.limit": "Limit",
     "budgets.warning.spent": "Spent",
@@ -2882,8 +3402,10 @@ const translations = {
     "budgets.warning.remaining_after": "Remaining (after tx)",
     "budgets.warning.exceed_amount": "Will exceed:",
     "budgets.warning.usage_after": "Usage after tx:",
-    "budgets.warning.hint_alert": "You can still proceed if the selected wallet has enough funds.",
-    "budgets.warning.hint_exceed": "This transaction will make total spending exceed the limit. You can proceed if the selected wallet has enough funds.",
+    "budgets.warning.hint_alert":
+      "You can still proceed if the selected wallet has enough funds.",
+    "budgets.warning.hint_exceed":
+      "This transaction will make total spending exceed the limit. You can proceed if the selected wallet has enough funds.",
     "budgets.warning.btn_cancel": "Cancel Transaction",
     "budgets.warning.btn_continue": "Continue Transaction",
     "budgets.card.alert_suffix": "used",
@@ -2895,7 +3417,8 @@ const translations = {
 
     // Admin Users Page
     "admin.users.title": "User Management",
-    "admin.users.subtitle": "Hello {name}, you can manage roles, lock/unlock, delete accounts, view login logs, and full account edit history here.",
+    "admin.users.subtitle":
+      "Hello {name}, you can manage roles, lock/unlock, delete accounts, view login logs, and full account edit history here.",
     "admin.users.list_title": "Account List",
     "admin.users.search_placeholder": "Search by name or email...",
     "admin.users.filter_role_all": "All Roles",
@@ -2914,7 +3437,8 @@ const translations = {
     "admin.users.btn.lock": "Lock",
     "admin.users.btn.unlock": "Unlock",
     "admin.users.btn.delete": "Delete",
-    "admin.users.select_hint": "Select a user from the left table to view details & actions.",
+    "admin.users.select_hint":
+      "Select a user from the left table to view details & actions.",
     "admin.users.tab.info": "Info",
     "admin.users.tab.logs": "Login Logs",
     "admin.users.tab.history": "Edit History",
@@ -2931,9 +3455,11 @@ const translations = {
     "admin.users.logs.loading": "Loading logs...",
     "admin.users.logs.empty": "No activity logs for this user.",
     "admin.users.history.title": "Account Edit History",
-    "admin.users.history.empty": "No edit actions for this account in the current session.",
+    "admin.users.history.empty":
+      "No edit actions for this account in the current session.",
     "admin.users.manage.title": "Manage Account",
-    "admin.users.manage.desc": "Perform administrative actions for the selected account. Each action will show a success message and be recorded in the edit history.",
+    "admin.users.manage.desc":
+      "Perform administrative actions for the selected account. Each action will show a success message and be recorded in the edit history.",
     "admin.users.manage.role_title": "Role",
     "admin.users.manage.role_desc": "Assign role to user.",
     "admin.users.manage.status_title": "Status",
@@ -2941,9 +3467,10 @@ const translations = {
     "admin.users.manage.btn_lock": "Lock Account",
     "admin.users.manage.btn_unlock": "Unlock Account",
     "admin.users.manage.delete_title": "Delete Account",
-    "admin.users.manage.delete_desc": "Permanently delete account from system (demo mock). This action cannot be undone.",
+    "admin.users.manage.delete_desc":
+      "Permanently delete account from system (demo mock). This action cannot be undone.",
     "admin.users.manage.btn_delete": "Delete Account",
-    "admin.users.toast.role_updated": "Updated role for {name} to \"{role}\".",
+    "admin.users.toast.role_updated": 'Updated role for {name} to "{role}".',
     "admin.users.toast.role_updated_generic": "Account role updated.",
     "admin.users.toast.status_locked": "Locked account {name}.",
     "admin.users.toast.status_unlocked": "Unlocked account {name}.",
@@ -2952,20 +3479,27 @@ const translations = {
     "admin.users.error.load_failed": "Failed to load user list.",
     "admin.users.error.logs_load_failed": "Failed to load login logs.",
     "admin.users.error.cannot_change_own_role": "Cannot change your own role",
-    "admin.users.error.only_system_admin_change_role": "Only system admin can change another admin's role",
+    "admin.users.error.only_system_admin_change_role":
+      "Only system admin can change another admin's role",
     "admin.users.error.role_update_failed": "Failed to update role",
-    "admin.users.error.cannot_toggle_self": "Cannot lock/unlock your own account",
-    "admin.users.error.only_system_admin_toggle": "Only system admin can lock/unlock another admin",
+    "admin.users.error.cannot_toggle_self":
+      "Cannot lock/unlock your own account",
+    "admin.users.error.only_system_admin_toggle":
+      "Only system admin can lock/unlock another admin",
     "admin.users.error.status_update_failed": "Failed to update status",
     "admin.users.error.cannot_delete_self": "Cannot delete your own account",
-    "admin.users.error.only_system_admin_delete": "Only system admin can delete another admin",
+    "admin.users.error.only_system_admin_delete":
+      "Only system admin can delete another admin",
     "admin.users.error.delete_failed": "Failed to delete account",
     "admin.users.history.role_change": "Role Change",
-    "admin.users.history.role_change_detail": "Changed role from \"{old}\" to \"{new}\".",
+    "admin.users.history.role_change_detail":
+      'Changed role from "{old}" to "{new}".',
     "admin.users.history.status_change": "Status Update",
-    "admin.users.history.status_change_detail": "Changed status from \"{old}\" to \"{new}\".",
+    "admin.users.history.status_change_detail":
+      'Changed status from "{old}" to "{new}".',
     "admin.users.history.delete": "Delete Account",
-    "admin.users.history.delete_detail": "Account \"{name}\" has been deleted from the system (demo).",
+    "admin.users.history.delete_detail":
+      'Account "{name}" has been deleted from the system (demo).',
 
     // Admin Reviews Page
     "admin.reviews.title": "User Reviews & Feedback",
@@ -2979,7 +3513,8 @@ const translations = {
     "admin.reviews.filter.replied": "Replied",
     "admin.reviews.sort.newest": "Newest",
     "admin.reviews.sort.oldest": "Oldest",
-    "admin.reviews.search_placeholder": "Search by name, email, content, source...",
+    "admin.reviews.search_placeholder":
+      "Search by name, email, content, source...",
     "admin.reviews.empty": "No matching reviews found.",
     "admin.reviews.date_prefix": "Date",
     "admin.reviews.btn.view_details": "View Details",
@@ -2995,7 +3530,7 @@ const translations = {
     "admin.reviews.toast.success": "Reply sent successfully!",
     "admin.reviews.notification.title": "Admin replied to your review",
     "admin.reviews.notification.time": "Just now",
-  }
+  },
 };
 
 export function LanguageProvider({ children }) {
