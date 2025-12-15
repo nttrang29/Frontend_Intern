@@ -881,7 +881,7 @@ export default function CategoriesPage() {
         {/* PAGINATION */}
         <div className="card-footer category-pagination-bar">
           <span className="text-muted small">
-            Trang {page} / {totalPages}
+            {t('common.pagination.page', { current: page, total: totalPages })}
           </span>
           <div className="category-pagination">
             <button

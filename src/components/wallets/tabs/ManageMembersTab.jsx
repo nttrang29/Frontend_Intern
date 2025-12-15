@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import ConfirmModal from "../../common/Modal/ConfirmModal";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 export default function ManageMembersTab({
   wallet,
@@ -13,6 +14,7 @@ export default function ManageMembersTab({
   onUpdateMemberRole,
   updatingMemberId,
 }) {
+  const { t } = useLanguage();
   const [showQuickShareForm, setShowQuickShareForm] = useState(false);
   const [quickShareEmail, setQuickShareEmail] = useState("");
   const [quickShareMessage, setQuickShareMessage] = useState("");
@@ -53,21 +55,21 @@ export default function ManageMembersTab({
       open: true,
       type: "remove",
       payload: { member },
-      title: "Xóa người dùng",
-      message: `Bạn có chắc muốn xóa quyền truy cập của ${member.fullName || member.email || "người dùng"}?`,
+      title: t('wallets.manage_members.confirm_remove_title'),
+      message: t('wallets.manage_members.confirm_remove_message', { name: member.fullName || member.email || t('wallets.manage_members.user') }),
       danger: true,
     });
   };
 
   const triggerRoleConfirm = (member, newRole) => {
     if (!member || !newRole) return;
-    const label = newRole === "VIEW" ? "Người xem" : "Thành viên";
+    const label = newRole === "VIEW" ? t('wallets.manage_members.role_viewer') : t('wallets.manage_members.role_member');
     setConfirmState({
       open: true,
       type: "role",
       payload: { member, newRole },
-      title: "Xác nhận phân quyền",
-      message: `Bạn có chắc muốn đặt quyền của ${member.fullName || member.email || "người dùng"} thành "${label}"?`,
+      title: t('wallets.manage_members.confirm_role_title'),
+      message: t('wallets.manage_members.confirm_role_message', { name: member.fullName || member.email || t('wallets.manage_members.user'), role: label }),
       danger: false,
     });
   };
@@ -109,10 +111,10 @@ export default function ManageMembersTab({
   const ownerBadge = (role = "") => {
     const upper = role.toUpperCase();
     if (upper === "OWNER" || upper === "MASTER" || upper === "ADMIN") {
-      return "Chủ ví";
+      return t('wallets.manage_members.role_owner');
     }
-    if (upper === "USE" || upper === "USER") return "Được sử dụng";
-    if (upper === "VIEW" || upper === "VIEWER") return "Chỉ xem";
+    if (upper === "USE" || upper === "USER") return t('wallets.manage_members.role_use');
+    if (upper === "VIEW" || upper === "VIEWER") return t('wallets.manage_members.role_viewer');
     return role;
   };
 
@@ -121,8 +123,8 @@ export default function ManageMembersTab({
   return (
     <div className="wallets-section wallets-section--manage">
       <div className="wallets-section__header">
-        <h3>Quản lý người dùng</h3>
-        <span>Kiểm soát danh sách người được chia sẻ ví "{wallet?.name}".</span>
+        <h3>{t('wallets.manage_members.title')}</h3>
+        <span>{t('wallets.manage_members.subtitle', { name: wallet?.name || '' })}</span>
       </div>
 
       <div className="wallets-manage-list">
@@ -133,7 +135,7 @@ export default function ManageMembersTab({
               className="wallets-btn wallets-btn--ghost"
               onClick={toggleQuickShareForm}
             >
-              {showQuickShareForm ? "- Thêm" : "+ Thêm người chia sẻ"}
+              {showQuickShareForm ? t('wallets.manage_members.collapse_add') : t('wallets.manage_members.add_member')}
             </button>
           )}
           {showQuickShareForm && (
@@ -149,7 +151,7 @@ export default function ManageMembersTab({
                 placeholder="example@gmail.com"
               />
               <button type="submit" disabled={!quickShareEmail.trim() || quickShareLoading}>
-                {quickShareLoading ? "Đang thêm..." : "Thêm"}
+                {quickShareLoading ? t('wallets.manage_members.adding') : t('wallets.modal.add')}
               </button>
             </form>
           )}
@@ -160,7 +162,7 @@ export default function ManageMembersTab({
           )}
         </div>
         {sharedMembersLoading && (
-          <div className="wallets-manage__state">Đang tải danh sách...</div>
+          <div className="wallets-manage__state">{t('wallets.manage_members.loading')}</div>
         )}
         {!sharedMembersLoading && sharedMembersError && (
           <div className="wallets-manage__state wallets-manage__state--error">
@@ -169,7 +171,7 @@ export default function ManageMembersTab({
         )}
         {!sharedMembersLoading && !sharedMembersError && safeMembers.length === 0 && (
           <div className="wallets-manage__state">
-            Chưa có người dùng nào được chia sẻ.
+            {t('wallets.manage_members.empty')}
           </div>
         )}
 
@@ -220,7 +222,7 @@ export default function ManageMembersTab({
                         onClick={() => triggerRemoveConfirm(member)}
                         disabled={isRemoving}
                       >
-                        {isRemoving ? "Đang xóa..." : "Xóa"}
+                        {isRemoving ? t('wallets.manage_members.removing') : t('wallets.manage_members.remove')}
                       </button>
                     )}
                   </div>
@@ -238,7 +240,7 @@ export default function ManageMembersTab({
         danger={confirmState.danger}
         onOk={handleConfirmOk}
         onClose={resetConfirm}
-        okText={confirmState.type === "add" ? "Chia sẻ" : "Xác nhận"}
+        okText={confirmState.type === "add" ? t('wallets.manage_members.share_button') : t('wallets.manage_members.confirm_button')}
       />
     </div>
   );

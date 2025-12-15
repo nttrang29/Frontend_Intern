@@ -717,7 +717,7 @@ export default function TransactionForm({
             />
             {attachmentPreview && (
               <div className="mt-2">
-                <img src={attachmentPreview} alt="Preview" style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "contain" }} />
+                <img src={attachmentPreview} alt={t("transactions.form.attachment_preview")} style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "contain" }} />
               </div>
             )}
           </div>

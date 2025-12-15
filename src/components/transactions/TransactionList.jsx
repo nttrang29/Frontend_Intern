@@ -334,7 +334,7 @@ export default function TransactionList({
 
       <div className="card-footer d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
         <span className="text-muted small">
-          Trang {currentPage}/{totalPages}
+          {t('common.pagination.page', { current: currentPage, total: totalPages })}
         </span>
         <div className="tx-pagination">
           <button

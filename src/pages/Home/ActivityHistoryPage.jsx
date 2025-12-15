@@ -322,7 +322,7 @@ export default function ActivityHistoryPage() {
       return null;
     };
 
-    const actorDisplay = actor ? ` — bởi ${actor}` : "";
+    const actorDisplay = actor ? ` ${t('activity.description.by')} ${actor}` : "";
 
     const stripActorTail = (text) => {
       if (!text) return "";
@@ -349,12 +349,12 @@ export default function ActivityHistoryPage() {
       };
     };
 
-    let typeLabel = rawType || "Sự kiện";
+    let typeLabel = rawType || t('activity.type.event');
     let description = msg || "";
     let descriptionSegments = null;
 
     if (rawType.includes("merge") || rawType.includes("gộp") || rawType.includes("gop")) {
-      typeLabel = "Gộp ví";
+      typeLabel = t('activity.type.merge_wallet');
       let src = pick(data, ["sourceName", "source_wallet", "sourceWalletName", "from", "fromWallet", "source"]);
       let tgt = pick(data, ["targetName", "target_wallet", "targetWalletName", "to", "toWallet", "target"]);
       if (!src && data.source) src = pick(data.source, ["name", "walletName"]) || deepFindName(data.source);
@@ -392,44 +392,44 @@ export default function ActivityHistoryPage() {
       if (!src) src = deepFindName(data.source || data) || "(ví nguồn)";
       if (!tgt) tgt = deepFindName(data.target || data) || "(ví đích)";
       const built = createDescription([
-        "Gộp ",
+        t('activity.description.merge_prefix'),
         { text: src, highlight: true },
-        " vào ",
+        t('activity.description.merge_into'),
         { text: tgt, highlight: true },
         actorDisplay,
       ]);
       description = built.text;
       descriptionSegments = built.segments;
     } else if ((rawType.includes("delete") || rawType.includes("xóa") || rawType.includes("remove")) && (rawType.includes("wallet") || ev.walletId || ev.walletName)) {
-      typeLabel = "Xóa ví";
+      typeLabel = t('activity.type.delete_wallet');
       let name = pick(data, ["name", "walletName", "wallet_name"]) || ev.walletName || ev.name;
-      if (!name) name = deepFindName(data) || "(tên ví)";
+      if (!name) name = deepFindName(data) || t('activity.placeholder.wallet_name');
       const built = createDescription([
-        "Xóa ví ",
+        t('activity.description.delete_wallet_prefix'),
         { text: name, highlight: true },
         actorDisplay,
       ]);
       description = built.text;
       descriptionSegments = built.segments;
     } else if ((rawType.includes("create") || rawType.includes("tao") || rawType.includes("tạo")) && (rawType.includes("wallet") || ev.walletId || ev.walletName || ev.name)) {
-      typeLabel = "Tạo ví";
+      typeLabel = t('activity.type.create_wallet');
       let name = pick(data, ["name", "walletName", "wallet_name"]) || ev.walletName || ev.name;
-      if (!name) name = deepFindName(data) || "(tên ví)";
+      if (!name) name = deepFindName(data) || t('activity.placeholder.wallet_name');
       const built = createDescription([
-        "Tạo ví ",
+        t('activity.description.create_wallet_prefix'),
         { text: name, highlight: true },
         actorDisplay,
       ]);
       description = built.text;
       descriptionSegments = built.segments;
     } else if ((rawType.includes("edit") || rawType.includes("update") || rawType.includes("sửa")) && (rawType.includes("wallet") || ev.walletId || ev.walletName)) {
-      typeLabel = "Sửa ví";
+      typeLabel = t('activity.type.edit_wallet');
       let name = pick(data, ["name", "walletName", "wallet_name"]) || ev.walletName || ev.name;
-      if (!name) name = deepFindName(data) || "(tên ví)";
+      if (!name) name = deepFindName(data) || t('activity.placeholder.wallet_name');
       if (ev.changes) {
         const changes = Object.entries(ev.changes).map(([k, v]) => `${k}: ${v}`).join(", ");
         const built = createDescription([
-          "Sửa ",
+          t('activity.description.edit_prefix'),
           { text: name, highlight: true },
           ` (${changes})`,
           actorDisplay,
@@ -438,7 +438,7 @@ export default function ActivityHistoryPage() {
         descriptionSegments = built.segments;
       } else {
         const built = createDescription([
-          "Cập nhật thông tin cho ",
+          t('activity.description.update_info_prefix'),
           { text: name, highlight: true },
           actorDisplay,
         ]);
@@ -446,62 +446,62 @@ export default function ActivityHistoryPage() {
         descriptionSegments = built.segments;
       }
     } else if (rawType.includes("group") && rawType.includes("wallet")) {
-      typeLabel = "Chuyển thành ví nhóm";
+      typeLabel = t('activity.type.convert_to_group');
       let name = pick(data, ["name", "walletName"]) || ev.walletName || ev.name;
-      if (!name) name = deepFindName(data) || "(tên ví)";
-      const members = pick(data, ["membersCount", "count"]) || data.membersCount || data.count || "nhiều";
+      if (!name) name = deepFindName(data) || t('activity.placeholder.wallet_name');
+      const members = pick(data, ["membersCount", "count"]) || data.membersCount || data.count || t('activity.placeholder.many_members');
       const built = createDescription([
-        "Chuyển ",
+        t('activity.description.convert_prefix'),
         { text: name, highlight: true },
-        ` thành ví nhóm (${members} thành viên)`,
+        t('activity.description.convert_to_group_suffix', { count: members }),
         actorDisplay,
       ]);
       description = built.text;
       descriptionSegments = built.segments;
     } else if (
       (rawType.includes("remove_member") || rawType.includes("unshare") || (rawType.includes("remove") && (rawType.includes("user") || rawType.includes("member"))))) {
-      typeLabel = "Xóa người dùng";
+      typeLabel = t('activity.type.remove_user');
       let who = pick(data, ["email", "removedEmail", "memberEmail"]) || ev.email || ev.removedEmail;
-      if (!who) who = deepFindName(data) || "(email)";
+      if (!who) who = deepFindName(data) || t('activity.placeholder.email');
       let walletName =
         pick(data, ["walletName", "wallet_name", "wallet", "name"]) ||
         ev.walletName ||
         deepFindName(data) ||
-        "(tên ví)";
+        t('activity.placeholder.wallet_name');
       const built = createDescription([
-        "Xóa ",
+        t('activity.description.remove_prefix'),
         { text: who, highlight: true },
-        " khỏi ví ",
+        t('activity.description.remove_from_wallet'),
         { text: walletName, highlight: true },
         actorDisplay,
       ]);
       description = built.text;
       descriptionSegments = built.segments;
     } else if ((rawType.includes("share") && !rawType.includes("unshare")) || rawType.includes("add_member") || rawType.includes("add user") || rawType.includes("thêm")) {
-      typeLabel = "Thêm người dùng";
+      typeLabel = t('activity.type.add_user');
       let who = pick(data, ["email", "sharedTo", "invitee", "inviteeEmail"]) || ev.email || ev.sharedTo;
-      if (!who) who = deepFindName(data) || "(email)";
+      if (!who) who = deepFindName(data) || t('activity.placeholder.email');
       const role = pick(data, ["role", "sharedRole", "membershipRole"]) || ev.role || "";
       let walletName =
         pick(data, ["walletName", "wallet_name", "wallet", "name"]) ||
         ev.walletName ||
         deepFindName(data) ||
-        "(tên ví)";
+        t('activity.placeholder.wallet_name');
       const parts = [
-        "Thêm ",
+        t('activity.description.add_prefix'),
         { text: who, highlight: true },
-        " vào ví ",
+        t('activity.description.add_to_wallet'),
         { text: walletName, highlight: true },
       ];
       if (role) {
-        parts.push(" với vai trò ", { text: role, highlight: true });
+        parts.push(t('activity.description.with_role'), { text: role, highlight: true });
       }
       if (actorDisplay) parts.push(actorDisplay);
       const built = createDescription(parts);
       description = built.text;
       descriptionSegments = built.segments;
     } else if (rawType.includes("budget") && (rawType.includes("create") || rawType.includes("tao") || rawType.includes("tạo"))) {
-      typeLabel = "Tạo ngân sách";
+      typeLabel = t('activity.type.create_budget');
       let name = pick(data, ["name", "budgetName", "title"]) || ev.name;
       let cat =
         pick(data, ["categoryName", "category", "category_name"]) ||
@@ -518,25 +518,25 @@ export default function ActivityHistoryPage() {
         pick(data, ["walletName", "wallet", "wallet_name"]) ||
         data.walletName ||
         ev.walletName;
-      const hasValidName = !!(name && name !== "(tên ngân sách)");
-      if (!name) name = deepFindName(data) || "(tên ngân sách)";
+      const hasValidName = !!(name && name !== t('activity.placeholder.budget_name'));
+      if (!name) name = deepFindName(data) || t('activity.placeholder.budget_name');
 
       const primaryLabel = hasValidName ? name : (cat || name);
       const parts = [
-        hasValidName ? "Tạo ngân sách " : "Tạo ngân sách cho danh mục ",
-        { text: primaryLabel || "(tên ngân sách)", highlight: true },
+        hasValidName ? t('activity.description.create_budget_prefix') : t('activity.description.create_budget_for_category'),
+        { text: primaryLabel || t('activity.placeholder.budget_name'), highlight: true },
       ];
 
       if (hasValidName && cat) {
-        parts.push(" — danh mục: ", { text: cat, highlight: true });
+        parts.push(t('activity.description.category_separator'), { text: cat, highlight: true });
       }
 
       if (!hasValidName && !cat) {
-        parts.push(" — chưa xác định danh mục");
+        parts.push(t('activity.description.category_unknown'));
       }
 
       if (walletName) {
-        parts.push(" — ví: ", { text: walletName, highlight: true });
+        parts.push(t('activity.description.wallet_separator'), { text: walletName, highlight: true });
       }
       if (amount != null) {
         parts.push(` — ${formatMoney(amount, currency)}`);
@@ -546,7 +546,7 @@ export default function ActivityHistoryPage() {
       description = built.text;
       descriptionSegments = built.segments;
     } else if (rawType.includes("budget") && (rawType.includes("delete") || rawType.includes("xóa"))) {
-      typeLabel = "Xóa ngân sách";
+      typeLabel = t('activity.type.delete_budget');
       let name = pick(data, ["name", "budgetName", "title"]) || ev.name;
       let cat =
         pick(data, ["categoryName", "category", "category_name"]) ||
@@ -559,30 +559,30 @@ export default function ActivityHistoryPage() {
         cat = found?.categoryName || found?.category?.name || cat;
         if (!name) name = found?.name || found?.title || name;
       }
-      const hasValidName = !!(name && name !== "(tên ngân sách)");
-      if (!name) name = deepFindName(data) || "(tên ngân sách)";
+      const hasValidName = !!(name && name !== t('activity.placeholder.budget_name'));
+      if (!name) name = deepFindName(data) || t('activity.placeholder.budget_name');
 
       const primaryLabel = hasValidName ? name : (cat || name);
       const parts = [
-        hasValidName ? "Xóa ngân sách " : "Xóa ngân sách của danh mục ",
-        { text: primaryLabel || "(tên ngân sách)", highlight: true },
+        hasValidName ? t('activity.description.delete_budget_prefix') : t('activity.description.delete_budget_of_category'),
+        { text: primaryLabel || t('activity.placeholder.budget_name'), highlight: true },
       ];
       if (hasValidName && cat) {
-        parts.push(" — danh mục: ", { text: cat, highlight: true });
+        parts.push(t('activity.description.category_separator'), { text: cat, highlight: true });
       }
       if (!hasValidName && !cat) {
-        parts.push(" — chưa xác định danh mục");
+        parts.push(t('activity.description.category_unknown'));
       }
       if (actorDisplay) parts.push(actorDisplay);
       const built = createDescription(parts);
       description = built.text;
       descriptionSegments = built.segments;
     } else if ((rawType.includes("fund") || rawType.includes("quỹ")) && (rawType.includes("create") || rawType.includes("tao") || rawType.includes("tạo"))) {
-      typeLabel = "Tạo quỹ";
+      typeLabel = t('activity.type.create_fund');
       let name = pick(data, ["name", "fundName", "title"]) || ev.name;
-      if (!name) name = deepFindName(data) || "(tên quỹ)";
+      if (!name) name = deepFindName(data) || t('activity.placeholder.fund_name');
       const parts = [
-        "Tạo quỹ ",
+        t('activity.description.create_fund_prefix'),
         { text: name, highlight: true },
       ];
       if (amount != null) {
@@ -593,18 +593,18 @@ export default function ActivityHistoryPage() {
       description = built.text;
       descriptionSegments = built.segments;
     } else if ((rawType.includes("fund") || rawType.includes("quỹ")) && (rawType.includes("delete") || rawType.includes("xóa"))) {
-      typeLabel = "Xóa quỹ";
+      typeLabel = t('activity.type.delete_fund');
       let name = pick(data, ["name", "fundName", "title"]) || ev.name;
-      if (!name) name = deepFindName(data) || "(tên quỹ)";
+      if (!name) name = deepFindName(data) || t('activity.placeholder.fund_name');
       const built = createDescription([
-        "Xóa quỹ ",
+        t('activity.description.delete_fund_prefix'),
         { text: name, highlight: true },
         actorDisplay,
       ]);
       description = built.text;
       descriptionSegments = built.segments;
     } else {
-      typeLabel = ev.type || ev.event || ev.action || "Sự kiện";
+      typeLabel = ev.type || ev.event || ev.action || t('activity.type.event');
       const base = msg || JSON.stringify(data || ev || {}).slice(0, 200);
       const built = createDescription([base, actorDisplay]);
       description = built.text;
@@ -649,7 +649,17 @@ export default function ActivityHistoryPage() {
 
       <div className="page__body">
         {events.length === 0 ? (
-          <div className="empty-state">{t("activity.no_data")}</div>
+          <div className="activity-empty-state">
+            <div className="activity-empty-state__icon">
+              <i className="bi bi-clock-history" />
+            </div>
+            <div className="activity-empty-state__title">
+              {t("activity.no_data")}
+            </div>
+            <div className="activity-empty-state__hint">
+              {t("activity.empty_hint")}
+            </div>
+          </div>
         ) : (
           <div>
             <div style={{ height: 8 }} />
@@ -658,13 +668,13 @@ export default function ActivityHistoryPage() {
             <div style={{ marginBottom: 12 }}>
               <div className="cat-table-card search-card">
                 <div className="card-body">
-                  <div className="search-card-title">Tìm kiếm lịch sử giao dịch</div>
+                  <div className="search-card-title">{t('activity.search.title')}</div>
                   <div className="category-search-inline" style={{ display: "flex", gap: 12, alignItems: "center" }}>
                     <div className="category-search-select" style={{ flex: 1 }}>
                       <input
                         className="form-control"
                         type="text"
-                        placeholder="Tìm theo từ khóa (type, mô tả, email...)"
+                        placeholder={t('activity.search.placeholder')}
                         value={queryText}
                         onChange={(e) => setQueryText(e.target.value)}
                       />
@@ -672,7 +682,7 @@ export default function ActivityHistoryPage() {
                         <button
                           type="button"
                           className="category-search-clear-btn"
-                          aria-label="clear-search"
+                          aria-label={t('common.clear_search')}
                           onClick={() => setQueryText("")}
                         >
                           ×
@@ -682,20 +692,20 @@ export default function ActivityHistoryPage() {
 
                     <div className="category-search-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                        <small style={{ color: "var(--muted-color, #666)" }}>Từ</small>
+                        <small style={{ color: "var(--muted-color, #666)" }}>{t('activity.search.from')}</small>
                         <input className="form-control date-input" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
                       </label>
                       <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                        <small style={{ color: "var(--muted-color, #666)" }}>Đến</small>
+                        <small style={{ color: "var(--muted-color, #666)" }}>{t('activity.search.to')}</small>
                         <input className="form-control date-input" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
                       </label>
 
                       <button className="category-search-submit" type="button" onClick={() => loadEvents()}>
-                        <i className="bi bi-search" style={{ marginRight: 8 }} /> Tìm
+                        <i className="bi bi-search" style={{ marginRight: 8 }} /> {t('activity.search.button')}
                       </button>
 
                       <button className="btn-chip btn-chip--ghost" type="button" onClick={handleResetFilters}>
-                        Xóa lọc
+                        {t('activity.search.clear')}
                       </button>
                     </div>
                   </div>
@@ -709,16 +719,16 @@ export default function ActivityHistoryPage() {
                 <table className="table table-hover">
                   <thead>
                       <tr>
-                        <th style={{ width: 60 }}>STT</th>
-                        <th style={{ minWidth: 160 }}>Thời gian</th>
-                        <th>Loại</th>
-                        <th>Mô tả</th>
+                        <th style={{ width: 60 }}>{t('activity.table.no')}</th>
+                        <th style={{ minWidth: 160 }}>{t('activity.table.time')}</th>
+                        <th>{t('activity.table.type')}</th>
+                        <th>{t('activity.table.description')}</th>
                       </tr>
                   </thead>
                   <tbody>
                     {filteredEvents.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="text-center text-muted">Không có sự kiện nào khớp bộ lọc.</td>
+                        <td colSpan={4} className="text-center text-muted">{t('activity.table.no_matches')}</td>
                       </tr>
                     ) : (
                       paginatedEvents.map((ev, idx) => {
@@ -753,7 +763,7 @@ export default function ActivityHistoryPage() {
               </div>
               {filteredEvents.length > 0 && (
                 <div className="card-footer category-pagination-bar">
-                  <span className="text-muted small">Trang {currentPage} / {totalPages}</span>
+                  <span className="text-muted small">{t('common.pagination.page', { current: currentPage, total: totalPages })}</span>
                   <div className="category-pagination">
                     <button
                       type="button"

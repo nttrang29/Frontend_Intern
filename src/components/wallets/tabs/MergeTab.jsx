@@ -3,6 +3,7 @@ import { formatConvertedBalance } from "../utils/walletUtils";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useBudgetData } from "../../../contexts/BudgetDataContext";
 import { useWalletData } from "../../../contexts/WalletDataContext";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 const getLocalUserId = () => {
   if (typeof window === "undefined") return null;
@@ -52,6 +53,7 @@ export default function MergeTab({
   const [direction, setDirection] = useState("this_into_other");
   const [searchTerm, setSearchTerm] = useState("");
   const [makeTargetDefault, setMakeTargetDefault] = useState(false);
+  const { t } = useLanguage();
   const { currentUser } = useAuth();
   const { budgets } = useBudgetData();
   const walletContext = useWalletData();
@@ -303,8 +305,8 @@ export default function MergeTab({
     return (
       <div className="wallets-section">
         <div className="wallets-section__header">
-          <h3>Gộp ví</h3>
-          <span>Không thể gộp vì ví đang được dùng cho ngân sách.</span>
+          <h3>{t('wallets.merge.title')}</h3>
+          <span>{t('wallets.merge.budget_blocking')}</span>
         </div>
         <div className="alert alert-warning" role="alert">
           {budgetBlocking}
@@ -317,7 +319,7 @@ export default function MergeTab({
   if (!wallet) {
     return (
       <div className="wallets-section">
-        <p>Hãy chọn một ví để gộp.</p>
+        <p>{t('wallets.merge.select_wallet_hint')}</p>
       </div>
     );
   }
@@ -392,8 +394,8 @@ export default function MergeTab({
     return (
       <div className="wallets-section wallet-merge__panel">
         <div className="wallet-merge__step-header">
-          <div className="wallet-merge__step-label">Bước 2 – Chọn ví đích</div>
-          <div className="wallet-merge__step-pill">Gộp ví · 5 bước</div>
+          <div className="wallet-merge__step-label">{t('wallets.merge.step_2_title')}</div>
+          <div className="wallet-merge__step-pill">{t('wallets.merge.step_pill')}</div>
         </div>
 
         <div className="wallet-merge__box">
@@ -401,14 +403,11 @@ export default function MergeTab({
             <div className="wallet-merge__relation">
               {isThisIntoOther ? (
                 <>
-                  Gộp ví <strong>{thisName}</strong> vào{" "}
-                  <strong>{selectedWallet.name || "Ví được chọn"}</strong>
+                  {t('wallets.merge.relation_this_into_other', { thisName, otherName: selectedWallet.name || t('wallets.merge.selected_wallet') })}
                 </>
               ) : (
                 <>
-                  Gộp ví{" "}
-                  <strong>{selectedWallet.name || "Ví được chọn"}</strong> vào{" "}
-                  <strong>{thisName}</strong>
+                  {t('wallets.merge.relation_other_into_this', { thisName, otherName: selectedWallet.name || t('wallets.merge.selected_wallet') })}
                 </>
               )}
             </div>
@@ -417,32 +416,32 @@ export default function MergeTab({
           <div className="wallet-merge__grid-2">
             <div className="wallet-merge__summary-wrapper">
               <div className="wallet-merge__summary-wrapper-header">
-                <h4>Tóm tắt ví nguồn &amp; ví đích</h4>
-                <span>Kiểm tra lại trước khi tiếp tục gộp ví.</span>
+                <h4>{t('wallets.merge.summary_title')}</h4>
+                <span>{t('wallets.merge.summary_subtitle')}</span>
               </div>
 
               <div className="wallet-merge__summary-col">
                 <div className="wallet-merge__summary-card wallet-merge__summary-card--source">
-                  <div className="wallet-merge__summary-title">VÍ HIỆN TẠI</div>
+                  <div className="wallet-merge__summary-title">{t('wallets.merge.current_wallet_title')}</div>
                   <div className="wallet-merge__summary-name">{thisName}</div>
 
                   <div className="wallet-merge__summary-row">
-                    <span>Tiền tệ</span>
+                    <span>{t('wallets.merge.currency_label')}</span>
                     <span>{currentCur}</span>
                   </div>
                   <div className="wallet-merge__summary-row">
-                    <span>Số dư</span>
+                    <span>{t('wallets.merge.balance_label')}</span>
                     <span>
                       {formatConvertedBalance(currentBal, currentCur)}
                     </span>
                   </div>
                   <div className="wallet-merge__summary-row">
-                    <span>Số giao dịch</span>
+                    <span>{t('wallets.merge.transaction_count_label')}</span>
                     <span>{currentTx}</span>
                   </div>
                   {currentIsDefault && (
                     <div className="wallet-merge__target-warning">
-                      Đây là ví mặc định hiện tại.
+                      {t('wallets.merge.is_default_warning')}
                     </div>
                   )}
                 </div>

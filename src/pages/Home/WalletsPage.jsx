@@ -1689,7 +1689,7 @@ export default function WalletsPage() {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
     } catch (error) {
-      showToast(error.message || "Không thể nạp tiền", "error");
+      showToast(error.message || t("wallets.toast.topup_error"), "error");
     } finally {
       setTopupAmount("");
       setTopupNote("");
@@ -1722,7 +1722,7 @@ export default function WalletsPage() {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
     } catch (error) {
-      showToast(error.message || "Không thể rút tiền", "error");
+      showToast(error.message || t("wallets.toast.withdraw_error"), "error");
     } finally {
       setWithdrawAmount("");
       setWithdrawNote("");
@@ -1810,9 +1810,9 @@ export default function WalletsPage() {
 
       // Backend đã xử lý việc đặt/bỏ ví mặc định, chỉ cần hiển thị thông báo thành công
       if (payload.setTargetAsDefault) {
-        showToast(t('wallets.toast.merge_set_default') || 'Gộp ví thành công. Ví đích đã được đặt làm ví mặc định.');
+        showToast(t('wallets.toast.merge_set_default'));
       } else {
-        showToast(t('wallets.toast.merged') || 'Gộp ví thành công.');
+        showToast(t('wallets.toast.merged'));
       }
       setSelectedId(targetId);
       setActiveDetailTab("view");
@@ -1823,7 +1823,7 @@ export default function WalletsPage() {
       ) {
         showToast(t('wallets.error.merge_personal_only'), "error");
       } else {
-        showToast(error.message || "Không thể gộp ví", "error");
+        showToast(error.message || t("wallets.toast.merge_error"), "error");
       }
     } finally {
       setMergeTargetId("");
@@ -2293,11 +2293,11 @@ export default function WalletsPage() {
           </div>
           <div className="budget-metric-value">{formatMoney(totalDisplayedValue, "VND")}</div>
           <div id="tooltip-total" role="tooltip" className="budget-metric-tooltip">
-            <strong>Tổng số dư</strong>
+            <strong>{t('wallets.tooltip.total_balance.title')}</strong>
             <div className="budget-metric-tooltip__body">
-              Tổng số dư của tất cả ví của bạn (không bao gồm các ví bạn chỉ có quyền xem). Giá trị đã được quy đổi về tiền hiển thị để dễ so sánh.
+              {t('wallets.tooltip.total_balance.body')}
             </div>
-            <div className="budget-metric-tooltip__meta">Ví tính: {wallets.length} • Cập nhật gần nhất: ngay bây giờ</div>
+            <div className="budget-metric-tooltip__meta">{t('wallets.tooltip.total_balance.meta', { count: wallets.length })}</div>
           </div>
         </div>
 
@@ -2305,9 +2305,9 @@ export default function WalletsPage() {
           <div className="budget-metric-label">{t('wallets.metric.personal_balance')}</div>
           <div className="budget-metric-value">{formatMoney(personalDisplayedValue, "VND")}</div>
           <div id="tooltip-personal" role="tooltip" className="budget-metric-tooltip">
-            <strong>Ví cá nhân</strong>
-            <div className="budget-metric-tooltip__body">Tổng số dư của các ví cá nhân (ví thuộc sở hữu và quản lý trực tiếp bởi bạn).</div>
-            <div className="budget-metric-tooltip__meta">Số ví: {personalWallets.length}</div>
+            <strong>{t('wallets.tooltip.personal.title')}</strong>
+            <div className="budget-metric-tooltip__body">{t('wallets.tooltip.personal.body')}</div>
+            <div className="budget-metric-tooltip__meta">{t('wallets.tooltip.personal.meta', { count: personalWallets.length })}</div>
           </div>
         </div>
 
@@ -2315,9 +2315,9 @@ export default function WalletsPage() {
           <div className="budget-metric-label">{t('wallets.metric.group_balance')}</div>
           <div className="budget-metric-value">{formatMoney(groupDisplayedValue, "VND")}</div>
           <div id="tooltip-group" role="tooltip" className="budget-metric-tooltip">
-            <strong>Ví nhóm</strong>
-            <div className="budget-metric-tooltip__body">Tổng số dư của các ví nhóm mà bạn sở hữu hoặc tham gia quản lý. Bao gồm các ví bạn đã chia sẻ cho nhóm.</div>
-            <div className="budget-metric-tooltip__meta">Số ví nhóm: {groupWallets.length}</div>
+            <strong>{t('wallets.tooltip.group.title')}</strong>
+            <div className="budget-metric-tooltip__body">{t('wallets.tooltip.group.body')}</div>
+            <div className="budget-metric-tooltip__meta">{t('wallets.tooltip.group.meta', { count: groupWallets.length })}</div>
           </div>
         </div>
 
@@ -2325,9 +2325,9 @@ export default function WalletsPage() {
           <div className="budget-metric-label">{t('wallets.metric.shared_with_me_balance')}</div>
           <div className="budget-metric-value">{formatMoney(sharedWithMeDisplayedValue, "VND")}</div>
           <div id="tooltip-shared-with-me" role="tooltip" className="budget-metric-tooltip">
-            <strong>Được chia sẻ cho tôi</strong>
-            <div className="budget-metric-tooltip__body">Tổng số dư các ví mà người khác chia sẻ cho bạn — bạn có thể xem hoặc thao tác theo quyền được cấp.</div>
-            <div className="budget-metric-tooltip__meta">Số ví: {sharedWithMeDisplayWallets.length}</div>
+            <strong>{t('wallets.tooltip.shared_with_me.title')}</strong>
+            <div className="budget-metric-tooltip__body">{t('wallets.tooltip.shared_with_me.body')}</div>
+            <div className="budget-metric-tooltip__meta">{t('wallets.tooltip.shared_with_me.meta', { count: sharedWithMeDisplayWallets.length })}</div>
           </div>
         </div>
 
