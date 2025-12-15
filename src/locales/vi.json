@@ -95,5 +95,43 @@
   "login_log": "Nhật ký đăng nhập",
   "security_group": "Bảo mật",
   "system_group": "Hệ thống",
-  "loading": "Đang tải..."
+  "loading": "Đang tải...",
+  "transactions": {
+    "page": {
+      "title": "Giao dịch",
+      "subtitle": "Quản lý các giao dịch thu chi của bạn"
+    },
+    "type": {
+      "income": "Thu nhập",
+      "expense": "Chi tiêu"
+    },
+    "schedule": {
+      "title": "Lịch hẹn giao dịch",
+      "desc": "Thiết lập giao dịch tự động theo lịch",
+      "create_btn": "Tạo lịch mới",
+      "tab": {
+        "all": "Tất cả",
+        "pending": "Chờ chạy",
+        "completed": "Hoàn tất",
+        "failed": "Thất bại",
+        "cancelled": "Đã hủy"
+      },
+      "status": {
+        "pending": "Chờ chạy",
+        "running": "Đang chạy",
+        "completed": "Hoàn tất",
+        "failed": "Thất bại",
+        "cancelled": "Đã hủy"
+      },
+      "amount": "Số tiền:",
+      "next_run": "Lần tiếp:",
+      "completed_runs": "Đã chạy:",
+      "view_history": "Xem lịch sử",
+      "cancel": "Hủy lịch"
+    },
+    "toast": {
+      "schedule_created": "Tạo lịch hẹn thành công",
+      "schedule_cancelled": "Đã hủy lịch hẹn"
+    }
+  }
 }
