@@ -40,10 +40,11 @@ export default function TransactionViewModal({ open, tx, onClose }) {
     if (!tx?.sourceWallet || !wallets) return null;
     // Xử lý tên ví có thể có "(đã rời ví)" hoặc "(đã xóa)"
     const cleanSourceWalletName = tx.sourceWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-    return wallets.find(w => 
-      w.name === cleanSourceWalletName || 
-      w.walletName === cleanSourceWalletName ||
-      (tx.sourceWalletId && (String(w.id || w.walletId) === String(tx.sourceWalletId)))
+    // Ưu tiên khớp theo ID để tránh nhầm khi có nhiều ví trùng tên
+    return wallets.find(w =>
+      (tx.sourceWalletId && String(w.id || w.walletId) === String(tx.sourceWalletId)) ||
+      w.name === cleanSourceWalletName ||
+      w.walletName === cleanSourceWalletName
     );
   }, [tx?.sourceWallet, tx?.sourceWalletId, wallets]);
   
@@ -51,10 +52,11 @@ export default function TransactionViewModal({ open, tx, onClose }) {
     if (!tx?.targetWallet || !wallets) return null;
     // Xử lý tên ví có thể có "(đã rời ví)" hoặc "(đã xóa)"
     const cleanTargetWalletName = tx.targetWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-    return wallets.find(w => 
-      w.name === cleanTargetWalletName || 
-      w.walletName === cleanTargetWalletName ||
-      (tx.targetWalletId && (String(w.id || w.walletId) === String(tx.targetWalletId)))
+    // Ưu tiên khớp theo ID để tránh nhầm khi có nhiều ví trùng tên
+    return wallets.find(w =>
+      (tx.targetWalletId && String(w.id || w.walletId) === String(tx.targetWalletId)) ||
+      w.name === cleanTargetWalletName ||
+      w.walletName === cleanTargetWalletName
     );
   }, [tx?.targetWallet, tx?.targetWalletId, wallets]);
   
@@ -141,18 +143,22 @@ export default function TransactionViewModal({ open, tx, onClose }) {
       }
     }
     
-    // Xác định loại ví dựa trên walletType và role
-    // Ví nhóm: walletType === "GROUP" VÀ user là owner (OWNER/MASTER/ADMIN)
-    // Ví được chia sẻ: walletType === "GROUP" NHƯNG user không phải owner (MEMBER/USER/USE)
-    // QUAN TRỌNG: Không fallback về "Ví nhóm" nếu không có thông tin role/owner để tránh hiển thị sai
-    // khi ví được chia sẻ bị kick hoặc bị xóa
+    // ==== Quy tắc phân loại đơn giản, bám sát kỳ vọng người dùng ====
+    // 1. Ví nhóm (GROUP):
+    //    - Nếu user là OWNER/MASTER/ADMIN → "Ví nhóm"
+    //    - Ngược lại (MEMBER/USER/USE/VIEW/VIEWER/khác) → "Ví được chia sẻ"
+    // 2. Ví cá nhân (không phải GROUP):
+    //    - Nếu current user là owner → luôn "Ví cá nhân" (kể cả có chia sẻ cho người khác)
+    //    - Nếu không phải owner nhưng có isShared/role → "Ví được chia sẻ"
+    //    - Nếu không có thông tin gì đặc biệt → "Ví cá nhân"
+
     if (walletType === "GROUP") {
       // Nếu có role, dùng role để xác định
       if (role) {
         if (["OWNER", "MASTER", "ADMIN"].includes(role)) {
           return "Ví nhóm";
         }
-        if (["MEMBER", "USER", "USE"].includes(role)) {
+        if (["MEMBER", "USER", "USE", "VIEW", "VIEWER"].includes(role)) {
           return "Ví được chia sẻ";
         }
       }
@@ -172,98 +178,19 @@ export default function TransactionViewModal({ open, tx, onClose }) {
     }
     
     // Ví cá nhân hoặc ví được chia sẻ: walletType !== "GROUP"
-    // Ví cá nhân: user là owner
+    // Nếu current user là owner → luôn hiển thị "Ví cá nhân"
     if (isOwner) {
       return "Ví cá nhân";
     }
     
-    // Ví được chia sẻ: user không phải owner
-    if (isShared) {
+    // Nếu không phải owner nhưng có dấu hiệu chia sẻ → "Ví được chia sẻ"
+    if (isShared || (role && ["MEMBER", "USER", "USE", "VIEW", "VIEWER"].includes(role))) {
       return "Ví được chia sẻ";
     }
     
     // Fallback: mặc định là ví cá nhân
     return "Ví cá nhân";
   }, [currentUserId, tx?.rawTransfer]);
-  
-  // Xác định loại ví cho sourceWallet và targetWallet
-  // Sử dụng role đã lưu trong transaction object (nếu có) để giữ lại thông tin ban đầu
-  const sourceWalletTypeLabel = useMemo(() => {
-    if (!isTransfer) return null;
-    const savedRole = tx?.sourceWalletRole ? tx.sourceWalletRole.toUpperCase() : null;
-    return getWalletTypeLabel(sourceWallet, tx?.sourceWalletId, savedRole);
-  }, [isTransfer, sourceWallet, tx?.sourceWalletId, tx?.sourceWalletRole, getWalletTypeLabel]);
-  
-  const targetWalletTypeLabel = useMemo(() => {
-    if (!isTransfer) return null;
-    const savedRole = tx?.targetWalletRole ? tx.targetWalletRole.toUpperCase() : null;
-    return getWalletTypeLabel(targetWallet, tx?.targetWalletId, savedRole);
-  }, [isTransfer, targetWallet, tx?.targetWalletId, tx?.targetWalletRole, getWalletTypeLabel]);
-  
-  // Xác định loại ví cho transaction thông thường (không phải transfer)
-  const walletTypeLabel = useMemo(() => {
-    if (isTransfer) return null;
-    // Tìm wallet từ transaction
-    if (!tx?.walletName) return null;
-    const cleanWalletName = tx.walletName.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
-    const wallet = wallets ? wallets.find(w => 
-      w.name === cleanWalletName || 
-      w.walletName === cleanWalletName ||
-      (tx.walletId && (String(w.id || w.walletId) === String(tx.walletId)))
-    ) : null;
-    
-    // Nếu không tìm thấy wallet, thử lấy từ rawTx (cho trường hợp wallet đã rời hoặc bị xóa)
-    if (!wallet && tx?.rawTx?.wallet) {
-      const walletType = (tx.rawTx.wallet.walletType || "").toString().toUpperCase();
-      const role = (tx.rawTx.wallet.walletRole || tx.rawTx.wallet.sharedRole || tx.rawTx.wallet.role || "").toString().toUpperCase();
-      const isShared = !!(tx.rawTx.wallet.isShared || tx.rawTx.wallet.walletRole || tx.rawTx.wallet.sharedRole || tx.rawTx.wallet.role);
-      
-      // Kiểm tra xem user có phải là owner không
-      const isOwner = 
-        (tx.rawTx.wallet.ownerUserId && currentUserId && String(tx.rawTx.wallet.ownerUserId) === String(currentUserId)) ||
-        ["OWNER", "MASTER", "ADMIN"].includes(role);
-      
-      // Ví nhóm: walletType === "GROUP"
-      // - Nếu có role OWNER/MASTER/ADMIN → "Ví nhóm"
-      // - Nếu có role MEMBER/USER/USE → "Ví được chia sẻ"
-      // - Nếu không có role, không thể xác định (không fallback)
-      if (walletType === "GROUP") {
-        if (role) {
-          if (["OWNER", "MASTER", "ADMIN"].includes(role)) {
-            return "Ví nhóm";
-          }
-          if (["MEMBER", "USER", "USE"].includes(role)) {
-            return "Ví được chia sẻ";
-          }
-        }
-        // Nếu có thông tin isOwner
-        if (isOwner !== undefined) {
-          if (isOwner) {
-            return "Ví nhóm";
-          }
-          if (isShared) {
-            return "Ví được chia sẻ";
-          }
-        }
-        // Không có thông tin, không thể xác định
-        return null;
-      }
-      
-      // Ví cá nhân: walletType !== "GROUP" VÀ user là owner
-      if (isOwner) {
-        return "Ví cá nhân";
-      }
-      
-      // Ví được chia sẻ: user không phải owner
-      if (isShared) {
-        return "Ví được chia sẻ";
-      }
-      
-      return "Ví cá nhân";
-    }
-    
-    return getWalletTypeLabel(wallet, tx?.walletId);
-  }, [isTransfer, tx?.walletName, tx?.walletId, tx?.rawTx, wallets, currentUserId, getWalletTypeLabel]);
   
   if (!open || !tx) return null;
 
@@ -412,11 +339,6 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                           Chủ ví: {sourceWalletOwnerEmail}
                         </div>
                       )}
-                      {sourceWalletTypeLabel && (
-                        <div className="tx-detail-value" style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "2px" }}>
-                          Loại ví: {sourceWalletTypeLabel}
-                        </div>
-                      )}
                     </div>
                   </div>
                   <div className="col-6">
@@ -426,11 +348,6 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                       {targetWalletOwnerEmail && (
                         <div className="tx-detail-value" style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "4px" }}>
                           Chủ ví: {targetWalletOwnerEmail}
-                        </div>
-                      )}
-                      {targetWalletTypeLabel && (
-                        <div className="tx-detail-value" style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "2px" }}>
-                          Loại ví: {targetWalletTypeLabel}
                         </div>
                       )}
                     </div>
@@ -470,11 +387,6 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                           <span style={{ color: "#9ca3af", fontStyle: "italic" }}>Không có thông tin</span>
                         )}
                       </div>
-                      {walletTypeLabel && (
-                        <div className="tx-detail-value" style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "4px" }}>
-                          Loại ví: {walletTypeLabel}
-                        </div>
-                      )}
                     </div>
                   </div>
                   <div className={tx.ownerEmail ? "col-12" : "col-6"}>

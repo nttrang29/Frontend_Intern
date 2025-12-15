@@ -13,6 +13,7 @@ import { WALLET_TYPE_ICON_CONFIG, mapWalletsToSelectOptions } from "../../utils/
 const EMPTY_FORM = {
   type: "expense",
   walletName: "",
+  walletId: null,        // Lưu ID ví để tránh nhầm khi có nhiều ví trùng tên
   amount: "",
   date: "",
   category: "Ăn uống",
@@ -20,7 +21,9 @@ const EMPTY_FORM = {
   currency: "VND",
   attachment: "",
   sourceWallet: "",
+  sourceWalletId: null,  // ID ví gửi (chuyển tiền nội bộ)
   targetWallet: "",
+  targetWalletId: null,  // ID ví nhận (chuyển tiền nội bộ)
 };
 
 export default function TransactionForm({
@@ -151,6 +154,17 @@ export default function TransactionForm({
     });
   }, [availableWallets, walletListFromContext, currentUserId, activeTab]);
 
+  // Helper lấy id/name ví thống nhất
+  const getWalletId = (wallet) => {
+    if (!wallet) return null;
+    return wallet.id ?? wallet.walletId ?? null;
+  };
+
+  const getWalletName = (wallet) => {
+    if (!wallet) return "";
+    return wallet.name ?? wallet.walletName ?? "";
+  };
+
   const walletList = filteredWalletList;
   const defaultWallet = walletList.find(w => w.isDefault === true);
 
@@ -191,10 +205,14 @@ export default function TransactionForm({
         if (initialData.date) {
           dateValue = convertToVietnamDateTime(initialData.date);
         }
+        // Tìm lại ID ví dựa trên tên ví nếu có trong danh sách
+        const wallet = walletList?.find(w => getWalletName(w) === initialData.walletName);
+        const walletId = wallet ? getWalletId(wallet) : null;
         setForm({
           ...EMPTY_FORM,
           type: initialData.type,
           walletName: initialData.walletName,
+          walletId,
           amount: String(initialData.amount),
           date: dateValue || getVietnamDateTime(),
           category: initialData.category,
@@ -204,12 +222,14 @@ export default function TransactionForm({
         });
         setAttachmentPreview(initialData.attachment || "");
       } else {
-        const defaultWalletName = defaultWallet?.name || "";
+        const defaultWalletName = defaultWallet ? getWalletName(defaultWallet) : "";
         const defaultCurrency = defaultWallet?.currency || "VND";
+        const defaultWalletId = defaultWallet ? getWalletId(defaultWallet) : null;
         setForm({ 
           ...EMPTY_FORM, 
           date: getVietnamDateTime(),
           walletName: defaultWalletName,
+          walletId: defaultWalletId,
           currency: defaultCurrency,
         });
         setAttachmentPreview("");
@@ -335,109 +355,152 @@ export default function TransactionForm({
 
   const targetWalletOptions = useMemo(() => {
     if (!walletOptions || walletOptions.length === 0) return [];
-    if (!form.sourceWallet) return walletOptions;
-    // So sánh theo walletId hoặc name
+    if (!form.sourceWallet && !form.sourceWalletId) return walletOptions;
+    // Loại đúng 1 ví trùng ID với ví gửi, vẫn cho phép các ví khác trùng tên
     return walletOptions.filter((opt) => {
       const wallet = opt.raw;
       if (!wallet) return true;
-      const walletId = String(wallet.id || wallet.walletId || "");
-      const walletName = wallet.name || wallet.walletName || "";
-      return opt.value !== form.sourceWallet && walletId !== form.sourceWallet && walletName !== form.sourceWallet;
+      const walletId = String(getWalletId(wallet) ?? "");
+      const sourceId = form.sourceWalletId != null ? String(form.sourceWalletId) : "";
+      // Nếu đã có sourceWalletId thì chỉ loại ví có cùng ID
+      if (sourceId) {
+        return walletId !== sourceId;
+      }
+      // Fallback cũ: chưa có ID thì loại theo tên
+      const walletName = getWalletName(wallet);
+      return walletName !== form.sourceWallet;
     });
-  }, [walletOptions, form.sourceWallet]);
+  }, [walletOptions, form.sourceWallet, form.sourceWalletId]);
 
   // Lấy walletId từ walletName để tìm wallet
   const selectedWallet = useMemo(() => {
+    // Ưu tiên tìm theo walletId nếu có (chính xác nhất)
+    if (form.walletId !== null && form.walletId !== undefined && form.walletId !== "") {
+      const formWalletId = form.walletId;
+      const wallet = walletList?.find(w => {
+        const walletId = getWalletId(w);
+        if (walletId === null || walletId === undefined) return false;
+        const walletIdNum = Number(walletId);
+        const formWalletIdNum = Number(formWalletId);
+        if (!isNaN(walletIdNum) && !isNaN(formWalletIdNum) && walletIdNum === formWalletIdNum) {
+          return true;
+        }
+        return String(walletId) === String(formWalletId);
+      });
+      if (wallet) return wallet;
+    }
+
     if (!form.walletName) return null;
-    // Tìm tất cả ví có cùng tên
-    const walletsWithSameName = walletList?.filter(w => {
-      const walletName = w.name || w.walletName || "";
-      return walletName === form.walletName;
-    }) || [];
-    
-    // Nếu chỉ có 1 ví với tên đó, trả về ví đó
+    // Nếu không có walletId, chỉ dùng tên khi nó là duy nhất
+    const walletsWithSameName = walletList?.filter(w => getWalletName(w) === form.walletName) || [];
     if (walletsWithSameName.length === 1) {
       return walletsWithSameName[0];
     }
-    
-    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về null
-    // Điều này sẽ làm cho số dư không hiển thị cho đến khi user chọn rõ ràng ví nào
     return null;
-  }, [form.walletName, walletList]);
+  }, [form.walletName, form.walletId, walletList]);
   
   const sourceWallet = useMemo(() => {
+    // Ưu tiên theo sourceWalletId
+    if (form.sourceWalletId !== null && form.sourceWalletId !== undefined && form.sourceWalletId !== "") {
+      const formWalletId = form.sourceWalletId;
+      const wallet = walletList?.find(w => {
+        const walletId = getWalletId(w);
+        if (walletId === null || walletId === undefined) return false;
+        const walletIdNum = Number(walletId);
+        const formWalletIdNum = Number(formWalletId);
+        if (!isNaN(walletIdNum) && !isNaN(formWalletIdNum) && walletIdNum === formWalletIdNum) {
+          return true;
+        }
+        return String(walletId) === String(formWalletId);
+      });
+      if (wallet) return wallet;
+    }
+
     if (!form.sourceWallet) return null;
-    // Tìm tất cả ví có cùng tên
-    const walletsWithSameName = walletList?.filter(w => {
-      const walletName = w.name || w.walletName || "";
-      return walletName === form.sourceWallet;
-    }) || [];
-    
-    // Nếu chỉ có 1 ví với tên đó, trả về ví đó
+    const walletsWithSameName = walletList?.filter(w => getWalletName(w) === form.sourceWallet) || [];
     if (walletsWithSameName.length === 1) {
       return walletsWithSameName[0];
     }
-    
-    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về null
     return null;
-  }, [form.sourceWallet, walletList]);
+  }, [form.sourceWallet, form.sourceWalletId, walletList]);
   
   const targetWallet = useMemo(() => {
+    // Ưu tiên theo targetWalletId
+    if (form.targetWalletId !== null && form.targetWalletId !== undefined && form.targetWalletId !== "") {
+      const formWalletId = form.targetWalletId;
+      const wallet = walletList?.find(w => {
+        const walletId = getWalletId(w);
+        if (walletId === null || walletId === undefined) return false;
+        const walletIdNum = Number(walletId);
+        const formWalletIdNum = Number(formWalletId);
+        if (!isNaN(walletIdNum) && !isNaN(formWalletIdNum) && walletIdNum === formWalletIdNum) {
+          return true;
+        }
+        return String(walletId) === String(formWalletId);
+      });
+      if (wallet) return wallet;
+    }
+
     if (!form.targetWallet) return null;
-    // Tìm tất cả ví có cùng tên
-    const walletsWithSameName = walletList?.filter(w => {
-      const walletName = w.name || w.walletName || "";
-      return walletName === form.targetWallet;
-    }) || [];
-    
-    // Nếu chỉ có 1 ví với tên đó, trả về ví đó
+    const walletsWithSameName = walletList?.filter(w => getWalletName(w) === form.targetWallet) || [];
     if (walletsWithSameName.length === 1) {
       return walletsWithSameName[0];
     }
-    
-    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về null
     return null;
-  }, [form.targetWallet, walletList]);
+  }, [form.targetWallet, form.targetWalletId, walletList]);
   
   // Lấy walletId từ walletName hiện tại để set value cho SearchableSelectInput
   const currentWalletValue = useMemo(() => {
+    // Ưu tiên walletId nếu có
+    if (form.walletId !== null && form.walletId !== undefined && form.walletId !== "") {
+      return String(form.walletId);
+    }
     if (!form.walletName) return "";
-    // Kiểm tra xem có bao nhiêu ví cùng tên
-    const walletsWithSameName = walletList?.filter(w => (w.name || w.walletName) === form.walletName) || [];
-    // Nếu chỉ có 1 ví với tên đó, có thể dùng
+    const walletsWithSameName = walletList?.filter(w => getWalletName(w) === form.walletName) || [];
     if (walletsWithSameName.length === 1) {
       const wallet = walletsWithSameName[0];
-      return String(wallet.id || wallet.walletId || form.walletName);
+      const walletId = getWalletId(wallet);
+      if (walletId !== null && walletId !== undefined) {
+        return String(walletId);
+      }
+      return "";
     }
-    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về empty để user phải chọn lại
     return "";
-  }, [form.walletName, walletList]);
+  }, [form.walletName, form.walletId, walletList]);
   
   const currentSourceWalletValue = useMemo(() => {
+    if (form.sourceWalletId !== null && form.sourceWalletId !== undefined && form.sourceWalletId !== "") {
+      return String(form.sourceWalletId);
+    }
     if (!form.sourceWallet) return "";
-    // Kiểm tra xem có bao nhiêu ví cùng tên
-    const walletsWithSameName = walletList?.filter(w => (w.name || w.walletName) === form.sourceWallet) || [];
-    // Nếu chỉ có 1 ví với tên đó, có thể dùng
+    const walletsWithSameName = walletList?.filter(w => getWalletName(w) === form.sourceWallet) || [];
     if (walletsWithSameName.length === 1) {
       const wallet = walletsWithSameName[0];
-      return String(wallet.id || wallet.walletId || form.sourceWallet);
+      const walletId = getWalletId(wallet);
+      if (walletId !== null && walletId !== undefined) {
+        return String(walletId);
+      }
+      return "";
     }
-    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về empty để user phải chọn lại
     return "";
-  }, [form.sourceWallet, walletList]);
+  }, [form.sourceWallet, form.sourceWalletId, walletList]);
   
   const currentTargetWalletValue = useMemo(() => {
+    if (form.targetWalletId !== null && form.targetWalletId !== undefined && form.targetWalletId !== "") {
+      return String(form.targetWalletId);
+    }
     if (!form.targetWallet) return "";
-    // Kiểm tra xem có bao nhiêu ví cùng tên
-    const walletsWithSameName = walletList?.filter(w => (w.name || w.walletName) === form.targetWallet) || [];
-    // Nếu chỉ có 1 ví với tên đó, có thể dùng
+    const walletsWithSameName = walletList?.filter(w => getWalletName(w) === form.targetWallet) || [];
     if (walletsWithSameName.length === 1) {
       const wallet = walletsWithSameName[0];
-      return String(wallet.id || wallet.walletId || form.targetWallet);
+      const walletId = getWalletId(wallet);
+      if (walletId !== null && walletId !== undefined) {
+        return String(walletId);
+      }
+      return "";
     }
-    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về empty để user phải chọn lại
     return "";
-  }, [form.targetWallet, walletList]);
+  }, [form.targetWallet, form.targetWalletId, walletList]);
 
   const amountNum = getMoneyValue(form.amount);
   const walletBalance = Number(selectedWallet?.balance || 0);
@@ -574,7 +637,9 @@ export default function TransactionForm({
       } else {
         onSubmit?.({
           sourceWallet: form.sourceWallet,
+          sourceWalletId: form.sourceWalletId,
           targetWallet: form.targetWallet,
+          targetWalletId: form.targetWalletId,
           amount: amountNum,
           note: form.note || "",
         });
@@ -583,6 +648,7 @@ export default function TransactionForm({
       onSubmit?.({
         type: form.type,
         walletName: form.walletName,
+        walletId: form.walletId,
         amount: amountNum,
         date: form.date,
         category: form.category,
@@ -594,12 +660,14 @@ export default function TransactionForm({
 
     // Reset form after submit (chỉ khi tạo mới)
     if (mode === "create") {
-      const defaultWalletName = defaultWallet?.name || "";
+      const defaultWalletName = defaultWallet ? getWalletName(defaultWallet) : "";
       const defaultCurrency = defaultWallet?.currency || "VND";
+      const defaultWalletId = defaultWallet ? getWalletId(defaultWallet) : null;
       setForm({ 
         ...EMPTY_FORM, 
         date: getVietnamDateTime(),
         walletName: defaultWalletName,
+        walletId: defaultWalletId,
         currency: defaultCurrency,
       });
       setAttachmentPreview("");
@@ -608,12 +676,14 @@ export default function TransactionForm({
   };
 
   const handleReset = () => {
-    const defaultWalletName = defaultWallet?.name || "";
+    const defaultWalletName = defaultWallet ? getWalletName(defaultWallet) : "";
     const defaultCurrency = defaultWallet?.currency || "VND";
+    const defaultWalletId = defaultWallet ? getWalletId(defaultWallet) : null;
     setForm({ 
       ...EMPTY_FORM, 
       date: getVietnamDateTime(),
       walletName: defaultWalletName,
+      walletId: defaultWalletId,
       currency: defaultCurrency,
     });
     setAttachmentPreview("");
@@ -643,21 +713,32 @@ export default function TransactionForm({
               value={currentSourceWalletValue}
               displayText={currentSourceWalletValue === "" && form.sourceWallet ? form.sourceWallet : undefined}
               onChange={(v) => {
-                // v là walletId, cần tìm wallet và set walletName
+                // v là walletId, cần tìm wallet và set cả name + id
                 const selectedOption = walletOptions.find(opt => opt.value === v);
                 const wallet = selectedOption?.raw;
                 if (wallet) {
-                  const walletName = wallet.name || wallet.walletName || "";
+                  const walletName = getWalletName(wallet);
+                  const walletId = getWalletId(wallet);
                   setForm(f => {
                     // Nếu ví nhận trùng với ví gửi mới, reset ví nhận
-                    const currentTargetValue = f.targetWallet;
-                    const targetWallet = walletList?.find(w => (w.name || w.walletName) === currentTargetValue);
-                    const targetWalletId = targetWallet ? String(targetWallet.id || targetWallet.walletId || "") : "";
-                    const newTarget = v === targetWalletId ? "" : f.targetWallet;
-                    return { ...f, sourceWallet: walletName, targetWallet: newTarget };
+                    const newTarget =
+                      f.targetWalletId && String(f.targetWalletId) === String(walletId)
+                        ? ""
+                        : f.targetWallet;
+                    const newTargetId =
+                      f.targetWalletId && String(f.targetWalletId) === String(walletId)
+                        ? null
+                        : f.targetWalletId;
+                    return {
+                      ...f,
+                      sourceWallet: walletName,
+                      sourceWalletId: walletId,
+                      targetWallet: newTarget,
+                      targetWalletId: newTargetId,
+                    };
                   });
                 } else {
-                  setForm(f => ({ ...f, sourceWallet: v }));
+                  setForm(f => ({ ...f, sourceWallet: "", sourceWalletId: null }));
                 }
               }}
               options={walletOptions}
@@ -678,13 +759,19 @@ export default function TransactionForm({
               value={currentTargetWalletValue}
               displayText={currentTargetWalletValue === "" && form.targetWallet ? form.targetWallet : undefined}
               onChange={(v) => {
-                // v là walletId, cần tìm wallet và set walletName
+                // v là walletId, cần tìm wallet và set cả name + id
                 const selectedOption = targetWalletOptions.find(opt => opt.value === v);
                 const wallet = selectedOption?.raw;
                 if (wallet) {
-                  setForm(f => ({ ...f, targetWallet: wallet.name || wallet.walletName || "" }));
+                  const walletName = getWalletName(wallet);
+                  const walletId = getWalletId(wallet);
+                  setForm(f => ({
+                    ...f,
+                    targetWallet: walletName,
+                    targetWalletId: walletId,
+                  }));
                 } else {
-                  setForm(f => ({ ...f, targetWallet: v }));
+                  setForm(f => ({ ...f, targetWallet: "", targetWalletId: null }));
                 }
               }}
               options={targetWalletOptions}
@@ -788,14 +875,20 @@ export default function TransactionForm({
                 value={currentWalletValue}
                 displayText={currentWalletValue === "" && form.walletName ? form.walletName : undefined}
                 onChange={(v) => {
-                  // v là walletId, cần tìm wallet và set walletName
-                  const selectedOption = walletOptions.find(opt => opt.value === v);
+                  // v là walletId, cần tìm wallet và set cả tên + id
+                  const selectedOption = walletOptions.find(opt => String(opt.value) === String(v));
                   const wallet = selectedOption?.raw;
                   if (wallet) {
-                    setForm(f => ({ ...f, walletName: wallet.name || wallet.walletName || "" }));
+                    const walletName = getWalletName(wallet);
+                    const walletId = getWalletId(wallet);
+                    setForm(f => ({
+                      ...f,
+                      walletName,
+                      walletId,
+                    }));
                   } else {
-                    // Fallback: nếu không tìm thấy, giữ nguyên
-                    setForm(f => ({ ...f, walletName: v }));
+                    // Nếu không tìm thấy, reset để tránh lưu sai
+                    setForm(f => ({ ...f, walletName: "", walletId: null }));
                   }
                 }}
                 options={walletOptions}

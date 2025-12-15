@@ -179,30 +179,12 @@ export default function SearchableSelectInput({
                   className={`searchable-option ${String(value) === String(opt.value) ? "active" : ""}`}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    console.log("🟠 [SearchableSelectInput] Option clicked:", {
-                      optValue: opt.value,
-                      optLabel: opt.label,
-                      currentValue: value,
-                      onChangeType: typeof onChange,
-                      onChange: onChange
-                    });
                     if (onChange && typeof onChange === 'function') {
                       try {
-                        console.log("🟠 [SearchableSelectInput] Calling onChange with value:", opt.value);
-                        console.log("🟠 [SearchableSelectInput] onChange function code (first 300 chars):", onChange.toString().substring(0, 300));
-                        console.log("🟠 [SearchableSelectInput] onChange function includes 'handleSourceWalletChange':", onChange.toString().includes('handleSourceWalletChange'));
-                        console.log("🟠 [SearchableSelectInput] onChange function includes 'handleTargetWalletChange':", onChange.toString().includes('handleTargetWalletChange'));
-                        console.log("🟠 [SearchableSelectInput] onChange function includes 'sourceWallet':", onChange.toString().includes('sourceWallet'));
-                        console.log("🟠 [SearchableSelectInput] onChange function includes 'targetWallet':", onChange.toString().includes('targetWallet'));
-                        console.log("🟠 [SearchableSelectInput] onChange function name:", onChange.name || 'anonymous');
-                        const result = onChange(opt.value);
-                        console.log("🟠 [SearchableSelectInput] onChange called successfully, result:", result);
+                        onChange(opt.value);
                       } catch (error) {
-                        console.error("🟠 [SearchableSelectInput] Error calling onChange:", error);
-                        console.error("🟠 [SearchableSelectInput] Error stack:", error.stack);
+                        console.error(error);
                       }
-                    } else {
-                      console.error("🟠 [SearchableSelectInput] onChange is not a function:", onChange, "Type:", typeof onChange);
                     }
                     setSearchText("");
                     setIsOpen(false);
