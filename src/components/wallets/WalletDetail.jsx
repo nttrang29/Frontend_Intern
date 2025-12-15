@@ -120,33 +120,6 @@ export default function WalletDetail(props) {
   // Extract loadingTransactions với default value
   const isLoadingTransactions = loadingTransactions || false;
 
-  // Helper function to check if wallet is used as source wallet or target wallet for a fund
-  const getFundInfoForWallet = useMemo(() => {
-    if (!wallet?.id || !funds || funds.length === 0) return null;
-    const walletIdStr = String(wallet.id);
-    
-    // Check if wallet is source wallet
-    const sourceFund = funds.find(f => 
-      String(f.sourceWalletId || f.sourceWallet?.walletId || f.sourceWallet?.id) === walletIdStr
-    );
-    if (sourceFund) {
-      return { type: 'source', fund: sourceFund };
-    }
-    
-    // Check if wallet is target wallet
-    const targetFund = funds.find(f => 
-      String(f.targetWalletId || f.targetWallet?.walletId || f.targetWallet?.id || f.walletId) === walletIdStr
-    );
-    if (targetFund) {
-      return { type: 'target', fund: targetFund };
-    }
-    
-    return null;
-  }, [wallet?.id, funds]);
-
-  const isSourceWallet = getFundInfoForWallet?.type === 'source';
-  const isTargetWallet = getFundInfoForWallet?.type === 'target';
-
   const sharedEmails = useMemo(() => {
     const base = Array.isArray(wallet?.sharedEmails)
       ? wallet.sharedEmails
@@ -1593,7 +1566,7 @@ export default function WalletDetail(props) {
           >
             <div className="wallet-form__row">
               <label>
-                {t('wallets.modal.name_label')}
+                Tên ví
                 <input
                   type="text"
                   required
@@ -1601,7 +1574,7 @@ export default function WalletDetail(props) {
                   onChange={(e) =>
                     onCreateFieldChange("name", e.target.value)
                   }
-                  placeholder={t('wallets.modal.name_placeholder')}
+                  placeholder="Ví tiền mặt, Ví ngân hàng..."
                 />
               </label>
 
@@ -1609,18 +1582,18 @@ export default function WalletDetail(props) {
 
             <div className="wallet-form__row">
               <label className="wallet-form__full">
-                {t('wallets.modal.note_label')}
+                Ghi chú
                 <input
                   type="text"
                   value={createForm.note}
                   onChange={(e) =>
                     onCreateFieldChange("note", e.target.value)
                   }
-                  placeholder={t('wallets.modal.note_placeholder')}
+                  placeholder="Thêm ghi chú cho ví"
                   maxLength={NOTE_MAX_LENGTH}
                 />
                 <span className="wallet-form__char-hint">
-                  {(createForm.note || "").length}/{NOTE_MAX_LENGTH} {t('wallets.modal.characters')}
+                  {(createForm.note || "").length}/{NOTE_MAX_LENGTH} ký tự
                 </span>
               </label>
             </div>
@@ -1628,7 +1601,7 @@ export default function WalletDetail(props) {
             {/* Currency fixed to VND */}
             <div className="wallet-form__row">
               <label>
-                {t('wallets.modal.currency_label')}
+                Đơn vị tiền tệ
                 <input type="text" value="VND" disabled className="form-control" />
               </label>
             </div>
@@ -1641,14 +1614,14 @@ export default function WalletDetail(props) {
                   checked={createShareEnabled}
                   onChange={(e) => setCreateShareEnabled(e.target.checked)}
                 />
-                <span>{t('wallets.modal.share_wallet')}</span>
+                <span>Chia sẻ ví này với người khác</span>
               </label>
             </div>
 
             {createShareEnabled && (
               <div className="wallet-form__share-block">
                 <label className="wallet-form__full">
-                  {t('wallets.modal.share_email_label')}
+                  Email người được chia sẻ
                   <div className="wallet-form__share-row">
                     <input
                       type="email"
@@ -1661,7 +1634,7 @@ export default function WalletDetail(props) {
                       className="wallets-btn wallets-btn--ghost"
                       onClick={onAddCreateShareEmail}
                     >
-                      {t('wallets.modal.add')}
+                      Thêm
                     </button>
                   </div>
                 </label>
@@ -1693,7 +1666,7 @@ export default function WalletDetail(props) {
                     onCreateFieldChange("isDefault", e.target.checked)
                   }
                 />
-                <span>{t('wallets.modal.edit_default_label')}</span>
+                <span>Đặt làm ví mặc định</span>
               </label>
               <div className="wallet-form__actions">
                 <button
@@ -1701,13 +1674,13 @@ export default function WalletDetail(props) {
                   className="wallets-btn wallets-btn--ghost"
                   onClick={() => setShowCreate(false)}
                 >
-                  {t('wallets.modal.cancel')}
+                  Hủy
                 </button>
                 <button
                   type="submit"
                   className="wallets-btn wallets-btn--primary"
                 >
-                  {t('wallets.modal.create_btn')}
+                  Lưu ví cá nhân
                 </button>
               </div>
             </div>
@@ -1822,7 +1795,7 @@ export default function WalletDetail(props) {
                               onSharedWalletDemoCancel?.();
                             }}
                           >
-                            {t('wallets.modal.cancel')}
+                            Hủy
                           </button>
                         </div>
                       )}
@@ -1987,8 +1960,7 @@ export default function WalletDetail(props) {
                 {t("wallets.inspector.tab.edit") || "Sửa ví"}
               </button>
             )}
-            {/* Ẩn tab Gộp ví nếu ví là source wallet hoặc target wallet */}
-            {!wallet.isShared && !effectiveIsMember && !isSourceWallet && !isTargetWallet && (
+            {!wallet.isShared && !effectiveIsMember && (
               <button
                 className={
                   activeDetailTab === "merge"
@@ -2001,8 +1973,8 @@ export default function WalletDetail(props) {
               </button>
             )}
 
-            {/* Ẩn tab chuyển thành ví nhóm nếu ví là source wallet hoặc target wallet */}
-            {!wallet.isShared && walletTabType === "personal" && !isSourceWallet && !isTargetWallet && (
+            {/* Chỉ hiển thị tab chuyển thành ví nhóm cho ví cá nhân */}
+            {!wallet.isShared && walletTabType === "personal" && (
               <button
                 className={
                   activeDetailTab === "convert"
@@ -2011,12 +1983,11 @@ export default function WalletDetail(props) {
                 }
                 onClick={() => setActiveDetailTab("convert")}
               >
-                {t('wallets.convert.tab_title')}
+                Chuyển thành ví nhóm
               </button>
             )}
 
-            {/* Ẩn tab Quản lý người dùng nếu ví là source wallet hoặc target wallet */}
-            {effectiveIsOwner && !isSourceWallet && !isTargetWallet && (
+            {effectiveIsOwner && (
               <button
                 className={
                   activeDetailTab === "manageMembers"
@@ -2025,7 +1996,7 @@ export default function WalletDetail(props) {
                 }
                 onClick={() => setActiveDetailTab("manageMembers")}
               >
-                {t('wallets.manage_members.tab_title')}
+                Quản lý người dùng
               </button>
             )}
           </>
@@ -2119,9 +2090,7 @@ export default function WalletDetail(props) {
           editForm={editForm}
           onEditFieldChange={onEditFieldChange}
           onSubmitEdit={onSubmitEdit}
-          onDeleteWallet={isTargetWallet ? undefined : onDeleteWallet}
-          isTargetWallet={isTargetWallet}
-          fundInfo={getFundInfoForWallet}
+          onDeleteWallet={onDeleteWallet}
         />
       )}
 

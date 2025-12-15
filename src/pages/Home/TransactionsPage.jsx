@@ -7,19 +7,19 @@ import TransactionViewModal from "../../components/transactions/TransactionViewM
 import TransactionFormModal from "../../components/transactions/TransactionFormModal";
 import TransactionForm from "../../components/transactions/TransactionForm";
 import TransactionList from "../../components/transactions/TransactionList";
+import ScheduledTransactionModal from "../../components/transactions/ScheduledTransactionModal";
+import ScheduledTransactionDrawer from "../../components/transactions/ScheduledTransactionDrawer";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import Toast from "../../components/common/Toast/Toast";
 import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
-import { useFundData } from "../../contexts/FundDataContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
-import { getFundTransactions } from "../../services/fund.service";
 import { API_BASE_URL } from "../../services/api-client";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
 
@@ -470,6 +470,10 @@ export default function TransactionsPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
 
+  const [scheduledTransactions, setScheduledTransactions] = useState(MOCK_SCHEDULES);
+  const [scheduleFilter, setScheduleFilter] = useState("all");
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
 
   // Get shared data from contexts
   const { budgets, getSpentAmount, getSpentForBudget, updateTransactionsByCategory, updateAllExternalTransactions, refreshBudgets } = useBudgetData();
@@ -1212,123 +1216,6 @@ export default function TransactionsPage() {
     };
   }, [walletsMap, leftWalletIds, walletsLoading, wallets]);
 
-  // Map fund transaction to frontend format
-  const mapFundTransactionToFrontend = useCallback((tx, fund) => {
-    if (!tx || !fund) return null;
-    
-    const txType = tx.type || "";
-    let category = "";
-    let type = "expense";
-    
-    // Xác định loại giao dịch và category
-    // Nạp tiền vào quỹ = Chi tiêu (tiền ra khỏi ví nguồn)
-    // Rút tiền từ quỹ = Thu nhập (tiền về ví nguồn)
-    if (txType === "DEPOSIT" || txType === "AUTO_DEPOSIT" || txType === "AUTO_DEPOSIT_RECOVERY") {
-      type = "expense"; // Nạp tiền vào quỹ = Chi tiêu
-      if (txType === "AUTO_DEPOSIT") {
-        category = "Nạp tiền tự động";
-      } else if (txType === "AUTO_DEPOSIT_RECOVERY") {
-        category = "Nạp bù tự động";
-      } else {
-        category = "Nạp tiền vào quỹ";
-      }
-    } else if (txType === "WITHDRAW") {
-      type = "income"; // Rút tiền từ quỹ = Thu nhập
-      category = "Rút tiền từ quỹ";
-    } else if (txType === "SETTLE") {
-      type = "income"; // Tất toán quỹ = Thu nhập (tiền về ví nguồn)
-      category = "Tất toán quỹ";
-    } else {
-      category = "Giao dịch quỹ";
-    }
-    
-    // Lấy tên quỹ từ nhiều nguồn có thể - ưu tiên fundName, sau đó name
-    const fundName = (fund && (fund.fundName || fund.name)) || "Unknown";
-    
-    // Debug log để kiểm tra
-    if (!fundName || fundName === "Unknown") {
-      console.warn("mapFundTransactionToFrontend: fundName is missing", {
-        fund,
-        fundName,
-        txId: tx.id || tx.transactionId
-      });
-    }
-    
-    const sourceWalletName = fund.sourceWalletName || fund.sourceWallet?.name || "Ví nguồn";
-    const targetWalletName = fund.targetWalletName || fund.targetWallet?.name || "Ví quỹ";
-    
-    // Ưu tiên createdAt/created_at cho cột thời gian
-    const rawDateValue =
-      tx.createdAt ||
-      tx.created_at ||
-      tx.transactionDate ||
-      tx.transaction_date ||
-      tx.date ||
-      new Date().toISOString();
-
-    const dateValue = ensureIsoDateWithTimezone(rawDateValue);
-    
-    const amount = parseFloat(tx.amount || 0);
-    const currency = fund.currencyCode || fund.currency || "VND";
-    
-    // Xác định walletName dựa trên loại giao dịch:
-    // - Nạp tiền vào quỹ (expense): tiền từ ví nguồn -> sourceWalletName
-    // - Rút tiền từ quỹ (income): tiền về ví nguồn -> sourceWalletName
-    // - Tất toán quỹ (income): tiền về ví nguồn -> sourceWalletName
-    let walletName = sourceWalletName; // Mặc định là ví nguồn
-    if (txType === "DEPOSIT" || txType === "AUTO_DEPOSIT" || txType === "AUTO_DEPOSIT_RECOVERY") {
-      walletName = sourceWalletName; // Nạp tiền: từ ví nguồn
-    } else if (txType === "WITHDRAW" || txType === "SETTLE") {
-      walletName = sourceWalletName; // Rút/Tất toán: về ví nguồn
-    }
-    
-    return {
-      id: tx.transactionId || tx.id,
-      code: `FT-${String(tx.transactionId || tx.id).padStart(4, "0")}`,
-      type,
-      walletName,
-      fundName,
-      amount,
-      currency,
-      date: dateValue,
-      category,
-      note: tx.message || tx.note || "",
-      creatorCode: `USR${String(tx.performedBy?.userId || fund.ownerId || 0).padStart(3, "0")}`,
-      attachment: "",
-      // Giao dịch quỹ không thể sửa/xóa
-      isFundTransaction: true,
-      // Thông tin bổ sung
-      transactionType: txType,
-      sourceWallet: sourceWalletName,
-      targetWallet: targetWalletName,
-    };
-  }, []);
-
-  // Helper function to check if a transfer is related to a fund
-  const isTransferRelatedToFund = useCallback((transfer) => {
-    if (!transfer || !funds || funds.length === 0) return false;
-    
-    const fromWalletId = transfer.fromWallet?.walletId || transfer.fromWallet?.id || transfer.sourceWalletId || null;
-    const toWalletId = transfer.toWallet?.walletId || transfer.toWallet?.id || transfer.targetWalletId || null;
-    
-    if (!fromWalletId && !toWalletId) return false;
-    
-    // Check if either wallet is a source wallet or target wallet of any fund
-    return funds.some(fund => {
-      const fundSourceWalletId = fund.sourceWalletId || fund.sourceWallet?.walletId || fund.sourceWallet?.id || null;
-      const fundTargetWalletId = fund.targetWalletId || fund.targetWallet?.walletId || fund.targetWallet?.id || fund.walletId || null;
-      
-      const fromWalletIdStr = fromWalletId ? String(fromWalletId) : null;
-      const toWalletIdStr = toWalletId ? String(toWalletId) : null;
-      const fundSourceWalletIdStr = fundSourceWalletId ? String(fundSourceWalletId) : null;
-      const fundTargetWalletIdStr = fundTargetWalletId ? String(fundTargetWalletId) : null;
-      
-      // Transfer is related to fund if fromWallet or toWallet matches sourceWallet or targetWallet
-      return (fromWalletIdStr && (fromWalletIdStr === fundSourceWalletIdStr || fromWalletIdStr === fundTargetWalletIdStr)) ||
-             (toWalletIdStr && (toWalletIdStr === fundSourceWalletIdStr || toWalletIdStr === fundTargetWalletIdStr));
-    });
-  }, [funds]);
-
   const refreshTransactionsData = useCallback(async () => {
     // Lấy walletIds từ walletsIds string
     const walletIds = walletsIds ? walletsIds.split(',').filter(Boolean) : [];
@@ -1372,13 +1259,9 @@ export default function TransactionsPage() {
         });
       });
 
-      // Lọc bỏ các giao dịch liên quan đến quỹ
-      const allTransfers = Array.from(transferMap.values());
-      const filteredTransfers = allTransfers.filter(transfer => !isTransferRelatedToFund(transfer));
-      
       return {
         external: scopedTransactions.flat(),
-        internal: filteredTransfers,
+        internal: Array.from(transferMap.values()),
       };
     };
 
@@ -2159,13 +2042,6 @@ export default function TransactionsPage() {
     };
   }, [runInitialLoad, loadWallets, refreshTransactionsData]);
 
-  // Refresh fund transactions khi funds thay đổi
-  useEffect(() => {
-    if (funds && funds.length > 0) {
-      refreshTransactionsData();
-    }
-  }, [funds, refreshTransactionsData]);
-
   // Apply wallet filter when navigated with ?focus=<walletId|walletName>
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -2215,10 +2091,6 @@ export default function TransactionsPage() {
     const value = e.target.value;
     setActiveTab(value);
     setSearchText("");
-    // Reset expandedPanel khi chuyển sang tab FUND
-    if (value === TABS.FUND) {
-      setExpandedPanel(null);
-    }
   };
 
   const evaluateBudgetWarning = useCallback((payload, walletEntity) => {
@@ -2741,15 +2613,6 @@ export default function TransactionsPage() {
         currentTransactions.map((t) => t.walletName).filter(Boolean)
       );
       return Array.from(s);
-    } else if (activeTab === TABS.FUND) {
-      const s = new Set();
-      fundTransactions.forEach((t) => {
-        if (t.fundName) s.add(t.fundName);
-        if (t.walletName) s.add(t.walletName);
-        if (t.sourceWallet) s.add(t.sourceWallet);
-        if (t.targetWallet) s.add(t.targetWallet);
-      });
-      return Array.from(s);
     }
     const s = new Set();
     currentTransactions.forEach((t) => {
@@ -2759,6 +2622,28 @@ export default function TransactionsPage() {
     return Array.from(s);
   }, [activeTab, currentTransactions]);
 
+  const scheduleCounts = useMemo(() => {
+    const counts = { all: scheduledTransactions.length, pending: 0, recurring: 0 };
+    scheduledTransactions.forEach((item) => {
+      if (item.status === "PENDING" || item.status === "RUNNING") counts.pending += 1;
+      if (item.scheduleType !== "ONE_TIME") counts.recurring += 1;
+    });
+    return counts;
+  }, [scheduledTransactions]);
+
+  const filteredSchedules = useMemo(() => {
+    return scheduledTransactions.filter((item) => {
+      if (scheduleFilter === "pending") {
+        return item.status === "PENDING" || item.status === "RUNNING";
+      }
+      if (scheduleFilter === "recurring") {
+        return item.scheduleType !== "ONE_TIME";
+      }
+      return true;
+    });
+  }, [scheduledTransactions, scheduleFilter]);
+
+  const isScheduleView = activeTab === TABS.SCHEDULE;
 
   const filteredSorted = useMemo(() => {
     let list = currentTransactions.slice();
@@ -2897,6 +2782,64 @@ export default function TransactionsPage() {
     setCurrentPage(1);
   };
 
+  const handleScheduleSubmit = (payload) => {
+    const scheduleWallet = findWalletById(payload.walletId);
+    if (scheduleWallet && isViewerOnlyWallet(scheduleWallet)) {
+      showViewerRestrictionToast();
+      return;
+    }
+
+    const scheduleId = Date.now();
+    const totalRuns = estimateScheduleRuns(payload.firstRun, payload.endDate, payload.scheduleType);
+    const newSchedule = {
+      id: scheduleId,
+      walletId: payload.walletId,
+      walletName: payload.walletName,
+      categoryName: payload.categoryName,
+      transactionType: payload.transactionType,
+      amount: payload.amount,
+      currency: "VND",
+      scheduleType: payload.scheduleType,
+      scheduleTypeLabel: SCHEDULE_TYPE_LABELS[payload.scheduleType] || payload.scheduleType,
+      status: "PENDING",
+      firstRun: payload.firstRun,
+      nextRun: payload.firstRun,
+      endDate: payload.endDate,
+      successRuns: 0,
+      totalRuns,
+      warning: null,
+      logs: [],
+    };
+
+    setScheduledTransactions((prev) => [newSchedule, ...prev]);
+    setScheduleModalOpen(false);
+    setToast({ open: true, message: t("transactions.toast.schedule_created"), type: "success" });
+  };
+
+  const handleScheduleCancel = (scheduleId) => {
+    setScheduledTransactions((prev) =>
+      prev.map((item) => {
+        if (item.id !== scheduleId) return item;
+        return {
+          ...item,
+          status: "CANCELLED",
+          warning: null,
+          logs: [
+            {
+              id: Date.now(),
+              time: new Date().toISOString(),
+              status: "FAILED",
+              message: "Người dùng đã hủy lịch.",
+            },
+            ...item.logs,
+          ],
+        };
+      })
+    );
+
+    setSelectedSchedule((prev) => (prev?.id === scheduleId ? null : prev));
+    setToast({ open: true, message: t("transactions.toast.schedule_cancelled"), type: "success" });
+  };
 
   return (
     <div className="tx-page container-fluid py-4">
@@ -2937,10 +2880,10 @@ export default function TransactionsPage() {
             </button>
             <button
               type="button"
-              className={`funds-tab ${activeTab === TABS.FUND ? "funds-tab--active" : ""}`}
-              onClick={() => handleTabChange({ target: { value: TABS.FUND } })}
+              className={`funds-tab ${activeTab === TABS.SCHEDULE ? "funds-tab--active" : ""}`}
+              onClick={() => handleTabChange({ target: { value: TABS.SCHEDULE } })}
             >
-              Giao dịch quỹ
+              {t("transactions.tab.schedule")}
             </button>
           </div>
         </div>
@@ -2950,9 +2893,98 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className={`transactions-layout ${activeTab === TABS.FUND ? "transactions-layout--fund-only" : expandedPanel ? "transactions-layout--expanded" : "transactions-layout--with-history"}`}>
-          {/* LEFT: Create Transaction Form - Ẩn khi ở tab FUND */}
-          {activeTab !== TABS.FUND && (!expandedPanel || expandedPanel === "form") && (
+
+      {isScheduleView ? (
+        <div className="scheduled-section card border-0 shadow-sm mb-4">
+          <div className="card-body">
+            <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+              <div>
+                <h5 className="mb-1">{t("transactions.schedule.title")}</h5>
+                <p className="text-muted mb-0">{t("transactions.schedule.desc")}</p>
+              </div>
+              <button className="btn btn-primary" type="button" onClick={() => setScheduleModalOpen(true)}>
+                <i className="bi bi-plus-lg me-2" />{t("transactions.schedule.create_btn")}
+              </button>
+            </div>
+
+            <div className="schedule-tabs mb-3">
+              {SCHEDULE_TABS.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`schedule-tab ${scheduleFilter === tab.value ? "active" : ""}`}
+                  onClick={() => setScheduleFilter(tab.value)}
+                >
+                  {t(`transactions.schedule.tab.${tab.value}`)}
+                  <span className="badge rounded-pill bg-light text-dark ms-2">
+                    {scheduleCounts[tab.value] ?? 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {filteredSchedules.length === 0 ? (
+              <div className="text-center text-muted py-4">
+                Chưa có lịch nào phù hợp.
+              </div>
+            ) : (
+              <div className="schedule-list">
+                {filteredSchedules.map((schedule) => {
+                  const meta = SCHEDULE_STATUS_META[schedule.status] || SCHEDULE_STATUS_META.PENDING;
+                  const progress = schedule.totalRuns > 0 ? Math.min(100, Math.round((schedule.successRuns / schedule.totalRuns) * 100)) : 0;
+                  return (
+                    <div className="scheduled-card" key={schedule.id}>
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <h6 className="mb-1">
+                            {schedule.walletName} • {schedule.transactionType === "income" ? t("transactions.type.income") : t("transactions.type.expense")}
+                          </h6>
+                          <p className="mb-1 text-muted">
+                            {schedule.categoryName} · {schedule.scheduleTypeLabel}
+                          </p>
+                        </div>
+                        <span className={meta.className}>{t(`transactions.schedule.status.${String(schedule.status).toLowerCase()}`)}</span>
+                      </div>
+                      <div className="d-flex flex-wrap gap-3 mb-2 small text-muted">
+                        <span>{t("transactions.schedule.amount")} {formatCurrency(schedule.amount)}</span>
+                        <span>{t("transactions.schedule.next_run")} {formatVietnamDateTime(schedule.nextRun)}</span>
+                        <span>
+                          {t("transactions.schedule.completed_runs")} {schedule.successRuns}/{schedule.totalRuns || "∞"}
+                        </span>
+                      </div>
+                      <div className="progress schedule-progress">
+                        <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                      </div>
+                      {schedule.warning && (
+                        <div className="schedule-warning">
+                          <i className="bi bi-exclamation-triangle-fill me-1" />
+                          {schedule.warning}
+                        </div>
+                      )}
+                      <div className="scheduled-card-actions">
+                        <button type="button" className="btn btn-link px-0" onClick={() => setSelectedSchedule(schedule)}>
+                          {t("transactions.schedule.view_history")}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-link px-0 text-danger"
+                          disabled={schedule.status === "CANCELLED"}
+                          onClick={() => handleScheduleCancel(schedule.id)}
+                        >
+                          {t("transactions.schedule.cancel")}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className={`transactions-layout ${expandedPanel ? "transactions-layout--expanded" : "transactions-layout--with-history"}`}>
+          {/* LEFT: Create Transaction Form */}
+          {(!expandedPanel || expandedPanel === "form") && (
             <div className={`transactions-form-panel ${expandedPanel === "form" ? "expanded" : ""}`}>
               <TransactionForm
                 mode="create"
@@ -2974,8 +3006,8 @@ export default function TransactionsPage() {
           )}
 
           {/* RIGHT: Transaction History */}
-          {(!expandedPanel || expandedPanel === "history" || activeTab === TABS.FUND) && (
-            <div className={`transactions-history-panel ${activeTab === TABS.FUND ? "expanded" : expandedPanel === "history" ? "expanded" : ""}`}>
+          {(!expandedPanel || expandedPanel === "history") && (
+            <div className={`transactions-history-panel ${expandedPanel === "history" ? "expanded" : ""}`}>
               <TransactionList
                 transactions={filteredSorted}
                 activeTab={activeTab}
@@ -2985,8 +3017,8 @@ export default function TransactionsPage() {
                 paginationRange={paginationRange}
                 onPageChange={handlePageChange}
                 onView={setViewing}
-                onEdit={activeTab === TABS.FUND ? undefined : handleTransactionEditRequest}
-                onDelete={activeTab === TABS.FUND ? undefined : handleTransactionDeleteRequest}
+                onEdit={handleTransactionEditRequest}
+                onDelete={handleTransactionDeleteRequest}
                 filterType={filterType}
                 onFilterTypeChange={(value) => {
                   setFilterType(value);
@@ -3007,12 +3039,29 @@ export default function TransactionsPage() {
                   setToDateTime(value);
                   setCurrentPage(1);
                 }}
-                expanded={activeTab === TABS.FUND ? true : expandedPanel === "history"}
-                onToggleExpand={activeTab === TABS.FUND ? undefined : () => setExpandedPanel(expandedPanel === "history" ? null : "history")}
+                expanded={expandedPanel === "history"}
+                onToggleExpand={() => setExpandedPanel(expandedPanel === "history" ? null : "history")}
               />
             </div>
           )}
         </div>
+      )}
+
+      <ScheduledTransactionModal
+        open={scheduleModalOpen}
+        wallets={actionableWallets}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
+        onSubmit={handleScheduleSubmit}
+        onClose={() => setScheduleModalOpen(false)}
+      />
+
+      <ScheduledTransactionDrawer
+        open={!!selectedSchedule}
+        schedule={selectedSchedule}
+        onClose={() => setSelectedSchedule(null)}
+        onCancel={handleScheduleCancel}
+      />
 
       <TransactionViewModal
         open={!!viewing}
@@ -3068,6 +3117,26 @@ export default function TransactionsPage() {
   );
 }
 
+function estimateScheduleRuns(startValue, endValue, scheduleType) {
+  if (scheduleType === "ONE_TIME") return 1;
+  if (!startValue || !endValue) return 0;
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
+  const diffDays = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+  switch (scheduleType) {
+    case "DAILY":
+      return diffDays + 1;
+    case "WEEKLY":
+      return Math.floor(diffDays / 7) + 1;
+    case "MONTHLY":
+      return Math.max(1, Math.round(diffDays / 30));
+    case "YEARLY":
+      return Math.max(1, Math.round(diffDays / 365));
+    default:
+      return 0;
+  }
+}
 
 function normalizeBudgetCategoryKey(value) {
   if (!value && value !== 0) return "";
@@ -3118,3 +3187,70 @@ function doesBudgetMatchWallet(budget, walletEntity, fallbackWalletName) {
   return !!budgetWalletName && budgetWalletName === walletName;
 }
 
+const SCHEDULE_TYPE_LABELS = {
+  ONE_TIME: "Một lần",
+  DAILY: "Hằng ngày",
+  WEEKLY: "Hằng tuần",
+  MONTHLY: "Hằng tháng",
+  YEARLY: "Hằng năm",
+};
+
+const SCHEDULE_STATUS_META = {
+  PENDING: { label: "Chờ chạy", className: "schedule-status schedule-status--pending" },
+  RUNNING: { label: "Đang chạy", className: "schedule-status schedule-status--running" },
+  COMPLETED: { label: "Hoàn tất", className: "schedule-status schedule-status--success" },
+  FAILED: { label: "Thất bại", className: "schedule-status schedule-status--failed" },
+  CANCELLED: { label: "Đã hủy", className: "schedule-status schedule-status--muted" },
+};
+
+const SCHEDULE_TABS = [
+  { value: "all", label: "Tất cả" },
+  { value: "pending", label: "Chờ chạy" },
+  { value: "recurring", label: "Định kỳ" },
+];
+const MOCK_SCHEDULES = [
+  {
+    id: 101,
+    walletId: "wallet-main",
+    walletName: "Ví chính",
+    categoryName: "Hóa đơn",
+    transactionType: "expense",
+    amount: 2500000,
+    currency: "VND",
+    scheduleType: "MONTHLY",
+    scheduleTypeLabel: SCHEDULE_TYPE_LABELS.MONTHLY,
+    status: "PENDING",
+    firstRun: "2025-01-05T08:00",
+    nextRun: "2025-03-05T08:00",
+    endDate: "2025-12-31",
+    successRuns: 1,
+    totalRuns: 12,
+    warning: null,
+    logs: [
+      { id: 1, time: "2025-02-05T08:00", status: "FAILED", message: "Không đủ số dư" },
+      { id: 2, time: "2025-01-05T08:00", status: "COMPLETED", message: "Thành công" },
+    ],
+  },
+  {
+    id: 102,
+    walletId: "wallet-travel",
+    walletName: "Ví du lịch",
+    categoryName: "Tiền lãi",
+    transactionType: "income",
+    amount: 1000000,
+    currency: "VND",
+    scheduleType: "DAILY",
+    scheduleTypeLabel: SCHEDULE_TYPE_LABELS.DAILY,
+    status: "FAILED",
+    firstRun: "2025-02-01T09:00",
+    nextRun: "2025-02-22T09:00",
+    endDate: null,
+    successRuns: 3,
+    totalRuns: 5,
+    warning: "Không đủ số dư ở lần gần nhất",
+    logs: [
+      { id: 3, time: "2025-02-10T09:00", status: "FAILED", message: "Không đủ số dư ví du lịch" },
+      { id: 4, time: "2025-02-09T09:00", status: "COMPLETED", message: "Thành công" },
+    ],
+  },
+];

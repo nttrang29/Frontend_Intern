@@ -4,7 +4,6 @@ import { useFundData } from "../../contexts/FundDataContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useToast } from "../common/Toast/ToastContext";
 import { useNotifications } from "../../contexts/NotificationContext";
-import { useLanguage } from "../../contexts/LanguageContext";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import AutoTopupBlock from "./AutoTopupBlock";
 import ReminderBlock from "./ReminderBlock";
@@ -19,6 +18,23 @@ import { getFundTransactions, getFundById } from "../../services/fund.service";
 import { parseAmount, parseAmountNonNegative } from "../../utils/parseAmount";
 import "../../styles/components/funds/FundDetail.css";
 import "../../styles/components/funds/FundForms.css";
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const PACE_STATUS_LABELS = {
+  ahead: "Vượt tiến độ",
+  on_track: "Theo kế hoạch",
+  behind: "Chậm tiến độ",
+  critical: "Nguy cơ trễ hạn",
+  unknown: "Chưa xác định",
+};
+
+const PACE_STATUS_DEFINITIONS = [
+  { key: "ahead", label: "Vượt tiến độ" },
+  { key: "on_track", label: "Theo kế hoạch" },
+  { key: "behind", label: "Chậm tiến độ" },
+  { key: "critical", label: "Nguy cơ" },
+];
 
 const buildFormState = (fund) => ({
   name: fund.name || "",
@@ -44,7 +60,6 @@ const buildFormState = (fund) => ({
 });
 
 export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab = "info" }) {
-  const { t } = useLanguage();
   const { updateFund, depositToFund, withdrawFromFund, deleteFund, closeFund, settleFund } = useFundData();
   const { wallets, loadWallets } = useWalletData();
   const { showToast } = useToast();
@@ -58,8 +73,8 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   const [saving, setSaving] = useState(false);
   const [withdrawProgress, setWithdrawProgress] = useState(0);
   
-  // States for currency and wallet selection
-  const [selectedCurrency, setSelectedCurrency] = useState(fund.currency || "VND");
+  // States for currency and wallet selection (chỉ VND)
+  const [selectedCurrency] = useState("VND");
   const [selectedSourceWalletId, setSelectedSourceWalletId] = useState(fund.sourceWalletId || "");
   
   // State for auto deposit data (for editing)
@@ -87,30 +102,15 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   // State for settle confirmation modal
   const [confirmSettleOpen, setConfirmSettleOpen] = useState(false);
   
-  // Lấy danh sách currencies
-  const availableCurrencies = useMemo(() => {
-    const currencies = [...new Set(wallets.map(w => w.currency))];
-    return currencies.sort();
-  }, [wallets]);
-  
-  // Filter wallets theo currency
+  // Filter wallets theo VND
   const filteredWallets = useMemo(() => {
-    if (!selectedCurrency) return [];
-    return wallets.filter(w => w.currency === selectedCurrency);
-  }, [wallets, selectedCurrency]);
-  
-  // Reset sourceWalletId khi đổi currency
-  useEffect(() => {
-    if (selectedCurrency !== fund.currency) {
-      setSelectedSourceWalletId("");
-    }
-  }, [selectedCurrency, fund.currency]);
+    return wallets.filter(w => (w.currency || "VND") === "VND");
+  }, [wallets]);
 
   // Khi chọn quỹ khác hoặc defaultTab thay đổi
   useEffect(() => {
     setActiveTab(defaultTab);
     setForm(buildFormState(fund));
-    setSelectedCurrency(fund.currency || "VND");
     setSelectedSourceWalletId(fund.sourceWalletId || "");
   }, [fund.id, defaultTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -579,7 +579,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     e.preventDefault();
 
     if (!form.name.trim()) {
-      showToast(t("funds.form.error.name_required"), "error");
+      showToast("Vui lòng nhập tên quỹ.", "error");
       return;
     }
 
@@ -588,12 +588,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     try {
       // Validation
       if (!selectedCurrency) {
-        showToast(t("funds.form.error.currency_required"), "error");
+        showToast("Vui lòng chọn loại tiền tệ.", "error");
         setSaving(false);
         return;
       }
       if (!selectedSourceWalletId) {
-        showToast(t("funds.form.error.source_wallet_required"), "error");
+        showToast("Vui lòng chọn ví nguồn.", "error");
         setSaving(false);
         return;
       }
@@ -660,18 +660,18 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const result = await updateFund(fund.id, updateData);
 
       if (result.success) {
-        showToast(t("funds.toast.update_success"), "success");
+        showToast("Cập nhật quỹ thành công!", "success");
         // Callback để reload fund list
         if (onUpdateFund) {
           await onUpdateFund();
         }
         setActiveTab("info");
       } else {
-        showToast(t("funds.toast.update_failed", { error: result.error }), "error");
+        showToast(`Không thể cập nhật quỹ: ${result.error}`, "error");
       }
     } catch (error) {
       console.error("Error updating fund:", error);
-      showToast(t("funds.toast.update_error"), "error");
+      showToast("Đã xảy ra lỗi khi cập nhật quỹ.", "error");
     } finally {
       setSaving(false);
     }
@@ -690,12 +690,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         const transactions = Array.isArray(result.data) ? result.data : (result.data.transactions || []);
         setHistoryItems(transactions);
       } else {
-        setHistoryError(t("funds.history.load_error"));
+        setHistoryError("Không thể tải lịch sử giao dịch");
         setHistoryItems([]);
       }
     } catch (error) {
       console.error("Error loading fund history:", error);
-      setHistoryError(t("funds.history.load_error_generic"));
+      setHistoryError("Lỗi khi tải lịch sử giao dịch");
       setHistoryItems([]);
     } finally {
       setHistoryLoading(false);
@@ -834,35 +834,6 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     };
   }, [historyItems]);
 
-  // Line chart: tiến độ tiến gần mục tiêu theo tháng (cumulative %)
-  const monthlyProgress = useMemo(() => {
-    if (!historyItems || historyItems.length === 0) return { labels: [], progress: [], max: 100 };
-    const target = fund.target || fund.targetAmount || 0;
-    const map = new Map();
-    historyItems.forEach((tx) => {
-      const d = new Date(tx.createdAt || tx.transactionDate || tx.transactionAt);
-      if (Number.isNaN(d.getTime())) return;
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      const amount = Number(tx.amount || 0);
-      const entry = map.get(key) || { total: 0, month: d.getMonth() };
-      if (tx.status === "SUCCESS") {
-        entry.total += amount;
-      }
-      map.set(key, entry);
-    });
-    const sorted = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    let cumulative = 0;
-    const labels = [];
-    const progress = [];
-    sorted.forEach(([, v]) => {
-      cumulative += v.total;
-      labels.push(new Date(2020, v.month, 1).toLocaleString("en-US", { month: "short" }));
-      const pct = target > 0 ? Math.min(100, Math.round((cumulative / target) * 100)) : 0;
-      progress.push(pct);
-    });
-    return { labels, progress, max: 100 };
-  }, [historyItems, fund.target, fund.targetAmount]);
-
   const maxAmount = Math.max(fund.target || 0, fund.current || 1);
   
   // Tính toán trạng thái nạp tiền thủ công hôm nay
@@ -887,7 +858,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const totalDeposited = todayDeposits.reduce((sum, tx) => sum + parseAmountNonNegative(tx.amount, 0), 0);
       return {
         status: 'deposited',
-        message: t('funds.deposit.status.deposited_today'),
+        message: 'Hôm nay đã nạp',
         amount: totalDeposited,
         time: todayDeposits[0].createdAt || todayDeposits[0].transactionDate
       };
@@ -895,7 +866,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       // Chưa nạp hôm nay
       return {
         status: 'not_deposited',
-        message: t('funds.deposit.status.not_deposited_today')
+        message: 'Chưa nạp hôm nay'
       };
     }
   }, [fund.autoDepositEnabled, historyItems]);
@@ -1119,19 +1090,19 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
 
     // Chặn nạp nếu quỹ không còn ACTIVE (đã đóng hoặc hoàn thành)
     if (!isFundActive) {
-      showToast(t("funds.deposit.error.fund_closed"), "error");
+      showToast("Quỹ đã đóng hoặc hoàn thành mục tiêu, không thể nạp thêm.", "error");
       return;
     }
     const amount = parseAmountNonNegative(depositAmount, 0);
     
     // Validation cơ bản
     if (!amount || amount <= 0) {
-      showToast(t("funds.deposit.error.amount_invalid"), "error");
+      showToast("Vui lòng nhập số tiền hợp lệ.", "error");
       return;
     }
 
     if (amount < 1000) {
-      showToast(t("funds.deposit.error.amount_min"), "error");
+      showToast("Số tiền nạp tối thiểu là 1,000.", "error");
       return;
     }
 
@@ -1160,13 +1131,13 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     // Kiểm tra số dư ví nguồn
     const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
     if (!sourceWallet) {
-      showToast(t("funds.deposit.error.source_wallet_not_found"), "error");
+      showToast("Không tìm thấy ví nguồn.", "error");
       return;
     }
 
     if (amount > sourceWallet.balance) {
       showToast(
-        t("funds.deposit.error.insufficient_balance", { balance: formatMoney(sourceWallet.balance, sourceWallet.currency) }),
+        `Số dư ví nguồn không đủ! Số dư hiện tại: ${formatMoney(sourceWallet.balance, sourceWallet.currency)}`,
         "error"
       );
       return;
@@ -1179,7 +1150,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const result = await depositToFund(fund.id, amount);
 
       if (result.success) {
-        showToast(t("funds.deposit.success", { amount: formatMoney(amount, fund.currency) }), "success");
+        showToast(`Nạp ${formatMoney(amount, fund.currency)} vào quỹ thành công!`, "success");
 
         // Nếu backend trả về quỹ đã COMPLETED sau nạp, hiển thị thông báo đóng băng
         const updatedFund = result.data || fund;
@@ -1194,7 +1165,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           (updatedFund.hasTerm && updatedFund.target && updatedProgress !== null && updatedProgress >= 100)
         ) {
           showToast(
-            t("funds.deposit.fund_completed"),
+            "Quỹ đã hoàn thành mục tiêu. Quỹ sẽ được đóng băng và không thể nạp thêm.",
             "info"
           );
         }
@@ -1207,11 +1178,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           await onUpdateFund();
         }
       } else {
-        showToast(t("funds.deposit.error.failed", { error: result.error }), "error");
+        showToast(`Không thể nạp tiền: ${result.error}`, "error");
       }
     } catch (error) {
       console.error("Error depositing to fund:", error);
-      showToast(t("funds.deposit.error.generic"), "error");
+      showToast("Đã xảy ra lỗi khi nạp tiền.", "error");
     } finally {
       setSaving(false);
     }
@@ -1331,19 +1302,19 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           }
         }
       } else {
-        showToast(t("funds.withdraw.error.failed", { error: result.error }), "error");
+        showToast(`Không thể rút tiền: ${result.error}`, "error");
       }
     } catch (error) {
       console.error("Error withdrawing from fund:", error);
-      showToast(t("funds.withdraw.error.generic"), "error");
+      showToast("Đã xảy ra lỗi khi rút tiền.", "error");
     } finally {
       setSaving(false);
     }
   };
 
   const handleSettle = () => {
-      if (!fund.current || fund.current <= 0) {
-      showToast(t("funds.settle.error.no_balance"), "error");
+    if (!fund.current || fund.current <= 0) {
+      showToast("Quỹ không có số dư để tất toán.", "error");
       return;
     }
     
@@ -1355,7 +1326,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     setConfirmSettleOpen(false);
     
     if (!fund.current || fund.current <= 0) {
-      showToast(t("funds.settle.error.no_balance"), "error");
+      showToast("Quỹ không có số dư để tất toán.", "error");
       return;
     }
 
@@ -1404,11 +1375,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           }
         }, 1000);
       } else {
-        showToast(t("funds.settle.error.failed", { error: result.error }), "error");
+        showToast(`Không thể tất toán quỹ: ${result.error}`, "error");
       }
     } catch (error) {
       console.error("Error settling fund:", error);
-      showToast(t("funds.settle.error.generic"), "error");
+      showToast("Đã xảy ra lỗi khi tất toán quỹ.", "error");
     } finally {
       setSaving(false);
     }
@@ -1427,17 +1398,17 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const result = await deleteFund(fund.id);
 
       if (result.success) {
-        showToast(t("funds.delete.success"), "success");
+        showToast("Xóa quỹ thành công!", "success");
         // Quay về danh sách
         if (onBack) {
           onBack();
         }
       } else {
-        showToast(t("funds.delete.error.failed", { error: result.error }), "error");
+        showToast(`Không thể xóa quỹ: ${result.error}`, "error");
       }
     } catch (error) {
       console.error("Error deleting fund:", error);
-      showToast(t("funds.delete.error.generic"), "error");
+      showToast("Đã xảy ra lỗi khi xóa quỹ.", "error");
     } finally {
       setSaving(false);
     }
@@ -1512,11 +1483,8 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
               form={form}
               isFundCompleted={isFundCompleted}
               saving={saving}
-              selectedCurrency={selectedCurrency}
-              setSelectedCurrency={setSelectedCurrency}
               selectedSourceWalletId={selectedSourceWalletId}
               setSelectedSourceWalletId={setSelectedSourceWalletId}
-              availableCurrencies={availableCurrencies}
               filteredWallets={filteredWallets}
               autoDepositData={autoDepositData}
               setAutoDepositData={setAutoDepositData}
@@ -1565,7 +1533,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         </div>
       </div>
 
-      {/* CỘT PHẢI: CHỈ HIỂN THỊ BIỂU ĐỒ QUẠT (DONUT) */}
+      {/* CỘT PHẢI: BIỂU ĐỒ TRẠNG THÁI MỚI */}
       <div className="fund-detail-summary">
         <div className="fund-progress-card card border-0 shadow-sm">
           {fund.hasTerm ? (
@@ -1589,12 +1557,16 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                 />
                 {expectedOffset != null && (
                   <circle
-                    cx="110"
-                    cy="110"
-                    r={ringOuterRadius}
-                    stroke="#e9ecef"
-                    strokeWidth="18"
+                    className="fund-progress-expected"
+                    cx="130"
+                    cy="130"
+                    r={gaugeRadius}
+                    strokeWidth="12"
+                    strokeDasharray={`${gaugeCircumference} ${gaugeCircumference}`}
+                    strokeDashoffset={expectedOffset}
+                    strokeLinecap="round"
                     fill="none"
+                    transform="rotate(-90 130 130)"
                   />
                 )}
                 <circle
@@ -1669,15 +1641,6 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
                   </span>
                 ))}
               </div>
-            ) : (
-              <div className="text-muted small">Chưa có dữ liệu giao dịch để vẽ biểu đồ.</div>
-            )}
-            {/* Legend */}
-            <div className="d-flex gap-3 align-items-center mt-2">
-              <span className="d-flex align-items-center gap-1 text-muted small">
-                <span style={{ width: 10, height: 2, background: "#0d6efd", display: "inline-block" }}></span>
-                % tiến tới mục tiêu
-              </span>
             </div>
           </div>
           ) : (

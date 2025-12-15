@@ -6,7 +6,6 @@ import { useWalletData } from "../../contexts/WalletDataContext";
 import { formatVietnamDate, formatVietnamTime, formatMoney } from "./utils/transactionUtils";
 
 export default function TransactionViewModal({ open, tx, onClose }) {
-  const { t } = useLanguage();
   const { expenseCategories, incomeCategories } = useCategoryData();
   const { wallets } = useWalletData();
   
@@ -314,9 +313,6 @@ export default function TransactionViewModal({ open, tx, onClose }) {
           color: white;
           padding: 20px 24px;
           border-radius: 24px 24px 0 0;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
         }
         
         .tx-modal-header h5 {
@@ -324,31 +320,6 @@ export default function TransactionViewModal({ open, tx, onClose }) {
           font-weight: 600;
           font-size: 1.25rem;
           margin: 0;
-        }
-
-        .tx-modal-close-btn {
-          background: rgba(255, 255, 255, 0.2);
-          border: none;
-          color: white;
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s;
-          font-size: 1.2rem;
-          line-height: 1;
-        }
-
-        .tx-modal-close-btn:hover {
-          background: rgba(255, 255, 255, 0.3);
-          transform: scale(1.05);
-        }
-
-        .tx-modal-close-btn:active {
-          transform: scale(0.95);
         }
         
         .tx-modal-body {
@@ -396,20 +367,12 @@ export default function TransactionViewModal({ open, tx, onClose }) {
       <div className="tx-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
         <div className="tx-modal" onClick={(e) => e.stopPropagation()}>
           <div className="tx-modal-header">
-            <h5>{t("transactions.view.title")}</h5>
-            <button 
-              type="button" 
-              className="tx-modal-close-btn"
-              onClick={onClose}
-              aria-label={t("common.close") || "Close"}
-            >
-              ×
-            </button>
+            <h5>Chi tiết Giao dịch</h5>
           </div>
 
           <div className="tx-modal-body">
             <div className="tx-detail-item">
-              <div className="tx-detail-label">{t("transactions.view.type")}</div>
+              <div className="tx-detail-label">Loại giao dịch</div>
               <div>
                 <span 
                   className="badge rounded-pill fw-semibold"
@@ -429,72 +392,20 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                   }}
                 >
                   {isTransfer
-                    ? t("transactions.type.transfer")
+                    ? "Chuyển tiền giữa các ví"
                     : tx.type === "income"
-                    ? t("transactions.type.income")
-                    : t("transactions.type.expense")}
+                    ? "Thu nhập"
+                    : "Chi tiêu"}
                 </span>
               </div>
             </div>
 
             <div className="row g-3">
-              {isFundTransaction ? (
-                <>
-                  <div className="col-12">
-                    <div className="tx-detail-item">
-                      <div className="tx-detail-label">Quỹ</div>
-                      <div className="tx-detail-value">{tx.fundName || "-"}</div>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="tx-detail-item">
-                      <div className="tx-detail-label">Ví nguồn</div>
-                      <div className="tx-detail-value">{tx.sourceWallet || "-"}</div>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="tx-detail-item">
-                      <div className="tx-detail-label">Ví quỹ</div>
-                      <div className="tx-detail-value">{tx.targetWallet || "-"}</div>
-                    </div>
-                  </div>
-                  <div className="col-12">
-                    <div className="tx-detail-item">
-                      <div className="tx-detail-label">Số tiền</div>
-                      <div 
-                        className="tx-detail-value"
-                        style={{
-                          color: tx.type === "expense" ? "#dc2626" : "#16a34a",
-                          fontWeight: "600",
-                          fontSize: "1.1rem"
-                        }}
-                      >
-                        {tx.type === "expense" ? "-" : "+"}
-                        {formatMoney(tx.amount, tx.currency)}
-                      </div>
-                    </div>
-                  </div>
-                  {tx.transactionType && (
-                    <div className="col-12">
-                      <div className="tx-detail-item">
-                        <div className="tx-detail-label">Loại giao dịch quỹ</div>
-                        <div className="tx-detail-value">
-                          {tx.transactionType === "DEPOSIT" ? "Nạp tiền thủ công" :
-                           tx.transactionType === "AUTO_DEPOSIT" ? "Nạp tiền tự động" :
-                           tx.transactionType === "AUTO_DEPOSIT_RECOVERY" ? "Nạp bù tự động" :
-                           tx.transactionType === "WITHDRAW" ? "Rút tiền" :
-                           tx.transactionType === "SETTLE" ? "Tất toán quỹ" :
-                           tx.transactionType}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : isTransfer ? (
+              {isTransfer ? (
                 <>
                   <div className="col-6">
                     <div className="tx-detail-item">
-                      <div className="tx-detail-label">{t("transactions.view.source_wallet")}</div>
+                      <div className="tx-detail-label">Ví gửi</div>
                       <div className="tx-detail-value">{tx.sourceWallet}</div>
                       {sourceWalletOwnerEmail && (
                         <div className="tx-detail-value" style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "4px" }}>
@@ -510,7 +421,7 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                   </div>
                   <div className="col-6">
                     <div className="tx-detail-item">
-                      <div className="tx-detail-label">{t("transactions.view.target_wallet")}</div>
+                      <div className="tx-detail-label">Ví nhận</div>
                       <div className="tx-detail-value">{tx.targetWallet}</div>
                       {targetWalletOwnerEmail && (
                         <div className="tx-detail-value" style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "4px" }}>
@@ -526,7 +437,7 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                   </div>
                   <div className="col-12">
                     <div className="tx-detail-item">
-                      <div className="tx-detail-label">{t("transactions.view.amount")}</div>
+                      <div className="tx-detail-label">Số tiền</div>
                       <div 
                         className="tx-detail-value"
                         style={{
@@ -544,7 +455,7 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                 <>
                   <div className="col-6">
                     <div className="tx-detail-item">
-                      <div className="tx-detail-label">{t("transactions.view.wallet")}</div>
+                      <div className="tx-detail-label">Ví</div>
                       <div className="tx-detail-value">{tx.walletName}</div>
                     </div>
                   </div>
@@ -587,27 +498,27 @@ export default function TransactionViewModal({ open, tx, onClose }) {
 
               <div className="col-6">
                 <div className="tx-detail-item">
-                  <div className="tx-detail-label">{t("transactions.view.date")}</div>
+                  <div className="tx-detail-label">Ngày</div>
                   <div className="tx-detail-value">{dateStr}</div>
                 </div>
               </div>
 
               <div className="col-6">
                 <div className="tx-detail-item">
-                  <div className="tx-detail-label">{t("transactions.view.time")}</div>
+                  <div className="tx-detail-label">Giờ</div>
                   <div className="tx-detail-value">{timeStr}</div>
                 </div>
               </div>
 
               <div className="col-6">
                 <div className="tx-detail-item">
-                  <div className="tx-detail-label">{t("transactions.view.category")}</div>
+                  <div className="tx-detail-label">Danh mục</div>
                   <div className="tx-detail-value">
                     <div className="tx-category-with-icon">
                       <div className="tx-category-icon">
                         <i className={`bi ${categoryIcon}`} />
                       </div>
-                      <span>{tx.category || (isTransfer ? t("transactions.type.transfer") : "")}</span>
+                      <span>{tx.category || (isTransfer ? "Chuyển tiền giữa các ví" : "")}</span>
                     </div>
                   </div>
                 </div>
@@ -615,23 +526,23 @@ export default function TransactionViewModal({ open, tx, onClose }) {
 
               <div className="col-12">
                 <div className="tx-detail-item">
-                  <div className="tx-detail-label">{t("transactions.view.note")}</div>
+                  <div className="tx-detail-label">Ghi chú</div>
                   <div className="tx-detail-value">
-                    {tx.note || <span style={{ color: "#9ca3af", fontStyle: "italic" }}>{t("transactions.view.no_note")}</span>}
+                    {tx.note || <span style={{ color: "#9ca3af", fontStyle: "italic" }}>Không có</span>}
                   </div>
                 </div>
               </div>
 
               <div className="col-6">
                 <div className="tx-detail-item">
-                  <div className="tx-detail-label">{t("transactions.view.code")}</div>
+                  <div className="tx-detail-label">Mã giao dịch</div>
                   <div className="tx-detail-value" style={{ fontFamily: "monospace", fontSize: "0.9rem" }}>{tx.code || "—"}</div>
                 </div>
               </div>
 
               <div className="col-6">
                 <div className="tx-detail-item">
-                  <div className="tx-detail-label">{t("transactions.view.creator_code")}</div>
+                  <div className="tx-detail-label">Mã người tạo</div>
                   <div className="tx-detail-value" style={{ fontFamily: "monospace", fontSize: "0.9rem" }}>{tx.creatorCode || "—"}</div>
                 </div>
               </div>
@@ -639,7 +550,7 @@ export default function TransactionViewModal({ open, tx, onClose }) {
               {tx.attachment && (
                 <div className="col-12">
                   <div className="tx-detail-item">
-                    <div className="tx-detail-label">{t("transactions.view.attachment")}</div>
+                    <div className="tx-detail-label">Ảnh đính kèm</div>
                     <div
                       style={{
                         width: 160,
@@ -653,7 +564,7 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                     >
                       <img
                         src={tx.attachment}
-                        alt={t("transactions.view.attachment")}
+                        alt="Đính kèm"
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
                       />
                     </div>
