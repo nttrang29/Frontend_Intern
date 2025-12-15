@@ -15,7 +15,7 @@ export default function FundHistoryTab({
         alignItems: 'center',
         marginBottom: '1rem'
       }}>
-        <h6 className="mb-0 text-muted">Lịch sử giao dịch nạp tiền</h6>
+        <h6 className="mb-0 text-muted">Lịch sử giao dịch</h6>
         {historyLoading ? (
           <span style={{ 
             fontSize: '0.875rem', 
@@ -88,8 +88,14 @@ export default function FundHistoryTab({
         }}>
           {displayHistory.map((tx) => {
             const isSuccess = tx.status === 'success';
-            const borderColor = isSuccess ? '#10b981' : '#ef4444';
-            const iconColor = isSuccess ? '#10b981' : '#ef4444';
+            const isWithdraw = tx.isWithdraw || tx.type === 'withdraw';
+            // Màu sắc: xanh cho nạp tiền, đỏ cho rút tiền
+            const borderColor = isWithdraw 
+              ? (isSuccess ? '#ef4444' : '#dc2626') 
+              : (isSuccess ? '#10b981' : '#ef4444');
+            const iconColor = isWithdraw 
+              ? (isSuccess ? '#ef4444' : '#dc2626') 
+              : (isSuccess ? '#10b981' : '#ef4444');
             const iconName = isSuccess ? 'bi-check-circle-fill' : 'bi-x-circle-fill';
             
             return (
@@ -118,7 +124,9 @@ export default function FundHistoryTab({
                   width: '48px',
                   height: '48px',
                   borderRadius: '50%',
-                  backgroundColor: isSuccess ? '#d1fae5' : '#fee2e2',
+                  backgroundColor: isWithdraw 
+                    ? (isSuccess ? '#fee2e2' : '#fecaca') 
+                    : (isSuccess ? '#d1fae5' : '#fee2e2'),
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -137,9 +145,13 @@ export default function FundHistoryTab({
                     marginBottom: '0.5rem'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <i className={tx.type === 'auto' ? 'bi bi-arrow-repeat' : 'bi bi-hand-thumbs-up'} style={{ 
+                      <i className={
+                        isWithdraw 
+                          ? 'bi bi-arrow-down-circle' 
+                          : (tx.type === 'auto' ? 'bi bi-arrow-repeat' : 'bi bi-hand-thumbs-up')
+                      } style={{ 
                         fontSize: '1rem',
-                        color: '#6c757d'
+                        color: isWithdraw ? '#ef4444' : '#6c757d'
                       }}></i>
                       <span style={{ fontWeight: '600', fontSize: '1rem', color: '#111827' }}>
                         {tx.typeLabel}
@@ -148,13 +160,15 @@ export default function FundHistoryTab({
                     
                     <div style={{ 
                       padding: '0.375rem 0.75rem',
-                      backgroundColor: isSuccess ? '#d1fae5' : '#fee2e2',
+                      backgroundColor: isWithdraw 
+                        ? (isSuccess ? '#fee2e2' : '#fecaca') 
+                        : (isSuccess ? '#d1fae5' : '#fee2e2'),
                       borderRadius: '20px',
                       fontSize: '0.875rem', 
                       fontWeight: '700', 
                       color: iconColor 
                     }}>
-                      {isSuccess ? '+' : ''}{formatMoney(tx.amount, fund.currency)}
+                      {isWithdraw ? '-' : (isSuccess ? '+' : '')}{formatMoney(tx.amount, fund.currency)}
                     </div>
                   </div>
                   
@@ -169,7 +183,9 @@ export default function FundHistoryTab({
                       alignItems: 'center',
                       gap: '0.375rem',
                       padding: '0.25rem 0.625rem',
-                      backgroundColor: isSuccess ? '#ecfdf5' : '#fef2f2',
+                      backgroundColor: isWithdraw 
+                        ? (isSuccess ? '#fef2f2' : '#fee2e2') 
+                        : (isSuccess ? '#ecfdf5' : '#fef2f2'),
                       border: `1px solid ${borderColor}`,
                       borderRadius: '12px',
                       fontSize: '0.75rem',

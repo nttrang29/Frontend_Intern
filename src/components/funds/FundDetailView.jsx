@@ -4,7 +4,6 @@ import { useFundData } from "../../contexts/FundDataContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useToast } from "../common/Toast/ToastContext";
 import { useNotifications } from "../../contexts/NotificationContext";
-import { useLanguage } from "../../contexts/LanguageContext";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import AutoTopupBlock from "./AutoTopupBlock";
 import ReminderBlock from "./ReminderBlock";
@@ -14,11 +13,28 @@ import FundDepositTab from "./tabs/FundDepositTab";
 import FundWithdrawTab from "./tabs/FundWithdrawTab";
 import FundHistoryTab from "./tabs/FundHistoryTab";
 import { formatMoney } from "../../utils/formatMoney";
-import { formatVietnamDate } from "../../utils/dateFormat";
-import { getFundTransactions } from "../../services/fund.service";
-import { calcEstimateDate } from "./utils/fundUtils";
+import { formatVietnamDate, formatVietnamTime } from "../../utils/dateFormat";
+import { getFundTransactions, getFundById } from "../../services/fund.service";
+import { parseAmount, parseAmountNonNegative } from "../../utils/parseAmount";
 import "../../styles/components/funds/FundDetail.css";
 import "../../styles/components/funds/FundForms.css";
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const PACE_STATUS_LABELS = {
+  ahead: "Vượt tiến độ",
+  on_track: "Theo kế hoạch",
+  behind: "Chậm tiến độ",
+  critical: "Nguy cơ trễ hạn",
+  unknown: "Chưa xác định",
+};
+
+const PACE_STATUS_DEFINITIONS = [
+  { key: "ahead", label: "Vượt tiến độ" },
+  { key: "on_track", label: "Theo kế hoạch" },
+  { key: "behind", label: "Chậm tiến độ" },
+  { key: "critical", label: "Nguy cơ" },
+];
 
 const buildFormState = (fund) => ({
   name: fund.name || "",
@@ -44,7 +60,6 @@ const buildFormState = (fund) => ({
 });
 
 export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab = "info" }) {
-  const { t } = useLanguage();
   const { updateFund, depositToFund, withdrawFromFund, deleteFund, closeFund, settleFund } = useFundData();
   const { wallets, loadWallets } = useWalletData();
   const { showToast } = useToast();
@@ -53,12 +68,13 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   const [activeTab, setActiveTab] = useState(defaultTab); // info | edit | deposit | withdraw | history
   const [depositAmount, setDepositAmount] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [partialWithdrawAmount, setPartialWithdrawAmount] = useState("");
   const [form, setForm] = useState(() => buildFormState(fund));
   const [saving, setSaving] = useState(false);
   const [withdrawProgress, setWithdrawProgress] = useState(0);
   
-  // States for currency and wallet selection
-  const [selectedCurrency, setSelectedCurrency] = useState(fund.currency || "VND");
+  // States for currency and wallet selection (chỉ VND)
+  const [selectedCurrency] = useState("VND");
   const [selectedSourceWalletId, setSelectedSourceWalletId] = useState(fund.sourceWalletId || "");
   
   // State for auto deposit data (for editing)
@@ -72,36 +88,29 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   const [historyItems, setHistoryItems] = useState([]);
   const [historyError, setHistoryError] = useState(null);
   
+  // Chart tooltip state
+  const [chartTooltip, setChartTooltip] = useState({
+    show: false,
+    x: 0,
+    y: 0,
+    data: null
+  });
+  
   // State for delete confirmation modal
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   
   // State for settle confirmation modal
   const [confirmSettleOpen, setConfirmSettleOpen] = useState(false);
   
-  // Lấy danh sách currencies
-  const availableCurrencies = useMemo(() => {
-    const currencies = [...new Set(wallets.map(w => w.currency))];
-    return currencies.sort();
-  }, [wallets]);
-  
-  // Filter wallets theo currency
+  // Filter wallets theo VND
   const filteredWallets = useMemo(() => {
-    if (!selectedCurrency) return [];
-    return wallets.filter(w => w.currency === selectedCurrency);
-  }, [wallets, selectedCurrency]);
-  
-  // Reset sourceWalletId khi đổi currency
-  useEffect(() => {
-    if (selectedCurrency !== fund.currency) {
-      setSelectedSourceWalletId("");
-    }
-  }, [selectedCurrency, fund.currency]);
+    return wallets.filter(w => (w.currency || "VND") === "VND");
+  }, [wallets]);
 
   // Khi chọn quỹ khác hoặc defaultTab thay đổi
   useEffect(() => {
     setActiveTab(defaultTab);
     setForm(buildFormState(fund));
-    setSelectedCurrency(fund.currency || "VND");
     setSelectedSourceWalletId(fund.sourceWalletId || "");
   }, [fund.id, defaultTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -170,17 +179,375 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   };
   
   const depositStatus = getDepositStatus();
+  
+  // Tính toán trạng thái nạp tiền tự động hôm nay (cần tính trước fundPacing)
+  const todayAutoDepositStatus = useMemo(() => {
+    if (!fund.autoDepositEnabled) return null;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+    
+    // Kiểm tra lịch sử giao dịch hôm nay
+    const todayDeposits = historyItems.filter(tx => {
+      const txDate = new Date(tx.createdAt || tx.transactionDate || tx.transactionAt);
+      const isToday = txDate >= today && txDate <= todayEnd;
+      const isAutoDeposit = tx.type === 'AUTO_DEPOSIT' || tx.type === 'AUTO_DEPOSIT_RECOVERY';
+      return isToday && isAutoDeposit && tx.status === 'SUCCESS';
+    });
+    
+    // Kiểm tra pending auto topup
+    const pendingAmount = parseAmountNonNegative(fund.pendingAutoTopupAmount, 0);
+    const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
+    const sourceWalletBalance = parseAmount(sourceWallet?.balance, 0);
+    const autoDepositAmount = parseAmountNonNegative(fund.autoDepositAmount || fund.amountPerPeriod, 0);
+    
+    if (todayDeposits.length > 0) {
+      // Đã nạp hôm nay
+      const totalDeposited = todayDeposits.reduce((sum, tx) => sum + parseAmountNonNegative(tx.amount, 0), 0);
+      return {
+        status: 'deposited',
+        message: 'Hôm nay đã nạp',
+        amount: totalDeposited,
+        time: todayDeposits[0].createdAt || todayDeposits[0].transactionDate
+      };
+    } else if (pendingAmount > 0 && sourceWalletBalance < pendingAmount) {
+      // Đang chờ (không đủ số dư) - chỉ hiển thị khi có pendingAmount và số dư ví < số tiền cần nạp
+      const missingAmount = pendingAmount - sourceWalletBalance;
+      return {
+        status: 'pending',
+        message: 'Đang chờ nạp',
+        pendingAmount: pendingAmount,
+        missingAmount: missingAmount > 0 ? missingAmount : pendingAmount,
+        sourceWalletBalance: sourceWalletBalance,
+        sourceWalletName: fund.sourceWalletName || 'Ví nguồn'
+      };
+    } else {
+      // Chưa nạp
+      return {
+        status: 'not_deposited',
+        message: 'Chưa nạp hôm nay'
+      };
+    }
+  }, [fund.autoDepositEnabled, fund.pendingAutoTopupAmount, fund.autoDepositAmount, fund.amountPerPeriod, fund.sourceWalletId, fund.sourceWalletName, historyItems, wallets]);
+
   const progress =
     fund.target && fund.target > 0
       ? Math.min(100, Math.round((fund.current / fund.target) * 100))
       : null;
   const progressValue = progress ?? 0;
-  const ringRadius = 40;
-  const ringCircumference = 2 * Math.PI * ringRadius;
-  const ringOffset = ringCircumference * (1 - progressValue / 100);
-  const ringOuterRadius = ringRadius + 30;
-  const ringOuterCircumference = 2 * Math.PI * ringOuterRadius;
-  const ringOuterOffset = ringOuterCircumference * (1 - progressValue / 100);
+  const fundPacing = useMemo(() => {
+    const currentAmount = parseAmountNonNegative(fund.current ?? fund.currentAmount, 0);
+    const targetAmount = parseAmountNonNegative(fund.target ?? fund.targetAmount, 0);
+    const hasTarget = targetAmount > 0;
+
+    const parseDate = (value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+
+    const startDate = parseDate(fund.startDate);
+    const endDate = parseDate(fund.endDate);
+
+    // Chuẩn hóa startDate và endDate
+    const startDateNormalized = startDate ? (() => {
+      const d = new Date(startDate);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    })() : null;
+    const endDateNormalized = endDate ? (() => {
+      const d = new Date(endDate);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    })() : null;
+
+    let totalDays = null;
+    let elapsedDays = null;
+    let expectedPct = null;
+    let expectedAmount = null;
+
+    // Tính toán expectedPct và expectedAmount dựa trên startDate và endDate
+    if (startDate && endDate && endDate.getTime() > startDate.getTime()) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Tính tổng số ngày: từ startDate đến endDate (bao gồm cả 2 ngày)
+      // Ví dụ: 14 -> 16 = 3 ngày (14, 15, 16)
+      const daysDiff = Math.round((endDateNormalized.getTime() - startDateNormalized.getTime()) / MS_PER_DAY);
+      totalDays = Math.max(1, daysDiff + 1); // +1 để bao gồm cả ngày bắt đầu và kết thúc
+      
+      // Tính số ngày đã trôi qua (từ startDate đến hôm nay, bao gồm cả ngày hôm nay)
+      // Nếu hôm nay < startDate, thì elapsedDays = 0
+      // Nếu hôm nay > endDate, thì elapsedDays = totalDays
+      // Nếu hôm nay = startDate, thì elapsedDays = 1 (ngày đầu tiên)
+      if (today.getTime() < startDateNormalized.getTime()) {
+        // Chưa đến ngày bắt đầu
+        elapsedDays = 0;
+      } else if (today.getTime() > endDateNormalized.getTime()) {
+        // Đã qua ngày kết thúc
+        elapsedDays = totalDays;
+      } else {
+        // Trong khoảng thời gian: tính số ngày từ startDate đến hôm nay (bao gồm cả hôm nay)
+        const daysFromStart = Math.round((today.getTime() - startDateNormalized.getTime()) / MS_PER_DAY);
+        elapsedDays = Math.max(1, daysFromStart + 1); // +1 để bao gồm cả ngày hôm nay
+      }
+      
+      // Tính phần trăm và số tiền theo kế hoạch
+      if (totalDays > 0 && elapsedDays >= 0) {
+        const expectedRatio = elapsedDays / totalDays;
+        expectedPct = Math.min(100, Math.max(0, expectedRatio * 100));
+        if (hasTarget && targetAmount > 0) {
+          // Tính expectedAmount từ expectedPct để đảm bảo nhất quán
+          expectedAmount = (expectedPct / 100) * targetAmount;
+          // Giới hạn tối đa bằng targetAmount
+          expectedAmount = Math.min(targetAmount, expectedAmount);
+        }
+      }
+    }
+
+    // Điều chỉnh expectedAmount nếu có pending auto deposit nhưng không đủ số dư
+    // Khi đến thời gian nạp tự động nhưng không đủ số dư, số tiền đáng lẽ phải được nạp
+    // nên được tính vào expectedAmount để phản ánh đúng tình trạng chậm tiến độ
+    if (todayAutoDepositStatus?.status === 'pending' && expectedAmount != null && hasTarget && targetAmount > 0) {
+      const pendingAmount = todayAutoDepositStatus.pendingAmount || 0;
+      // Điều chỉnh expectedAmount để bao gồm số tiền pending chưa được nạp
+      expectedAmount = expectedAmount + pendingAmount;
+      // Giới hạn tối đa bằng targetAmount
+      expectedAmount = Math.min(targetAmount, expectedAmount);
+      // Tính lại expectedPct từ expectedAmount để đảm bảo nhất quán
+      expectedPct = Math.min(100, Math.max(0, (expectedAmount / targetAmount) * 100));
+    }
+
+    let paceStatus = "unknown";
+    const isAutoDeposit = fund.autoDepositEnabled || false;
+    
+    // Tính toán số lần nạp và số kỳ đã trôi qua (chỉ cho quỹ có thời hạn)
+    let depositCount = 0;
+    let expectedPeriodCount = 0;
+    let hasDepositedInCurrentPeriod = false;
+    let isReminderTimePassed = false;
+    
+    if (startDate && fund.frequency) {
+      const now = new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Tính số kỳ đã trôi qua từ startDate
+      const daysSinceStart = Math.max(0, Math.floor((today.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+      
+      let daysPerPeriod = 1;
+      switch (fund.frequency) {
+        case 'DAILY':
+          daysPerPeriod = 1;
+          break;
+        case 'WEEKLY':
+          daysPerPeriod = 7;
+          break;
+        case 'MONTHLY':
+          daysPerPeriod = 30;
+          break;
+      }
+      
+      expectedPeriodCount = Math.floor(daysSinceStart / daysPerPeriod) + 1; // +1 vì kỳ đầu tiên bắt đầu từ ngày 0
+      
+      // Đếm số lần nạp từ lịch sử giao dịch
+      const depositTransactions = historyItems.filter(tx => {
+        const txType = tx.type || '';
+        return (txType === 'DEPOSIT' || txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY') 
+          && tx.status === 'SUCCESS';
+      });
+      depositCount = depositTransactions.length;
+      
+      // Kiểm tra xem đã nạp trong chu kỳ hiện tại chưa
+      if (depositTransactions.length > 0) {
+        const latestDeposit = depositTransactions[depositTransactions.length - 1];
+        const latestDepositDate = new Date(latestDeposit.createdAt || latestDeposit.transactionDate || latestDeposit.transactionAt);
+        latestDepositDate.setHours(0, 0, 0, 0);
+        
+        // Tính kỳ của lần nạp cuối cùng
+        const daysFromStartToDeposit = Math.max(0, Math.floor((latestDepositDate.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+        const depositPeriod = Math.floor(daysFromStartToDeposit / daysPerPeriod) + 1;
+        const currentPeriod = expectedPeriodCount;
+        
+        // Đã nạp trong chu kỳ hiện tại nếu kỳ của lần nạp cuối cùng bằng kỳ hiện tại
+        hasDepositedInCurrentPeriod = depositPeriod === currentPeriod;
+      }
+      
+      // Kiểm tra xem đã đến giờ nhắc nhở chưa (chỉ cho quỹ có reminder)
+      if (fund.reminderEnabled && fund.reminderTime) {
+        const reminderTimeStr = fund.reminderTime.substring(0, 5); // HH:mm
+        const [reminderHour, reminderMinute] = reminderTimeStr.split(':').map(Number);
+        const reminderType = fund.reminderType || fund.frequency || 'MONTHLY';
+        const currentTime = new Date();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (reminderType === 'DAILY') {
+          // Kiểm tra giờ nhắc nhở hôm nay
+          const reminderTime = new Date();
+          reminderTime.setHours(reminderHour, reminderMinute, 0, 0);
+          isReminderTimePassed = currentTime >= reminderTime;
+        } else if (reminderType === 'WEEKLY') {
+          // Kiểm tra xem hôm nay có phải ngày nhắc nhở và đã qua giờ nhắc nhở chưa
+          const targetDow = fund.reminderDayOfWeek || 1; // 1=Mon, 7=Sun
+          const jsDow = today.getDay(); // 0=Sun..6
+          const todayDow1 = ((jsDow + 6) % 7) + 1; // convert to 1=Mon..7=Sun
+          if (todayDow1 === targetDow) {
+            const reminderTime = new Date();
+            reminderTime.setHours(reminderHour, reminderMinute, 0, 0);
+            isReminderTimePassed = currentTime >= reminderTime;
+          }
+        } else if (reminderType === 'MONTHLY') {
+          // Kiểm tra xem hôm nay có phải ngày nhắc nhở và đã qua giờ nhắc nhở chưa
+          const targetDay = fund.reminderDayOfMonth || 1;
+          if (today.getDate() === targetDay) {
+            const reminderTime = new Date();
+            reminderTime.setHours(reminderHour, reminderMinute, 0, 0);
+            isReminderTimePassed = currentTime >= reminderTime;
+          }
+        }
+      }
+    }
+    
+    if (expectedPct == null) {
+      if (hasTarget && progressValue >= 100) {
+        // Chỉ hiển thị "ahead" nếu là nạp thủ công
+        paceStatus = isAutoDeposit ? "on_track" : "ahead";
+      }
+    } else {
+      // Logic mới: 
+      // 1. Chỉ đánh dấu "chậm tiến độ" khi đến giờ nhắc nhở mà chưa nạp
+      // 2. Khi nạp xong thì là "theo kế hoạch"
+      // 3. Khi nạp nhiều hơn tần suất thì là "vượt tiến độ"
+      
+      if (fund.reminderEnabled && isReminderTimePassed && !hasDepositedInCurrentPeriod) {
+        // Đã đến giờ nhắc nhở nhưng chưa nạp -> chậm tiến độ
+        paceStatus = "behind";
+      } else if (depositCount > expectedPeriodCount) {
+        // Nạp nhiều hơn số kỳ đã trôi qua -> vượt tiến độ
+        paceStatus = isAutoDeposit ? "on_track" : "ahead";
+      } else if (hasDepositedInCurrentPeriod || depositCount === expectedPeriodCount) {
+        // Đã nạp đúng hoặc đủ số kỳ -> theo kế hoạch
+        paceStatus = "on_track";
+      } else {
+        // Các trường hợp khác: so sánh theo phần trăm
+        const diff = progressValue - expectedPct;
+        if (diff >= 7) {
+          paceStatus = isAutoDeposit ? "on_track" : "ahead";
+        } else if (diff >= -4) {
+          paceStatus = "on_track";
+        } else {
+          paceStatus = "behind";
+        }
+      }
+    }
+
+    // Tính diffPct: chênh lệch giữa thực tế và kế hoạch (làm tròn đến 1 chữ số thập phân)
+    const diffPct = expectedPct == null ? null : Math.round((progressValue - expectedPct) * 10) / 10;
+    // Tính diffDays: chênh lệch số ngày
+    const pctPerDay = totalDays ? 100 / totalDays : null;
+    const diffDays = diffPct != null && pctPerDay && pctPerDay > 0 
+      ? Math.round((diffPct / pctPerDay) * 10) / 10 
+      : null;
+
+    return {
+      currentAmount,
+      targetAmount,
+      expectedPct,
+      expectedAmount,
+      paceStatus,
+      diffPct,
+      diffDays,
+      shortage: hasTarget ? Math.max(0, targetAmount - currentAmount) : null,
+      totalDays,
+      elapsedDays,
+    };
+  }, [fund.current, fund.currentAmount, fund.target, fund.targetAmount, fund.startDate, fund.endDate, fund.autoDepositEnabled, fund.reminderEnabled, fund.reminderTime, fund.reminderType, fund.reminderDayOfWeek, fund.reminderDayOfMonth, fund.frequency, progressValue, todayAutoDepositStatus, historyItems]);
+
+  // Tạo gradient ID dựa trên pace status để thay đổi màu
+  const gaugeGradientId = useMemo(() => {
+    const identity = fund.id || fund.fundId || fund.code || "fund";
+    const status = fundPacing.paceStatus || "unknown";
+    return `fundPaceGradient-${identity}-${status}`;
+  }, [fund.code, fund.fundId, fund.id, fundPacing.paceStatus]);
+  
+  // Xác định màu gradient dựa trên pace status
+  const gaugeGradientColors = useMemo(() => {
+    const status = fundPacing.paceStatus || "unknown";
+    switch (status) {
+      case "ahead":
+        return { start: "#22c55e", end: "#10b981" }; // Xanh lá (vượt tiến độ)
+      case "on_track":
+        return { start: "#0d6efd", end: "#00c2ff" }; // Xanh dương (theo kế hoạch)
+      case "behind":
+        return { start: "#f97316", end: "#fb923c" }; // Cam (chậm tiến độ)
+      case "critical":
+        return { start: "#ef4444", end: "#f87171" }; // Đỏ (nguy cơ)
+      default:
+        return { start: "#0d6efd", end: "#00c2ff" }; // Mặc định xanh dương
+    }
+  }, [fundPacing.paceStatus]);
+
+  const paceStatusLabel = PACE_STATUS_LABELS[fundPacing.paceStatus] || PACE_STATUS_LABELS.unknown;
+  const paceStatusDescription = useMemo(() => {
+    if (fundPacing.diffPct == null) {
+      return "Chưa có thời hạn để so sánh với kế hoạch.";
+    }
+    
+    // Làm tròn diffPct để so sánh (tolerance 0.1%)
+    const roundedDiff = Math.round(fundPacing.diffPct * 10) / 10;
+    
+    if (Math.abs(roundedDiff) < 0.1) {
+      return "Đang đúng với kế hoạch đề ra.";
+    }
+    
+    const absPct = Math.abs(roundedDiff);
+    const absPctFormatted = absPct % 1 === 0 ? Math.round(absPct) : absPct.toFixed(1);
+    
+    const dayHint = fundPacing.diffDays && Math.abs(fundPacing.diffDays) >= 0.5
+      ? ` (~${Math.abs(fundPacing.diffDays).toFixed(1)} ngày ${fundPacing.diffDays > 0 ? "sớm" : "trễ"})`
+      : "";
+    
+    if (roundedDiff > 0) {
+      return `Vượt kế hoạch ${absPctFormatted}%${dayHint}.`;
+    }
+    return `Chậm hơn kế hoạch ${absPctFormatted}%${dayHint}.`;
+  }, [fundPacing.diffPct, fundPacing.diffDays]);
+
+  // Làm tròn các giá trị để hiển thị
+  const actualPct = Math.max(0, Math.min(progressValue, 100));
+  const expectedPctValue = fundPacing.expectedPct != null ? Math.max(0, Math.min(fundPacing.expectedPct, 100)) : null;
+  const gaugeRadius = 105;
+  const gaugeCircumference = 2 * Math.PI * gaugeRadius;
+  const actualOffset = gaugeCircumference * (1 - actualPct / 100);
+  const expectedOffset = expectedPctValue != null ? gaugeCircumference * (1 - expectedPctValue / 100) : null;
+  
+  // Format các giá trị tiền tệ - không làm tròn để giữ precision
+  const actualAmountLabel = formatMoney(fundPacing.currentAmount, fund.currency);
+  const planAmountLabel = fundPacing.expectedAmount != null ? formatMoney(fundPacing.expectedAmount, fund.currency) : "—";
+  const shortageLabel = fundPacing.shortage != null ? formatMoney(fundPacing.shortage, fund.currency) : "—";
+  
+  // Format phần trăm: làm tròn đến 1 chữ số thập phân, nhưng nếu là số nguyên thì hiển thị số nguyên
+  const expectedPercentLabel = expectedPctValue != null 
+    ? (expectedPctValue % 1 === 0 ? `${Math.round(expectedPctValue)}%` : `${expectedPctValue.toFixed(1)}%`)
+    : "--";
+  
+  // Tính % vượt tiến độ (chỉ hiển thị khi paceStatus là "ahead")
+  const aheadPct = fundPacing.paceStatus === "ahead" && fundPacing.diffPct != null && fundPacing.diffPct > 0
+    ? (fundPacing.diffPct % 1 === 0 ? `${Math.round(fundPacing.diffPct)}%` : `${fundPacing.diffPct.toFixed(1)}%`)
+    : null;
+  
+  // Format diffPct: làm tròn đến 1 chữ số thập phân
+  const diffPercentLabel = fundPacing.diffPct != null 
+    ? `${fundPacing.diffPct > 0 ? "+" : ""}${fundPacing.diffPct % 1 === 0 ? Math.round(fundPacing.diffPct) : fundPacing.diffPct.toFixed(1)}%`
+    : "--";
+  const remainingDaysLabel = (() => {
+    if (fundPacing.totalDays == null || fundPacing.elapsedDays == null) return "Chưa có thời hạn";
+    const remaining = Math.max(0, fundPacing.totalDays - fundPacing.elapsedDays);
+    return remaining === 0 ? "Đến hạn hôm nay" : `${remaining} ngày còn lại`;
+  })();
 
   // Trạng thái quỹ từ backend (ACTIVE, CLOSED, COMPLETED)
   const fundStatus = fund.status || fund.fundStatus || null;
@@ -212,7 +579,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     e.preventDefault();
 
     if (!form.name.trim()) {
-      showToast(t("funds.form.error.name_required"), "error");
+      showToast("Vui lòng nhập tên quỹ.", "error");
       return;
     }
 
@@ -221,12 +588,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     try {
       // Validation
       if (!selectedCurrency) {
-        showToast(t("funds.form.error.currency_required"), "error");
+        showToast("Vui lòng chọn loại tiền tệ.", "error");
         setSaving(false);
         return;
       }
       if (!selectedSourceWalletId) {
-        showToast(t("funds.form.error.source_wallet_required"), "error");
+        showToast("Vui lòng chọn ví nguồn.", "error");
         setSaving(false);
         return;
       }
@@ -238,14 +605,14 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         sourceWalletId: Number(selectedSourceWalletId),
         note: form.note.trim() || null,
         frequency: form.frequency || null,
-        amountPerPeriod: form.amountPerPeriod ? Number(form.amountPerPeriod) : null,
+        amountPerPeriod: form.amountPerPeriod ? parseAmountNonNegative(form.amountPerPeriod, null) : null,
         startDate: form.startDate || null,
         endDate: form.endDate || null,
       };
 
       // Thêm target nếu có kỳ hạn
       if (fund.hasTerm && form.target) {
-        updateData.targetAmount = Number(form.target);
+        updateData.targetAmount = parseAmountNonNegative(form.target, null);
       }
 
       // Giữ nguyên chế độ nạp tiền ban đầu (không cho thay đổi khi sửa)
@@ -293,18 +660,18 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const result = await updateFund(fund.id, updateData);
 
       if (result.success) {
-        showToast(t("funds.toast.update_success"), "success");
+        showToast("Cập nhật quỹ thành công!", "success");
         // Callback để reload fund list
         if (onUpdateFund) {
           await onUpdateFund();
         }
         setActiveTab("info");
       } else {
-        showToast(t("funds.toast.update_failed", { error: result.error }), "error");
+        showToast(`Không thể cập nhật quỹ: ${result.error}`, "error");
       }
     } catch (error) {
       console.error("Error updating fund:", error);
-      showToast(t("funds.toast.update_error"), "error");
+      showToast("Đã xảy ra lỗi khi cập nhật quỹ.", "error");
     } finally {
       setSaving(false);
     }
@@ -323,12 +690,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         const transactions = Array.isArray(result.data) ? result.data : (result.data.transactions || []);
         setHistoryItems(transactions);
       } else {
-        setHistoryError(t("funds.history.load_error"));
+        setHistoryError("Không thể tải lịch sử giao dịch");
         setHistoryItems([]);
       }
     } catch (error) {
       console.error("Error loading fund history:", error);
-      setHistoryError(t("funds.history.load_error_generic"));
+      setHistoryError("Lỗi khi tải lịch sử giao dịch");
       setHistoryItems([]);
     } finally {
       setHistoryLoading(false);
@@ -340,19 +707,77 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     loadHistory();
   }, [loadHistory]);
 
-  // Transaction history for chart (from historyItems)
+  // Transaction history for chart (from historyItems) - bao gồm cả DEPOSIT và WITHDRAW
   const transactionHistory = useMemo(() => {
     if (!historyItems || historyItems.length === 0) return [];
     
     // Sort by date descending, then map to chart format
     return historyItems
-      .filter(tx => tx.status === 'SUCCESS' && (tx.type === 'DEPOSIT' || tx.type === 'AUTO_DEPOSIT' || tx.type === 'AUTO_DEPOSIT_RECOVERY'))
+      .filter(tx => tx.status === 'SUCCESS' && (
+        tx.type === 'DEPOSIT' || 
+        tx.type === 'AUTO_DEPOSIT' || 
+        tx.type === 'AUTO_DEPOSIT_RECOVERY' ||
+        tx.type === 'WITHDRAW'
+      ))
       .sort((a, b) => new Date(b.createdAt || b.transactionDate) - new Date(a.createdAt || a.transactionDate))
       .map(tx => ({
         date: tx.createdAt || tx.transactionDate,
-        amount: Number(tx.amount || 0)
+        amount: tx.type === 'WITHDRAW' 
+          ? -parseAmountNonNegative(tx.amount, 0) // Rút tiền là số âm
+          : parseAmountNonNegative(tx.amount, 0), // Nạp tiền là số dương
+        type: tx.type
       }));
   }, [historyItems]);
+
+  // Growth chart data for no-term funds (cumulative growth) - tính cả nạp và rút
+  const growthChartData = useMemo(() => {
+    if (fund.hasTerm) return null; // Chỉ dùng cho quỹ không thời hạn
+    
+    if (!transactionHistory || transactionHistory.length === 0) {
+      return { points: [], cumulative: 0, max: 0 };
+    }
+    
+    // Sort by date ascending để tính tích lũy
+    const sorted = [...transactionHistory].sort((a, b) => 
+      new Date(a.date) - new Date(b.date)
+    );
+    
+    let cumulative = 0;
+    const points = sorted.map((tx, idx) => {
+      cumulative += tx.amount; // amount có thể âm (rút) hoặc dương (nạp)
+      return {
+        date: tx.date,
+        amount: tx.amount,
+        cumulative: Math.max(0, cumulative), // Đảm bảo không âm
+        index: idx,
+        type: tx.type
+      };
+    });
+    
+    const maxCumulative = Math.max(...points.map(p => p.cumulative), 1);
+    const minCumulative = Math.min(...points.map(p => p.cumulative), 0);
+    
+    // Tính tổng đã rút
+    const totalWithdrawn = points
+      .filter(p => p.type === 'WITHDRAW')
+      .reduce((sum, p) => sum + Math.abs(p.amount), 0);
+    
+    // Tính tổng đã nạp
+    const totalDeposited = points
+      .filter(p => p.type !== 'WITHDRAW')
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    return {
+      points: points,
+      cumulative: cumulative,
+      max: maxCumulative,
+      min: minCumulative,
+      totalTransactions: points.filter(p => p.type !== 'WITHDRAW').length, // Chỉ đếm nạp tiền
+      totalWithdrawals: points.filter(p => p.type === 'WITHDRAW').length,
+      totalWithdrawn: totalWithdrawn,
+      totalDeposited: totalDeposited
+    };
+  }, [transactionHistory, fund.hasTerm]);
 
   // Sparkline data (lấy tối đa 10 giao dịch nạp gần nhất)
   const sparkline = useMemo(() => {
@@ -409,35 +834,6 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     };
   }, [historyItems]);
 
-  // Line chart: tiến độ tiến gần mục tiêu theo tháng (cumulative %)
-  const monthlyProgress = useMemo(() => {
-    if (!historyItems || historyItems.length === 0) return { labels: [], progress: [], max: 100 };
-    const target = fund.target || fund.targetAmount || 0;
-    const map = new Map();
-    historyItems.forEach((tx) => {
-      const d = new Date(tx.createdAt || tx.transactionDate || tx.transactionAt);
-      if (Number.isNaN(d.getTime())) return;
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      const amount = Number(tx.amount || 0);
-      const entry = map.get(key) || { total: 0, month: d.getMonth() };
-      if (tx.status === "SUCCESS") {
-        entry.total += amount;
-      }
-      map.set(key, entry);
-    });
-    const sorted = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    let cumulative = 0;
-    const labels = [];
-    const progress = [];
-    sorted.forEach(([, v]) => {
-      cumulative += v.total;
-      labels.push(new Date(2020, v.month, 1).toLocaleString("en-US", { month: "short" }));
-      const pct = target > 0 ? Math.min(100, Math.round((cumulative / target) * 100)) : 0;
-      progress.push(pct);
-    });
-    return { labels, progress, max: 100 };
-  }, [historyItems, fund.target, fund.targetAmount]);
-
   const maxAmount = Math.max(fund.target || 0, fund.current || 1);
   
   // Tính toán trạng thái nạp tiền thủ công hôm nay
@@ -459,10 +855,10 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     
     if (todayDeposits.length > 0) {
       // Đã nạp hôm nay
-      const totalDeposited = todayDeposits.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+      const totalDeposited = todayDeposits.reduce((sum, tx) => sum + parseAmountNonNegative(tx.amount, 0), 0);
       return {
         status: 'deposited',
-        message: t('funds.deposit.status.deposited_today'),
+        message: 'Hôm nay đã nạp',
         amount: totalDeposited,
         time: todayDeposits[0].createdAt || todayDeposits[0].transactionDate
       };
@@ -470,62 +866,10 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       // Chưa nạp hôm nay
       return {
         status: 'not_deposited',
-        message: t('funds.deposit.status.not_deposited_today')
+        message: 'Chưa nạp hôm nay'
       };
     }
   }, [fund.autoDepositEnabled, historyItems]);
-
-  // Tính toán trạng thái nạp tiền tự động hôm nay
-  const todayAutoDepositStatus = useMemo(() => {
-    if (!fund.autoDepositEnabled) return null;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(today);
-    todayEnd.setHours(23, 59, 59, 999);
-    
-    // Kiểm tra lịch sử giao dịch hôm nay
-    const todayDeposits = historyItems.filter(tx => {
-      const txDate = new Date(tx.createdAt || tx.transactionDate || tx.transactionAt);
-      const isToday = txDate >= today && txDate <= todayEnd;
-      const isAutoDeposit = tx.type === 'AUTO_DEPOSIT' || tx.type === 'AUTO_DEPOSIT_RECOVERY';
-      return isToday && isAutoDeposit && tx.status === 'SUCCESS';
-    });
-    
-    // Kiểm tra pending auto topup
-    const pendingAmount = Number(fund.pendingAutoTopupAmount || 0);
-    const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
-    const sourceWalletBalance = Number(sourceWallet?.balance || 0);
-    const autoDepositAmount = Number(fund.autoDepositAmount || fund.amountPerPeriod || 0);
-    
-    if (todayDeposits.length > 0) {
-      // Đã nạp hôm nay
-      const totalDeposited = todayDeposits.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-      return {
-        status: 'deposited',
-        message: t('funds.deposit.status.deposited_today'),
-        amount: totalDeposited,
-        time: todayDeposits[0].createdAt || todayDeposits[0].transactionDate
-      };
-    } else if (pendingAmount > 0 && sourceWalletBalance < pendingAmount) {
-      // Đang chờ (không đủ số dư) - chỉ hiển thị khi có pendingAmount và số dư ví < số tiền cần nạp
-      const missingAmount = pendingAmount - sourceWalletBalance;
-      return {
-        status: 'pending',
-        message: 'Đang chờ nạp',
-        pendingAmount: pendingAmount,
-        missingAmount: missingAmount > 0 ? missingAmount : pendingAmount,
-        sourceWalletBalance: sourceWalletBalance,
-        sourceWalletName: fund.sourceWalletName || 'Ví nguồn'
-      };
-    } else {
-      // Chưa nạp
-      return {
-        status: 'not_deposited',
-        message: t('funds.deposit.status.not_deposited_today')
-      };
-    }
-  }, [fund.autoDepositEnabled, fund.pendingAutoTopupAmount, fund.autoDepositAmount, fund.amountPerPeriod, fund.sourceWalletId, fund.sourceWalletName, historyItems, wallets]);
 
   const hasTodayAutoDeposit = todayAutoDepositStatus?.status === 'deposited';
 
@@ -654,67 +998,146 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     return candidate;
   }, [fund.reminderEnabled, fund.reminderType, fund.frequency, fund.reminderDayOfWeek, fund.reminderDayOfMonth, hasTodayReminder]);
   
-  // Map historyItems to display format
+  // Map historyItems to display format - phân biệt DEPOSIT và WITHDRAW
   const displayHistory = useMemo(() => {
     return historyItems.map(tx => {
       const isSuccess = tx.status === 'SUCCESS';
       const txType = tx.type || 'DEPOSIT';
+      const isWithdraw = txType === 'WITHDRAW';
       const isAuto = txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY';
       const isRecovery = txType === 'AUTO_DEPOSIT_RECOVERY';
       
       return {
         id: tx.id || tx.transactionId,
-        type: isAuto ? 'auto' : 'manual',
-        typeLabel: isRecovery ? t('funds.history.type.recovery') : (isAuto ? t('funds.history.type.auto') : t('funds.history.type.manual')),
-        amount: Number(tx.amount || 0),
+        type: isWithdraw ? 'withdraw' : (isAuto ? 'auto' : 'manual'),
+        typeLabel: isWithdraw 
+          ? 'Rút tiền' 
+          : (isRecovery ? 'Nạp bù tự động' : (isAuto ? 'Nạp tự động' : 'Nạp thủ công')),
+        amount: parseAmountNonNegative(tx.amount, 0),
         status: isSuccess ? 'success' : 'failed',
         date: tx.createdAt || tx.transactionDate || tx.transactionAt,
-        message: tx.message || (isRecovery ? t('funds.history.message.recovery_success') : (isAuto ? t('funds.history.message.auto_success') : t('funds.history.message.manual_success'))),
-        walletBalance: tx.walletBalance
+        message: tx.message || (
+          isWithdraw 
+            ? 'Rút tiền khỏi quỹ' 
+            : (isRecovery ? 'Nạp bù tự động thành công' : (isAuto ? 'Nạp tự động thành công' : 'Nạp tiền thành công'))
+        ),
+        walletBalance: tx.walletBalance,
+        isWithdraw: isWithdraw
       };
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [historyItems]);
+
+  // Tính toán trạng thái nạp: đã nạp đủ cho chu kỳ hiện tại chưa
+  const depositStatusInfo = useMemo(() => {
+    if (!fund.frequency || !fund.startDate) {
+      return { hasEnoughForCurrentPeriod: false, extraDepositCount: 0 };
+    }
+    
+    const parseDate = (value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+    
+    const startDate = parseDate(fund.startDate);
+    if (!startDate) {
+      return { hasEnoughForCurrentPeriod: false, extraDepositCount: 0 };
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDateNormalized = new Date(startDate);
+    startDateNormalized.setHours(0, 0, 0, 0);
+    
+    const daysSinceStart = Math.max(0, Math.floor((today.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+    
+    let daysPerPeriod = 1;
+    switch (fund.frequency) {
+      case 'DAILY':
+        daysPerPeriod = 1;
+        break;
+      case 'WEEKLY':
+        daysPerPeriod = 7;
+        break;
+      case 'MONTHLY':
+        daysPerPeriod = 30;
+        break;
+    }
+    
+    const expectedPeriodCount = Math.floor(daysSinceStart / daysPerPeriod) + 1;
+    
+    // Đếm số lần nạp từ lịch sử giao dịch
+    const depositTransactions = historyItems.filter(tx => {
+      const txType = tx.type || '';
+      return (txType === 'DEPOSIT' || txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY') 
+        && tx.status === 'SUCCESS';
+    });
+    const depositCount = depositTransactions.length;
+    
+    const hasEnoughForCurrentPeriod = depositCount >= expectedPeriodCount;
+    const extraDepositCount = Math.max(0, depositCount - expectedPeriodCount);
+    
+    return {
+      hasEnoughForCurrentPeriod,
+      extraDepositCount,
+      expectedPeriodCount,
+      depositCount
+    };
+  }, [fund.frequency, fund.startDate, historyItems]);
 
   const handleDeposit = async (e) => {
     e.preventDefault();
 
     // Chặn nạp nếu quỹ không còn ACTIVE (đã đóng hoặc hoàn thành)
     if (!isFundActive) {
-      showToast(t("funds.deposit.error.fund_closed"), "error");
+      showToast("Quỹ đã đóng hoặc hoàn thành mục tiêu, không thể nạp thêm.", "error");
       return;
     }
-    const amount = Number(depositAmount);
+    const amount = parseAmountNonNegative(depositAmount, 0);
     
     // Validation cơ bản
     if (!amount || amount <= 0) {
-      showToast(t("funds.deposit.error.amount_invalid"), "error");
+      showToast("Vui lòng nhập số tiền hợp lệ.", "error");
       return;
     }
 
     if (amount < 1000) {
-      showToast(t("funds.deposit.error.amount_min"), "error");
+      showToast("Số tiền nạp tối thiểu là 1,000.", "error");
       return;
     }
 
-    // Kiểm tra số tiền phải >= số tiền theo tần suất
-    if (fund.amountPerPeriod && amount < fund.amountPerPeriod) {
-      showToast(
-        t("funds.deposit.error.amount_less_than_period", { amount: formatMoney(fund.amountPerPeriod, fund.currency) }),
-        "error"
-      );
-      return;
+    // Logic mới: Nếu đã nạp đủ cho chu kỳ hiện tại
+    if (depositStatusInfo.hasEnoughForCurrentPeriod) {
+      // Lần nạp thêm đầu tiên: phải >= amountPerPeriod
+      if (depositStatusInfo.extraDepositCount === 0 && fund.amountPerPeriod && amount < fund.amountPerPeriod) {
+        showToast(
+          `Lần nạp thêm đầu tiên phải lớn hơn hoặc bằng số tiền theo tần suất: ${formatMoney(fund.amountPerPeriod, fund.currency)}.`,
+          "error"
+        );
+        return;
+      }
+      // Các lần nạp thêm sau: nạp bao nhiêu cũng được (không cần validation)
+    } else {
+      // Chưa nạp đủ cho chu kỳ hiện tại: phải >= amountPerPeriod
+      if (fund.amountPerPeriod && amount < fund.amountPerPeriod) {
+        showToast(
+          `Số tiền nạp phải lớn hơn hoặc bằng số tiền theo tần suất: ${formatMoney(fund.amountPerPeriod, fund.currency)}.`,
+          "error"
+        );
+        return;
+      }
     }
 
     // Kiểm tra số dư ví nguồn
     const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
     if (!sourceWallet) {
-      showToast(t("funds.deposit.error.source_wallet_not_found"), "error");
+      showToast("Không tìm thấy ví nguồn.", "error");
       return;
     }
 
     if (amount > sourceWallet.balance) {
       showToast(
-        t("funds.deposit.error.insufficient_balance", { balance: formatMoney(sourceWallet.balance, sourceWallet.currency) }),
+        `Số dư ví nguồn không đủ! Số dư hiện tại: ${formatMoney(sourceWallet.balance, sourceWallet.currency)}`,
         "error"
       );
       return;
@@ -727,7 +1150,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const result = await depositToFund(fund.id, amount);
 
       if (result.success) {
-        showToast(t("funds.deposit.success", { amount: formatMoney(amount, fund.currency) }), "success");
+        showToast(`Nạp ${formatMoney(amount, fund.currency)} vào quỹ thành công!`, "success");
 
         // Nếu backend trả về quỹ đã COMPLETED sau nạp, hiển thị thông báo đóng băng
         const updatedFund = result.data || fund;
@@ -742,7 +1165,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           (updatedFund.hasTerm && updatedFund.target && updatedProgress !== null && updatedProgress >= 100)
         ) {
           showToast(
-            t("funds.deposit.fund_completed"),
+            "Quỹ đã hoàn thành mục tiêu. Quỹ sẽ được đóng băng và không thể nạp thêm.",
             "info"
           );
         }
@@ -755,11 +1178,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           await onUpdateFund();
         }
       } else {
-        showToast(t("funds.deposit.error.failed", { error: result.error }), "error");
+        showToast(`Không thể nạp tiền: ${result.error}`, "error");
       }
     } catch (error) {
       console.error("Error depositing to fund:", error);
-      showToast(t("funds.deposit.error.generic"), "error");
+      showToast("Đã xảy ra lỗi khi nạp tiền.", "error");
     } finally {
       setSaving(false);
     }
@@ -768,12 +1191,30 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   const handleWithdraw = async (e) => {
     e.preventDefault();
     
-    // Rút toàn bộ số dư quỹ
-    const amount = fund.current;
+    // Quỹ có thời hạn: luôn rút toàn bộ
+    // Quỹ không thời hạn: rút theo số tiền nhập vào
+    let amount;
+    if (fund.hasTerm) {
+      // Quỹ có thời hạn: rút toàn bộ
+      amount = fund.current;
+    } else {
+      // Quỹ không thời hạn: lấy số tiền từ input
+      const withdrawValue = partialWithdrawAmount.trim() || String(fund.current);
+      amount = parseAmountNonNegative(withdrawValue, 0);
+    }
     
-    if (!amount || amount <= 0) {
-      showToast(t("funds.withdraw.error.no_balance"), "error");
-      return;
+    // Validation cho quỹ không thời hạn: có thể rút bất kỳ số tiền nào nhưng không được quá số dư quỹ
+    if (!fund.hasTerm) {
+      if (!amount || amount <= 0) {
+        showToast("Vui lòng nhập số tiền hợp lệ.", "error");
+        return;
+      }
+
+      if (amount > fund.current) {
+        showToast(`Số tiền rút không được vượt quá số dư quỹ: ${formatMoney(fund.current, fund.currency)}`, "error");
+        return;
+      }
+      // Bỏ validation tối thiểu 1,000 - có thể rút bất kỳ số tiền nào
     }
 
     setSaving(true);
@@ -801,12 +1242,21 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       setWithdrawProgress(100);
 
       if (result.success) {
-        showToast(t("funds.withdraw.success_complete", { amount: formatMoney(amount, fund.currency) }), "success");
+        const isFullWithdraw = amount >= fund.current;
+        
+        // Bỏ thông báo thành công cho quỹ không thời hạn
+        if (fund.hasTerm) {
+          // Chỉ hiển thị thông báo cho quỹ có thời hạn
+          showToast(
+            isFullWithdraw 
+              ? `🎉 Hoàn thành quỹ! Rút toàn bộ ${formatMoney(amount, fund.currency)} về ví nguồn thành công!`
+              : `✅ Rút ${formatMoney(amount, fund.currency)} về ví nguồn thành công!`,
+            "success"
+          );
+        }
+        
         // Reload history after successful withdraw
         await loadHistory();
-        
-        // Xóa quỹ sau khi rút tiền thành công
-        await deleteFund(fund.id);
         
         // Reload wallets so UI shows updated balances
         try {
@@ -817,27 +1267,54 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         // Let parent refresh funds list if provided
         if (onUpdateFund) await onUpdateFund();
 
-        // Delay một chút để user đọc toast
-        setTimeout(() => {
-          // Quay về danh sách quỹ
-          if (onBack) {
-            onBack();
+        // Kiểm tra số dư sau khi rút để quyết định có xóa quỹ không
+        const updatedFundResult = await getFundById(fund.id);
+        const updatedFund = updatedFundResult?.response?.ok ? updatedFundResult.data?.fund || updatedFundResult.data : null;
+        const remainingBalance = updatedFund?.currentAmount || updatedFund?.current || 0;
+        const shouldDeleteFund = isFullWithdraw && remainingBalance === 0;
+
+        // Xóa quỹ nếu rút hết (cho cả quỹ có thời hạn và không thời hạn)
+        if (shouldDeleteFund) {
+          await deleteFund(fund.id);
+        }
+
+        // Reset form
+        setPartialWithdrawAmount("");
+
+        // Quỹ có thời hạn: quay về danh sách sau khi rút
+        if (fund.hasTerm) {
+          setTimeout(() => {
+            if (onBack) {
+              onBack();
+            }
+          }, 1000);
+        } else {
+          // Quỹ không thời hạn: nếu rút hết (số dư = 0), xóa quỹ và quay về danh sách
+          if (shouldDeleteFund) {
+            setTimeout(() => {
+              if (onBack) {
+                onBack();
+              }
+            }, 1000);
+          } else {
+            // Nếu còn số dư, reload fund data để cập nhật số dư
+            if (onUpdateFund) await onUpdateFund();
           }
-        }, 1000);
+        }
       } else {
-        showToast(t("funds.withdraw.error.failed", { error: result.error }), "error");
+        showToast(`Không thể rút tiền: ${result.error}`, "error");
       }
     } catch (error) {
       console.error("Error withdrawing from fund:", error);
-      showToast(t("funds.withdraw.error.generic"), "error");
+      showToast("Đã xảy ra lỗi khi rút tiền.", "error");
     } finally {
       setSaving(false);
     }
   };
 
   const handleSettle = () => {
-      if (!fund.current || fund.current <= 0) {
-      showToast(t("funds.settle.error.no_balance"), "error");
+    if (!fund.current || fund.current <= 0) {
+      showToast("Quỹ không có số dư để tất toán.", "error");
       return;
     }
     
@@ -849,7 +1326,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     setConfirmSettleOpen(false);
     
     if (!fund.current || fund.current <= 0) {
-      showToast(t("funds.settle.error.no_balance"), "error");
+      showToast("Quỹ không có số dư để tất toán.", "error");
       return;
     }
 
@@ -876,10 +1353,13 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       setWithdrawProgress(100);
 
       if (result.success) {
-        showToast(t("funds.settle.success", { amount: formatMoney(fund.current, fund.currency) }), "success");
+        // Bỏ thông báo thành công cho quỹ không thời hạn
+        if (fund.hasTerm) {
+          showToast(`✅ Tất toán quỹ thành công! Đã rút toàn bộ ${formatMoney(fund.current, fund.currency)} về ví nguồn.`, "success");
+        }
         await loadHistory();
         
-        // Xóa quỹ sau khi tất toán thành công
+        // Xóa quỹ sau khi tất toán thành công (cho cả quỹ có thời hạn và không thời hạn)
         await deleteFund(fund.id);
         
         try {
@@ -895,11 +1375,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
           }
         }, 1000);
       } else {
-        showToast(t("funds.settle.error.failed", { error: result.error }), "error");
+        showToast(`Không thể tất toán quỹ: ${result.error}`, "error");
       }
     } catch (error) {
       console.error("Error settling fund:", error);
-      showToast(t("funds.settle.error.generic"), "error");
+      showToast("Đã xảy ra lỗi khi tất toán quỹ.", "error");
     } finally {
       setSaving(false);
     }
@@ -918,17 +1398,17 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       const result = await deleteFund(fund.id);
 
       if (result.success) {
-        showToast(t("funds.delete.success"), "success");
+        showToast("Xóa quỹ thành công!", "success");
         // Quay về danh sách
         if (onBack) {
           onBack();
         }
       } else {
-        showToast(t("funds.delete.error.failed", { error: result.error }), "error");
+        showToast(`Không thể xóa quỹ: ${result.error}`, "error");
       }
     } catch (error) {
       console.error("Error deleting fund:", error);
-      showToast(t("funds.delete.error.generic"), "error");
+      showToast("Đã xảy ra lỗi khi xóa quỹ.", "error");
     } finally {
       setSaving(false);
     }
@@ -940,139 +1420,54 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       <div className="fund-detail-form">
         <h5 className="mb-4" style={{ fontWeight: '700', color: '#111827' }}>Quản lý quỹ</h5>
 
-        {/* TABS NAVIGATION - Segment Control Style */}
-        <div className="mb-4" style={{ 
-          display: 'flex', 
-          gap: '0',
-          flexWrap: 'nowrap',
-          overflowX: 'auto',
-          padding: '0.375rem',
-          backgroundColor: '#e7f3ff',
-          borderRadius: '12px'
-        }}>
+        {/* TABS NAVIGATION - Wallet Style */}
+        <div className="fund-detail-tabs">
           <button
             onClick={() => setActiveTab("info")}
-            style={{
-              flex: '1 1 auto',
-              minWidth: '130px',
-              padding: '0.625rem 1rem',
-              border: 'none',
-              background: activeTab === "info" ? '#fff' : 'transparent',
-              color: activeTab === "info" ? '#0d6efd' : '#6c757d',
-              fontWeight: activeTab === "info" ? '600' : '500',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s ease',
-              boxShadow: activeTab === "info" ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none'
-            }}
+            className={
+              activeTab === "info"
+                ? "fund-detail-tab fund-detail-tab--active"
+                : "fund-detail-tab"
+            }
           >
-            <i className="bi bi-info-circle" style={{ fontSize: '1rem' }}></i>
+            <i className="bi bi-info-circle"></i>
             <span>Thông tin quỹ</span>
           </button>
           
           <button
             onClick={() => setActiveTab("edit")}
-            style={{
-              flex: '1 1 auto',
-              minWidth: '130px',
-              padding: '0.625rem 1rem',
-              border: 'none',
-              background: activeTab === "edit" ? '#fff' : 'transparent',
-              color: activeTab === "edit" ? '#0d6efd' : '#6c757d',
-              fontWeight: activeTab === "edit" ? '600' : '500',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s ease',
-              boxShadow: activeTab === "edit" ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none'
-            }}
+            className={
+              activeTab === "edit"
+                ? "fund-detail-tab fund-detail-tab--active"
+                : "fund-detail-tab"
+            }
           >
-            <i className="bi bi-pencil-square" style={{ fontSize: '1rem' }}></i>
+            <i className="bi bi-pencil-square"></i>
             <span>Sửa quỹ</span>
           </button>
           
           <button
             onClick={() => setActiveTab("deposit")}
-            style={{
-              flex: '1 1 auto',
-              minWidth: '130px',
-              padding: '0.625rem 1rem',
-              border: 'none',
-              background: activeTab === "deposit" ? '#fff' : 'transparent',
-              color: activeTab === "deposit" ? '#0d6efd' : '#6c757d',
-              fontWeight: activeTab === "deposit" ? '600' : '500',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s ease',
-              boxShadow: activeTab === "deposit" ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none'
-            }}
+            className={
+              activeTab === "deposit"
+                ? "fund-detail-tab fund-detail-tab--active"
+                : "fund-detail-tab"
+            }
           >
-            <i className="bi bi-plus-circle-fill" style={{ fontSize: '1rem' }}></i>
+            <i className="bi bi-plus-circle-fill"></i>
             <span>Nạp tiền</span>
           </button>
           
           <button
             onClick={() => setActiveTab("withdraw")}
-            style={{
-              flex: '1 1 auto',
-              minWidth: '130px',
-              padding: '0.625rem 1rem',
-              border: 'none',
-              background: activeTab === "withdraw" ? '#fff' : 'transparent',
-              color: activeTab === "withdraw" ? '#0d6efd' : '#6c757d',
-              fontWeight: activeTab === "withdraw" ? '600' : '500',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s ease',
-              boxShadow: activeTab === "withdraw" ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none'
-            }}
+            className={
+              activeTab === "withdraw"
+                ? "fund-detail-tab fund-detail-tab--active"
+                : "fund-detail-tab"
+            }
           >
-            <i className="bi bi-dash-circle-fill" style={{ fontSize: '1rem' }}></i>
+            <i className="bi bi-dash-circle-fill"></i>
             <span>Rút tiền</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab("history")}
-            style={{
-              flex: '1 1 auto',
-              minWidth: '130px',
-              padding: '0.625rem 1rem',
-              border: 'none',
-              background: activeTab === "history" ? '#fff' : 'transparent',
-              color: activeTab === "history" ? '#0d6efd' : '#6c757d',
-              fontWeight: activeTab === "history" ? '600' : '500',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s ease',
-              boxShadow: activeTab === "history" ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none'
-            }}
-          >
-            <i className="bi bi-clock-history" style={{ fontSize: '1rem' }}></i>
-            <span>Lịch sử</span>
           </button>
         </div>
 
@@ -1088,11 +1483,8 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
               form={form}
               isFundCompleted={isFundCompleted}
               saving={saving}
-              selectedCurrency={selectedCurrency}
-              setSelectedCurrency={setSelectedCurrency}
               selectedSourceWalletId={selectedSourceWalletId}
               setSelectedSourceWalletId={setSelectedSourceWalletId}
-              availableCurrencies={availableCurrencies}
               filteredWallets={filteredWallets}
               autoDepositData={autoDepositData}
               setAutoDepositData={setAutoDepositData}
@@ -1119,6 +1511,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
               todayManualDepositStatus={todayManualDepositStatus}
               depositStatus={depositStatus}
               handleDeposit={handleDeposit}
+              depositStatusInfo={depositStatusInfo}
             />
           )}
 
@@ -1129,186 +1522,371 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
               progress={progress}
               saving={saving}
               withdrawProgress={withdrawProgress}
+              partialWithdrawAmount={partialWithdrawAmount}
+              setPartialWithdrawAmount={setPartialWithdrawAmount}
               handleWithdraw={handleWithdraw}
               handleSettle={handleSettle}
+              handleDelete={handleDeleteFund}
               setActiveTab={setActiveTab}
-            />
-          )}
-
-          {activeTab === "history" && (
-            <FundHistoryTab
-              fund={fund}
-              historyLoading={historyLoading}
-              historyError={historyError}
-              displayHistory={displayHistory}
             />
           )}
         </div>
       </div>
 
-      {/* CỘT PHẢI: CHỈ HIỂN THỊ BIỂU ĐỒ QUẠT (DONUT) */}
+      {/* CỘT PHẢI: BIỂU ĐỒ TRẠNG THÁI MỚI */}
       <div className="fund-detail-summary">
-        <div
-          className="card border-0 shadow-sm"
-          style={{
-            background: "linear-gradient(145deg, #f8fbff 0%, #eef4ff 100%)",
-            overflow: "hidden",
-            position: "relative",
-          }}
-        >
-          {/* Glow background */}
-          <div
-            style={{
-              position: "absolute",
-              width: 220,
-              height: 220,
-              borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(13,110,253,0.25) 0%, rgba(13,110,253,0) 60%)",
-              top: -40,
-              right: -50,
-              filter: "blur(6px)",
-            }}
-          ></div>
-          <div className="card-header bg-transparent fw-semibold d-flex justify-content-between align-items-center border-0">
-            <span style={{ color: "#0d6efd" }}>Tiến độ quỹ</span>
-            <span className="badge bg-primary-subtle text-primary text-uppercase">
-              {fund.status || fund.fundStatus || "ACTIVE"}
-            </span>
-          </div>
-          <div className="card-body">
-            <div className="d-flex flex-column align-items-center">
-              <div className="position-relative" style={{ width: 220, height: 220 }}>
-                <svg width="220" height="220">
-                  <defs>
-                    <linearGradient id="fundRing" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#0d6efd" />
-                      <stop offset="100%" stopColor="#4dabf7" />
-                    </linearGradient>
-                  </defs>
+        <div className="fund-progress-card card border-0 shadow-sm">
+          {fund.hasTerm ? (
+            /* QUỸ CÓ THỜI HẠN: Hiển thị gauge với trạng thái tốc độ */
+            <div className="fund-progress-modern">
+              <div className="fund-progress-gauge" data-pace-status={fundPacing.paceStatus}>
+              <svg width="260" height="260" viewBox="0 0 260 260" role="img" aria-label="Fund pacing gauge">
+                <defs>
+                  <linearGradient id={gaugeGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor={gaugeGradientColors.start} />
+                    <stop offset="100%" stopColor={gaugeGradientColors.end} />
+                  </linearGradient>
+                </defs>
+                <circle
+                  className="fund-progress-ring"
+                  cx="130"
+                  cy="130"
+                  r={gaugeRadius}
+                  strokeWidth="18"
+                  fill="none"
+                />
+                {expectedOffset != null && (
                   <circle
-                    cx="110"
-                    cy="110"
-                    r={ringOuterRadius}
-                    stroke="#e9ecef"
-                    strokeWidth="18"
-                    fill="none"
-                  />
-                  <circle
-                    cx="110"
-                    cy="110"
-                    r={ringOuterRadius}
-                    stroke="url(#fundRing)"
-                    strokeWidth="18"
-                    fill="none"
-                    strokeDasharray={`${ringOuterCircumference} ${ringOuterCircumference}`}
-                    strokeDashoffset={ringOuterOffset}
+                    className="fund-progress-expected"
+                    cx="130"
+                    cy="130"
+                    r={gaugeRadius}
+                    strokeWidth="12"
+                    strokeDasharray={`${gaugeCircumference} ${gaugeCircumference}`}
+                    strokeDashoffset={expectedOffset}
                     strokeLinecap="round"
-                    transform="rotate(-90 110 110)"
-                    style={{ transition: "stroke-dashoffset 0.6s ease, stroke 0.3s ease" }}
+                    fill="none"
+                    transform="rotate(-90 130 130)"
                   />
-                </svg>
-                <div className="position-absolute top-50 start-50 translate-middle text-center">
-                  <div
-                    className="fw-bold"
-                    style={{
-                      fontSize: "1.8rem",
-                      color: "#0d6efd",
-                      textShadow: "0 4px 12px rgba(13,110,253,0.3)",
-                    }}
-                  >
-                    {progressValue}%
-                  </div>
-                  <div className="text-muted small">Hoàn thành mục tiêu</div>
-                  <div className="mt-1 text-muted small">
-                    {formatMoney(fund.current, fund.currency)} /{" "}
-                    {fund.target ? formatMoney(fund.target, fund.currency) : "—"}
-                  </div>
+                )}
+                <circle
+                  className="fund-progress-actual"
+                  cx="130"
+                  cy="130"
+                  r={gaugeRadius}
+                  stroke={`url(#${gaugeGradientId})`}
+                  strokeWidth="18"
+                  strokeDasharray={`${gaugeCircumference} ${gaugeCircumference}`}
+                  strokeDashoffset={actualOffset}
+                  strokeLinecap="round"
+                  fill="none"
+                  transform="rotate(-90 130 130)"
+                />
+              </svg>
+              <div className="fund-progress-center">
+                <span>Thực tế</span>
+                <strong>{Math.round(actualPct)}%</strong>
+                <small>
+                  {aheadPct ? (
+                    <span style={{ color: '#22c55e', fontWeight: '600' }}>
+                      Vượt tiến độ {aheadPct}
+                    </span>
+                  ) : (
+                    actualAmountLabel
+                  )}
+                </small>
+              </div>
+            </div>
+            <div className="fund-progress-info">
+              <div className="fund-progress-status-head">
+                <div>
+                  <p>Trạng thái tốc độ</p>
+                  <h5>{paceStatusLabel}</h5>
+                </div>
+                <span className={`fund-progress-status-badge is-${fundPacing.paceStatus}`}>
+                  {diffPercentLabel}
+                </span>
+              </div>
+              <p className="fund-progress-status-desc">{paceStatusDescription}</p>
+              <div className="fund-progress-stat-grid">
+                <div className="fund-progress-stat">
+                  <p>Thực tế</p>
+                  <strong>{actualAmountLabel}</strong>
+                  <span>Đã đạt {Math.round(actualPct)}% mục tiêu</span>
+                </div>
+                <div className="fund-progress-stat">
+                  <p>Còn thiếu</p>
+                  <strong>{shortageLabel}</strong>
+                  <span>{fundPacing.shortage === 0 ? "Đã chạm mục tiêu" : remainingDaysLabel}</span>
                 </div>
               </div>
-
-              {/* Legend chips */}
-              <div className="d-flex gap-2 mt-3 flex-wrap justify-content-center">
-                <span className="badge rounded-pill bg-white text-primary border">
-                  Số dư: {formatMoney(fund.current, fund.currency)}
-                </span>
-                <span className="badge rounded-pill bg-white text-success border">
-                  Mục tiêu: {fund.target ? formatMoney(fund.target, fund.currency) : "—"}
-                </span>
-                <span className="badge rounded-pill bg-white text-secondary border">
-                  Tự động nạp: {fund.autoDepositEnabled ? "Bật" : "Tắt"}
-                </span>
-                <span className="badge rounded-pill bg-white text-secondary border">
-                  Nhắc nhở: {fund.reminderEnabled ? "Bật" : "Tắt"}
-                </span>
+              <div className="fund-progress-pill-row">
+                {PACE_STATUS_DEFINITIONS.filter((status) => {
+                  // Ẩn "Vượt tiến độ" nếu quỹ có nạp tự động
+                  if (status.key === "ahead" && fund.autoDepositEnabled) {
+                    return false;
+                  }
+                  // Ẩn "Nguy cơ"
+                  if (status.key === "critical") {
+                    return false;
+                  }
+                  return true;
+                }).map((status) => (
+                  <span
+                    key={status.key}
+                    className={`fund-progress-pill ${status.key === fundPacing.paceStatus ? "is-active" : ""}`}
+                  >
+                    <span className={`pill-dot pill-dot--${status.key}`} />
+                    {status.label}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
+          ) : (
+            /* QUỸ KHÔNG THỜI HẠN: Hiển thị biểu đồ tăng trưởng */
+            <div className="fund-growth-modern">
+              <div className="fund-growth-header">
+                <div>
+                  <p>Tăng trưởng quỹ</p>
+                  <h5>Tổng tích lũy</h5>
+                </div>
+                <div className="fund-growth-badge">
+                  <i className="bi bi-graph-up-arrow"></i>
+                  <span>{growthChartData?.totalTransactions || 0} lần nạp{growthChartData?.totalWithdrawals > 0 ? `, ${growthChartData.totalWithdrawals} lần rút` : ''}</span>
+                </div>
+              </div>
+              
+              <div className="fund-growth-chart" style={{ position: 'relative' }}>
+                {growthChartData && growthChartData.points.length > 0 ? (
+                  <>
+                  <svg width="100%" height="240" viewBox="0 0 400 240" className="fund-growth-svg" style={{ overflow: 'visible' }}>
+                    <defs>
+                      <linearGradient id={`growthGradient-${fund.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#0d6efd" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#0d6efd" stopOpacity="0.05" />
+                      </linearGradient>
+                    </defs>
+                    
+                    {/* Y-axis labels */}
+                    {[0, 25, 50, 75, 100].map((pct) => {
+                      const value = (pct / 100) * growthChartData.max;
+                      const y = 200 - (pct / 100) * 180;
+                      return (
+                        <g key={`y-label-${pct}`}>
+                          <line
+                            x1="0"
+                            y1={y}
+                            x2="400"
+                            y2={y}
+                            stroke="rgba(0, 0, 0, 0.08)"
+                            strokeWidth="1"
+                            strokeDasharray="2,2"
+                          />
+                          <text
+                            x="-5"
+                            y={y + 4}
+                            textAnchor="end"
+                            fontSize="10"
+                            fill="#64748b"
+                            fontWeight="500"
+                          >
+                            {formatMoney(value, fund.currency, 0)}
+                          </text>
+                        </g>
+                      );
+                    })}
+                    
+                    {/* X-axis labels */}
+                    {growthChartData.points.map((p, idx) => {
+                      if (growthChartData.points.length > 10 && idx % Math.ceil(growthChartData.points.length / 5) !== 0 && idx !== growthChartData.points.length - 1) {
+                        return null; // Chỉ hiển thị một số labels nếu có nhiều điểm
+                      }
+                      const x = (idx / Math.max(growthChartData.points.length - 1, 1)) * 400;
+                      const date = p.date ? formatVietnamDate(p.date) : '';
+                      return (
+                        <text
+                          key={`x-label-${idx}`}
+                          x={x}
+                          y="235"
+                          textAnchor="middle"
+                          fontSize="9"
+                          fill="#64748b"
+                          fontWeight="500"
+                        >
+                          {date}
+                        </text>
+                      );
+                    })}
+                    
+                    {/* Area chart */}
+                    <path
+                      d={`M 0,200 ${growthChartData.points.map((p, idx) => {
+                        const x = (idx / Math.max(growthChartData.points.length - 1, 1)) * 400;
+                        const y = 200 - (p.cumulative / growthChartData.max) * 180;
+                        return `L ${x},${y}`;
+                      }).join(' ')} L 400,200 Z`}
+                      fill={`url(#growthGradient-${fund.id})`}
+                    />
+                    
+                    {/* Line chart - có thể hover */}
+                    <polyline
+                      points={growthChartData.points.map((p, idx) => {
+                        const x = (idx / Math.max(growthChartData.points.length - 1, 1)) * 400;
+                        const y = 200 - (p.cumulative / growthChartData.max) * 180;
+                        return `${x},${y}`;
+                      }).join(' ')}
+                      fill="none"
+                      stroke="#0d6efd"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ cursor: 'pointer' }}
+                    />
+                    
+                    {/* Interactive data points với tooltip */}
+                    {growthChartData.points.map((p, idx) => {
+                      const x = (idx / Math.max(growthChartData.points.length - 1, 1)) * 400;
+                      const y = 200 - (p.cumulative / growthChartData.max) * 180;
+                      const isWithdraw = p.type === 'WITHDRAW';
+                      const date = p.date ? formatVietnamDate(p.date) : '';
+                      const time = p.date ? formatVietnamTime(p.date) : '';
+                      
+                      return (
+                        <g key={idx}>
+                          {/* Invisible larger circle for easier hover */}
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r="12"
+                            fill="transparent"
+                            style={{ cursor: 'pointer' }}
+                            onMouseEnter={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const chartRect = e.currentTarget.closest('.fund-growth-chart')?.getBoundingClientRect();
+                              if (chartRect) {
+                                setChartTooltip({
+                                  show: true,
+                                  x: e.clientX - chartRect.left,
+                                  y: e.clientY - chartRect.top,
+                                  data: {
+                                    date: date,
+                                    time: time,
+                                    amount: p.amount,
+                                    cumulative: p.cumulative,
+                                    type: isWithdraw ? 'Rút tiền' : 'Nạp tiền',
+                                    isWithdraw: isWithdraw
+                                  }
+                                });
+                              }
+                            }}
+                            onMouseMove={(e) => {
+                              const chartRect = e.currentTarget.closest('.fund-growth-chart')?.getBoundingClientRect();
+                              if (chartRect) {
+                                setChartTooltip(prev => ({
+                                  ...prev,
+                                  x: e.clientX - chartRect.left,
+                                  y: e.clientY - chartRect.top
+                                }));
+                              }
+                            }}
+                            onMouseLeave={() => {
+                              setChartTooltip({ show: false, x: 0, y: 0, data: null });
+                            }}
+                          />
+                          {/* Visible data point */}
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r="5"
+                            fill={isWithdraw ? "#ef4444" : "#0d6efd"}
+                            stroke="#ffffff"
+                            strokeWidth="2"
+                            style={{ pointerEvents: 'none' }}
+                          />
+                        </g>
+                      );
+                    })}
+                  </svg>
+                  
+                  {/* Tooltip */}
+                  {chartTooltip.show && chartTooltip.data && (
+                    <div 
+                      className="fund-growth-tooltip"
+                      style={{
+                        position: 'absolute',
+                        left: `${chartTooltip.x + 15}px`,
+                        top: `${chartTooltip.y - 15}px`,
+                        transform: 'translateY(-100%)',
+                        pointerEvents: 'none',
+                        zIndex: 1000
+                      }}
+                    >
+                      <div className="fund-growth-tooltip__content">
+                        <div className="fund-growth-tooltip__header">
+                          <span className={`fund-growth-tooltip__type ${chartTooltip.data.isWithdraw ? 'fund-growth-tooltip__type--withdraw' : 'fund-growth-tooltip__type--deposit'}`}>
+                            {chartTooltip.data.type}
+                          </span>
+                        </div>
+                        <div className="fund-growth-tooltip__date">
+                          <i className="bi bi-calendar3 me-1"></i>
+                          {chartTooltip.data.date} {chartTooltip.data.time && `• ${chartTooltip.data.time}`}
+                        </div>
+                        <div className="fund-growth-tooltip__amount">
+                          <span className="fund-growth-tooltip__label">Số tiền:</span>
+                          <span className={`fund-growth-tooltip__value ${chartTooltip.data.isWithdraw ? 'fund-growth-tooltip__value--withdraw' : 'fund-growth-tooltip__value--deposit'}`}>
+                            {chartTooltip.data.isWithdraw ? '-' : '+'}{formatMoney(Math.abs(chartTooltip.data.amount), fund.currency)}
+                          </span>
+                        </div>
+                        <div className="fund-growth-tooltip__cumulative">
+                          <span className="fund-growth-tooltip__label">Tích lũy:</span>
+                          <span className="fund-growth-tooltip__value">
+                            {formatMoney(chartTooltip.data.cumulative, fund.currency)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  </>
+                ) : (
+                  <div className="fund-growth-empty">
+                    <i className="bi bi-graph-up"></i>
+                    <p>Chưa có dữ liệu nạp tiền</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="fund-growth-stats">
+                <div className="fund-growth-stat">
+                  <p>TỔNG TÍCH LŨY</p>
+                  <strong>{formatMoney(growthChartData?.totalDeposited || 0, fund.currency)}</strong>
+                  <span>{growthChartData?.totalTransactions || 0} lần nạp</span>
+                </div>
+                <div className="fund-growth-stat">
+                  <p>TỔNG ĐÃ RÚT</p>
+                  <strong style={{ color: growthChartData?.totalWithdrawn > 0 ? '#ef4444' : '#111827' }}>
+                    {formatMoney(growthChartData?.totalWithdrawn || 0, fund.currency)}
+                  </strong>
+                  <span>{growthChartData?.totalWithdrawals || 0} lần rút</span>
+                </div>
+                <div className="fund-growth-stat">
+                  <p>SỐ DƯ HIỆN TẠI</p>
+                  <strong>{formatMoney(fund.current || 0, fund.currency)}</strong>
+                  <span>Quỹ không thời hạn</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* LINE CHART KIỂU MẪU */}
-        <div className="card shadow-sm mt-3">
-          <div className="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-            <span>Tiến độ theo tháng</span>
-            <span className="badge bg-light text-muted">Cumulative vs Target</span>
-          </div>
-          <div className="card-body">
-            {monthlyProgress.labels.length ? (
-              <div style={{ width: "100%", height: 220 }}>
-                <svg width="100%" height="220" viewBox="0 0 100 60" preserveAspectRatio="none">
-                  {/* Grid */}
-                  {[0, 20, 40, 60, 80, 100].map((y) => (
-                    <line
-                      key={y}
-                      x1="0"
-                      y1={60 - (y / 100) * 50}
-                      x2="100"
-                      y2={60 - (y / 100) * 50}
-                      stroke="#f1f3f5"
-                      strokeWidth="0.2"
-                    />
-                  ))}
-                  {/* Path progress */}
-                  {(() => {
-                    const arr = monthlyProgress.progress;
-                    const d = arr
-                      .map((val, idx) => {
-                        const x = (idx / Math.max(arr.length - 1, 1)) * 100;
-                        const y = 55 - (val / monthlyProgress.max) * 50;
-                        return `${idx === 0 ? "M" : "L"} ${x},${y}`;
-                      })
-                      .join(" ");
-                    return (
-                      <path
-                        d={d}
-                        fill="none"
-                        stroke="#0d6efd"
-                        strokeWidth="1.4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    );
-                  })()}
-                  {/* Dots */}
-                  {monthlyProgress.progress.map((val, idx) => {
-                    const x = (idx / Math.max(monthlyProgress.progress.length - 1, 1)) * 100;
-                    const y = 55 - (val / monthlyProgress.max) * 50;
-                    return (
-                      <circle key={`prog-${idx}`} cx={x} cy={y} r="1.4" fill="#0d6efd" />
-                    );
-                  })}
-                </svg>
-              </div>
-            ) : (
-              <div className="text-muted small">Chưa có dữ liệu giao dịch để vẽ biểu đồ.</div>
-            )}
-            {/* Legend */}
-            <div className="d-flex gap-3 align-items-center mt-2">
-              <span className="d-flex align-items-center gap-1 text-muted small">
-                <span style={{ width: 10, height: 2, background: "#0d6efd", display: "inline-block" }}></span>
-                % tiến tới mục tiêu
-              </span>
-            </div>
-          </div>
+        {/* LỊCH SỬ GIAO DỊCH - Hiển thị bên dưới biểu đồ */}
+        <div className="fund-history-card card border-0 shadow-sm" style={{ marginTop: '1.5rem' }}>
+          <FundHistoryTab
+            fund={fund}
+            historyLoading={historyLoading}
+            historyError={historyError}
+            displayHistory={displayHistory}
+          />
         </div>
       </div>
 

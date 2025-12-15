@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo, useState, useCallback, useEf
 
 import { budgetAPI } from "../services/api-client";
 import { logActivity } from "../utils/activityLogger";
+import { parseAmount, parseAmountNonNegative } from "../utils/parseAmount";
 
 const TRANSACTION_CACHE_KEY = "budget_external_transactions";
 const MAX_CACHED_TRANSACTIONS = 300;
@@ -13,7 +14,7 @@ const ALL_WALLETS_LABEL = "Tất cả ví";
 const normalizeBudget = (budget) => {
   if (!budget) return null;
 
-  const amountLimit = Number(budget.amountLimit ?? budget.limitAmount ?? 0);
+  const amountLimit = parseAmountNonNegative(budget.amountLimit ?? budget.limitAmount, 0);
   const warningThreshold =
     budget.warningThreshold ?? budget.alertPercentage ?? 80;
   const walletId =
@@ -50,15 +51,16 @@ const normalizeBudget = (budget) => {
     note: budget.note || "",
     alertPercentage: warningThreshold,
     warningThreshold,
-    spentAmount: Number(budget.spentAmount ?? 0),
+    spentAmount: parseAmountNonNegative(budget.spentAmount, 0),
     remainingAmount:
-      budget.remainingAmount ??
-      Math.max(
-        amountLimit - Number(budget.spentAmount ?? 0),
-        0
-      ),
-    exceededAmount: Number(budget.exceededAmount ?? 0),
-    usagePercentage: Number(budget.usagePercentage ?? 0),
+      budget.remainingAmount != null
+        ? parseAmount(budget.remainingAmount, 0)
+        : Math.max(
+            amountLimit - parseAmountNonNegative(budget.spentAmount, 0),
+            0
+          ),
+    exceededAmount: parseAmountNonNegative(budget.exceededAmount, 0),
+    usagePercentage: parseAmount(budget.usagePercentage, 0),
     status: budget.status || budget.budgetStatus || "ACTIVE",
     budgetStatus: budget.budgetStatus || budget.status || "ACTIVE",
     createdAt: budget.createdAt,

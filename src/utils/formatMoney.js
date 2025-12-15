@@ -1,4 +1,5 @@
 import { getMoneyFormatSettings } from "./moneyFormatSettings";
+import { parseAmount } from "./parseAmount";
 
 /**
  * Format số tiền dựa trên cấu hình hệ thống
@@ -10,9 +11,8 @@ export function formatMoney(amount = 0, currency = "VND", digitsOverride) {
   const { thousand, decimal, decimalDigits } = getMoneyFormatSettings();
   const normalizedCurrency = (currency || "VND").toUpperCase();
 
-  // Normalize incoming amount as string to detect original fractional precision
-  const rawAmountStr = typeof amount === 'number' ? String(amount) : (amount || '0');
-  const numericAmount = Number(amount) || 0;
+  // Parse amount đúng cách để không mất precision (từ string BigDecimal hoặc number)
+  const numericAmount = parseAmount(amount, 0);
   const isNegative = numericAmount < 0;
   let value = Math.abs(numericAmount);
 
