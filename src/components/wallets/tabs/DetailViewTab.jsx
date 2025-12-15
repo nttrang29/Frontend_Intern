@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { formatVietnamDate } from "../../../utils/dateFormat";
+import { useAuth } from "../../../contexts/AuthContext";
+import ConfirmModal from "../../common/Modal/ConfirmModal";
 
 export default function DetailViewTab({
   wallet,
@@ -14,9 +16,17 @@ export default function DetailViewTab({
   sharedFilter,
   demoTransactions,
   isLoadingTransactions = false,
-  fundInfo = null,
+  effectiveIsOwner = true,
+  effectiveIsMember = false,
+  effectiveIsViewer = false,
+  onLeaveWallet,
 }) {
+  const { t } = useLanguage();
+  
   // Quick-share UI removed: we only display existing shared members.
+  const { currentUser } = useAuth();
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leavingWallet, setLeavingWallet] = useState(false);
 
   const fallbackEmails = Array.isArray(sharedEmails) ? sharedEmails : [];
   const displayMembers = sharedMembers.length
@@ -24,10 +34,10 @@ export default function DetailViewTab({
     : fallbackEmails.map((email) => ({ email }));
 
   const emptyShareMessage = canManageSharedMembers
-    ? "Bạn chưa chia sẻ ví này cho ai."
+    ? t('wallets.detail.empty_share_owner')
     : sharedFilter === "sharedWithMe"
-    ? "Ví này đang được người khác chia sẻ cho bạn."
-    : "Chưa có thành viên nào được chia sẻ.";
+    ? t('wallets.detail.empty_share_viewer')
+    : t('wallets.detail.empty_share_member');
 
   const renderShareSection = () => {
     if (sharedMembersLoading) {
@@ -90,43 +100,79 @@ export default function DetailViewTab({
     );
   };
 
+  // Check if current user is a member (not owner)
+  const isCurrentUserMember = useMemo(() => {
+    if (!currentUser || effectiveIsOwner) return false;
+    const currentUserId = currentUser.id || currentUser.userId;
+    const currentUserEmail = (currentUser.email || "").toLowerCase().trim();
+    
+    const allMembers = sharedMembers.length ? sharedMembers : fallbackEmails.map((email) => ({ email }));
+    
+    return allMembers.some((member) => {
+      const memberId = member.userId ?? member.memberUserId ?? member.memberId;
+      const memberEmail = ((member.email || member.userEmail || "")).toLowerCase().trim();
+      const memberRole = (member.role || "").toUpperCase();
+      const isOwner = ["OWNER", "MASTER", "ADMIN"].includes(memberRole);
+      
+      if (isOwner) return false;
+      
+      return (
+        (currentUserId && memberId && String(currentUserId) === String(memberId)) ||
+        (currentUserEmail && memberEmail && currentUserEmail === memberEmail)
+      );
+    });
+  }, [currentUser, sharedMembers, fallbackEmails, effectiveIsOwner]);
+
+  const handleLeaveWallet = async () => {
+    if (!onLeaveWallet) return;
+    setLeavingWallet(true);
+    try {
+      await onLeaveWallet();
+      setShowLeaveConfirm(false);
+    } catch (error) {
+      // Error handling is done in onLeaveWallet
+    } finally {
+      setLeavingWallet(false);
+    }
+  };
+
   return (
     <div className="wallets-section wallets-section--view">
       <div className="wallets-section__header">
-        <h3>Chi tiết ví</h3>
-        <span>Thông tin cơ bản, chia sẻ và lịch sử giao dịch.</span>
+        <h3>{t('wallets.detail.title')}</h3>
+        <span>{t('wallets.detail.subtitle')}</span>
       </div>
 
       <div className="wallets-detail-view">
         <div className="wallets-detail-view__col">
           <div className="wallets-detail-view__card">
             <div className="wallets-detail-view__card-header">
-              <span>Thông tin &amp; chia sẻ</span>
+              <span>{t('wallets.detail.info_section')}</span>
             </div>
 
             <div className="wallet-detail-grid">
               <div className="wallet-detail-item">
-                <span className="wallet-detail-item__label">Loại ví</span>
+                <span className="wallet-detail-item__label">{t('wallets.detail.type_label')}</span>
                 <span className="wallet-detail-item__value">
-                  {wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
+                  {wallet.isShared ? t('wallets.type.group') : t('wallets.type.personal')}
                 </span>
               </div>
               <div className="wallet-detail-item">
-                <span className="wallet-detail-item__label">Tiền tệ</span>
+                <span className="wallet-detail-item__label">{t('wallets.detail.currency_label')}</span>
                 <span className="wallet-detail-item__value">
                   {wallet.currency || "VND"}
                 </span>
               </div>
               <div className="wallet-detail-item">
-                <span className="wallet-detail-item__label">Ngày tạo</span>
+                <span className="wallet-detail-item__label">{t('wallets.detail.created_at_label')}</span>
                 <span className="wallet-detail-item__value">
                   {wallet.createdAt ? formatVietnamDate(wallet.createdAt) : "—"}
                 </span>
               </div>
               <div className="wallet-detail-item wallet-detail-item--full">
-                <span className="wallet-detail-item__label">Ghi chú</span>
+                <span className="wallet-detail-item__label">{t('wallets.inspector.note')}</span>
                 <span className="wallet-detail-item__value">
-                  {wallet.note || "Chưa có ghi chú."}
+                  {wallet.note || t('wallets.detail.no_note')}
                 </span>
               </div>
               {/* Thông tin về quỹ nếu ví là source wallet hoặc target wallet */}
@@ -149,10 +195,25 @@ export default function DetailViewTab({
 
             <div className="wallets-detail__share">
               <div className="wallets-detail__share-header">
-                <h4>Chia sẻ ví</h4>
+                <h4>{t('wallets.detail.share_section')}</h4>
               </div>
               {/* quick share form removed; only display existing shared members */}
               {renderShareSection()}
+              
+              {/* Nút rời khỏi ví - chỉ hiển thị khi user không phải owner và là member */}
+              {!effectiveIsOwner && isCurrentUserMember && onLeaveWallet && (
+                <div style={{ marginTop: 16 }}>
+                  <button
+                    type="button"
+                    className="wallets-btn wallets-btn--danger"
+                    onClick={() => setShowLeaveConfirm(true)}
+                    disabled={leavingWallet}
+                    style={{ width: "100%" }}
+                  >
+                    {leavingWallet ? "Đang rời khỏi..." : "Rời khỏi ví"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -160,9 +221,9 @@ export default function DetailViewTab({
         <div className="wallets-detail-view__col wallets-detail-view__col--history">
           <div className="wallets-detail-view__card">
             <div className="wallets-detail-view__card-header">
-              <span>Lịch sử giao dịch</span>
+              <span>{t('wallets.detail.transaction_history')}</span>
               <span className="wallets-detail-view__counter">
-                {isLoadingTransactions ? "Đang tải..." : `${demoTransactions.length} giao dịch`}
+                {isLoadingTransactions ? t('common.loading') : t('wallets.detail.transaction_count', { count: demoTransactions.length })}
               </span>
             </div>
 
@@ -184,7 +245,7 @@ export default function DetailViewTab({
                 </p>
               ) : demoTransactions.length === 0 ? (
                 <p className="wallets-detail__history-empty">
-                  Chưa có giao dịch cho ví này.
+                  {t('wallets.detail.no_transactions')}
                 </p>
               ) : (
                 <ul className="wallets-detail__history-list">
@@ -199,6 +260,11 @@ export default function DetailViewTab({
                       minimumFractionDigits: 0,
                       maximumFractionDigits: 0
                     });
+                    
+                    // Debug: Log để kiểm tra email có trong transaction không
+                    if (tx.creatorEmail) {
+                      console.log("📧 Transaction has creatorEmail:", tx.creatorEmail, "tx:", tx);
+                    }
                     
                     return (
                       <li key={tx.id} className="wallets-detail__history-item">
@@ -223,7 +289,12 @@ export default function DetailViewTab({
                             {tx.categoryName || "Danh mục khác"}
                           </span>
                           {tx.creatorName ? (
-                            <span className="wallets-detail__history-actor">{tx.creatorName}</span>
+                            <div className="wallets-detail__history-actor-wrapper" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                              <span className="wallets-detail__history-actor">{tx.creatorName}</span>
+                              {tx.creatorEmail ? (
+                                <span className="wallets-detail__history-actor-email" style={{ fontSize: '0.85em', color: '#666', marginTop: '2px' }}>{tx.creatorEmail}</span>
+                              ) : null}
+                            </div>
                           ) : null}
                           <span>{tx.timeLabel}</span>
                         </div>
@@ -236,6 +307,16 @@ export default function DetailViewTab({
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        open={showLeaveConfirm}
+        title="Rời khỏi ví"
+        message={`Bạn có chắc muốn rời khỏi ví "${wallet?.name || ""}"? Bạn sẽ không thể truy cập ví này nữa.`}
+        danger={true}
+        onOk={handleLeaveWallet}
+        onClose={() => setShowLeaveConfirm(false)}
+        okText="Rời khỏi"
+      />
     </div>
   );
 }

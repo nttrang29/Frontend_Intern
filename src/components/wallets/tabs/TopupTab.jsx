@@ -1,6 +1,7 @@
 import React from "react";
 import { formatMoneyInput, getMoneyValue } from "../../../utils/formatMoneyInput";
 import { formatMoney } from "../../../utils/formatMoney";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 export default function TopupTab({
   wallet,
@@ -13,26 +14,26 @@ export default function TopupTab({
   setTopupCategoryId,
   onSubmitTopup,
 }) {
-
+  const { t } = useLanguage();
   const currentBalance = Number(wallet?.balance || 0);
   const walletCurrency = wallet?.currency || "VND";
 
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
-        <h3>Nạp tiền vào ví</h3>
-        <span>Nạp thêm số dư cho ví hiện tại.</span>
+        <h3>{t('wallets.topup.title')}</h3>
+        <span>{t('wallets.topup.subtitle')}</span>
       </div>
       <form className="wallet-form" onSubmit={onSubmitTopup} autoComplete="off">
         <div className="wallet-form__row">
           <label>
-            Danh mục <span style={{ color: "#ef4444" }}>*</span>
+            {t('wallets.topup.category_label')} <span style={{ color: "#ef4444" }}>*</span>
             <select
               value={topupCategoryId}
               onChange={(e) => setTopupCategoryId(e.target.value)}
               required
             >
-              <option value="">Chọn danh mục</option>
+              <option value="">{t('wallets.topup.category_placeholder')}</option>
               {incomeCategories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -41,7 +42,7 @@ export default function TopupTab({
             </select>
           </label>
           <label>
-            Số tiền nạp
+            {t('wallets.topup.amount_label')}
             <input
               type="text"
               value={topupAmount || ""}
@@ -85,7 +86,7 @@ export default function TopupTab({
                 // Khi blur, giữ nguyên format (đã format rồi)
                 // Không cần làm gì thêm
               }}
-              placeholder="Nhập số tiền (VD: 1.000.000,5 hoặc 20,5)"
+              placeholder={t('wallets.topup.amount_placeholder')}
               inputMode="decimal"
             />
             <div style={{ 
@@ -93,7 +94,7 @@ export default function TopupTab({
               color: "#6b7280",
               marginTop: "4px"
             }}>
-              Số dư hiện tại:{" "}
+              {t('wallets.topup.current_balance')}:{" "}
               <strong style={{ color: "#111827" }}>
                 {formatMoney(currentBalance, walletCurrency)}
               </strong>
@@ -103,12 +104,12 @@ export default function TopupTab({
 
         <div className="wallet-form__row">
           <label className="wallet-form__full">
-            Ghi chú
+            {t('wallets.modal.note_label')}
             <textarea
               rows={2}
               value={topupNote}
               onChange={(e) => setTopupNote(e.target.value)}
-              placeholder="Nhập ghi chú (tùy chọn)"
+              placeholder={t('wallets.topup.note_placeholder')}
             />
           </label>
         </div>
@@ -118,12 +119,12 @@ export default function TopupTab({
           <div className="wallet-form__row">
             {!topupCategoryId && (
               <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
-                Vui lòng chọn danh mục.
+                {t('wallets.topup.error.category_required')}
               </div>
             )}
             {topupCategoryId && (!topupAmount || getMoneyValue(topupAmount) <= 0) && (
               <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
-                Số tiền không hợp lệ.
+                {t('wallets.topup.error.invalid_amount')}
               </div>
             )}
           </div>
@@ -136,7 +137,7 @@ export default function TopupTab({
             disabled={!topupAmount || !topupCategoryId || getMoneyValue(topupAmount) <= 0}
           >
             <span style={{ marginRight: "6px" }}>✔</span>
-            Xác nhận nạp
+            {t('wallets.topup.confirm_button')}
           </button>
         </div>
       </form>

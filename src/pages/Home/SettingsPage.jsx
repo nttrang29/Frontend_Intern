@@ -400,13 +400,13 @@ export default function SettingsPage() {
         const { response, data } = await disable2FA();
         if (response?.ok) {
           setTwoFAEnabled(false);
-          setSuccess(data.message || "Đã tắt xác thực 2 lớp thành công");
-          showToast(data.message || "Đã tắt xác thực 2 lớp thành công", {
+          setSuccess(data.message || t("settings.2fa.disable_success"));
+          showToast(data.message || t("settings.2fa.disable_success"), {
             type: "success",
             ...toastPosition,
           });
         } else {
-          setError(data?.error || "Không thể tắt xác thực 2 lớp");
+          setError(data?.error || t("settings.2fa.disable_error"));
         }
       } else {
         // Bật 2FA
@@ -421,13 +421,13 @@ export default function SettingsPage() {
         const { response, data } = await enable2FA();
         if (response?.ok) {
           setTwoFAEnabled(true);
-          setSuccess(data.message || "Đã bật xác thực 2 lớp thành công");
-          showToast(data.message || "Đã bật xác thực 2 lớp thành công", {
+          setSuccess(data.message || t("settings.2fa.enable_success"));
+          showToast(data.message || t("settings.2fa.enable_success"), {
             type: "success",
             ...toastPosition,
           });
         } else {
-          setError(data?.error || "Không thể bật xác thực 2 lớp");
+          setError(data?.error || t("settings.2fa.enable_error"));
         }
       }
     } catch (error) {
@@ -454,7 +454,7 @@ export default function SettingsPage() {
         setShow2FASetupModal(false);
         setTwoFASetupCode("");
         setSuccess(data.message || "Đã tạo mã pin 2FA thành công");
-        showToast(data.message || "Đã tạo mã pin 2FA thành công. .", {
+        showToast(data.message || t("settings.2fa.setup_success"), {
           type: "success",
           ...toastPosition,
         });
@@ -508,7 +508,7 @@ export default function SettingsPage() {
         setTwoFANewCode("");
         setTwoFAConfirmCode("");
         setSuccess(data.message || "Đã đổi mã xác thực 2 lớp thành công");
-        showToast(data.message || "Đã đổi mã xác thực 2 lớp thành công", {
+        showToast(data.message || t("settings.2fa.change_success"), {
           type: "success",
           ...toastPosition,
         });

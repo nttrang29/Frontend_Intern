@@ -369,6 +369,25 @@
   border-radius: 8px;
 }
 
+.wallets-btn--danger {
+  background: #dc3545;
+  color: #ffffff;
+  border-color: #dc3545;
+}
+
+.wallets-btn--danger:hover {
+  background: #c82333;
+  border-color: #bd2130;
+  transform: translateY(-0.5px);
+}
+
+.wallets-btn--danger:disabled {
+  background: #dc3545;
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .wallet-share-pill button {
   border: none;
   background: transparent;

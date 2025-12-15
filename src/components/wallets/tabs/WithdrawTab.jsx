@@ -1,6 +1,7 @@
 import React from "react";
 import { formatMoneyInput, getMoneyValue } from "../../../utils/formatMoneyInput";
 import { formatMoney } from "../../../utils/formatMoney";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 export default function WithdrawTab({
   wallet,
@@ -13,15 +14,15 @@ export default function WithdrawTab({
   setWithdrawCategoryId,
   onSubmitWithdraw,
 }) {
-
+  const { t } = useLanguage();
   const currentBalance = Number(wallet?.balance || 0);
   const walletCurrency = wallet?.currency || "VND";
 
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
-        <h3>Rút tiền từ ví</h3>
-        <span>Rút tiền và chọn danh mục phù hợp.</span>
+        <h3>{t('wallets.withdraw.title')}</h3>
+        <span>{t('wallets.withdraw.subtitle')}</span>
       </div>
       <form
         className="wallet-form"
@@ -30,13 +31,13 @@ export default function WithdrawTab({
       >
         <div className="wallet-form__row">
           <label>
-            Danh mục <span style={{ color: "#ef4444" }}>*</span>
+            {t('wallets.withdraw.category_label')} <span style={{ color: "#ef4444" }}>*</span>
             <select
               value={withdrawCategoryId}
               onChange={(e) => setWithdrawCategoryId(e.target.value)}
               required
             >
-              <option value="">Chọn danh mục</option>
+              <option value="">{t('wallets.withdraw.category_placeholder')}</option>
               {expenseCategories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -45,7 +46,7 @@ export default function WithdrawTab({
             </select>
           </label>
           <label>
-            Số tiền rút
+            {t('wallets.withdraw.amount_label')}
             <input
               type="text"
               value={withdrawAmount || ""}
@@ -89,7 +90,7 @@ export default function WithdrawTab({
                 // Khi blur, giữ nguyên format (đã format rồi)
                 // Không cần làm gì thêm
               }}
-              placeholder="Nhập số tiền (VD: 1.000.000,5 hoặc 20,5)"
+              placeholder={t('wallets.withdraw.amount_placeholder')}
               inputMode="decimal"
             />
             <div style={{ 
@@ -97,7 +98,7 @@ export default function WithdrawTab({
               color: "#6b7280",
               marginTop: "4px"
             }}>
-              Số dư hiện tại:{" "}
+              {t('wallets.withdraw.current_balance')}:{" "}
               <strong style={{ color: "#111827" }}>
                 {formatMoney(currentBalance, walletCurrency)}
               </strong>
@@ -107,12 +108,12 @@ export default function WithdrawTab({
 
         <div className="wallet-form__row">
           <label className="wallet-form__full">
-            Ghi chú
+            {t('wallets.modal.note_label')}
             <textarea
               rows={2}
               value={withdrawNote}
               onChange={(e) => setWithdrawNote(e.target.value)}
-              placeholder="Nhập ghi chú (tùy chọn)"
+              placeholder={t('wallets.withdraw.note_placeholder')}
             />
           </label>
         </div>
@@ -122,12 +123,12 @@ export default function WithdrawTab({
           <div className="wallet-form__row">
             {!withdrawCategoryId && (
               <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
-                Vui lòng chọn danh mục.
+                {t('wallets.withdraw.error.category_required')}
               </div>
             )}
             {withdrawCategoryId && getMoneyValue(withdrawAmount) > currentBalance && (
               <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
-                Số tiền không hợp lệ hoặc vượt quá số dư.
+                {t('wallets.withdraw.error.invalid_amount')}
               </div>
             )}
           </div>
@@ -140,7 +141,7 @@ export default function WithdrawTab({
             disabled={!withdrawAmount || !withdrawCategoryId || getMoneyValue(withdrawAmount) > currentBalance || getMoneyValue(withdrawAmount) <= 0}
           >
             <span style={{ marginRight: "6px" }}>✔</span>
-            Xác nhận rút
+            {t('wallets.withdraw.confirm_button')}
           </button>
         </div>
       </form>

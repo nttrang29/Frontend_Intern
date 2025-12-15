@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import ConfirmModal from "../../common/Modal/ConfirmModal";
 import { formatMoney } from "../../../utils/formatMoney";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 const NOTE_MAX_LENGTH = 60;
 
@@ -13,6 +14,7 @@ export default function EditTab({
   isTargetWallet = false,
   fundInfo = null,
 }) {
+  const { t } = useLanguage();
   const isGroupWallet = !!wallet.isShared;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -43,14 +45,14 @@ export default function EditTab({
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
-        <h3>Sửa ví</h3>
-        <span>Chỉnh thông tin cơ bản của ví. Thêm thành viên tại tab "Quản lý người dùng".</span>
+        <h3>{t('wallets.modal.edit_title')}</h3>
+        <span>{t('wallets.edit.subtitle')}</span>
       </div>
 
       <form className="wallet-form" onSubmit={onSubmitEdit} autoComplete="off">
         <div className="wallet-form__row">
           <label>
-            Tên ví
+            {t('wallets.modal.name_label')}
             <input
               type="text"
               required
@@ -62,14 +64,14 @@ export default function EditTab({
               color: "#6b7280",
               marginTop: "4px"
             }}>
-              Số dư hiện tại:{" "}
+              {t('wallets.edit.current_balance_label')}:{" "}
               <strong style={{ color: "#111827" }}>
                 {formatMoney(currentBalance, walletCurrency)}
               </strong>
             </div>
           </label>
           <label>
-            Tiền tệ
+            {t('wallets.edit.currency_label')}
             <input
               type="text"
               value={editForm.currency || "VND"}
@@ -81,7 +83,7 @@ export default function EditTab({
 
         <div className="wallet-form__row">
           <label className="wallet-form__full">
-            Ghi chú
+            {t('wallets.modal.note_label')}
             <textarea
               rows={2}
               value={editForm.note}
@@ -89,7 +91,7 @@ export default function EditTab({
               maxLength={NOTE_MAX_LENGTH}
             />
             <span className="wallet-form__char-hint">
-              {(editForm.note || "").length}/{NOTE_MAX_LENGTH} ký tự
+              {(editForm.note || "").length}/{NOTE_MAX_LENGTH} {t('wallets.modal.characters')}
             </span>
           </label>
         </div>
@@ -107,7 +109,7 @@ export default function EditTab({
             color: "#6b7280",
             marginBottom: "14px"
           }}>
-            <span>Thời gian tạo</span>
+            <span>{t('wallets.edit.created_at_label')}</span>
             <strong style={{ color: "#111827" }}>{createdAt}</strong>
           </div>
         )}
@@ -122,7 +124,7 @@ export default function EditTab({
                   onEditFieldChange("isDefault", e.target.checked)
                 }
               />
-              <span>Đặt làm ví mặc định</span>
+              <span>{t('wallets.modal.edit_default_label')}</span>
             </label>
           )}
 
@@ -133,7 +135,7 @@ export default function EditTab({
                 className="wallets-btn wallets-btn--danger-outline"
                 onClick={handleOpenDelete}
               >
-                Xóa ví này
+                {t('wallets.edit.delete_button')}
               </button>
             )}
             {isTargetWallet && fundInfo && (
@@ -150,7 +152,7 @@ export default function EditTab({
               </div>
             )}
             <button type="submit" className="wallets-btn wallets-btn--primary">
-              Lưu thay đổi
+              {t('wallets.edit.save_button')}
             </button>
           </div>
         </div>

@@ -1,205 +1,288 @@
 /* =============================
    PAGE LAYOUT
    ============================= */
+
+/* Page wrapper - đồng bộ với các trang khác */
+.tx-page {
+  padding-top: 24px;
+  padding-bottom: 32px;
+  background: transparent;
+}
+
+.tx-page-inner {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .wallets-page {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px 20px;
   color: #000000;
-  background: #ffffff;
+  animation: pageFadeIn 0.5s ease-out;
 }
 
-.wallets-page__hero {
-  border-radius: 24px;
-  padding: 20px 28px;
-  background: linear-gradient(90deg, #0b5aa5 0%, #0c7fb0 60%, #0ab5c0 100%);
-  color: #ffffff;
-  box-shadow: 0 20px 45px rgba(11, 99, 246, 0.18);
-  margin: 16px 20px 20px;
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.wallets-page__hero .wallets-page__title {
-  color: #ffffff;
-}
+/* =============================
+   HEADER – GIỐNG DANH MỤC
+   ============================= */
 
-.wallets-page__hero .wallets-page__subtitle {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.wallets-page__hero .wallets-btn--primary {
-  border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid #2d99ae;
-  color: #2d99ae;
-  padding: 10px 22px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  box-shadow: 0 14px 28px rgba(4, 24, 50, 0.15);
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
-    transform 0.15s ease, box-shadow 0.2s ease;
-}
-
-.wallets-page__hero .wallets-btn--primary:hover {
-  background: #2d99ae;
-  color: #ffffff;
-  border-color: #2d99ae;
-  box-shadow: 0 16px 32px rgba(4, 24, 50, 0.2);
-  transform: translateY(-1px);
-}
-
-/* HEADER */
+/* Thẻ card header đã dùng class:
+   card cat-header category-header-funds
+   → lấy radius, shadow, icon… từ CategoriesPage.css rồi
+*/
 .wallets-page__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
+
+  /* không override màu nền/border để cat-header xử lý */
+  background: transparent;
+  border: none;
 }
 
-.wallets-page__heading {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.wallets-page__title-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.12));
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: #ffffff;
-  box-shadow: 0 12px 30px rgba(4, 24, 50, 0.35);
-}
-
-.wallets-page__title-icon i {
-  font-size: 1.2rem;
-}
-
+/* Title / subtitle trong header ví */
 .wallets-page__title {
-  font-size: 1.6rem;
-  font-weight: 600;
-  margin: 0;
-  color: #ffffff;
-}
-
-.wallets-page__subtitle {
-  margin: 4px 0 0;
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-@media (max-width: 768px) {
-  .wallets-page__hero {
-    padding: 20px;
-    margin: 12px 16px;
-  }
-
-  .wallets-page__hero .wallets-btn--primary {
-    width: 100%;
-    justify-content: center;
-    text-align: center;
-  }
-
-  .wallets-page__stats {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* STATS */
-.wallets-stats-card {
-  padding: 18px 22px;
-  border-radius: 24px;
-  margin: 0 20px 16px;
-  background: #ffffff;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-}
-
-.wallets-page__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-.wallets-stat {
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid #e3e3e3;
-  background: #f9fafb;
-  transition: transform 0.18s ease, box-shadow 0.18s ease,
-    border-color 0.18s ease, background 0.18s ease;
-}
-
-.wallets-stat:hover {
-  transform: translateY(-4px);
-  border-color: #cfe3eb;
-  background: #ffffff;
-  box-shadow: 0 10px 20px rgba(10, 67, 80, 0.12);
-}
-
-.wallets-stat__heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.wallets-stat__label {
-  display: block;
-  font-size: 11px;
-  color: #666666;
-  margin-bottom: 4px;
-}
-
-.wallets-stat__heading .wallets-stat__label {
-  margin-bottom: 0;
-}
-
-.wallets-stat__value {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 2px;
   color: #000000;
 }
 
-.wallets-stat__count {
-  font-size: 12px;
-  font-weight: 600;
-  color: #0a4350;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(10, 67, 80, 0.08);
+.wallets-page__subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #555555;
 }
 
-.wallets-stat__sub {
+
+/* STATS */
+.wallets-page__stats {
+  display: grid;
+  /* Let stat cards auto-fit and share available space evenly. Minimum width keeps cards readable. */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  align-items: stretch;
+  width: 100%;
+  margin-top: 8px;
+  margin-bottom: 20px; /* space below stats so they don't touch the content below */
+}
+
+.wallets-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-width: 0;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #ffffff, #f6fbfc);
+  box-shadow: 0 6px 18px rgba(13, 71, 84, 0.04);
+  animation: cardFadeIn 0.6s ease-out backwards;
+}
+
+/* Hover effect for stat cards */
+.wallets-stat {
+  transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms ease;
+}
+.wallets-stat:hover, .wallets-stat:focus-within {
+  transform: translateY(-8px);
+  box-shadow: 0 18px 40px rgba(13,71,84,0.12);
+}
+
+/* Budget metric cards (used in header stats) */
+.budget-metric-card {
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff, #f6fbfc);
+  box-shadow: 0 6px 18px rgba(13,71,84,0.04);
+  transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms ease;
+}
+.budget-metric-card--has-toggle {
+  position: relative;
+  padding-right: 54px;
+}
+.budget-metric-card--has-toggle .budget-metric-toggle {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  margin-left: 0;
+}
+.budget-metric-card--has-toggle .budget-metric-label {
+  padding-right: 32px;
+}
+.budget-metric-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 18px 40px rgba(13,71,84,0.12);
+}
+
+/* Tooltip / popover for metric cards */
+.budget-metric-card { position: relative; }
+.budget-metric-tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  max-width: calc(100vw - 48px);
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 30px rgba(13,71,84,0.12);
+  border: 1px solid rgba(11,43,47,0.04);
+  z-index: 60;
+  font-size: 0.92rem;
+  color: #0b2b2f;
+  text-align: left;
+}
+.budget-metric-card:hover .budget-metric-tooltip {
   display: block;
-  margin-top: 4px;
-  font-size: 16px;
-  color: #0a4350;
-  font-weight: 600;
+}
+.budget-metric-tooltip:before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-left: 1px solid rgba(11,43,47,0.04);
+  border-top: 1px solid rgba(11,43,47,0.04);
+  transform: translateX(-50%) rotate(45deg);
+  z-index: -1;
+}
+.budget-metric-tooltip strong { display: block; margin-bottom: 6px; font-weight: 700; }
+.budget-metric-tooltip__body { color: #475569; font-size: 0.9rem; line-height: 1.3; }
+.budget-metric-tooltip__meta { margin-top: 8px; font-size: 0.82rem; color: #6b7280; }
+
+/* Small currency toggle button shown inside the metric label */
+.budget-metric-toggle {
+  margin-left: 8px;
+  float: right;
+  background: transparent;
+  border: 1px solid rgba(11,43,47,0.06);
+  color: #0b2b2f;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.budget-metric-toggle:hover {
+  background: rgba(13,110,253,0.08);
+  border-color: rgba(13,110,253,0.25);
+  transform: rotate(180deg);
+}
+.budget-metric-toggle i {
+  transition: transform 0.3s ease;
+}
+.budget-metric-toggle:active {
+  transform: rotate(360deg) scale(0.95);
+}
+.budget-metric-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* Wallets: larger metric value, no subtext (we removed descriptive line) */
+.budget-metric-value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #0b2b2f;
+  line-height: 1;
+}
+
+/* Use requested translucent blue as text color for personal/group balances */
+.budget-metric-card--personal .budget-metric-value,
+.budget-metric-card--group .budget-metric-value {
+  color: #084298; /* darker blue (swapped) */
+}
+
+/* Shared balances: strong pink */
+.budget-metric-card--shared-with-me .budget-metric-value,
+.budget-metric-card--shared-by-me .budget-metric-value {
+  color: #0d6efd; /* brand blue (swapped) */
+}
+
+.budget-metric-sub {
+  display: none; /* removed descriptions — keep hidden in case other pages reuse this class */
+}
+
+.wallets-stat:nth-child(1) { animation-delay: 0.08s; }
+.wallets-stat:nth-child(2) { animation-delay: 0.12s; }
+.wallets-stat:nth-child(3) { animation-delay: 0.16s; }
+.wallets-stat:nth-child(4) { animation-delay: 0.20s; }
+.wallets-stat:nth-child(5) { animation-delay: 0.24s; }
+
+.wallets-stat__label {
+  display: block;
+  font-size: 13px;
+  color: #556b6f;
+  margin-bottom: 6px;
+}
+
+.wallets-stat__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0b2b2f;
+}
+
+/* Responsive: collapse columns on smaller screens */
+@media (max-width: 1100px) {
+  .wallets-page__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .budget-metric-value { font-size: 1.7rem; }
+}
+
+@media (max-width: 720px) {
+  .wallets-page__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wallets-stat__value { font-size: 16px; }
+  .budget-metric-value { font-size: 1.5rem; }
+}
+
+@media (max-width: 420px) {
+  .wallets-page__stats {
+    grid-template-columns: 1fr;
+  }
+  .wallets-stat { padding: 14px 12px; }
+  .wallets-stat__label { font-size: 12px; }
+  .wallets-stat__value { font-size: 15px; }
+  .budget-metric-value { font-size: 1.3rem; }
+}
+
+/* Small helper to match budgets metric subtext */
+.budget-metric-sub {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  color: #6c757d;
 }
 
 /* MAIN LAYOUT */
 .wallets-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  /* Make the left (list) column wider so containers stretch across the page */
+  /* Keep left and right panels equal width */
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   align-items: flex-start;
-  /* reduce side margins so stats/list can use more horizontal space */
-  margin: 0 12px 32px;
-}
-
-.wallets-list-container {
-  border-radius: 24px;
-  background: #ffffff;
-  padding: 18px 18px 20px;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 /* =============================
@@ -218,8 +301,9 @@
   border: none;
   background: transparent;
   border-radius: 999px;
-  padding: 4px 12px;
-  font-size: 12px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
   color: #0a4350;
   display: inline-flex;
   align-items: center;
@@ -228,7 +312,6 @@
   cursor: pointer;
   flex: 1 1 auto;
   min-width: 80px;
-  white-space: nowrap;
 }
 
 .wallets-shared-toggle {
@@ -282,7 +365,7 @@
 .wallets-list-panel__controls {
   display: flex;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 10px; /* give more breathing room under the tabs/search area */
 }
 
 .wallets-list-panel__search {
@@ -291,10 +374,10 @@
 
 .wallets-list-panel__search input {
   width: 100%;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid #dddddd;
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
 }
 
@@ -303,10 +386,10 @@
 }
 
 .wallets-list-panel__sort select {
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid #dddddd;
-  font-size: 13px;
+  font-size: 14px;
   background: #ffffff;
   outline: none;
 }
@@ -317,7 +400,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 500px; /* trimmed by roughly one card */
+  max-height: 560px; /* ~10 card */
   overflow-y: auto;
 }
 
@@ -333,19 +416,40 @@
   border-radius: 12px;
   border: 1px solid #e3e3e3;
   background: #ffffff;
-  padding: 8px 10px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   cursor: pointer;
   transition: box-shadow 0.15s ease, transform 0.1s ease,
     border-color 0.15s ease, background 0.15s ease;
+  animation: cardFadeIn 0.6s ease-out backwards;
 }
+
+.wallets-list-item:nth-child(1) { animation-delay: 0.1s; }
+.wallets-list-item:nth-child(2) { animation-delay: 0.15s; }
+.wallets-list-item:nth-child(3) { animation-delay: 0.2s; }
+.wallets-list-item:nth-child(4) { animation-delay: 0.25s; }
+.wallets-list-item:nth-child(5) { animation-delay: 0.3s; }
+.wallets-list-item:nth-child(6) { animation-delay: 0.35s; }
+.wallets-list-item:nth-child(7) { animation-delay: 0.4s; }
+.wallets-list-item:nth-child(8) { animation-delay: 0.45s; }
+.wallets-list-item:nth-child(9) { animation-delay: 0.5s; }
+.wallets-list-item:nth-child(10) { animation-delay: 0.55s; }
 
 .wallets-list-item:hover {
   border-color: #2d99ae;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-  transform: translateY(-1px);
+  box-shadow: 0 10px 30px rgba(13,71,84,0.08);
+  transform: translateY(-6px);
+}
+
+/* Detail panel lift on hover to match other containers */
+.wallets-detail-panel {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.wallets-detail-panel:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 14px 40px rgba(13,71,84,0.08);
 }
 
 .wallets-list-item--active {
@@ -362,7 +466,7 @@
 }
 
 .wallets-list-item__name {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: #000000;
 }
@@ -374,8 +478,8 @@
 }
 
 .wallets-list-item__type {
-  font-size: 11px;
-  padding: 2px 6px;
+  font-size: 12px;
+  padding: 3px 8px;
   border-radius: 999px;
   border: 1px solid #e3e3e3;
   color: #333333;
@@ -391,13 +495,13 @@
 }
 
 .wallets-list-item__balance {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #000000;
 }
 
 .wallets-list-item__desc {
-  font-size: 12px;
+  font-size: 13px;
   color: #666666;
 }
 
@@ -677,12 +781,13 @@
    RIGHT PANEL: DETAIL
    ============================= */
 .wallets-detail-panel {
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  border: 1px solid #e3e3e3;
   background: #ffffff;
-  padding: 18px 20px;
+  padding: 12px 14px 14px;
   min-height: 320px;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.14);
+  animation: cardFadeIn 0.6s ease-out backwards;
+  animation-delay: 0.2s;
 }
 
 /* Header detail */
@@ -765,42 +870,22 @@
 }
 
 /* Empty state */
-.wallets-detail-panel--empty {
-  min-height: 320px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.wallets-detail-empty {
-  width: 100%;
-  max-width: 90%;
-  margin: 0 auto;
-  padding: 32px 40px;
-  border-radius: 20px;
-  border: 1px solid #e6ecf2;
-  background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+.wallets-detail__empty {
+  padding: 32px 10px;
   text-align: center;
 }
 
-.wallets-detail-empty__title {
-  margin: 0 0 8px;
-  font-size: 22px;
-  font-weight: 700;
-  color: #0b1f3a;
+.wallets-detail__empty h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000000;
 }
 
-.wallets-detail-empty__text {
+.wallets-detail__empty p {
   margin: 0;
-  font-size: 15px;
-  color: #4a5568;
-}
-
-.wallets-detail-empty__hint {
-  margin-top: 12px;
-  font-size: 14px;
-  color: #2d99ae;
+  font-size: 13px;
+  color: #777777;
 }
 
 /* Sections */
@@ -1293,6 +1378,25 @@
   background: #e5f4f8;
 }
 
+.wallets-btn--danger {
+  background: #dc3545;
+  color: #ffffff;
+  border-color: #dc3545;
+}
+
+.wallets-btn--danger:hover {
+  background: #c82333;
+  border-color: #bd2130;
+  transform: translateY(-0.5px);
+}
+
+.wallets-btn--danger:disabled {
+  background: #dc3545;
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* =============================
    VIEW TAB – 2 CỘT
    ============================= */
@@ -1309,6 +1413,8 @@
   border: 1px solid #e3e3e3;
   background: #f9fafb;
   padding: 8px 10px;
+  animation: cardFadeIn 0.6s ease-out backwards;
+  animation-delay: 0.2s;
 }
 
 .wallets-detail-view__card-header {
@@ -1711,6 +1817,120 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================================
+   RESPONSIVE - Bổ sung đầy đủ
+   ========================================================= */
+
+/* Tablet */
+@media (max-width: 992px) {
+  .wallets-page {
+    padding: 16px 18px 24px;
+  }
+
+  .wallet-header {
+    padding: 20px 24px;
+  }
+
+  .wallets-page__stats {
+    flex-wrap: wrap;
+  }
+
+  .wallets-stat {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 140px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .wallets-page {
+    padding: 12px 16px 20px;
+  }
+
+  .wallet-header {
+    padding: 16px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .wallet-header-left {
+    width: 100%;
+  }
+
+  .wallet-header-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .wallets-page__stats {
+    flex-direction: column;
+  }
+
+  .wallets-stat {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .wallets-list-panel__tabs {
+    flex-wrap: wrap;
+  }
+
+  .wallets-tab {
+    flex: 1 1 calc(50% - 2px);
+    min-width: 100px;
+  }
+
+  .wallets-list-panel__controls {
+    flex-direction: column;
+  }
+
+  .wallets-list-panel__search,
+  .wallets-list-panel__sort {
+    width: 100%;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 576px) {
+  .wallets-page {
+    padding: 10px 12px 16px;
+  }
+
+  .wallet-header {
+    padding: 14px 16px;
+  }
+
+  .wallet-header-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .wallet-header-icon i {
+    font-size: 1.7rem;
+  }
+
+  .wallet-header-title {
+    font-size: 1.3rem;
+  }
+
+  .wallet-header-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .wallets-stat {
+    padding: 8px 12px;
+  }
+
+  .wallets-list-item {
+    padding: 10px 12px;
+  }
+
+  .wallets-detail-panel {
+    padding: 10px 12px 12px;
+  }
+}
 /* =============================
    TRANSFER – CẢNH BÁO KHÁC TIỀN TỆ
    ============================= */
@@ -1862,4 +2082,133 @@
   border: 1px solid #2D99AE;
   background: #fff;
   color: #2D99AE;
+}
+/* ============================================
+   HEADER VÍ — KÍCH THƯỚC TO GIỐNG DANH MỤC
+=============================================== */
+
+/* Khối header tổng */
+.wallet-header {
+  background: linear-gradient(90deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 60%, rgb(10, 181, 192) 100%);
+  border-radius: 18px;                /* bo góc như danh mục */
+  padding: 24px 28px;                 /* TO đúng chuẩn header danh mục */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 22px rgba(15, 23, 42, 0.08);  /* bóng giống danh mục */
+  margin-bottom: 22px;
+}
+
+/* Cột trái chứa icon + title */
+.wallet-header-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Icon nền tròn (giống danh mục) */
+.wallet-header-icon {
+  width: 54px;
+  height: 54px;
+  background: rgba(45, 153, 174, 0.15);   /* tông xanh nhẹ */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Icon */
+.wallet-header-icon i {
+  font-size: 1.9rem;            /* icon to hơn */
+  color: #ffffff;
+  animation: iconPulse 2s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+
+.wallet-header:hover .wallet-header-icon i {
+  animation: iconRotate 0.8s ease-out;
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes iconRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Title chính */
+.wallet-header-title {
+  font-size: 1.55rem;           /* TO tương đương Danh mục */
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #ffffff;
+}
+
+/* Dòng mô tả */
+.wallet-header-subtitle {
+  font-size: 0.95rem;
+  color: #ffffff;
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* Nút tạo ví giống "Thêm danh mục" */
+.wallet-header-btn {
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid #2d99ae;
+  color: #2d99ae;
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(45, 153, 174, 0.15);
+  transition: background-color 0.18s ease-out,
+    color 0.18s ease-out,
+    box-shadow 0.18s ease-out,
+    transform 0.18s ease-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.wallet-header-btn:hover {
+  background: #2d99ae;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(45, 153, 174, 0.25);
+}
+
+.wallet-header-btn i {
+  font-size: 1rem;
+}
+
+/* Dark mode cho nút tạo ví */
+.dark .wallet-header-btn {
+  border: 1px solid #ffffff !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .wallet-header-btn:hover {
+  background: #ffffff !important;
+  color: #2d99ae !important;
+  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2) !important;
+}
+/* ĐẨY TOÀN BỘ NỘI DUNG TRANG VÍ XUỐNG THẤP KHỎI TOPBAR */
+.wallets-page {
+  padding-top: 32px !important;   /* 32px = khoảng giống Danh Mục / Quỹ */
+  animation: pageFadeIn 0.5s ease-out;
 }

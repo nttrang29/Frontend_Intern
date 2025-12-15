@@ -159,7 +159,7 @@ export default function WalletList({
             ) : (
               <div className="wallets-list-item__members-emails">
                 <span className="wallets-list-item__member-more" style={{ fontStyle: "normal" }}>
-                  {w.membersCount > 1 ? `${w.membersCount} thành viên` : "Chưa có thành viên"}
+                  {w.membersCount > 1 ? t('wallets.members_count', { count: w.membersCount }) : t('wallets.no_members')}
                 </span>
               </div>
             )}

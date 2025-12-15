@@ -3,6 +3,7 @@ import Modal from "../common/Modal/Modal";
 import SearchableSelectInput from "../common/SearchableSelectInput";
 import { mapWalletsToSelectOptions, WALLET_TYPE_ICON_CONFIG } from "../../utils/walletSelectHelpers";
 import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../utils/formatMoneyInput";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 const ALL_WALLETS_LABEL = "Tất cả ví";
  
@@ -27,6 +28,7 @@ export default function BudgetFormModal({
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { t } = useLanguage();
  
   const resolveWalletCurrency = (walletId) => {
     const wallet = wallets.find((w) => String(w.id) === String(walletId));
@@ -112,72 +114,106 @@ export default function BudgetFormModal({
     if (endDateObj) endDateObj.setHours(0, 0, 0, 0);
  
     if (!selectedCategoryId) {
-      newErrors.category = "Vui lòng chọn danh mục";
+      newErrors.category = t('budgets.error.category');
     }
-    const walletRequired = !(mode === "edit" && (initialData?.walletId === null || initialData?.walletId === undefined));
-    if (walletRequired && !selectedWalletId) {
+    
+    // Xử lý walletId và walletName trước để validate
+    const categoryObj = categories.find((c) => String(c.id) === String(selectedCategoryId)) || {};
+    const walletObj = selectedWalletId 
+      ? vndWallets.find((w) => String(w.id) === String(selectedWalletId))
+      : null;
+    const walletOption = selectedWalletId 
+      ? walletOptions.find((opt) => String(opt.value) === String(selectedWalletId))
+      : null;
+    
+    let resolvedWalletId = null;
+    let resolvedWalletName = "";
+    
+    if (selectedWalletId && String(selectedWalletId).trim() !== "") {
+      const numericId = Number(selectedWalletId);
+      if (!isNaN(numericId)) {
+        resolvedWalletId = numericId;
+        if (walletObj) {
+          resolvedWalletName = walletObj.name || walletObj.walletName || walletOption?.label || selectedWalletLabel || `Ví ${numericId}`;
+        } else {
+          resolvedWalletName = walletOption?.label || selectedWalletLabel || `Ví ${numericId}`;
+        }
+      }
+    } else if (mode === "edit" && (initialData?.walletId === null || initialData?.walletId === undefined)) {
+      resolvedWalletId = null;
+      resolvedWalletName = initialData?.walletName || ALL_WALLETS_LABEL;
+    }
+    
+    // Validation: Khi tạo mới, bắt buộc phải chọn ví (không cho phép "Tất cả ví")
+    if (mode === "create" && !resolvedWalletId) {
+      newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
+    } else if (mode === "edit" && initialData?.walletId !== null && initialData?.walletId !== undefined && !resolvedWalletId) {
       newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
     }
 
     if (selectedWalletId) {
       const currencyCode = resolveWalletCurrency(selectedWalletId);
       if (currencyCode !== "VND") {
-        newErrors.wallet = "Chỉ được chọn ví có đơn vị tiền tệ VND";
+        newErrors.wallet = t('budgets.error.wallet_vnd_only');
       }
     }
     if (!limitNumeric || limitNumeric <= 0) {
-      newErrors.limit = "Vui lòng nhập hạn mức lớn hơn 0";
+      newErrors.limit = t('budgets.error.limit_required');
     }
     if (!startDate) {
-      newErrors.startDate = "Vui lòng chọn ngày bắt đầu";
+      newErrors.startDate = t('budgets.error.start_date');
     }
     if (!endDate) {
-      newErrors.endDate = "Vui lòng chọn ngày kết thúc";
+      newErrors.endDate = t('budgets.error.end_date');
     }
     if (startDateObj && startDateObj < today) {
-      newErrors.startDate = "Ngày bắt đầu không được nhỏ hơn ngày hiện tại";
+      newErrors.startDate = t('budgets.error.start_date_past');
     }
     if (startDateObj && endDateObj && endDateObj <= startDateObj) {
-      newErrors.endDate = "Ngày kết thúc phải lớn hơn ngày bắt đầu";
+      newErrors.endDate = t('budgets.error.date_range');
     }
     if (alertThreshold < 50 || alertThreshold > 100) {
-      newErrors.alertThreshold = "Ngưỡng cảnh báo phải trong khoảng 50% - 100%";
+      newErrors.alertThreshold = t('budgets.error.alert_threshold');
     }
  
+    // Đảm bảo walletName không rỗng nếu có walletId
+    if (resolvedWalletId !== null && (!resolvedWalletName || resolvedWalletName.trim() === "")) {
+      resolvedWalletName = `Ví ${resolvedWalletId}`;
+    }
+    
+    // Validation cuối cùng: Khi tạo mới, walletId không được null
+    if (mode === "create" && resolvedWalletId === null) {
+      newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
- 
-    const categoryObj = categories.find((c) => String(c.id) === String(selectedCategoryId)) || {};
-    const walletObj =
-      wallets.find((w) => String(w.id) === String(selectedWalletId)) ||
-      (mode === "edit" && (initialData?.walletId === null || initialData?.walletId === undefined)
-        ? { id: null, name: initialData?.walletName || ALL_WALLETS_LABEL }
-        : null);
- 
-    const resolvedWalletId =
-      walletObj && walletObj.id !== undefined && walletObj.id !== null
-        ? walletObj.id
-        : null;
- 
-    const resolvedWalletName =
-      resolvedWalletId === null
-        ? (initialData?.walletName || ALL_WALLETS_LABEL)
-        : (walletObj?.name || walletObj?.walletName || selectedWalletLabel || initialData?.walletName || "");
- 
+
+    // Đảm bảo payload có walletId và walletName đúng
     const payload = {
       categoryId: categoryObj.id || null,
       categoryName: categoryObj.name || initialData?.categoryName || "",
       categoryType: "expense",
-      walletId: resolvedWalletId,
-      walletName: resolvedWalletName,
+      walletId: resolvedWalletId, // Phải có giá trị khi tạo mới
+      walletName: resolvedWalletName, // Phải có giá trị khi có walletId
       limitAmount: limitNumeric,
       startDate,
       endDate,
       alertPercentage: Number(alertThreshold),
       note: note.trim(),
     };
+    
+    // Debug log để kiểm tra
+    if (mode === "create") {
+      console.log("📊 Creating budget with payload:", {
+        walletId: payload.walletId,
+        walletName: payload.walletName,
+        categoryId: payload.categoryId,
+        categoryName: payload.categoryName
+      });
+    }
  
     try {
       setSubmitting(true);
@@ -201,13 +237,60 @@ export default function BudgetFormModal({
  
   const categoryList = categories || [];
   const walletList = wallets || [];
+  
+  // Lấy currentUserId để kiểm tra owner
+  const currentUserId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const user = JSON.parse(stored);
+        return user.userId || user.id || null;
+      }
+    } catch (error) {
+      console.error("Không thể đọc user từ localStorage:", error);
+    }
+    return null;
+  }, []);
+  
   const vndWallets = useMemo(
     () =>
       walletList.filter((w) => {
+        // Bỏ qua ví đã bị xóa mềm
+        if (w?.deleted) return false;
+        
+        // Chỉ lấy ví VND
         const code = (w?.currency || w?.currencyCode || "").toUpperCase();
-        return code === "VND";
+        if (code !== "VND") return false;
+        
+        // Lấy role của user trong ví
+        const role = (w?.walletRole || w?.sharedRole || w?.role || "").toString().toUpperCase();
+        const isShared = !!w?.isShared || !!(w?.walletRole || w?.sharedRole || w?.role);
+        
+        // 1. Ví cá nhân (không shared, không có role hoặc role là OWNER)
+        if (!isShared) {
+          // Ví cá nhân: kiểm tra xem user có phải owner không
+          if (w?.ownerUserId && currentUserId) {
+            return String(w.ownerUserId) === String(currentUserId);
+          }
+          // Nếu không có ownerUserId, mặc định là ví của user hiện tại
+          return true;
+        }
+        
+        // 2. Ví nhóm (isShared = true, user là OWNER/MASTER/ADMIN)
+        if (isShared && ["OWNER", "MASTER", "ADMIN"].includes(role)) {
+          return true;
+        }
+        
+        // 3. Ví được chia sẻ với quyền MEMBER/USER/USE (không phải VIEW/VIEWER)
+        if (isShared && ["MEMBER", "USER", "USE"].includes(role)) {
+          return true;
+        }
+        
+        // Bỏ qua các ví khác (VIEW/VIEWER hoặc không có quyền)
+        return false;
       }),
-    [walletList]
+    [walletList, currentUserId]
   );
  
   const categoryOptions = useMemo(() => {
@@ -250,9 +333,68 @@ export default function BudgetFormModal({
       walletTypeLabels,
       (wallet) => (wallet?.id !== undefined && wallet?.id !== null ? wallet.id : "")
     );
- 
-    const normalized = options.filter((opt) => opt.value !== "");
- 
+
+    // Sửa lại label và description dựa trên quyền sở hữu và loại ví
+    const normalized = options
+      .filter((opt) => opt.value !== "")
+      .map((opt) => {
+        const wallet = opt.raw;
+        if (!wallet) return opt;
+
+        // Xác định user hiện tại có phải là owner không
+        const role = (wallet.walletRole || wallet.sharedRole || wallet.role || "").toString().toUpperCase();
+        const isOwner = 
+          (wallet.ownerUserId && currentUserId && String(wallet.ownerUserId) === String(currentUserId)) ||
+          ["OWNER", "MASTER", "ADMIN"].includes(role);
+        
+        // Kiểm tra walletType để phân biệt chính xác ví nhóm và ví cá nhân
+        // walletType có thể là "GROUP" hoặc "PERSONAL" từ backend
+        const walletType = (wallet.walletType || wallet.type || "").toString().toUpperCase();
+        // Ví nhóm: walletType === "GROUP"
+        // Ví cá nhân: walletType === "PERSONAL" hoặc không có walletType (fallback: kiểm tra isShared)
+        const isGroupWallet = walletType === "GROUP";
+        
+        // Nếu user là owner
+        if (isOwner) {
+          // Ví nhóm (walletType === "GROUP") → "Ví nhóm"
+          if (isGroupWallet) {
+            return {
+              ...opt,
+              description: "Ví nhóm",
+            };
+          }
+          // Ví cá nhân (walletType === "PERSONAL" hoặc không phải GROUP) → "Ví cá nhân"
+          return {
+            ...opt,
+            description: "Ví cá nhân",
+          };
+        }
+        
+        // Nếu user không phải owner (là member được mời) → "Ví được chia sẻ"
+        // Lấy email chủ ví từ nhiều nguồn (ưu tiên ownerEmail từ API)
+        const ownerEmail = 
+          wallet.ownerEmail || 
+          wallet.ownerContact || 
+          wallet.owner?.email ||
+          wallet.ownerUser?.email ||
+          "";
+        
+        // Thêm email chủ ví vào label (bắt buộc phải có email cho ví được chia sẻ)
+        let newLabel = opt.label;
+        if (ownerEmail && ownerEmail.trim() !== "") {
+          newLabel = `${opt.label} (${ownerEmail})`;
+        } else if (wallet.ownerName && wallet.ownerName.trim() !== "") {
+          // Fallback: nếu không có email, dùng tên chủ ví
+          newLabel = `${opt.label} (${wallet.ownerName})`;
+        }
+        
+        return {
+          ...opt,
+          label: newLabel,
+          description: "Ví được chia sẻ",
+        };
+      });
+
     if (
       mode === "edit" &&
       selectedWalletId &&
@@ -267,7 +409,7 @@ export default function BudgetFormModal({
         iconBg: fallbackConfig.bg,
       });
     }
- 
+
     return normalized;
   }, [walletList, walletTypeLabels, mode, selectedWalletId, initialData, vndWallets]);
  
@@ -277,22 +419,22 @@ export default function BudgetFormModal({
         <button
           type="button"
           className="btn-close budget-form-close"
-          aria-label="Đóng"
+          aria-label={t('common.close')}
           onClick={onClose}
         />
         <div className="budget-form-breadcrumbs">
-          <span>Ngân sách</span>
+          <span>{t('budgets.form.breadcrumb_budget')}</span>
           <i className="bi bi-chevron-right" />
-          <strong>{mode === "create" ? "Tạo hạn mức" : "Chỉnh sửa hạn mức"}</strong>
+          <strong>{mode === "create" ? t('budgets.form.breadcrumb_create') : t('budgets.form.breadcrumb_edit')}</strong>
         </div>
         <h4 className="mb-3" style={{ fontWeight: 600, color: "#212529" }}>
-          {mode === "create" ? "Thêm Hạn mức Chi tiêu Mới" : "Chỉnh sửa Hạn mức Chi tiêu"}
+          {mode === "create" ? t('budgets.form.title_create') : t('budgets.form.title_edit')}
         </h4>
         <div className="budget-form-info mb-4">
           <i className="bi bi-info-circle" />
           <div>
-            <p>Thiết lập hạn mức theo danh mục và ví cụ thể để dễ dàng theo dõi tiến độ chi tiêu.</p>
-            <span>Bạn có thể bật cảnh báo khi mức sử dụng đạt ngưỡng mong muốn.</span>
+            <p>{t('budgets.form.info_desc')}</p>
+            <span>{t('budgets.form.info_alert')}</span>
           </div>
         </div>
  
@@ -305,18 +447,18 @@ export default function BudgetFormModal({
           {/* Category Selector */}
           <div className="mb-3">
             <SearchableSelectInput
-              label="Chọn Danh mục"
+              label={t('budgets.form.category_label')}
               value={selectedCategoryId}
               onChange={handleCategoryChange}
               options={categoryOptions}
-              placeholder="-- Chọn danh mục --"
+              placeholder={t('budgets.form.category_placeholder')}
               disabled={mode === "edit"}
-              emptyMessage="Không có danh mục phù hợp"
+              emptyMessage={t('budgets.form.category_empty')}
               error={errors.category}
             />
             {mode === "edit" && (
               <div className="form-text text-muted">
-                Không thể thay đổi danh mục khi chỉnh sửa hạn mức.
+                {t('budgets.form.category_edit_hint')}
               </div>
             )}
           </div>
@@ -324,25 +466,25 @@ export default function BudgetFormModal({
           {/* Wallet Selector */}
           <div className="mb-3">
             <SearchableSelectInput
-              label="Áp dụng cho Ví"
+              label={t('budgets.form.wallet_label')}
               value={selectedWalletId}
               onChange={handleWalletChange}
               options={walletOptions}
-              placeholder="-- Chọn ví --"
+              placeholder={t('budgets.form.wallet_placeholder')}
               disabled={mode === "edit"}
-              emptyMessage="Không có ví khả dụng"
+              emptyMessage={t('budgets.form.wallet_empty')}
               error={errors.wallet}
             />
             {mode === "edit" && (
               <div className="form-text text-muted">
-                Không thể thay đổi ví áp dụng khi chỉnh sửa.
+                {t('budgets.form.wallet_edit_hint')}
               </div>
             )}
           </div>
  
           {/* Limit Amount */}
           <div className="mb-4">
-            <label className="form-label fw-semibold">Hạn mức Chi tiêu ({walletCurrency})</label>
+            <label className="form-label fw-semibold">{t('budgets.form.limit_label', { currency: walletCurrency })}</label>
             <div className="input-group">
               <input
                 type="text"
@@ -360,39 +502,80 @@ export default function BudgetFormModal({
  
           {/* Date Range Selector */}
           <div className="mb-3">
-            <label className="form-label fw-semibold">Khoảng thời gian áp dụng</label>
+            <label className="form-label fw-semibold">{t('budgets.form.date_range_label')}</label>
             <div className="row g-2">
               <div className="col-6">
-                <label className="form-text small mb-1 d-block">Từ ngày</label>
+                <label className="form-text small mb-1 d-block">{t('budgets.form.start_date_label')}</label>
                 <input
                   type="date"
                   className={`form-control ${errors.startDate ? "is-invalid" : ""}`}
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    const newStartDate = e.target.value;
+                    setStartDate(newStartDate);
+                    // Nếu "Đến ngày" đã được chọn và nhỏ hơn hoặc bằng "Từ ngày" mới, reset "Đến ngày"
+                    if (endDate && newStartDate) {
+                      const newStartDateObj = new Date(newStartDate);
+                      const endDateObj = new Date(endDate);
+                      newStartDateObj.setHours(0, 0, 0, 0);
+                      endDateObj.setHours(0, 0, 0, 0);
+                      if (endDateObj <= newStartDateObj) {
+                        setEndDate("");
+                      }
+                    }
+                  }}
+                  min={(() => {
+                    // Ẩn các ngày trong quá khứ - chỉ cho phép chọn từ hôm nay trở đi
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                  })()}
                 />
                 {errors.startDate && (
                   <div className="invalid-feedback d-block">{errors.startDate}</div>
                 )}
               </div>
               <div className="col-6">
-                <label className="form-text small mb-1 d-block">Đến ngày</label>
+                <label className="form-text small mb-1 d-block">{t('budgets.form.end_date_label')}</label>
                 <input
                   type="date"
                   className={`form-control ${errors.endDate ? "is-invalid" : ""}`}
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  min={(() => {
+                    // Ẩn các ngày trước "Từ ngày" đã chọn
+                    // Nếu đã chọn "Từ ngày", thì "Đến ngày" phải từ ngày tiếp theo của "Từ ngày"
+                    if (startDate) {
+                      const startDateObj = new Date(startDate);
+                      startDateObj.setDate(startDateObj.getDate() + 1); // Ngày tiếp theo
+                      const year = startDateObj.getFullYear();
+                      const month = String(startDateObj.getMonth() + 1).padStart(2, '0');
+                      const day = String(startDateObj.getDate()).padStart(2, '0');
+                      return `${year}-${month}-${day}`;
+                    }
+                    // Nếu chưa chọn "Từ ngày", thì ẩn các ngày trong quá khứ
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                  })()}
                 />
                 {errors.endDate && (
                   <div className="invalid-feedback d-block">{errors.endDate}</div>
                 )}
               </div>
             </div>
-            <div className="form-text mt-2">Hạn mức sẽ được theo dõi trong khoảng thời gian này.</div>
+            <div className="form-text mt-2">{t('budgets.form.date_range_hint')}</div>
           </div>
  
           {/* Alert threshold */}
           <div className="mb-4">
-            <label className="form-label fw-semibold">Ngưỡng cảnh báo (%)</label>
+            <label className="form-label fw-semibold">{t('budgets.form.alert_threshold_label')}</label>
             <input
               type="range"
               className="form-range"
@@ -410,37 +593,37 @@ export default function BudgetFormModal({
             {errors.alertThreshold && (
               <div className="invalid-feedback d-block">{errors.alertThreshold}</div>
             )}
-            <div className="form-text">Gửi cảnh báo khi mức sử dụng đạt ngưỡng này.</div>
+            <div className="form-text">{t('budgets.form.alert_threshold_hint')}</div>
           </div>
  
           {/* Notes */}
           <div className="mb-4">
-            <label className="form-label fw-semibold">Ghi chú (tùy chọn)</label>
+            <label className="form-label fw-semibold">{t('budgets.form.note_label')}</label>
             <textarea
               className="form-control"
               rows={3}
-              placeholder="Nhập lưu ý nội bộ cho hạn mức này"
+              placeholder={t('budgets.form.note_placeholder')}
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
-            <div className="form-text">Ghi chú sẽ hiển thị trong thẻ hạn mức để cả nhóm dễ theo dõi.</div>
+            <div className="form-text">{t('budgets.form.note_hint')}</div>
           </div>
  
           {/* Buttons */}
           <div className="d-flex gap-2 justify-content-end">
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
-              Hủy
+              {t('budgets.form.cancel')}
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? (
                 <span>
                   <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  Đang xử lý...
+                  {t('budgets.form.processing')}
                 </span>
               ) : mode === "create" ? (
-                "Thêm Hạn mức"
+                t('budgets.form.submit_create')
               ) : (
-                "Cập nhật"
+                t('budgets.form.submit_update')
               )}
             </button>
           </div>

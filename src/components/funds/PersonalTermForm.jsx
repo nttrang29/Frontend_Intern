@@ -7,9 +7,11 @@ import { formatVietnamDate } from "../../utils/dateFormat";
 import { formatMoney } from "../../utils/formatMoney";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
+import { useLanguage } from "../../contexts/LanguageContext";
 import "../../styles/components/funds/FundForms.css";
 
 export default function PersonalTermForm({ wallets, onSuccess }) {
+  const { t } = useLanguage();
   const { createFund } = useFundData();
   const { showToast } = useToast();
   
@@ -57,9 +59,9 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     const today = getToday();
     
     if (value && value < today) {
-      setStartDateError("Ngày bắt đầu phải từ hôm nay trở đi.");
+      setStartDateError(t('funds.form.error.start_date_future'));
       setStartDate(today); // Reset về hôm nay nếu chọn ngày quá khứ
-      showToast("Không thể chọn ngày trong quá khứ!", "error");
+      showToast(t("funds.form.error.start_date_past"), "error");
     } else {
       setStartDate(value);
       setStartDateError("");
@@ -87,14 +89,14 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
 
     const t = Number(targetAmount);
     if (Number.isNaN(t) || t <= 0) {
-      setTargetError("Vui lòng nhập số tiền mục tiêu hợp lệ.");
+      setTargetError(t('funds.form.error.target_invalid'));
       return;
     }
 
     if (t < targetMin) {
       const minLabel = targetMin.toLocaleString("en-US");
       setTargetError(
-        `Số tiền mục tiêu phải lớn hơn hoặc bằng ${minLabel}${selectedCurrency ? " " + selectedCurrency : ""}.`
+        t('funds.form.error.target_min', { min: minLabel, currency: selectedCurrency ? " " + selectedCurrency : "" })
       );
       return;
     }
@@ -171,32 +173,32 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
   const handleSave = async () => {
     // Validation
     if (!fundName.trim()) {
-      showToast("Vui lòng nhập tên quỹ.", "error");
+      showToast(t('funds.form.error.name_required'), "error");
       return;
     }
     if (!sourceWalletId) {
-      showToast("Vui lòng chọn ví nguồn để nạp tiền vào quỹ.", "error");
+      showToast(t('funds.form.error.source_wallet_required'), "error");
       return;
     }
     if (!targetAmount) {
-      showToast("Vui lòng nhập số tiền mục tiêu quỹ.", "error");
+      showToast(t('funds.form.error.target_required'), "error");
       return;
     }
     if (targetError) {
-      showToast("Số tiền mục tiêu chưa hợp lệ, vui lòng kiểm tra lại.", "error");
+      showToast(t('funds.form.error.target_invalid'), "error");
       return;
     }
     if (!startDate) {
-      showToast("Vui lòng chọn ngày bắt đầu.", "error");
+      showToast(t('funds.form.error.start_date_required'), "error");
       return;
     }
     
     // Validate lại ngày bắt đầu trước khi submit
     const today = getToday();
     if (startDate < today) {
-      setStartDateError("Ngày bắt đầu phải từ hôm nay trở đi.");
+      setStartDateError(t('funds.form.error.start_date_future'));
       setStartDate(today);
-      showToast("Ngày bắt đầu không thể là ngày trong quá khứ!", "error");
+      showToast(t('funds.form.error.start_date_past'), "error");
       return;
     }
     
@@ -206,30 +208,30 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     }
     
     if (!periodAmount || Number(periodAmount) <= 0) {
-      showToast("Vui lòng nhập số tiền gửi mỗi kỳ để tính ngày kết thúc.", "error");
+      showToast(t('funds.form.error.period_amount_required'), "error");
       return;
     }
     if (!calculatedEndDate) {
-      showToast("Không thể tính ngày kết thúc. Vui lòng kiểm tra các thông tin đã nhập.", "error");
+      showToast(t('funds.form.error.cannot_calculate_end_date'), "error");
       return;
     }
     
     // Validate reminder nếu chế độ manual
     if (depositMode === "manual") {
       if (!reminderData) {
-        showToast("Vui lòng cấu hình nhắc nhở.", "error");
+        showToast(t('funds.form.error.reminder_config_required'), "error");
         return;
       }
       if (!reminderData.reminderTime) {
-        showToast("Vui lòng chọn giờ nhắc nhở.", "error");
+        showToast(t('funds.form.error.reminder_time_required'), "error");
         return;
       }
       if ((reminderData.reminderType === "WEEKLY" || freq === "WEEKLY") && !reminderData.reminderDayOfWeek) {
-        showToast("Vui lòng chọn ngày trong tuần cho nhắc nhở.", "error");
+        showToast(t('funds.form.error.reminder_weekday_required'), "error");
         return;
       }
       if ((reminderData.reminderType === "MONTHLY" || freq === "MONTHLY") && !reminderData.reminderDayOfMonth) {
-        showToast("Vui lòng chọn ngày trong tháng cho nhắc nhở.", "error");
+        showToast(t('funds.form.error.reminder_monthday_required'), "error");
         return;
       }
     }
@@ -237,23 +239,23 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     // Validate auto topup nếu chế độ auto
     if (depositMode === "auto") {
       if (!autoTopupData) {
-        showToast("Vui lòng cấu hình lịch tự động nạp.", "error");
+        showToast(t('funds.form.error.auto_topup_config_required'), "error");
         return;
       }
       if (!autoTopupData.autoDepositTime) {
-        showToast("Vui lòng chọn giờ tự động nạp.", "error");
+        showToast(t('funds.form.error.auto_topup_time_required'), "error");
         return;
       }
       if (autoTopupData.autoDepositScheduleType === "WEEKLY" && !autoTopupData.autoDepositDayOfWeek) {
-        showToast("Vui lòng chọn ngày trong tuần cho tự động nạp.", "error");
+        showToast(t('funds.form.error.auto_topup_weekday_required'), "error");
         return;
       }
       if (autoTopupData.autoDepositScheduleType === "MONTHLY" && !autoTopupData.autoDepositDayOfMonth) {
-        showToast("Vui lòng chọn ngày trong tháng cho tự động nạp.", "error");
+        showToast(t('funds.form.error.auto_topup_monthday_required'), "error");
         return;
       }
       if (!autoTopupData.autoDepositStartAt) {
-        showToast("Vui lòng chọn thời điểm bắt đầu nạp tự động.", "error");
+        showToast(t('funds.form.error.auto_topup_start_date_required'), "error");
         return;
       }
     }
@@ -333,16 +335,16 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
       const result = await createFund(fundData);
 
       if (result.success) {
-        showToast("Tạo quỹ thành công!", "success");
+        showToast(t('funds.form.success.created'), "success");
         if (onSuccess) {
           await onSuccess();
         }
       } else {
-        showToast(`Không thể tạo quỹ: ${result.error}`, "error");
+        showToast(t('funds.form.error.create_failed', { error: result.error }), "error");
       }
     } catch (error) {
       console.error("Error creating fund:", error);
-      showToast("Đã xảy ra lỗi khi tạo quỹ. Vui lòng thử lại.", "error");
+      showToast(t('funds.form.error.create_generic'), "error");
     } finally {
       setSaving(false);
     }
@@ -352,27 +354,27 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
     <div className="funds-grid">
       {/* THÔNG TIN QUỸ */}
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">Thông tin quỹ</div>
+        <div className="funds-fieldset__legend">{t('funds.form.section.info')}</div>
 
         {/* Hàng 1: Tên quỹ + Loại tiền tệ */}
         <div className="funds-field funds-field--inline">
           <div>
             <label>
-              Tên quỹ <span className="req">*</span>
+              {t('funds.form.name')} <span className="req">*</span>
             </label>
             <input
               type="text"
               maxLength={50}
-              placeholder="Ví dụ: Quỹ mua xe máy"
+              placeholder={t('funds.form.name_placeholder_term')}
               value={fundName}
               onChange={(e) => setFundName(e.target.value)}
             />
-            <div className="funds-hint">Tối đa 50 ký tự. Ví quỹ sẽ được tự động tạo với số dư ban đầu là 0đ.</div>
+            <div className="funds-hint">{t('funds.form.name_hint')}</div>
           </div>
           <div>
-            <label>Loại tiền tệ</label>
+            <label>{t('funds.form.currency')}</label>
             <input type="text" value="VND" disabled className="form-control" />
-            <div className="funds-hint">Loại tiền tệ cố định: VND.</div>
+            <div className="funds-hint">{t('funds.form.currency_hint')}</div>
           </div>
         </div>
 
@@ -380,7 +382,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
         <div className="funds-field funds-field--inline">
           <div>
             <label>
-              Chọn ví nguồn để nạp tiền vào quỹ <span className="req">*</span>
+              {t('funds.form.source_wallet')} <span className="req">*</span>
             </label>
             <select
               value={sourceWalletId}
@@ -388,8 +390,8 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             >
               <option value="">
                 {filteredWallets.length === 0
-                  ? "-- Không có ví nào với loại tiền tệ này --"
-                  : "-- Chọn ví nguồn --"
+                  ? t('funds.form.no_wallet_available')
+                  : t('funds.form.source_wallet_placeholder')
                 }
               </option>
               {filteredWallets.map((w) => (
@@ -399,13 +401,13 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
               ))}
             </select>
             <div className="funds-hint">
-              Tất cả giao dịch nạp tiền vào quỹ sẽ được thực hiện từ ví này.
+              {t('funds.form.source_wallet_hint')}
             </div>
             
             {/* Hiển thị số dư ví đã chọn */}
             {selectedWallet && (
               <div style={{ marginTop: '0.5rem' }}>
-                <label>Số dư ví nguồn</label>
+                <label>{t('funds.form.source_wallet_balance')}</label>
                 <input
                   type="text"
                   value={formatMoney(selectedWallet.balance, selectedWallet.currency)}
@@ -416,7 +418,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             )}
           </div>
           <div>
-            <label>Ngày tạo quỹ</label>
+            <label>{t('funds.form.created_date')}</label>
             <input
               type="text"
               value={new Date().toLocaleString('vi-VN', {
@@ -431,17 +433,17 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
               style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
             />
             <div className="funds-hint">
-              Ngày và giờ tạo quỹ sẽ được tự động ghi nhận.
+              {t('funds.form.created_date_hint')}
             </div>
           </div>
         </div>
 
         {/* Ghi chú */}
         <div className="funds-field">
-          <label>Ghi chú</label>
+          <label>{t('funds.form.note')}</label>
           <textarea 
             rows={3} 
-            placeholder="Ghi chú cho quỹ này (không bắt buộc)"
+            placeholder={t('funds.form.note_placeholder')}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
@@ -450,47 +452,46 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
 
       {/* MỤC TIÊU + TẦN SUẤT */}
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">Mục tiêu & tần suất gửi</div>
+        <div className="funds-fieldset__legend">{t('funds.form.section.goal_frequency')}</div>
 
         <div className="funds-field">
           <label>
-            Số tiền mục tiêu {selectedCurrency && `(${selectedCurrency})`} <span className="req">*</span>
+            {t('funds.form.target_amount')} {selectedCurrency && `(${selectedCurrency})`} <span className="req">*</span>
           </label>
           <input
             type="number"
             min={targetMin}
-            placeholder={`Nhập số tiền mục tiêu (tối thiểu ${targetMin.toLocaleString("en-US")}${selectedCurrency ? ' ' + selectedCurrency : ''})`}
+            placeholder={t('funds.form.target_placeholder', { min: targetMin.toLocaleString("en-US"), currency: selectedCurrency || '' })}
             value={targetAmount}
             onChange={(e) => setTargetAmount(e.target.value)}
           />
           <div className="funds-hint">
-            Số tiền bạn muốn đạt được, tối thiểu {targetMin.toLocaleString("en-US")}.
-            Quỹ bắt đầu từ 0.
+            {t('funds.form.target_hint', { min: targetMin.toLocaleString("en-US") })}
           </div>
           {targetError && <div className="funds-error">{targetError}</div>}
         </div>
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>Tần suất gửi</label>
+            <label>{t('funds.form.frequency')}</label>
             <select value={freq} onChange={(e) => setFreq(e.target.value)}>
-              <option value="DAILY">Theo ngày</option>
-              <option value="WEEKLY">Theo tuần</option>
-              <option value="MONTHLY">Theo tháng</option>
+              <option value="DAILY">{t('funds.form.freq_day')}</option>
+              <option value="WEEKLY">{t('funds.form.freq_week')}</option>
+              <option value="MONTHLY">{t('funds.form.freq_month')}</option>
             </select>
           </div>
           <div>
-            <label>Số tiền gửi mỗi kỳ</label>
+            <label>{t('funds.form.period_amount')}</label>
             <input
               type="number"
               // Chỉ dùng VND, tối thiểu 0
               min={0}
-              placeholder="Nhập số tiền mỗi kỳ"
+              placeholder={t('funds.form.period_amount_placeholder')}
               value={periodAmount}
               onChange={(e) => setPeriodAmount(e.target.value)}
             />
             <div className="funds-hint">
-              Dùng để gợi ý thời gian hoàn thành.
+              {t('funds.form.period_amount_hint')}
             </div>
             {estimateText && (
               <div className="funds-hint funds-hint--strong">
@@ -502,7 +503,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>Ngày bắt đầu <span className="req">*</span></label>
+            <label>{t('funds.form.start_date')} <span className="req">*</span></label>
             <input
               type="date"
               value={startDate}
@@ -512,15 +513,15 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
                 const today = getToday();
                 if (e.target.value && e.target.value < today) {
                   setStartDate(today);
-                  setStartDateError("Ngày bắt đầu phải từ hôm nay trở đi.");
-                  showToast("Không thể chọn ngày trong quá khứ!", "error");
+                  setStartDateError(t('funds.form.error.start_date_future'));
+                  showToast(t('funds.form.error.start_date_past'), "error");
                 }
               }}
               min={getToday()}
               style={startDateError ? { borderColor: '#ef4444', boxShadow: '0 0 0 0.2rem rgba(239, 68, 68, 0.25)' } : {}}
             />
             <div className="funds-hint" style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.25rem' }}>
-              Chỉ được chọn từ ngày hôm nay ({formatVietnamDate(new Date())}) trở đi. Không thể chọn ngày quá khứ.
+              {t('funds.form.start_date_hint', { today: formatVietnamDate(new Date()) })}
             </div>
             {startDateError && (
               <div style={{ 
@@ -541,22 +542,22 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             )}
           </div>
           <div>
-            <label>Ngày kết thúc (tự động tính)</label>
+            <label>{t('funds.form.end_date_auto')}</label>
             <input
               type="text"
-              value={calculatedEndDate ? formatVietnamDate(calculatedEndDate) : "Nhập đủ thông tin để tính toán"}
+              value={calculatedEndDate ? formatVietnamDate(calculatedEndDate) : t('funds.form.end_date_placeholder')}
               disabled
               style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
             />
             <div className="funds-hint" style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.25rem' }}>
-              Tự động tính dựa trên số tiền mục tiêu và số tiền gửi mỗi kỳ.
+              {t('funds.form.end_date_hint')}
             </div>
           </div>
         </div>
 
         {/* Chế độ nạp tiền */}
         <div className="funds-field">
-          <label>Chế độ nạp tiền</label>
+          <label>{t('funds.form.deposit_mode')}</label>
           <div
             style={{
               display: "flex",
@@ -587,7 +588,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
                 transition: "all 0.2s ease",
               }}
             >
-              Thủ công (nhắc nhở)
+              {t('funds.form.deposit_mode_manual')}
             </button>
             <button
               type="button"
@@ -607,7 +608,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
                 transition: "all 0.2s ease",
               }}
             >
-              Tự động
+              {t('funds.form.deposit_mode_auto')}
             </button>
           </div>
         </div>
@@ -645,7 +646,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             onClick={() => onSuccess && onSuccess()}
             disabled={saving}
           >
-            Hủy
+            {t('funds.form.cancel')}
           </button>
           <button
             type="button"
@@ -653,7 +654,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             onClick={handleSave}
             disabled={saving || !!startDateError || !!targetError}
           >
-            {saving ? "Đang lưu..." : "Lưu quỹ"}
+            {saving ? t('funds.form.saving') : t('funds.form.save_button')}
           </button>
         </div>
       </div>

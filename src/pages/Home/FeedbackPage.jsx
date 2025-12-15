@@ -6,10 +6,12 @@ import "../../styles/pages/FeedbackPage.css";
 import { useFeedbackData } from "../../contexts/FeedbackDataContext";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 import { useLocation } from "react-router-dom";
 
 export default function FeedbackPage() {
+  const { t } = useLanguage();
   const { reviews, addReview } = useFeedbackData();
   const { pushNotification } = useNotifications();
   const { showToast } = useToast();
@@ -40,7 +42,7 @@ export default function FeedbackPage() {
     const newReview = addReview(payload);
 
     // 2) toast cho user
-    showToast("Gửi đánh giá thành công!");
+    showToast(t("feedback.submit_success"));
 
     // 3) đóng form
     setShowForm(false);

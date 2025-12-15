@@ -13,9 +13,11 @@ import WalletDetail from "../../components/wallets/WalletDetail";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { useCategoryData } from "../../contexts/CategoryDataContext";
+import { useNotifications } from "../../contexts/NotificationContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
 import Toast from "../../components/common/Toast/Toast";
+import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
@@ -133,6 +135,56 @@ const normalizeOwnerName = (wallet) =>
 
 const normalizeOwnerEmail = (wallet) =>
   wallet.ownerEmail || wallet.ownerContact || "";
+
+// Helper functions for budget warning evaluation
+const normalizeBudgetCategoryKey = (value) => {
+  if (!value && value !== 0) return "";
+  return String(value).trim().toLowerCase();
+};
+
+const parseBudgetBoundaryDate = (value, isEnd = false) => {
+  if (!value) return null;
+  const [datePart] = value.split("T");
+  const [year, month, day] = (datePart || "").split("-");
+  const y = Number(year);
+  const m = Number(month) - 1;
+  const d = Number(day);
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return null;
+  const hours = isEnd ? 23 : 0;
+  const minutes = isEnd ? 59 : 0;
+  const seconds = isEnd ? 59 : 0;
+  const ms = isEnd ? 999 : 0;
+  return new Date(y, m, d, hours, minutes, seconds, ms);
+};
+
+const isTransactionWithinBudgetPeriod = (budget, txDate) => {
+  if (!budget) return false;
+  if (!budget.startDate && !budget.endDate) return true;
+  if (!txDate || Number.isNaN(txDate.getTime())) return false;
+  const start = parseBudgetBoundaryDate(budget.startDate, false);
+  const end = parseBudgetBoundaryDate(budget.endDate, true);
+  if (start && txDate < start) return false;
+  if (end && txDate > end) return false;
+  return true;
+};
+
+const doesBudgetMatchWallet = (budget, walletEntity, fallbackWalletName) => {
+  if (!budget) return false;
+  if (budget.walletId === null || budget.walletId === undefined) {
+    return true; // Budget áp dụng cho tất cả ví
+  }
+  const walletId = walletEntity ? (walletEntity.walletId ?? walletEntity.id) : null;
+  if (walletId !== null && walletId !== undefined) {
+    if (Number(budget.walletId) === Number(walletId)) {
+      return true;
+    }
+  }
+  const budgetWalletName = normalizeBudgetCategoryKey(budget.walletName);
+  const walletName = normalizeBudgetCategoryKey(
+    walletEntity?.name || walletEntity?.walletName || fallbackWalletName
+  );
+  return !!budgetWalletName && budgetWalletName === walletName;
+};
 
 const sortWalletsByMode = (walletList = [], sortMode = "default") => {
   const arr = [...walletList];
@@ -492,7 +544,8 @@ const getVietnamDateTime = () => {
 
 export default function WalletsPage() {
   const { t } = useLanguage();
-  const { budgets = [] } = useBudgetData();
+  const { budgets = [], refreshBudgets, getSpentForBudget } = useBudgetData();
+  const { loadNotifications } = useNotifications() || {};
   const {
     wallets = [],
     createWallet,
@@ -678,7 +731,14 @@ export default function WalletsPage() {
           wallets: [],
         });
       }
-      ownersMap.get(ownerId).wallets.push(wallet);
+      // Đảm bảo wallet có role được normalize đúng
+      const walletWithRole = {
+        ...wallet,
+        walletRole: wallet.walletRole || wallet.sharedRole || wallet.role || "",
+        sharedRole: wallet.sharedRole || wallet.walletRole || wallet.role || "",
+        role: wallet.role || wallet.walletRole || wallet.sharedRole || "",
+      };
+      ownersMap.get(ownerId).wallets.push(walletWithRole);
     });
 
     return Array.from(ownersMap.values()).map((owner) => ({
@@ -810,6 +870,10 @@ export default function WalletsPage() {
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [transactionsRefreshKey, setTransactionsRefreshKey] = useState(0);
+  
+  // Budget warning state
+  const [budgetWarning, setBudgetWarning] = useState(null);
+  const [pendingWithdraw, setPendingWithdraw] = useState(null);
 
   const showToast = (message, type = "success") =>
     setToast({ open: true, message, type });
@@ -867,14 +931,16 @@ export default function WalletsPage() {
         return { success: false, message };
       }
 
-      // Check local aggregated email set first (fast path) - only when operating on the currently selected wallet
+      // Luôn check từ server để đảm bảo dữ liệu chính xác (đặc biệt sau khi xóa thành viên)
+      // Local check chỉ là hint, không block
+      let isEmailInLocalSet = false;
       if (!overrideWalletId && selectedWalletEmailSet.has(normalized)) {
-        const message = t('wallets.error.email_already_shared');
-        showToast(message, "error");
-        return { success: false, message };
+        isEmailInLocalSet = true;
+        console.log("⚠️ Email found in local set, but will verify from server:", normalized);
       }
 
-      // As a fallback, fetch actual wallet members from server and ensure the email isn't already a member
+      // Fetch actual wallet members from server and ensure the email isn't already a member
+      // Đây là source of truth chính xác nhất
       try {
         if (walletAPI.getWalletMembers) {
           const resp = await walletAPI.getWalletMembers(walletIdToUse);
@@ -894,14 +960,27 @@ export default function WalletsPage() {
               .toLowerCase();
             if (e) memberEmails.add(e);
           }
+          
           if (memberEmails.has(normalized)) {
             const message = t('wallets.error.email_already_shared');
             showToast(message, "error");
             return { success: false, message };
           }
+          
+          // Nếu email không có trong server nhưng có trong local set, có thể local set đã stale
+          // Log để debug nhưng không block
+          if (isEmailInLocalSet && !memberEmails.has(normalized)) {
+            console.log("ℹ️ Email was in local set but not in server, local set may be stale. Proceeding with share.");
+          }
         }
       } catch (err) {
-        // If member fetch fails, continue and rely on server response for duplicate handling
+        // If member fetch fails, fall back to local check
+        if (isEmailInLocalSet) {
+          const message = t('wallets.error.email_already_shared');
+          showToast(message, "error");
+          return { success: false, message };
+        }
+        // If local check also fails, continue and rely on server response for duplicate handling
         // eslint-disable-next-line no-console
         console.debug("Could not verify existing members before share:", err);
       }
@@ -996,6 +1075,18 @@ export default function WalletsPage() {
         });
         showToast(`${t('wallets.share_success')} ${email}`);
         await loadWallets();
+        
+        // Refresh notifications để người được mời nhận thông báo ngay
+        if (loadNotifications && typeof loadNotifications === "function") {
+          try {
+            // Đợi một chút để backend đã tạo notification xong
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await loadNotifications();
+          } catch (e) {
+            console.debug("loadNotifications failed after sharing wallet", e);
+          }
+        }
+        
         try {
           logActivity({
             type: "wallet.share",
@@ -1019,6 +1110,8 @@ export default function WalletsPage() {
       loadWallets,
       showToast,
       setEditForm,
+      loadNotifications,
+      t,
     ]
   );
 
@@ -1238,6 +1331,100 @@ export default function WalletsPage() {
       return changed ? next : prev;
     });
   }, [wallets]);
+
+  // Lắng nghe event khi có thành viên bị xóa để cập nhật localSharedMap
+  // QUAN TRỌNG: Đảm bảo reload wallets khi có thành viên rời ví, bất kể phương thức đăng nhập
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const handleWalletMembersUpdated = (event) => {
+      const { walletId, removedEmail } = event.detail || {};
+      if (!walletId || !removedEmail) return;
+      
+      console.log("🔄 Updating localSharedMap after member removal:", { walletId, removedEmail });
+      setLocalSharedMap((prev) => {
+        const walletEmails = prev[walletId];
+        if (!walletEmails || !Array.isArray(walletEmails)) return prev;
+        
+        // Xóa email bị xóa khỏi localSharedMap
+        const updatedEmails = walletEmails.filter(email => 
+          email && typeof email === "string" && email.toLowerCase().trim() !== removedEmail.toLowerCase().trim()
+        );
+        
+        if (updatedEmails.length !== walletEmails.length) {
+          console.log("✅ Removed email from localSharedMap:", removedEmail);
+          const next = { ...prev };
+          if (updatedEmails.length > 0) {
+            next[walletId] = updatedEmails;
+          } else {
+            delete next[walletId];
+          }
+          return next;
+        }
+        
+        return prev;
+      });
+    };
+    
+    const handleWalletUpdated = (event) => {
+      const { walletId, removedEmail } = event.detail || {};
+      if (!walletId || !removedEmail) return;
+      
+      // Cũng xử lý walletUpdated event
+      handleWalletMembersUpdated(event);
+    };
+    
+    // QUAN TRỌNG: Lắng nghe walletMemberLeft event để force reload wallets
+    // Đảm bảo hoạt động cho cả Google OAuth và password login
+    const handleWalletMemberLeft = async (event) => {
+      const { walletIds, notifications } = event.detail || {};
+      
+      console.log("🔄 walletMemberLeft event received:", { walletIds, notifications });
+      
+      // Nếu có notification WALLET_MEMBER_REMOVED, user đã bị xóa khỏi ví
+      // Cần reload wallets để xóa ví khỏi danh sách
+      const removedNotif = notifications?.find(n => n.type === "WALLET_MEMBER_REMOVED");
+      if (removedNotif) {
+        console.log("🔄 User removed from wallet, reloading wallets...");
+        // Đợi một chút để đảm bảo backend đã xử lý xong
+        setTimeout(async () => {
+          try {
+            await loadWallets();
+            // Clear wallet selection nếu ví hiện tại bị xóa
+            if (selectedId && walletIds && walletIds.some(id => String(id) === String(selectedId))) {
+              setSelectedId(null);
+            }
+          } catch (e) {
+            console.error("Failed to reload wallets after being removed:", e);
+          }
+        }, 500);
+        return;
+      }
+      
+      // Nếu có walletIds, reload wallets để cập nhật số thành viên
+      if (walletIds && Array.isArray(walletIds) && walletIds.length > 0) {
+        console.log("🔄 Member left wallet, reloading wallets...", walletIds);
+        // Đợi một chút để đảm bảo backend đã xử lý xong
+        setTimeout(async () => {
+          try {
+            await loadWallets();
+          } catch (e) {
+            console.error("Failed to reload wallets after member left:", e);
+          }
+        }, 600);
+      }
+    };
+    
+    window.addEventListener("walletMembersUpdated", handleWalletMembersUpdated);
+    window.addEventListener("walletUpdated", handleWalletUpdated);
+    window.addEventListener("walletMemberLeft", handleWalletMemberLeft);
+    
+    return () => {
+      window.removeEventListener("walletMembersUpdated", handleWalletMembersUpdated);
+      window.removeEventListener("walletUpdated", handleWalletUpdated);
+      window.removeEventListener("walletMemberLeft", handleWalletMemberLeft);
+    };
+  }, [loadWallets, selectedId, setSelectedId]);
 
 
   // Tổng số dư: we'll compute the total in VND (used by the total card toggle)
@@ -1684,12 +1871,18 @@ export default function WalletsPage() {
       if (response?.transaction) {
         await loadWallets();
         refreshTransactions();
+        // Dispatch event để trigger reload transactions ở các component khác
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("walletUpdated", {
+            detail: { walletId: selectedWallet.id, action: "transactionCreated" }
+          }));
+        }
         showToast(t('wallets.toast.topup_success'));
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
     } catch (error) {
-      showToast(error.message || "Không thể nạp tiền", "error");
+      showToast(error.message || t("wallets.toast.topup_error"), "error");
     } finally {
       setTopupAmount("");
       setTopupNote("");
@@ -1697,14 +1890,97 @@ export default function WalletsPage() {
     }
   };
 
-  const handleSubmitWithdraw = async (e) => {
-    e.preventDefault();
+  // Evaluate budget warning before creating expense transaction
+  const evaluateBudgetWarning = useCallback((amount, categoryId, walletEntity, options = {}) => {
+    if (!amount || !categoryId || !walletEntity || !budgets || budgets.length === 0) return null;
+    
+    // Tìm category name từ categoryId
+    const category = expenseCategoryOptions.find(c => String(c.id) === String(categoryId));
+    if (!category) return null;
+    
+    const normalizedCategory = normalizeBudgetCategoryKey(category.name);
+    if (!normalizedCategory) return null;
+
+    const txDate = new Date();
+
+    // Sắp xếp budgets: ví cụ thể trước, "tất cả ví" sau
+    const orderedBudgets = [...budgets].sort((a, b) => {
+      const aGlobal = a?.walletId === null || a?.walletId === undefined;
+      const bGlobal = b?.walletId === null || b?.walletId === undefined;
+      if (aGlobal === bGlobal) return 0;
+      return aGlobal ? 1 : -1;
+    });
+
+    let alertCandidate = null;
+
+    for (const budget of orderedBudgets) {
+      if (!budget) continue;
+      if ((budget.categoryType || "expense").toLowerCase() !== "expense") continue;
+      const budgetCategory = normalizeBudgetCategoryKey(budget.categoryName);
+      if (!budgetCategory || budgetCategory !== normalizedCategory) continue;
+      if (!isTransactionWithinBudgetPeriod(budget, txDate)) continue;
+      if (!doesBudgetMatchWallet(budget, walletEntity, walletEntity?.name || walletEntity?.walletName)) continue;
+
+      const limit = Number(budget.limitAmount || budget.amountLimit || 0);
+      const amountNum = Number(amount || 0);
+      if (!limit || !amountNum) continue;
+
+      const spent = Number(getSpentForBudget ? getSpentForBudget(budget) : 0);
+      const totalAfterTx = spent + amountNum;
+      const warnPercent = Number(budget.alertPercentage ?? budget.warningThreshold ?? 80);
+      const warningAmount = limit * (warnPercent / 100);
+      const isExceeding = totalAfterTx > limit;
+      const crossesWarning = !isExceeding && spent < warningAmount && totalAfterTx >= warningAmount;
+
+      if (isExceeding || crossesWarning) {
+        const snapshot = {
+          categoryName: budget.categoryName,
+          walletName: budget.walletName || walletEntity?.name || walletEntity?.walletName || "Tất cả ví",
+          budgetLimit: limit,
+          spent,
+          transactionAmount: amountNum,
+          totalAfterTx,
+          isExceeding,
+        };
+
+        if (isExceeding) {
+          return snapshot;
+        }
+
+        if (!alertCandidate) {
+          alertCandidate = snapshot;
+        }
+      }
+    }
+
+    return alertCandidate;
+  }, [budgets, getSpentForBudget, expenseCategoryOptions]);
+
+  const handleSubmitWithdraw = async (e, options = {}) => {
+    e?.preventDefault();
     if (!selectedWallet) return;
     // Parse số tiền từ format Việt Nam (dấu chấm mỗi 3 số, dấu phẩy thập phân)
     const amountNum = getMoneyValue(withdrawAmount);
     if (!amountNum || amountNum <= 0 || !withdrawCategoryId) {
       return;
     }
+    
+    const skipBudgetCheck = options.skipBudgetCheck === true;
+    
+    // Kiểm tra cảnh báo ngân sách trước khi tạo giao dịch
+    if (!skipBudgetCheck) {
+      const warningData = evaluateBudgetWarning(amountNum, withdrawCategoryId, selectedWallet);
+      if (warningData) {
+        setPendingWithdraw({
+          amount: amountNum,
+          categoryId: withdrawCategoryId,
+          note: withdrawNote,
+        });
+        setBudgetWarning(warningData);
+        return;
+      }
+    }
+    
     try {
       const response = await transactionAPI.addExpense(
         amountNum,
@@ -1717,18 +1993,61 @@ export default function WalletsPage() {
         if (response?.transaction) {
         await loadWallets();
         refreshTransactions();
+        // Reload budgets để cập nhật spent amount sau khi tạo giao dịch chi tiêu
+        if (refreshBudgets && typeof refreshBudgets === "function") {
+          try {
+            await refreshBudgets();
+          } catch (e) {
+            console.debug("Failed to reload budgets after expense transaction:", e);
+          }
+        }
+        // Dispatch event để trigger reload transactions ở các component khác
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("walletUpdated", {
+            detail: { walletId: selectedWallet.id, action: "transactionCreated" }
+          }));
+        }
         showToast(t('wallets.toast.withdraw_success'));
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
     } catch (error) {
-      showToast(error.message || "Không thể rút tiền", "error");
+      showToast(error.message || t("wallets.toast.withdraw_error"), "error");
     } finally {
       setWithdrawAmount("");
       setWithdrawNote("");
       setWithdrawCategoryId("");
     }
   };
+  
+  // Handle budget warning confirmation (user wants to continue)
+  const handleBudgetWarningConfirm = useCallback(async () => {
+    if (!pendingWithdraw) return;
+
+    // Lưu lại dữ liệu từ pendingWithdraw
+    const { amount, categoryId, note } = pendingWithdraw;
+    
+    // Set lại form values
+    setWithdrawAmount(String(amount));
+    setWithdrawCategoryId(String(categoryId));
+    setWithdrawNote(note || "");
+    
+    // Clear warning state
+    setBudgetWarning(null);
+    setPendingWithdraw(null);
+
+    // Create the transaction anyway by calling handleSubmitWithdraw with skipBudgetCheck
+    // Sử dụng setTimeout để đảm bảo state đã được cập nhật
+    setTimeout(async () => {
+      await handleSubmitWithdraw(null, { skipBudgetCheck: true });
+    }, 100);
+  }, [pendingWithdraw]);
+
+  // Handle budget warning cancellation
+  const handleBudgetWarningCancel = useCallback(() => {
+    setBudgetWarning(null);
+    setPendingWithdraw(null);
+  }, []);
 
   const handleSubmitTransfer = async (e) => {
     e.preventDefault();
@@ -1756,6 +2075,15 @@ export default function WalletsPage() {
       });
       await loadWallets();
       refreshTransactions();
+      // Dispatch event để trigger reload transactions ở các component khác (cho cả source và target wallet)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("walletUpdated", {
+          detail: { walletId: selectedWallet.id, action: "transferCreated" }
+        }));
+        window.dispatchEvent(new CustomEvent("walletUpdated", {
+          detail: { walletId: Number(transferTargetId), action: "transferCreated" }
+        }));
+      }
       showToast(t('wallets.toast.transfer_success'));
     } catch (error) {
       showToast(error.message || t('wallets.toast.create_error'), "error");
@@ -1810,9 +2138,9 @@ export default function WalletsPage() {
 
       // Backend đã xử lý việc đặt/bỏ ví mặc định, chỉ cần hiển thị thông báo thành công
       if (payload.setTargetAsDefault) {
-        showToast(t('wallets.toast.merge_set_default') || 'Gộp ví thành công. Ví đích đã được đặt làm ví mặc định.');
+        showToast(t('wallets.toast.merge_set_default'));
       } else {
-        showToast(t('wallets.toast.merged') || 'Gộp ví thành công.');
+        showToast(t('wallets.toast.merged'));
       }
       setSelectedId(targetId);
       setActiveDetailTab("view");
@@ -1823,7 +2151,7 @@ export default function WalletsPage() {
       ) {
         showToast(t('wallets.error.merge_personal_only'), "error");
       } else {
-        showToast(error.message || "Không thể gộp ví", "error");
+        showToast(error.message || t("wallets.toast.merge_error"), "error");
       }
     } finally {
       setMergeTargetId("");
@@ -2023,6 +2351,57 @@ export default function WalletsPage() {
     const timeLabel = formatTimeLabel(dateValue) || formatVietnamDateTime(new Date()); // Fallback nếu format fail
 
       const creatorName = resolveActorName(tx);
+      
+      // Extract email của người tạo giao dịch
+      // Backend trả về email trong tx.creator.email (WalletTransactionHistoryDTO.UserInfo)
+      const resolveActorEmail = (tx) => {
+        const extractEmailFromObject = (obj) => {
+          if (!obj || typeof obj !== "object") return "";
+          return (
+            obj.email ||
+            obj.userEmail ||
+            obj.accountEmail ||
+            ""
+          );
+        };
+
+        const emailCandidates = [
+          // Ưu tiên: email từ creator object (backend trả về trong WalletTransactionHistoryDTO)
+          extractEmailFromObject(tx.creator),
+          // Các field khác
+          tx.actorEmail,
+          tx.createdByEmail,
+          tx.creatorEmail,
+          tx.userEmail,
+          tx.performedByEmail,
+          extractEmailFromObject(tx.createdByUser),
+          extractEmailFromObject(tx.creatorUser),
+          extractEmailFromObject(tx.user),
+          extractEmailFromObject(tx.performedBy),
+        ];
+
+        for (const candidate of emailCandidates) {
+          if (!candidate) continue;
+          if (typeof candidate === "string") {
+            const trimmed = candidate.trim();
+            if (trimmed.length && trimmed.includes("@")) return trimmed;
+          }
+        }
+
+        return "";
+      };
+      
+      const creatorEmail = resolveActorEmail(tx);
+      
+      // Debug: Log để kiểm tra email có được extract không
+      if (creatorEmail) {
+        console.log("✅ Extracted creator email:", creatorEmail, "from tx:", {
+          creator: tx.creator,
+          creatorEmail: tx.creator?.email,
+          user: tx.user,
+          userEmail: tx.user?.email
+        });
+      }
 
     const walletInfo = tx.wallet || {};
     const fallbackWalletName =
@@ -2069,6 +2448,7 @@ export default function WalletsPage() {
       currency,
       date: dateValue,
       creatorName,
+      creatorEmail,
       note,
       walletName,
       type: isExpense ? "expense" : "income",
@@ -2131,6 +2511,46 @@ export default function WalletsPage() {
       transfer.createdByName ||
       transfer.creatorName ||
       "";
+    
+    // Extract email của người thực hiện chuyển tiền
+    // Backend trả về email trong transfer.creator.email (WalletTransferHistoryDTO.UserInfo)
+    const resolveTransferActorEmail = (transfer) => {
+      const extractEmailFromObject = (obj) => {
+        if (!obj || typeof obj !== "object") return "";
+        return (
+          obj.email ||
+          obj.userEmail ||
+          obj.accountEmail ||
+          ""
+        );
+      };
+
+      const emailCandidates = [
+        // Ưu tiên: email từ creator object (backend trả về trong WalletTransferHistoryDTO)
+        extractEmailFromObject(transfer.creator),
+        // Các field khác
+        transfer.actorEmail,
+        transfer.createdByEmail,
+        transfer.creatorEmail,
+        transfer.userEmail,
+        extractEmailFromObject(transfer.user),
+        extractEmailFromObject(transfer.createdByUser),
+        extractEmailFromObject(transfer.creatorUser),
+      ];
+
+      for (const candidate of emailCandidates) {
+        if (!candidate) continue;
+        if (typeof candidate === "string") {
+          const trimmed = candidate.trim();
+          if (trimmed.length && trimmed.includes("@")) return trimmed;
+        }
+      }
+
+      return "";
+    };
+    
+    const actorEmail = resolveTransferActorEmail(transfer);
+    
     const transferId = transfer.transferId ?? transfer.id ?? `${walletId || "wallet"}-${dateValue}`;
 
     const currencyCandidates = [
@@ -2160,6 +2580,7 @@ export default function WalletsPage() {
       currency,
       date: dateValue,
       creatorName: actorName,
+      creatorEmail: actorEmail,
       note: transfer.note || "",
       sourceWallet: sourceName,
       targetWallet: targetName,
@@ -2259,6 +2680,63 @@ export default function WalletsPage() {
     setTransactionsRefreshKey((prev) => prev + 1);
   };
 
+  // QUAN TRỌNG: Reload transactions khi wallet balance thay đổi (có giao dịch mới)
+  const prevWalletBalanceRef = useRef(null);
+  useEffect(() => {
+    if (!selectedWallet?.id) {
+      prevWalletBalanceRef.current = null;
+      return;
+    }
+
+    const currentBalance = Number(selectedWallet.balance || selectedWallet.current || 0);
+    const prevBalance = prevWalletBalanceRef.current;
+
+    // Nếu balance thay đổi (có giao dịch mới), reload transactions
+    if (prevBalance !== null && prevBalance !== currentBalance) {
+      console.log("🔄 Wallet balance changed from", prevBalance, "to", currentBalance, "- reloading transactions...");
+      // Delay một chút để đảm bảo backend đã xử lý xong giao dịch
+      setTimeout(() => {
+        refreshTransactions();
+      }, 500);
+    }
+
+    prevWalletBalanceRef.current = currentBalance;
+  }, [selectedWallet?.id, selectedWallet?.balance, selectedWallet?.current]);
+
+  // TẮT polling - chỉ reload khi có thay đổi thực sự (balance thay đổi, event walletUpdated)
+  // Đảm bảo lịch sử giao dịch được cập nhật khi có thành viên khác nạp/rút thông qua balance change và events
+  // useEffect(() => {
+  //   if (!selectedWallet?.id) return;
+  //
+  //   // Polling mỗi 5 giây để reload transactions
+  //   const interval = setInterval(() => {
+  //     refreshTransactions();
+  //   }, 5000); // 5 giây
+  //
+  //   return () => clearInterval(interval);
+  // }, [selectedWallet?.id]);
+
+  // QUAN TRỌNG: Listen event walletUpdated để reload transactions khi có thay đổi
+  useEffect(() => {
+    if (!selectedWallet?.id) return;
+
+    const handleWalletUpdated = (event) => {
+      const { walletId } = event.detail || {};
+      if (walletId && String(walletId) === String(selectedWallet.id)) {
+        console.log("🔄 Wallet updated event received, reloading transactions...");
+        // Delay một chút để đảm bảo backend đã xử lý xong
+        setTimeout(() => {
+          refreshTransactions();
+        }, 500);
+      }
+    };
+
+    window.addEventListener("walletUpdated", handleWalletUpdated);
+    return () => {
+      window.removeEventListener("walletUpdated", handleWalletUpdated);
+    };
+  }, [selectedWallet?.id]);
+
   return (
   <div className="wallets-page tx-page container-fluid py-4">
     <div className="tx-page-inner">
@@ -2293,11 +2771,11 @@ export default function WalletsPage() {
           </div>
           <div className="budget-metric-value">{formatMoney(totalDisplayedValue, "VND")}</div>
           <div id="tooltip-total" role="tooltip" className="budget-metric-tooltip">
-            <strong>Tổng số dư</strong>
+            <strong>{t('wallets.tooltip.total_balance.title')}</strong>
             <div className="budget-metric-tooltip__body">
-              Tổng số dư của tất cả ví của bạn (không bao gồm các ví bạn chỉ có quyền xem). Giá trị đã được quy đổi về tiền hiển thị để dễ so sánh.
+              {t('wallets.tooltip.total_balance.body')}
             </div>
-            <div className="budget-metric-tooltip__meta">Ví tính: {wallets.length} • Cập nhật gần nhất: ngay bây giờ</div>
+            <div className="budget-metric-tooltip__meta">{t('wallets.tooltip.total_balance.meta', { count: wallets.length })}</div>
           </div>
         </div>
 
@@ -2305,9 +2783,9 @@ export default function WalletsPage() {
           <div className="budget-metric-label">{t('wallets.metric.personal_balance')}</div>
           <div className="budget-metric-value">{formatMoney(personalDisplayedValue, "VND")}</div>
           <div id="tooltip-personal" role="tooltip" className="budget-metric-tooltip">
-            <strong>Ví cá nhân</strong>
-            <div className="budget-metric-tooltip__body">Tổng số dư của các ví cá nhân (ví thuộc sở hữu và quản lý trực tiếp bởi bạn).</div>
-            <div className="budget-metric-tooltip__meta">Số ví: {personalWallets.length}</div>
+            <strong>{t('wallets.tooltip.personal.title')}</strong>
+            <div className="budget-metric-tooltip__body">{t('wallets.tooltip.personal.body')}</div>
+            <div className="budget-metric-tooltip__meta">{t('wallets.tooltip.personal.meta', { count: personalWallets.length })}</div>
           </div>
         </div>
 
@@ -2315,9 +2793,9 @@ export default function WalletsPage() {
           <div className="budget-metric-label">{t('wallets.metric.group_balance')}</div>
           <div className="budget-metric-value">{formatMoney(groupDisplayedValue, "VND")}</div>
           <div id="tooltip-group" role="tooltip" className="budget-metric-tooltip">
-            <strong>Ví nhóm</strong>
-            <div className="budget-metric-tooltip__body">Tổng số dư của các ví nhóm mà bạn sở hữu hoặc tham gia quản lý. Bao gồm các ví bạn đã chia sẻ cho nhóm.</div>
-            <div className="budget-metric-tooltip__meta">Số ví nhóm: {groupWallets.length}</div>
+            <strong>{t('wallets.tooltip.group.title')}</strong>
+            <div className="budget-metric-tooltip__body">{t('wallets.tooltip.group.body')}</div>
+            <div className="budget-metric-tooltip__meta">{t('wallets.tooltip.group.meta', { count: groupWallets.length })}</div>
           </div>
         </div>
 
@@ -2325,9 +2803,9 @@ export default function WalletsPage() {
           <div className="budget-metric-label">{t('wallets.metric.shared_with_me_balance')}</div>
           <div className="budget-metric-value">{formatMoney(sharedWithMeDisplayedValue, "VND")}</div>
           <div id="tooltip-shared-with-me" role="tooltip" className="budget-metric-tooltip">
-            <strong>Được chia sẻ cho tôi</strong>
-            <div className="budget-metric-tooltip__body">Tổng số dư các ví mà người khác chia sẻ cho bạn — bạn có thể xem hoặc thao tác theo quyền được cấp.</div>
-            <div className="budget-metric-tooltip__meta">Số ví: {sharedWithMeDisplayWallets.length}</div>
+            <strong>{t('wallets.tooltip.shared_with_me.title')}</strong>
+            <div className="budget-metric-tooltip__body">{t('wallets.tooltip.shared_with_me.body')}</div>
+            <div className="budget-metric-tooltip__meta">{t('wallets.tooltip.shared_with_me.meta', { count: sharedWithMeDisplayWallets.length })}</div>
           </div>
         </div>
 
@@ -2337,6 +2815,7 @@ export default function WalletsPage() {
       {/* MAIN LAYOUT */}
       <div className="wallets-layout">
         <WalletList
+          key={`wallet-list-${wallets.length}-${wallets.map(w => `${w.id}:${(w.walletRole || w.sharedRole || w.role || '').toString().toUpperCase()}`).join('|')}`}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           personalCount={personalWallets.length}
@@ -2448,6 +2927,19 @@ export default function WalletsPage() {
         type={toast.type}
         duration={2500}
         onClose={closeToast}
+      />
+
+      <BudgetWarningModal
+        open={!!budgetWarning}
+        categoryName={budgetWarning?.categoryName}
+        walletName={budgetWarning?.walletName}
+        budgetLimit={budgetWarning?.budgetLimit || 0}
+        spent={budgetWarning?.spent || 0}
+        transactionAmount={budgetWarning?.transactionAmount || 0}
+        totalAfterTx={budgetWarning?.totalAfterTx || 0}
+        isExceeding={budgetWarning?.isExceeding || false}
+        onConfirm={handleBudgetWarningConfirm}
+        onCancel={handleBudgetWarningCancel}
       />
 
       {demoNavigationState.visible && (

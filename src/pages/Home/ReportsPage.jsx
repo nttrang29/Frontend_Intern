@@ -661,7 +661,7 @@ export default function ReportsPage() {
     // Create a new window for printing
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      alert(t("reports.export_pdf_error") || "Không thể mở cửa sổ in. Vui lòng kiểm tra trình chặn popup.");
+      alert(t("reports.export_pdf_error"));
       return;
     }
 
@@ -1762,7 +1762,7 @@ export default function ReportsPage() {
                         <div className="reports-pagination-wrapper">
                           <div className="reports-pagination">
                             <span className="text-muted small">
-                              Trang {currentPage}/{totalPages}
+                              {t('common.pagination.page', { current: currentPage, total: totalPages })}
                             </span>
                             <div className="tx-pagination">
                               <button

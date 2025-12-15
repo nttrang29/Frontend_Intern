@@ -84,9 +84,145 @@ export function WalletDataProvider({ children }) {
     };
     window.addEventListener("storage", handleStorageChange);
 
+    // Lắng nghe event khi có notification wallet mới để tự động reload wallets
+    const handleWalletNotification = () => {
+      // Đợi một chút để đảm bảo backend đã xử lý xong
+      setTimeout(() => {
+        loadWalletsIfToken();
+      }, 500);
+    };
+    window.addEventListener("walletNotificationReceived", handleWalletNotification);
+
+    // Lắng nghe event khi wallet được cập nhật (share, update role, etc.)
+    const handleWalletUpdated = (event) => {
+      const { walletId, removedEmail } = event.detail || {};
+      
+      // Nếu có email bị xóa, cập nhật sharedEmails trong wallet state ngay lập tức
+      if (walletId && removedEmail) {
+        setWallets(prev => {
+          return prev.map(w => {
+            if (String(w.id) === String(walletId)) {
+              // Xóa email khỏi sharedEmails
+              const updatedSharedEmails = Array.isArray(w.sharedEmails) 
+                ? w.sharedEmails.filter(email => 
+                    email && typeof email === "string" && 
+                    email.toLowerCase().trim() !== removedEmail.toLowerCase().trim()
+                  )
+                : [];
+              
+              console.log("🔄 Updating wallet sharedEmails after wallet updated:", {
+                walletId,
+                removedEmail,
+                oldSharedEmails: w.sharedEmails,
+                newSharedEmails: updatedSharedEmails
+              });
+              
+              return {
+                ...w,
+                sharedEmails: updatedSharedEmails
+              };
+            }
+            return w;
+          });
+        });
+      }
+      
+      // Reload wallets ngay lập tức khi có thay đổi
+      setTimeout(() => {
+        loadWalletsIfToken();
+      }, 300);
+    };
+    window.addEventListener("walletUpdated", handleWalletUpdated);
+
+    // Lắng nghe event khi có thành viên rời khỏi ví
+    const handleWalletMemberLeft = (event) => {
+      const { walletIds, removedEmail } = event.detail || {};
+      
+      // Nếu có email bị xóa, cập nhật sharedEmails trong wallet state ngay lập tức
+      if (walletIds && Array.isArray(walletIds) && walletIds.length > 0 && removedEmail) {
+        setWallets(prev => {
+          return prev.map(w => {
+            if (walletIds.some(id => String(id) === String(w.id))) {
+              // Xóa email khỏi sharedEmails
+              const updatedSharedEmails = Array.isArray(w.sharedEmails) 
+                ? w.sharedEmails.filter(email => 
+                    email && typeof email === "string" && 
+                    email.toLowerCase().trim() !== removedEmail.toLowerCase().trim()
+                  )
+                : [];
+              
+              console.log("🔄 Updating wallet sharedEmails after member left:", {
+                walletId: w.id,
+                removedEmail,
+                oldSharedEmails: w.sharedEmails,
+                newSharedEmails: updatedSharedEmails
+              });
+              
+              return {
+                ...w,
+                sharedEmails: updatedSharedEmails
+              };
+            }
+            return w;
+          });
+        });
+      }
+      
+      // Reload wallets để cập nhật số thành viên và danh sách ví
+      setTimeout(() => {
+        loadWalletsIfToken();
+      }, 500);
+    };
+    window.addEventListener("walletMemberLeft", handleWalletMemberLeft);
+
+    // Lắng nghe event khi danh sách thành viên được cập nhật
+    const handleWalletMembersUpdated = (event) => {
+      const { walletId, removedEmail } = event.detail || {};
+      
+      // Nếu có email bị xóa, cập nhật sharedEmails trong wallet state ngay lập tức
+      if (walletId && removedEmail) {
+        setWallets(prev => {
+          return prev.map(w => {
+            if (String(w.id) === String(walletId)) {
+              // Xóa email khỏi sharedEmails
+              const updatedSharedEmails = Array.isArray(w.sharedEmails) 
+                ? w.sharedEmails.filter(email => 
+                    email && typeof email === "string" && 
+                    email.toLowerCase().trim() !== removedEmail.toLowerCase().trim()
+                  )
+                : [];
+              
+              console.log("🔄 Updating wallet sharedEmails after member removal:", {
+                walletId,
+                removedEmail,
+                oldSharedEmails: w.sharedEmails,
+                newSharedEmails: updatedSharedEmails
+              });
+              
+              return {
+                ...w,
+                sharedEmails: updatedSharedEmails
+              };
+            }
+            return w;
+          });
+        });
+      }
+      
+      // Reload wallets để cập nhật số thành viên
+      setTimeout(() => {
+        loadWalletsIfToken();
+      }, 300);
+    };
+    window.addEventListener("walletMembersUpdated", handleWalletMembersUpdated);
+
     return () => {
       window.removeEventListener("userChanged", handleUserChange);
       window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("walletNotificationReceived", handleWalletNotification);
+      window.removeEventListener("walletUpdated", handleWalletUpdated);
+      window.removeEventListener("walletMemberLeft", handleWalletMemberLeft);
+      window.removeEventListener("walletMembersUpdated", handleWalletMembersUpdated);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -172,6 +308,7 @@ export function WalletDataProvider({ children }) {
       groupId: apiWallet.groupId || null,
       ownerUserId: apiWallet.ownerId || apiWallet.ownerUserId || apiWallet.createdBy || existingWallet?.ownerUserId || null,
       ownerName: apiWallet.ownerName || apiWallet.ownerFullName || existingWallet?.ownerName || "",
+      ownerEmail: apiWallet.ownerEmail || existingWallet?.ownerEmail || "",
       walletRole: enforcedRole || (apiWallet.walletRole || apiWallet.role || apiWallet.accessRole || existingWallet?.walletRole || null),
       sharedRole: enforcedRole || (apiWallet.sharedRole || existingWallet?.sharedRole || null),
       sharedEmails: resolvedSharedEmails,
@@ -222,8 +359,21 @@ export function WalletDataProvider({ children }) {
           const hasChanged = normalizedWallets.some(newWallet => {
             const oldWallet = prevFiltered.find(w => w.id === newWallet.id);
             if (!oldWallet) return true;
-            // So sánh các key properties, bao gồm transactionCount
-            return oldWallet.name !== newWallet.name ||
+            
+            // Normalize role để so sánh (chuyển về uppercase và loại bỏ khoảng trắng)
+            const normalizeRole = (role) => {
+              if (!role) return "";
+              return String(role).toUpperCase().trim();
+            };
+            
+            const oldRole = normalizeRole(oldWallet.walletRole || oldWallet.sharedRole || oldWallet.role);
+            const newRole = normalizeRole(newWallet.walletRole || newWallet.sharedRole || newWallet.role);
+            
+            // So sánh các key properties, bao gồm transactionCount, role, sharedEmails và membersCount
+            const oldSharedEmails = Array.isArray(oldWallet.sharedEmails) ? oldWallet.sharedEmails.sort().join(',') : '';
+            const newSharedEmails = Array.isArray(newWallet.sharedEmails) ? newWallet.sharedEmails.sort().join(',') : '';
+            
+            const changed = oldWallet.name !== newWallet.name ||
                    oldWallet.walletName !== newWallet.walletName ||
                    oldWallet.balance !== newWallet.balance ||
                    oldWallet.currency !== newWallet.currency ||
@@ -231,10 +381,35 @@ export function WalletDataProvider({ children }) {
                    oldWallet.isDefault !== newWallet.isDefault ||
                    oldWallet.isShared !== newWallet.isShared ||
                    oldWallet.transactionCount !== newWallet.transactionCount ||
-                   oldWallet.txCount !== newWallet.txCount;
+                   oldWallet.txCount !== newWallet.txCount ||
+                   oldWallet.membersCount !== newWallet.membersCount ||
+                   oldSharedEmails !== newSharedEmails ||
+                   oldRole !== newRole; // So sánh role đã normalize
+            
+            // Log thay đổi để debug
+            if (changed) {
+              console.log("🔄 Wallet changed:", {
+                walletId: newWallet.id,
+                walletName: newWallet.name,
+                changes: {
+                  name: oldWallet.name !== newWallet.name,
+                  balance: oldWallet.balance !== newWallet.balance,
+                  membersCount: oldWallet.membersCount !== newWallet.membersCount,
+                  sharedEmails: oldSharedEmails !== newSharedEmails,
+                  role: oldRole !== newRole
+                },
+                oldMembersCount: oldWallet.membersCount,
+                newMembersCount: newWallet.membersCount,
+                oldSharedEmails: oldSharedEmails,
+                newSharedEmails: newSharedEmails
+              });
+            }
+            
+            return changed;
           });
           
           // Đảm bảo không có ví nào bị xóa trong result
+          // Luôn return normalizedWallets nếu có thay đổi để trigger re-render
           return hasChanged ? normalizedWallets : prevFiltered;
         });
         
