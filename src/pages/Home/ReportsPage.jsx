@@ -15,6 +15,7 @@ import { walletAPI } from "../../services";
 import { getFundTransactions } from "../../services/fund.service";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
+import BudgetDetailModal from "../../components/budgets/BudgetDetailModal";
 
 const RANGE_OPTIONS = [
   { value: "day", label: "Ngày" },
@@ -432,6 +433,115 @@ const FundProgressDonut = ({ progress = 0 }) => {
   );
 };
 
+// Budget Status Donut Chart Component
+const BudgetStatusDonut = ({ data = [] }) => {
+  const radius = 80;
+  const stroke = 12;
+  const normalizedRadius = radius - stroke / 2;
+  const circumference = 2 * Math.PI * normalizedRadius;
+  
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  
+  if (total === 0) {
+    return (
+      <div className="budget-status-donut-empty">
+        <p className="text-muted">Chưa có dữ liệu</p>
+      </div>
+    );
+  }
+  
+  let currentAngle = -90; // Start at top
+  const slices = data.map((item, index) => {
+    const angle = (item.value / total) * 360;
+    const start = currentAngle;
+    const end = currentAngle + angle;
+    currentAngle = end;
+    
+    const startAngleRad = (start * Math.PI) / 180;
+    const endAngleRad = (end * Math.PI) / 180;
+    const largeArcFlag = angle > 180 ? 1 : 0;
+    
+    const x1 = radius + normalizedRadius * Math.cos(startAngleRad);
+    const y1 = radius + normalizedRadius * Math.sin(startAngleRad);
+    const x2 = radius + normalizedRadius * Math.cos(endAngleRad);
+    const y2 = radius + normalizedRadius * Math.sin(endAngleRad);
+    
+    const pathData = [
+      `M ${radius} ${radius}`,
+      `L ${x1} ${y1}`,
+      `A ${normalizedRadius} ${normalizedRadius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+      'Z'
+    ].join(' ');
+    
+    return {
+      ...item,
+      pathData,
+      percentage: (item.value / total) * 100
+    };
+  });
+  
+  return (
+    <div className="budget-status-donut">
+      <svg
+        width={radius * 2}
+        height={radius * 2}
+        viewBox={`0 0 ${radius * 2} ${radius * 2}`}
+        className="budget-status-donut-svg"
+      >
+        {slices.map((slice, index) => (
+          <path
+            key={index}
+            d={slice.pathData}
+            fill={slice.color}
+            stroke="#fff"
+            strokeWidth="2"
+          />
+        ))}
+        <circle
+          cx={radius}
+          cy={radius}
+          r={normalizedRadius - stroke}
+          fill="#fff"
+        />
+        <text
+          x={radius}
+          y={radius - 8}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="budget-status-donut-total"
+          fontSize="20"
+          fontWeight="700"
+        >
+          {total}
+        </text>
+        <text
+          x={radius}
+          y={radius + 12}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="budget-status-donut-label"
+          fontSize="12"
+          fill="#64748b"
+        >
+          ngân sách
+        </text>
+      </svg>
+      <div className="budget-status-donut-legend">
+        {data.map((item, index) => (
+          <div key={index} className="budget-status-donut-legend-item">
+            <span
+              className="budget-status-donut-legend-color"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="budget-status-donut-legend-label">{item.label}</span>
+            <span className="budget-status-donut-legend-value">{item.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 
 export default function ReportsPage() {
   const { formatCurrency } = useCurrency();
@@ -464,6 +574,13 @@ export default function ReportsPage() {
   const [fundHistoryLoading, setFundHistoryLoading] = useState(false);
   const [fundHistoryError, setFundHistoryError] = useState(false);
   const [chartTooltip, setChartTooltip] = useState({ show: false, x: 0, y: 0, data: null });
+  // Budget filters
+  const [budgetWalletFilter, setBudgetWalletFilter] = useState("all");
+  const [budgetTimeFilter, setBudgetTimeFilter] = useState("this_month");
+  const [budgetStatusFilter, setBudgetStatusFilter] = useState("all");
+  const [budgetCategoryFilter, setBudgetCategoryFilter] = useState("all");
+  const [selectedBudgetId, setSelectedBudgetId] = useState(null);
+  const [showBudgetDetailModal, setShowBudgetDetailModal] = useState(false);
 
   const formatDateSafe = useCallback(
     (value) => {
@@ -1335,6 +1452,171 @@ export default function ReportsPage() {
       okCount,
     };
   }, [budgetUsageList, budgets.length]);
+
+  // Filter budgets based on filters
+  const filteredBudgetUsageList = useMemo(() => {
+    let filtered = [...budgetUsageList];
+    
+    // Filter by wallet
+    if (budgetWalletFilter !== "all") {
+      filtered = filtered.filter((budget) => {
+        const walletName = budget.walletName || "";
+        const allWalletsLabel = t("wallets.all") || "Tất cả ví";
+        if (budgetWalletFilter === "all_wallets" || walletName === allWalletsLabel || walletName === "Tất cả ví") {
+          return walletName === allWalletsLabel || walletName === "Tất cả ví";
+        }
+        return String(walletName) === String(budgetWalletFilter);
+      });
+    }
+    
+    // Filter by status
+    if (budgetStatusFilter !== "all") {
+      filtered = filtered.filter((budget) => budget.status === budgetStatusFilter);
+    }
+    
+    // Filter by category
+    if (budgetCategoryFilter !== "all") {
+      filtered = filtered.filter((budget) => budget.categoryName === budgetCategoryFilter);
+    }
+    
+    return filtered;
+  }, [budgetUsageList, budgetWalletFilter, budgetStatusFilter, budgetCategoryFilter, t]);
+
+  // Budget status distribution for donut chart
+  const budgetStatusDistribution = useMemo(() => {
+    const okCount = filteredBudgetUsageList.filter((b) => b.status === "ok").length;
+    const warningCount = filteredBudgetUsageList.filter((b) => b.status === "warning").length;
+    const exceededCount = filteredBudgetUsageList.filter((b) => b.status === "exceeded").length;
+    
+    return [
+      { label: t("reports.budgets.status.ok"), value: okCount, color: "#10b981" },
+      { label: t("reports.budgets.status.warning"), value: warningCount, color: "#f59e0b" },
+      { label: t("reports.budgets.status.exceeded"), value: exceededCount, color: "#ef4444" },
+    ].filter((item) => item.value > 0);
+  }, [filteredBudgetUsageList, t]);
+
+  // Top 3 dangerous budgets
+  const topDangerousBudgets = useMemo(() => {
+    return filteredBudgetUsageList
+      .sort((a, b) => b.usage - a.usage)
+      .slice(0, 3)
+      .map((budget) => ({
+        ...budget,
+        remaining: Math.max(0, budget.limit - budget.spent),
+        exceeded: Math.max(0, budget.spent - budget.limit),
+      }));
+  }, [filteredBudgetUsageList]);
+
+  // Time comparison data (this period vs last period)
+  const timeComparisonData = useMemo(() => {
+    const now = new Date();
+    let thisPeriodStart, thisPeriodEnd, lastPeriodStart, lastPeriodEnd;
+    
+    if (budgetTimeFilter === "this_month" || budgetTimeFilter === "last_month") {
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      
+      if (budgetTimeFilter === "this_month") {
+        thisPeriodStart = new Date(year, month, 1);
+        thisPeriodEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+        lastPeriodStart = new Date(year, month - 1, 1);
+        lastPeriodEnd = new Date(year, month, 0, 23, 59, 59, 999);
+      } else {
+        thisPeriodStart = new Date(year, month - 1, 1);
+        thisPeriodEnd = new Date(year, month, 0, 23, 59, 59, 999);
+        lastPeriodStart = new Date(year, month - 2, 1);
+        lastPeriodEnd = new Date(year, month - 1, 0, 23, 59, 59, 999);
+      }
+    } else {
+      // Week comparison
+      const dayOfWeek = now.getDay() || 7;
+      const monday = addDays(now, 1 - dayOfWeek);
+      
+      if (budgetTimeFilter === "this_week") {
+        thisPeriodStart = new Date(monday);
+        thisPeriodEnd = addDays(monday, 6);
+        thisPeriodEnd.setHours(23, 59, 59, 999);
+        lastPeriodStart = addDays(monday, -7);
+        lastPeriodEnd = addDays(monday, -1);
+        lastPeriodEnd.setHours(23, 59, 59, 999);
+      } else {
+        thisPeriodStart = addDays(monday, -7);
+        thisPeriodEnd = addDays(monday, -1);
+        thisPeriodEnd.setHours(23, 59, 59, 999);
+        lastPeriodStart = addDays(monday, -14);
+        lastPeriodEnd = addDays(monday, -8);
+        lastPeriodEnd.setHours(23, 59, 59, 999);
+      }
+    }
+    
+    // Calculate spending for each budget in both periods
+    const thisPeriodSpent = filteredBudgetUsageList.reduce((sum, budget) => {
+      // Filter transactions for this period
+      const spent = getSpentForBudget({
+        ...budget,
+        startDate: thisPeriodStart.toISOString().split('T')[0],
+        endDate: thisPeriodEnd.toISOString().split('T')[0],
+      });
+      return sum + spent;
+    }, 0);
+    
+    const lastPeriodSpent = filteredBudgetUsageList.reduce((sum, budget) => {
+      const spent = getSpentForBudget({
+        ...budget,
+        startDate: lastPeriodStart.toISOString().split('T')[0],
+        endDate: lastPeriodEnd.toISOString().split('T')[0],
+      });
+      return sum + spent;
+    }, 0);
+    
+    const percentChange = lastPeriodSpent > 0 
+      ? ((thisPeriodSpent - lastPeriodSpent) / lastPeriodSpent) * 100 
+      : 0;
+    
+    return {
+      thisPeriod: thisPeriodSpent,
+      lastPeriod: lastPeriodSpent,
+      percentChange,
+      thisPeriodStart,
+      thisPeriodEnd,
+      lastPeriodStart,
+      lastPeriodEnd,
+    };
+  }, [filteredBudgetUsageList, budgetTimeFilter, getSpentForBudget]);
+
+  // Smart suggestions
+  const budgetSuggestions = useMemo(() => {
+    const suggestions = [];
+    
+    // Check for budgets that are frequently exceeded at end of period
+    const exceededBudgets = filteredBudgetUsageList.filter((b) => b.status === "exceeded");
+    if (exceededBudgets.length > 0) {
+      const exceededPercent = (exceededBudgets.length / filteredBudgetUsageList.length) * 100;
+      if (exceededPercent >= 70) {
+        suggestions.push({
+          type: "end_period",
+          message: t("reports.budgets.suggestions.end_period", { percent: Math.round(exceededPercent) }),
+        });
+      }
+    }
+    
+    // Check for budgets that need limit increase
+    const warningBudgets = filteredBudgetUsageList.filter((b) => b.status === "warning");
+    warningBudgets.forEach((budget) => {
+      if (budget.usage >= 95) {
+        const suggestedIncrease = Math.round((budget.spent / budget.limit) * 100) - 100 + 10;
+        suggestions.push({
+          type: "increase_limit",
+          message: t("reports.budgets.suggestions.increase_limit", {
+            category: budget.categoryName,
+            percent: suggestedIncrease,
+          }),
+        });
+      }
+    });
+    
+    return suggestions.slice(0, 3); // Limit to 3 suggestions
+  }, [filteredBudgetUsageList, t]);
 
   const handleViewHistory = useCallback(() => {
     if (!selectedWalletId) return;
@@ -2414,87 +2696,402 @@ export default function ReportsPage() {
           </div>
         )}
         {activeReportTab === "budgets" && (
-          <div className="reports-single-card card border-0 shadow-sm">
-            <div className="card-body">
-              <div className="reports-section-header">
-                <div>
-                  <h5 className="mb-1">{t("reports.budgets.section_title")}</h5>
-                  <p className="text-muted mb-0 small">{t("reports.budgets.section_subtitle")}</p>
-                </div>
-                <span className="badge rounded-pill text-bg-light">{budgetSummary.total}</span>
-              </div>
-              <div className="reports-section-summary">
-                <div>
-                  <p className="reports-section-label">{t("reports.budgets.total_limit")}</p>
-                  <h4 className="mb-0">{formatCurrency(budgetSummary.totalLimit)}</h4>
-                </div>
-                <div>
-                  <p className="reports-section-label">{t("reports.budgets.total_spent")}</p>
-                  <h4 className="mb-0">{formatCurrency(budgetSummary.totalSpent)}</h4>
-                </div>
-                <div>
-                  <p className="reports-section-label">{t("reports.budgets.utilization")}</p>
-                  <h4 className="mb-0">{Math.round(budgetSummary.utilization)}%</h4>
+          <div className="budget-reports-container">
+            {/* Khối 1: Tổng quan ngân sách (mở rộng) - Đặt trên filters */}
+            <div className="row g-3 mb-4">
+              <div className="col-xl col-md-6 col-sm-6">
+                <div className="card border-0 shadow-sm budget-overview-card budget-overview-card--blue">
+                  <div className="card-body">
+                    <p className="budget-overview-label">{t("reports.budgets.overview.total_budgets")}</p>
+                    <h3 className="budget-overview-value">{budgetSummary.total}</h3>
+                    <small className="text-muted">{t("reports.budgets.total_limit")}: {formatCurrency(budgetSummary.totalLimit)}</small>
+                  </div>
                 </div>
               </div>
-              <div className="reports-status-tags">
-                <span className="reports-status-chip success">
-                  {t("reports.budgets.status.ok")}: <strong>{budgetSummary.okCount}</strong>
-                </span>
-                <span className="reports-status-chip warning">
-                  {t("reports.budgets.status.warning")}: <strong>{budgetSummary.warningCount}</strong>
-                </span>
-                <span className="reports-status-chip danger">
-                  {t("reports.budgets.status.exceeded")}: <strong>{budgetSummary.exceededCount}</strong>
-                </span>
+              <div className="col-xl col-md-6 col-sm-6">
+                <div className="card border-0 shadow-sm budget-overview-card budget-overview-card--primary">
+                  <div className="card-body">
+                    <p className="budget-overview-label">{t("reports.budgets.overview.total_spent")}</p>
+                    <h3 className="budget-overview-value">{formatCurrency(budgetSummary.totalSpent)}</h3>
+                    <small className="text-muted">{t("reports.budgets.overview.usage_percent")}: {Math.round(budgetSummary.utilization)}%</small>
+                  </div>
+                </div>
               </div>
-              <div className="reports-section-list">
-                {budgetsLoading ? (
-                  <div className="text-center text-muted small py-3">{t("reports.budgets.loading")}</div>
-                ) : topBudgetUsage.length === 0 ? (
-                  <div className="text-center text-muted small py-3">{t("reports.budgets.no_data")}</div>
-                ) : (
-                  topBudgetUsage.map((budget) => {
-                    const periodStart = formatDateSafe(budget.startDate);
-                    const periodEnd = formatDateSafe(budget.endDate);
-                    return (
-                      <div className="reports-mini-row" key={budget.id}>
-                        <div className="reports-mini-title">
-                          <div>
-                            <p className="mb-0">{budget.categoryName}</p>
-                            {budget.walletName && (
-                              <span className="reports-mini-subtitle">{budget.walletName}</span>
-                            )}
-                          </div>
-                          <span className={`reports-status-badge status-${budget.status}`}>
-                            {t(`reports.budgets.status.${budget.status}`)}
-                          </span>
-                        </div>
-                        <div className="reports-mini-progress">
-                          <div className="reports-mini-progress-bar">
-                            <span
-                              className={`progress-fill status-${budget.status}`}
-                              style={{ width: `${Math.min(budget.usage, 100)}%` }}
-                            />
-                          </div>
-                          <div className="reports-mini-stats">
-                            <span>{formatCurrency(budget.spent)}</span>
-                            <span>{formatCurrency(budget.limit)}</span>
-                          </div>
-                        </div>
-                        {periodStart && periodEnd && (
-                          <div className="reports-mini-meta">
-                            {t("reports.budgets.period")}: {periodStart} - {periodEnd}
-                          </div>
-                        )}
+              <div className="col-xl col-md-6 col-sm-6">
+                <div className="card border-0 shadow-sm budget-overview-card budget-overview-card--green">
+                  <div className="card-body">
+                    <p className="budget-overview-label">{t("reports.budgets.overview.safe_count")}</p>
+                    <h3 className="budget-overview-value">{budgetSummary.okCount}</h3>
+                    <small className="text-muted">&lt; 80%</small>
+                  </div>
+                </div>
+              </div>
+              <div className="col-xl col-md-6 col-sm-6">
+                <div className="card border-0 shadow-sm budget-overview-card budget-overview-card--yellow">
+                  <div className="card-body">
+                    <p className="budget-overview-label">{t("reports.budgets.overview.warning_count")}</p>
+                    <h3 className="budget-overview-value">{budgetSummary.warningCount}</h3>
+                    <small className="text-muted">80-100%</small>
+                  </div>
+                </div>
+              </div>
+              <div className="col-xl col-md-6 col-sm-6">
+                <div className="card border-0 shadow-sm budget-overview-card budget-overview-card--red">
+                  <div className="card-body">
+                    <p className="budget-overview-label">{t("reports.budgets.overview.exceeded_count")}</p>
+                    <h3 className="budget-overview-value">{budgetSummary.exceededCount}</h3>
+                    <small className="text-muted">&gt; 100%</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Khối 8: Filter & điều khiển - Bỏ tiêu đề */}
+            <div className="card border-0 shadow-sm mb-4">
+              <div className="card-body">
+                <div className="row g-3">
+                  <div className="col-md-3">
+                    <select
+                      className="form-select"
+                      value={budgetWalletFilter}
+                      onChange={(e) => setBudgetWalletFilter(e.target.value)}
+                    >
+                      <option value="all">{t("reports.budgets.filters.all_wallets")}</option>
+                      {wallets.map((wallet) => (
+                        <option key={wallet.id} value={wallet.name}>
+                          {wallet.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-3">
+                    <select
+                      className="form-select"
+                      value={budgetTimeFilter}
+                      onChange={(e) => setBudgetTimeFilter(e.target.value)}
+                    >
+                      <option value="this_month">{t("reports.budgets.time_period.this_month")}</option>
+                      <option value="last_month">{t("reports.budgets.time_period.last_month")}</option>
+                      <option value="this_week">{t("reports.budgets.time_period.this_week")}</option>
+                      <option value="last_week">{t("reports.budgets.time_period.last_week")}</option>
+                    </select>
+                  </div>
+                  <div className="col-md-3">
+                    <select
+                      className="form-select"
+                      value={budgetStatusFilter}
+                      onChange={(e) => setBudgetStatusFilter(e.target.value)}
+                    >
+                      <option value="all">{t("reports.budgets.filters.all_status")}</option>
+                      <option value="ok">{t("reports.budgets.status.ok")}</option>
+                      <option value="warning">{t("reports.budgets.status.warning")}</option>
+                      <option value="exceeded">{t("reports.budgets.status.exceeded")}</option>
+                    </select>
+                  </div>
+                  <div className="col-md-3">
+                    <select
+                      className="form-select"
+                      value={budgetCategoryFilter}
+                      onChange={(e) => setBudgetCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">{t("reports.budgets.filters.all_categories")}</option>
+                      {Array.from(new Set(budgetUsageList.map((b) => b.categoryName))).map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Khối 2: Phân tích trạng thái ngân sách */}
+            <div className="row g-4 mb-4">
+              <div className="col-lg-6">
+                <div className="card border-0 shadow-sm">
+                  <div className="card-body">
+                    <h5 className="mb-2">{t("reports.budgets.status_distribution.title")}</h5>
+                    <p className="text-muted small mb-3">{t("reports.budgets.status_distribution.subtitle")}</p>
+                    {budgetsLoading ? (
+                      <div className="text-center py-4">
+                        <div className="spinner-border text-primary" role="status" />
                       </div>
-                    );
-                  })
+                    ) : (
+                      <BudgetStatusDonut data={budgetStatusDistribution} />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Khối 5: Top ngân sách nguy hiểm */}
+              <div className="col-lg-6">
+                <div className="card border-0 shadow-sm">
+                  <div className="card-body">
+                    <h5 className="mb-2">{t("reports.budgets.top_dangerous.title")}</h5>
+                    <p className="text-muted small mb-3">{t("reports.budgets.top_dangerous.subtitle")}</p>
+                    {budgetsLoading ? (
+                      <div className="text-center py-4">
+                        <div className="spinner-border text-primary" role="status" />
+                      </div>
+                    ) : topDangerousBudgets.length === 0 ? (
+                      <div className="text-center text-muted py-4">{t("reports.budgets.no_data")}</div>
+                    ) : (
+                      <div className="budget-dangerous-list">
+                        {topDangerousBudgets.map((budget, index) => (
+                          <div key={budget.id} className="budget-dangerous-item">
+                            <div className="budget-dangerous-rank">
+                              {index === 0 ? "🔥" : index === 1 ? "⚠️" : "⚠️"}
+                            </div>
+                            <div className="budget-dangerous-info">
+                              <div className="budget-dangerous-name">{budget.categoryName}</div>
+                              <div className="budget-dangerous-stats">
+                                <span className="budget-dangerous-percent">{Math.round(budget.usage)}%</span>
+                                {budget.exceeded > 0 ? (
+                                  <span className="budget-dangerous-exceeded text-danger">
+                                    (+{formatCurrency(budget.exceeded)})
+                                  </span>
+                                ) : (
+                                  <span className="budget-dangerous-remaining text-success">
+                                    (còn {formatCurrency(budget.remaining)})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Khối 4: So sánh theo thời gian */}
+            <div className="card border-0 shadow-sm mb-4">
+              <div className="card-body">
+                <h5 className="mb-3">{t("reports.budgets.time_comparison.title")}</h5>
+                <div className="row g-4">
+                  <div className="col-md-6">
+                    <div className="budget-time-comparison-card">
+                      <p className="text-muted mb-1">{t("reports.budgets.time_comparison.this_period")}</p>
+                      <h4 className="mb-0">{formatCurrency(timeComparisonData.thisPeriod)}</h4>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="budget-time-comparison-card">
+                      <p className="text-muted mb-1">{t("reports.budgets.time_comparison.last_period")}</p>
+                      <h4 className="mb-0">{formatCurrency(timeComparisonData.lastPeriod)}</h4>
+                    </div>
+                  </div>
+                </div>
+                {timeComparisonData.percentChange !== 0 && (
+                  <div className="mt-3 p-3 bg-light rounded">
+                    <p className="mb-0">
+                      {timeComparisonData.percentChange > 0
+                        ? t("reports.budgets.time_comparison.insight_more", {
+                            percent: Math.abs(Math.round(timeComparisonData.percentChange)),
+                          })
+                        : t("reports.budgets.time_comparison.insight_less", {
+                            percent: Math.abs(Math.round(timeComparisonData.percentChange)),
+                          })}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
+
+            {/* Khối 3: Danh sách ngân sách chi tiết */}
+            <div className="card border-0 shadow-sm mb-4">
+              <div className="card-body">
+                <h5 className="mb-3">{t("reports.budgets.detail_list.title")}</h5>
+                {budgetsLoading ? (
+                  <div className="text-center text-muted py-4">
+                    <div className="spinner-border text-primary" role="status" />
+                  </div>
+                ) : filteredBudgetUsageList.length === 0 ? (
+                  <div className="text-center text-muted py-4">{t("reports.budgets.no_data")}</div>
+                ) : (
+                  <div className="budget-detail-list budget-detail-list--scrollable">
+                    {filteredBudgetUsageList.map((budget) => {
+                      const periodStart = formatDateSafe(budget.startDate);
+                      const periodEnd = formatDateSafe(budget.endDate);
+                      const remaining = Math.max(0, budget.limit - budget.spent);
+                      const exceeded = Math.max(0, budget.spent - budget.limit);
+                      const progressColor =
+                        budget.status === "exceeded"
+                          ? "#ef4444"
+                          : budget.status === "warning"
+                          ? "#f59e0b"
+                          : "#10b981";
+
+                      return (
+                        <div key={budget.id} className="budget-detail-item">
+                          <div className="budget-detail-header">
+                            <div className="budget-detail-info">
+                              <div className="budget-detail-category">
+                                <i className="bi bi-folder me-2" />
+                                {budget.categoryName}
+                              </div>
+                              <div className="budget-detail-wallet">
+                                <i className="bi bi-wallet me-2" />
+                                {budget.walletName || t("reports.budgets.filters.all_wallets")}
+                              </div>
+                              {periodStart && periodEnd && (
+                                <div className="budget-detail-time">
+                                  <i className="bi bi-calendar me-2" />
+                                  {periodStart} - {periodEnd}
+                                </div>
+                              )}
+                            </div>
+                            <div className="budget-detail-actions">
+                              <span className={`budget-status-badge budget-status-badge--${budget.status}`}>
+                                {t(`reports.budgets.status.${budget.status}`)}
+                              </span>
+                              <button
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={() => {
+                                  setSelectedBudgetId(budget.id);
+                                  setShowBudgetDetailModal(true);
+                                }}
+                              >
+                                {t("reports.budgets.detail_list.view_detail")}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="budget-detail-progress">
+                            <div className="budget-detail-progress-bar">
+                              <div
+                                className="budget-detail-progress-fill"
+                                style={{
+                                  width: `${Math.min(budget.usage, 100)}%`,
+                                  backgroundColor: progressColor,
+                                }}
+                              />
+                            </div>
+                            <div className="budget-detail-stats">
+                              <div className="budget-detail-stat">
+                                <span className="budget-detail-stat-label">{t("reports.budgets.detail_list.limit")}</span>
+                                <span className="budget-detail-stat-value">{formatCurrency(budget.limit)}</span>
+                              </div>
+                              <div className="budget-detail-stat">
+                                <span className="budget-detail-stat-label">{t("reports.budgets.detail_list.spent")}</span>
+                                <span className="budget-detail-stat-value">{formatCurrency(budget.spent)}</span>
+                              </div>
+                              {exceeded > 0 ? (
+                                <div className="budget-detail-stat">
+                                  <span className="budget-detail-stat-label">{t("reports.budgets.detail_list.exceeded")}</span>
+                                  <span className="budget-detail-stat-value text-danger">+{formatCurrency(exceeded)}</span>
+                                </div>
+                              ) : (
+                                <div className="budget-detail-stat">
+                                  <span className="budget-detail-stat-label">{t("reports.budgets.detail_list.remaining")}</span>
+                                  <span className="budget-detail-stat-value text-success">{formatCurrency(remaining)}</span>
+                                </div>
+                              )}
+                              <div className="budget-detail-stat">
+                                <span className="budget-detail-stat-label">{t("reports.budgets.utilization")}</span>
+                                <span className="budget-detail-stat-value">{Math.round(budget.usage)}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Khối 7: Gợi ý thông minh */}
+            {budgetSuggestions.length > 0 && (
+              <div className="card border-0 shadow-sm mb-4">
+                <div className="card-body">
+                  <h5 className="mb-3">
+                    <i className="bi bi-lightbulb me-2" />
+                    {t("reports.budgets.suggestions.title")}
+                  </h5>
+                  <div className="budget-suggestions-list">
+                    {budgetSuggestions.map((suggestion, index) => (
+                      <div key={index} className="budget-suggestion-item">
+                        <i className="bi bi-info-circle me-2 text-primary" />
+                        <span>{suggestion.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
+
+        {/* Budget Detail Modal for Reports Page */}
+        {showBudgetDetailModal && selectedBudgetId && (() => {
+          const selectedBudget = filteredBudgetUsageList.find((b) => b.id === selectedBudgetId);
+          if (!selectedBudget) return null;
+          
+          // Find original budget from budgets list
+          const originalBudget = budgets.find((b) => {
+            const budgetId = b.id ?? b.budgetId;
+            return String(budgetId) === String(selectedBudgetId);
+          });
+          
+          if (!originalBudget) return null;
+          
+          // Calculate usage data
+          const limit = selectedBudget.limit || 0;
+          const spent = selectedBudget.spent || 0;
+          const percent = selectedBudget.usage || 0;
+          const remaining = Math.max(0, limit - spent);
+          
+          // Determine status
+          const alertPercentage = originalBudget.alertPercentage ?? originalBudget.warningThreshold ?? 80;
+          let status = "healthy";
+          if (percent >= 100) {
+            status = "over";
+          } else if (percent >= alertPercentage) {
+            status = "warning";
+          }
+          
+          const usage = {
+            percent,
+            spent,
+            remaining,
+            status,
+          };
+          
+          const budgetForModal = {
+            ...originalBudget,
+            limitAmount: limit,
+            categoryName: selectedBudget.categoryName,
+            walletName: selectedBudget.walletName,
+            startDate: selectedBudget.startDate,
+            endDate: selectedBudget.endDate,
+            alertPercentage,
+          };
+          
+          return (
+            <BudgetDetailModal
+              open={showBudgetDetailModal}
+              budget={budgetForModal}
+              usage={usage}
+              onClose={() => {
+                setShowBudgetDetailModal(false);
+                setSelectedBudgetId(null);
+              }}
+              onEdit={() => {
+                // Navigate to budgets page or handle edit
+                setShowBudgetDetailModal(false);
+                setSelectedBudgetId(null);
+              }}
+              onRemind={() => {
+                // Handle remind
+                setShowBudgetDetailModal(false);
+                setSelectedBudgetId(null);
+              }}
+            />
+          );
+        })()}
         </div>
       </div>
     </div>

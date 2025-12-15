@@ -500,6 +500,27 @@ export default function ActivityHistoryPage() {
       const built = createDescription(parts);
       description = built.text;
       descriptionSegments = built.segments;
+    } else if (rawType === "budget.update" || (rawType.includes("budget") && (rawType.includes("update") || rawType.includes("cập nhật") || rawType.includes("cap nhat")))) {
+      typeLabel = t('activity.type.update_budget');
+      let categoryName = pick(data, ["category", "categoryName", "category_name"]) || ev.categoryName;
+      const budgetIdCandidate = data.budgetId || ev.budgetId || ev.id;
+      if (!categoryName && budgetIdCandidate && budgetLookup.has(String(budgetIdCandidate))) {
+        const found = budgetLookup.get(String(budgetIdCandidate));
+        categoryName = found?.categoryName || found?.category?.name || categoryName;
+      }
+      if (!categoryName && msg) {
+        // Parse từ message: "Cập nhật ngân sách Ăn uống"
+        const match = msg.match(/Cập nhật ngân sách\s+(.+)/);
+        if (match) categoryName = match[1].trim();
+      }
+      if (!categoryName) categoryName = deepFindName(data) || t('activity.placeholder.budget_name');
+      const built = createDescription([
+        t('activity.description.update_budget_prefix'),
+        { text: categoryName, highlight: true },
+        actorDisplay,
+      ]);
+      description = built.text;
+      descriptionSegments = built.segments;
     } else if (rawType.includes("budget") && (rawType.includes("create") || rawType.includes("tao") || rawType.includes("tạo"))) {
       typeLabel = t('activity.type.create_budget');
       let name = pick(data, ["name", "budgetName", "title"]) || ev.name;
@@ -514,10 +535,25 @@ export default function ActivityHistoryPage() {
         cat = found?.categoryName || found?.category?.name || cat;
         if (!name) name = found?.name || found?.title || name;
       }
+      // Parse từ message nếu có "Tao ngân sách" hoặc "Tạo ngân sách"
+      if (!cat && msg) {
+        const match = msg.match(/(?:Tạo|Tao)\s+ngân sách\s+cho danh mục\s+([^—]+?)(?:\s+—|\s+–|$)/i);
+        if (match) cat = match[1].trim();
+      }
       const walletName =
         pick(data, ["walletName", "wallet", "wallet_name"]) ||
         data.walletName ||
         ev.walletName;
+      // Parse wallet name từ message nếu có
+      if (!walletName && msg) {
+        const match = msg.match(/ví:\s*([^—]+?)(?:\s+—|\s+–|$)/i);
+        if (match) {
+          const walletNameFromMsg = match[1].trim();
+          if (walletNameFromMsg) {
+            // walletName sẽ được set trong parts.push
+          }
+        }
+      }
       const hasValidName = !!(name && name !== t('activity.placeholder.budget_name'));
       if (!name) name = deepFindName(data) || t('activity.placeholder.budget_name');
 
@@ -592,15 +628,103 @@ export default function ActivityHistoryPage() {
       const built = createDescription(parts);
       description = built.text;
       descriptionSegments = built.segments;
-    } else if ((rawType.includes("fund") || rawType.includes("quỹ")) && (rawType.includes("delete") || rawType.includes("xóa"))) {
+    } else if ((rawType.includes("fund") || rawType.includes("quỹ")) && (rawType.includes("delete") || rawType.includes("xóa") || rawType.includes("xoa"))) {
       typeLabel = t('activity.type.delete_fund');
       let name = pick(data, ["name", "fundName", "title"]) || ev.name;
+      if (!name && msg) {
+        // Parse từ message: "Xóa quỹ (tên quỹ)" hoặc "Xoa quy (ten quy)"
+        const match = msg.match(/(?:Xóa|Xoa)\s+quỹ\s+(.+?)(?:\s+—|\s+–|$)/i);
+        if (match) name = match[1].trim();
+      }
       if (!name) name = deepFindName(data) || t('activity.placeholder.fund_name');
       const built = createDescription([
         t('activity.description.delete_fund_prefix'),
         { text: name, highlight: true },
         actorDisplay,
       ]);
+      description = built.text;
+      descriptionSegments = built.segments;
+    } else if (rawType === "fund.settle" || (rawType.includes("fund") && rawType.includes("settle")) || (rawType.includes("quỹ") && (rawType.includes("tất toán") || rawType.includes("tat toan")))) {
+      typeLabel = t('activity.type.settle_fund');
+      let fundName = pick(data, ["fundName", "name", "title"]) || ev.name;
+      if (!fundName && msg) {
+        // Parse từ message: "Tất toán quỹ Q2"
+        const match = msg.match(/Tất toán quỹ\s+(.+?)(?:\s+—|\s+–|$)/i);
+        if (match) fundName = match[1].trim();
+      }
+      if (!fundName) fundName = deepFindName(data) || t('activity.placeholder.fund_name');
+      const built = createDescription([
+        t('activity.description.settle_fund_prefix'),
+        { text: fundName, highlight: true },
+        actorDisplay,
+      ]);
+      description = built.text;
+      descriptionSegments = built.segments;
+    } else if (rawType === "category.create" || rawType.includes("category") && (rawType.includes("create") || rawType.includes("tạo"))) {
+      typeLabel = t('activity.type.create_category');
+      let categoryName = pick(data, ["categoryName", "name", "category_name"]) || ev.categoryName || ev.name;
+      let transactionType = pick(data, ["transactionType", "type"]) || "Chi tiêu";
+      if (!categoryName && msg) {
+        // Parse từ message: "Tạo danh mục Tien an (Chi tiêu)"
+        const match = msg.match(/Tạo danh mục\s+([^(]+)\s*\(([^)]+)\)/);
+        if (match) {
+          categoryName = match[1].trim();
+          transactionType = match[2].trim();
+        } else {
+          // Fallback: lấy tên sau "Tạo danh mục"
+          const match2 = msg.match(/Tạo danh mục\s+(.+)/);
+          if (match2) categoryName = match2[1].trim();
+        }
+      }
+      if (!categoryName) categoryName = deepFindName(data) || t('activity.placeholder.category_name');
+      const built = createDescription([
+        t('activity.description.create_category_prefix'),
+        { text: categoryName, highlight: true },
+        transactionType ? ` (${transactionType})` : "",
+        actorDisplay,
+      ]);
+      description = built.text;
+      descriptionSegments = built.segments;
+    } else if (rawType === "fund.deposit" || (rawType.includes("fund") && rawType.includes("deposit")) || (rawType.includes("quỹ") && rawType.includes("nạp"))) {
+      typeLabel = t('activity.type.fund_deposit');
+      let fundName = pick(data, ["fundName", "name", "title"]) || ev.name;
+      let depositAmount = pick(data, ["amount"]) || amount;
+      let depositCurrency = pick(data, ["currency"]) || currency || "VND";
+      if (!fundName && msg) {
+        // Parse từ message: "Nạp 12000 vào quỹ Q5"
+        const match = msg.match(/Nạp\s+[\d.,]+\s+vào quỹ\s+(.+)/);
+        if (match) fundName = match[1].trim();
+      }
+      if (!fundName) fundName = deepFindName(data) || t('activity.placeholder.fund_name');
+      const parts = [
+        t('activity.description.fund_deposit_prefix'),
+        depositAmount != null ? formatMoney(depositAmount, depositCurrency) : "",
+        t('activity.description.fund_deposit_into'),
+        { text: fundName, highlight: true },
+        actorDisplay,
+      ];
+      const built = createDescription(parts);
+      description = built.text;
+      descriptionSegments = built.segments;
+    } else if (rawType === "fund.withdraw" || (rawType.includes("fund") && rawType.includes("withdraw")) || (rawType.includes("quỹ") && rawType.includes("rút"))) {
+      typeLabel = t('activity.type.fund_withdraw');
+      let fundName = pick(data, ["fundName", "name", "title"]) || ev.name;
+      let withdrawAmount = pick(data, ["amount"]) || amount;
+      let withdrawCurrency = pick(data, ["currency"]) || currency || "VND";
+      if (!fundName && msg) {
+        // Parse từ message: "Rút 10132000 từ quỹ Q3"
+        const match = msg.match(/Rút\s+[\d.,]+\s+từ quỹ\s+(.+)/);
+        if (match) fundName = match[1].trim();
+      }
+      if (!fundName) fundName = deepFindName(data) || t('activity.placeholder.fund_name');
+      const parts = [
+        t('activity.description.fund_withdraw_prefix'),
+        withdrawAmount != null ? formatMoney(withdrawAmount, withdrawCurrency) : "",
+        t('activity.description.fund_withdraw_from'),
+        { text: fundName, highlight: true },
+        actorDisplay,
+      ];
+      const built = createDescription(parts);
       description = built.text;
       descriptionSegments = built.segments;
     } else {
