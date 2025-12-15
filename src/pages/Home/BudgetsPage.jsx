@@ -511,69 +511,128 @@ export default function BudgetsPage() {
       {/* Overview metrics */}
       <div className="row g-3 mb-4">
         <div className="col-xl-3 col-md-6">
-          <div className="budget-metric-card">
+          <div
+            className="budget-metric-card"
+            tabIndex={0}
+            aria-describedby="budget-tooltip-total-limit"
+          >
             <span className="budget-metric-label">
               {t("budgets.metric.total_limit")}
             </span>
-            <div className="budget-metric-value">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalLimit))}</div>
-            <small className="text-muted">{t("budgets.metric.active_count", { count: overviewStats.activeBudgets })}</small>
+            <div className="budget-metric-value">
+              {formatMoneyWithCurrency(convertCurrency(overviewStats.totalLimit))}
+            </div>
+            <small className="text-muted">
+              {t("budgets.metric.active_count", {
+                count: overviewStats.activeBudgets,
+              })}
+            </small>
+            <div
+              id="budget-tooltip-total-limit"
+              role="tooltip"
+              className="budget-metric-tooltip"
+            >
+              <strong>{t("budgets.metric.total_limit")}</strong>
+              <div className="budget-metric-tooltip__body">
+                {t("budgets.tooltip.total_limit")}
+              </div>
+            </div>
           </div>
         </div>
         <div className="col-xl-3 col-md-6">
-          <div className="budget-metric-card">
-            <span className="budget-metric-label">{t("budgets.metric.used")}</span>
-            <div className="budget-metric-value text-primary">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalSpent))}</div>
+          <div
+            className="budget-metric-card"
+            tabIndex={0}
+            aria-describedby="budget-tooltip-used"
+          >
+            <span className="budget-metric-label">
+              {t("budgets.metric.used")}
+            </span>
+            <div className="budget-metric-value text-primary">
+              {formatMoneyWithCurrency(convertCurrency(overviewStats.totalSpent))}
+            </div>
             <small className="text-muted">
               {overviewStats.totalLimit > 0
-                ? t("budgets.metric.used_percent", { percent: Math.round((overviewStats.totalSpent / overviewStats.totalLimit) * 100) })
+                ? t("budgets.metric.used_percent", {
+                    percent: Math.round(
+                      (overviewStats.totalSpent / overviewStats.totalLimit) * 100
+                    ),
+                  })
                 : t("budgets.metric.no_data")}
             </small>
+            <div
+              id="budget-tooltip-used"
+              role="tooltip"
+              className="budget-metric-tooltip"
+            >
+              <strong>{t("budgets.metric.used")}</strong>
+              <div className="budget-metric-tooltip__body">
+                {t("budgets.tooltip.used")}
+              </div>
+            </div>
           </div>
         </div>
         <div className="col-xl-3 col-md-6">
-          <div className="budget-metric-card">
-            <span className="budget-metric-label">{t("budgets.metric.remaining")}</span>
-            <div className="budget-metric-value text-success">{formatMoneyWithCurrency(convertCurrency(overviewStats.totalRemaining))}</div>
-            <small className="text-muted">{t("budgets.metric.overall")}</small>
+          <div
+            className="budget-metric-card"
+            tabIndex={0}
+            aria-describedby="budget-tooltip-remaining"
+          >
+            <span className="budget-metric-label">
+              {t("budgets.metric.remaining")}
+            </span>
+            <div className="budget-metric-value text-success">
+              {formatMoneyWithCurrency(convertCurrency(overviewStats.totalRemaining))}
+            </div>
+            <small className="text-muted">
+              {t("budgets.metric.overall")}
+            </small>
+            <div
+              id="budget-tooltip-remaining"
+              role="tooltip"
+              className="budget-metric-tooltip"
+            >
+              <strong>{t("budgets.metric.remaining")}</strong>
+              <div className="budget-metric-tooltip__body">
+                {t("budgets.tooltip.remaining")}
+              </div>
+            </div>
           </div>
         </div>
         <div className="col-xl-3 col-md-6">
-          <div className="budget-metric-card">
-            <span className="budget-metric-label">{t("budgets.metric.alerts")}</span>
+          <div
+            className="budget-metric-card"
+            tabIndex={0}
+            aria-describedby="budget-tooltip-alerts"
+          >
+            <span className="budget-metric-label">
+              {t("budgets.metric.alerts")}
+            </span>
             <div className="budget-metric-value text-danger">
               {overviewStats.warningCount + overviewStats.overCount}
             </div>
             <small className="text-muted">
-              {t("budgets.metric.warning_label", { w: overviewStats.warningCount, o: overviewStats.overCount })}
+              {t("budgets.metric.warning_label", {
+                w: overviewStats.warningCount,
+                o: overviewStats.overCount,
+              })}
             </small>
+            <div
+              id="budget-tooltip-alerts"
+              role="tooltip"
+              className="budget-metric-tooltip"
+            >
+              <strong>{t("budgets.metric.alerts")}</strong>
+              <div className="budget-metric-tooltip__body">
+                {t("budgets.tooltip.alerts")}
+              </div>
+            </div>
           </div>
         </div>
       </div>
- 
-      {(bannerState.warningItems.length > 0 || bannerState.overItems.length > 0) && (
-        <div className="budget-warning-banner mb-4">
-          <div>
-            <p className="budget-warning-title">{t("budgets.banner.title")}</p>
-            <span>
-              {bannerState.overItems.length > 0 && t("budgets.banner.over_count", { count: bannerState.overItems.length })}
-              {bannerState.warningItems.length > 0 && t("budgets.banner.warning_count", { count: bannerState.warningItems.length })}
-            </span>
-          </div>
-          <div className="budget-warning-actions">
-            {bannerState.warningItems.length > 0 && (
-              <button className="btn btn-warning btn-sm" onClick={() => setStatusFilter("warning")}>
-                {t("budgets.banner.view_warnings")}
-              </button>
-            )}
-            {bannerState.overItems.length > 0 && (
-              <button className="btn btn-outline-danger btn-sm" onClick={() => setStatusFilter("over")}>
-                {t("budgets.banner.view_over")}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
- 
+
+      {/* Thông báo hạn mức đã được chuyển sang hệ thống thông báo (icon chuông) */}
+
       {/* FORM TÌM KIẾM */}
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">

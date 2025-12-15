@@ -23,6 +23,41 @@ function getIconAndLabel(type) {
         icon: "bi-check-circle-fill",
         label: "Nạp tự động",
       };
+    case "BUDGET_WARNING":
+      return {
+        icon: "bi-exclamation-circle",
+        label: "Cảnh báo hạn mức",
+      };
+    case "BUDGET_EXCEEDED":
+      return {
+        icon: "bi-x-octagon",
+        label: "Vượt hạn mức",
+      };
+    case "WALLET_INVITED":
+      return {
+        icon: "bi-wallet2",
+        label: "Ví được chia sẻ",
+      };
+    case "WALLET_ROLE_UPDATED":
+      return {
+        icon: "bi-shield-check",
+        label: "Quyền ví thay đổi",
+      };
+    case "WALLET_MEMBER_LEFT":
+      return {
+        icon: "bi-person-dash",
+        label: "Thành viên rời ví",
+      };
+    case "WALLET_MEMBER_REMOVED":
+      return {
+        icon: "bi-person-x",
+        label: "Bị xóa khỏi ví",
+      };
+    case "WALLET_TRANSACTION":
+      return {
+        icon: "bi-cash-stack",
+        label: "Giao dịch ví",
+      };
     default:
       return {
         icon: "bi-bell-fill",
