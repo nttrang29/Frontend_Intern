@@ -545,9 +545,6 @@ export default function ActivityHistoryPage() {
       const built = createDescription(parts);
       description = built.text;
       descriptionSegments = built.segments;
-    } else if (rawType.includes("category") && (rawType.includes("create") || rawType.includes("tao") || rawType.includes("tạo"))) {
-      // Tạo danh mục
-      typeLabel = t("activity.type.create_category");
     } else if (rawType.includes("budget") && (rawType.includes("delete") || rawType.includes("xóa"))) {
       typeLabel = t('activity.type.delete_budget');
       let name = pick(data, ["name", "budgetName", "title"]) || ev.name;
@@ -575,22 +572,6 @@ export default function ActivityHistoryPage() {
       }
       if (!hasValidName && !cat) {
         parts.push(t('activity.description.category_unknown'));
-      }
-      if (actorDisplay) parts.push(actorDisplay);
-      const built = createDescription(parts);
-      description = built.text;
-      descriptionSegments = built.segments;
-    } else if ((rawType.includes("fund") || rawType.includes("quỹ")) && rawType.includes("deposit")) {
-      // Nạp tiền vào quỹ
-      typeLabel = t("activity.type.fund_deposit");
-      let name = pick(data, ["name", "fundName", "title"]) || ev.name;
-      if (!name) name = deepFindName(data) || t("activity.placeholder.fund_name");
-      const parts = [
-        t("activity.description.create_fund_prefix"),
-        { text: name, highlight: true },
-      ];
-      if (amount != null) {
-        parts.push(` — ${formatMoney(amount, currency)}`);
       }
       if (actorDisplay) parts.push(actorDisplay);
       const built = createDescription(parts);

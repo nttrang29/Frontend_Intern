@@ -1383,7 +1383,10 @@
    ============================= */
 .wallets-detail-view {
   margin-top: 10px;
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 10px 14px;
+  align-items: flex-start;
 }
 
 .wallets-detail-view__card {

@@ -550,6 +550,30 @@ export default function BudgetsPage() {
         </div>
       </div>
  
+      {(bannerState.warningItems.length > 0 || bannerState.overItems.length > 0) && (
+        <div className="budget-warning-banner mb-4">
+          <div>
+            <p className="budget-warning-title">{t("budgets.banner.title")}</p>
+            <span>
+              {bannerState.overItems.length > 0 && t("budgets.banner.over_count", { count: bannerState.overItems.length })}
+              {bannerState.warningItems.length > 0 && t("budgets.banner.warning_count", { count: bannerState.warningItems.length })}
+            </span>
+          </div>
+          <div className="budget-warning-actions">
+            {bannerState.warningItems.length > 0 && (
+              <button className="btn btn-warning btn-sm" onClick={() => setStatusFilter("warning")}>
+                {t("budgets.banner.view_warnings")}
+              </button>
+            )}
+            {bannerState.overItems.length > 0 && (
+              <button className="btn btn-outline-danger btn-sm" onClick={() => setStatusFilter("over")}>
+                {t("budgets.banner.view_over")}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+ 
       {/* FORM TÌM KIẾM */}
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">

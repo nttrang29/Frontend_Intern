@@ -107,12 +107,6 @@ export default function NotificationBell({ role = "user" }) {
           defaultTab: "manageMembers"
         },
       });
-    } else if (
-      n.type === "budget_alert_over" ||
-      n.type === "budget_alert_warning"
-    ) {
-      // Thông báo hạn mức - điều hướng về trang Ngân sách
-      navigate("/home/budgets");
     }
   };
 

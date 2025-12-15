@@ -2016,6 +2016,8 @@ export default function WalletDetail(props) {
           onQuickShareEmail={onQuickShareEmail}
           quickShareLoading={quickShareLoading}
           sharedFilter={sharedFilter}
+          demoTransactions={demoTransactions}
+          isLoadingTransactions={isLoadingTransactions}
           effectiveIsOwner={effectiveIsOwner}
           effectiveIsMember={effectiveIsMember}
           effectiveIsViewer={effectiveIsViewer}
