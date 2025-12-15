@@ -709,7 +709,7 @@ const translations = {
     // Transactions Page
     "transactions.page.title": "Quản lý Giao dịch",
     "transactions.page.subtitle": "Xem, tìm kiếm và quản lý các khoản thu chi gần đây.",
-    "transactions.tab.external": "Giao dịch ngoài",
+    "transactions.tab.external": "Giao dịch ví cá nhân",
     "transactions.tab.internal": "Giao dịch giữa các ví",
     "transactions.btn.add": "Thêm giao dịch mới",
     "transactions.filter.search_placeholder": "Tìm kiếm giao dịch...",

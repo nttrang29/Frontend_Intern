@@ -65,6 +65,7 @@ export default function TransactionForm({
   // Filter wallets dựa trên activeTab
   // EXTERNAL: chỉ ví cá nhân (PERSONAL)
   // GROUP_EXTERNAL: ví nhóm (GROUP) và ví được chia sẻ với role MEMBER
+  // INTERNAL: ví cá nhân, ví nhóm và ví được chia sẻ với role MEMBER
   const filteredWalletList = useMemo(() => {
     const allWallets = Array.isArray(availableWallets) ? availableWallets : (walletListFromContext || []);
     
@@ -77,7 +78,7 @@ export default function TransactionForm({
       const role = (w?.walletRole || w?.sharedRole || w?.role || "").toString().toUpperCase();
       const isShared = !!w?.isShared || !!(w?.walletRole || w?.sharedRole || w?.role);
       
-      // Nếu là tab "Giao dịch ngoài" (EXTERNAL) - chỉ hiển thị ví cá nhân
+      // Nếu là tab "Giao dịch ví cá nhân" (EXTERNAL) - chỉ hiển thị ví cá nhân
       if (activeTab === "external") {
         // Chỉ lấy ví PERSONAL (walletType !== "GROUP")
         if (walletType === "GROUP") return false;
@@ -103,6 +104,31 @@ export default function TransactionForm({
         }
         
         // Bỏ qua ví cá nhân và các ví khác
+        return false;
+      }
+      
+      // Nếu là tab "Giao dịch giữa các ví" (INTERNAL) - cho phép ví cá nhân, ví nhóm và ví được chia sẻ với role MEMBER
+      if (activeTab === "internal") {
+        // 1. Ví cá nhân (walletType !== "GROUP", user là owner)
+        if (walletType !== "GROUP") {
+          if (w?.ownerUserId && currentUserId) {
+            return String(w.ownerUserId) === String(currentUserId);
+          }
+          // Nếu không có ownerUserId, mặc định là ví của user hiện tại
+          return true;
+        }
+        
+        // 2. Ví nhóm (walletType === "GROUP", user là OWNER/MASTER/ADMIN)
+        if (walletType === "GROUP" && isShared && ["OWNER", "MASTER", "ADMIN"].includes(role)) {
+          return true;
+        }
+        
+        // 3. Ví được chia sẻ với quyền MEMBER/USER/USE (không phải VIEW/VIEWER)
+        if (isShared && ["MEMBER", "USER", "USE"].includes(role)) {
+          return true;
+        }
+        
+        // Bỏ qua các ví khác
         return false;
       }
       
@@ -240,10 +266,11 @@ export default function TransactionForm({
   }), [t]);
 
   const walletOptions = useMemo(() => {
+    // Dùng walletId làm value để tránh trùng lặp khi có nhiều ví cùng tên
     const options = mapWalletsToSelectOptions(
       walletList,
       walletTypeLabels,
-      (wallet) => wallet?.name || ""
+      (wallet) => String(wallet?.id || wallet?.walletId || wallet?.name || "")
     );
 
     // Sửa lại label và description dựa trên quyền sở hữu và loại ví
@@ -310,12 +337,108 @@ export default function TransactionForm({
   const targetWalletOptions = useMemo(() => {
     if (!walletOptions || walletOptions.length === 0) return [];
     if (!form.sourceWallet) return walletOptions;
-    return walletOptions.filter((opt) => opt.value !== form.sourceWallet);
+    // So sánh theo walletId hoặc name
+    return walletOptions.filter((opt) => {
+      const wallet = opt.raw;
+      if (!wallet) return true;
+      const walletId = String(wallet.id || wallet.walletId || "");
+      const walletName = wallet.name || wallet.walletName || "";
+      return opt.value !== form.sourceWallet && walletId !== form.sourceWallet && walletName !== form.sourceWallet;
+    });
   }, [walletOptions, form.sourceWallet]);
 
-  const selectedWallet = walletList?.find(w => w.name === form.walletName);
-  const sourceWallet = walletList?.find(w => w.name === form.sourceWallet);
-  const targetWallet = walletList?.find(w => w.name === form.targetWallet);
+  // Lấy walletId từ walletName để tìm wallet
+  const selectedWallet = useMemo(() => {
+    if (!form.walletName) return null;
+    // Tìm tất cả ví có cùng tên
+    const walletsWithSameName = walletList?.filter(w => {
+      const walletName = w.name || w.walletName || "";
+      return walletName === form.walletName;
+    }) || [];
+    
+    // Nếu chỉ có 1 ví với tên đó, trả về ví đó
+    if (walletsWithSameName.length === 1) {
+      return walletsWithSameName[0];
+    }
+    
+    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về null
+    // Điều này sẽ làm cho số dư không hiển thị cho đến khi user chọn rõ ràng ví nào
+    return null;
+  }, [form.walletName, walletList]);
+  
+  const sourceWallet = useMemo(() => {
+    if (!form.sourceWallet) return null;
+    // Tìm tất cả ví có cùng tên
+    const walletsWithSameName = walletList?.filter(w => {
+      const walletName = w.name || w.walletName || "";
+      return walletName === form.sourceWallet;
+    }) || [];
+    
+    // Nếu chỉ có 1 ví với tên đó, trả về ví đó
+    if (walletsWithSameName.length === 1) {
+      return walletsWithSameName[0];
+    }
+    
+    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về null
+    return null;
+  }, [form.sourceWallet, walletList]);
+  
+  const targetWallet = useMemo(() => {
+    if (!form.targetWallet) return null;
+    // Tìm tất cả ví có cùng tên
+    const walletsWithSameName = walletList?.filter(w => {
+      const walletName = w.name || w.walletName || "";
+      return walletName === form.targetWallet;
+    }) || [];
+    
+    // Nếu chỉ có 1 ví với tên đó, trả về ví đó
+    if (walletsWithSameName.length === 1) {
+      return walletsWithSameName[0];
+    }
+    
+    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về null
+    return null;
+  }, [form.targetWallet, walletList]);
+  
+  // Lấy walletId từ walletName hiện tại để set value cho SearchableSelectInput
+  const currentWalletValue = useMemo(() => {
+    if (!form.walletName) return "";
+    // Kiểm tra xem có bao nhiêu ví cùng tên
+    const walletsWithSameName = walletList?.filter(w => (w.name || w.walletName) === form.walletName) || [];
+    // Nếu chỉ có 1 ví với tên đó, có thể dùng
+    if (walletsWithSameName.length === 1) {
+      const wallet = walletsWithSameName[0];
+      return String(wallet.id || wallet.walletId || form.walletName);
+    }
+    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về empty để user phải chọn lại
+    return "";
+  }, [form.walletName, walletList]);
+  
+  const currentSourceWalletValue = useMemo(() => {
+    if (!form.sourceWallet) return "";
+    // Kiểm tra xem có bao nhiêu ví cùng tên
+    const walletsWithSameName = walletList?.filter(w => (w.name || w.walletName) === form.sourceWallet) || [];
+    // Nếu chỉ có 1 ví với tên đó, có thể dùng
+    if (walletsWithSameName.length === 1) {
+      const wallet = walletsWithSameName[0];
+      return String(wallet.id || wallet.walletId || form.sourceWallet);
+    }
+    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về empty để user phải chọn lại
+    return "";
+  }, [form.sourceWallet, walletList]);
+  
+  const currentTargetWalletValue = useMemo(() => {
+    if (!form.targetWallet) return "";
+    // Kiểm tra xem có bao nhiêu ví cùng tên
+    const walletsWithSameName = walletList?.filter(w => (w.name || w.walletName) === form.targetWallet) || [];
+    // Nếu chỉ có 1 ví với tên đó, có thể dùng
+    if (walletsWithSameName.length === 1) {
+      const wallet = walletsWithSameName[0];
+      return String(wallet.id || wallet.walletId || form.targetWallet);
+    }
+    // Nếu có nhiều ví cùng tên, không thể xác định chính xác - trả về empty để user phải chọn lại
+    return "";
+  }, [form.targetWallet, walletList]);
 
   const amountNum = getMoneyValue(form.amount);
   const walletBalance = Number(selectedWallet?.balance || 0);
@@ -534,8 +657,26 @@ export default function TransactionForm({
           <form onSubmit={handleSubmit}>
             <SearchableSelectInput
               label={t("transactions.form.source_wallet")}
-              value={form.sourceWallet}
-              onChange={(v) => setForm(f => ({ ...f, sourceWallet: v }))}
+              value={currentSourceWalletValue}
+              displayText={currentSourceWalletValue === "" && form.sourceWallet ? form.sourceWallet : undefined}
+              onChange={(v) => {
+                // v là walletId, cần tìm wallet và set walletName
+                const selectedOption = walletOptions.find(opt => opt.value === v);
+                const wallet = selectedOption?.raw;
+                if (wallet) {
+                  const walletName = wallet.name || wallet.walletName || "";
+                  setForm(f => {
+                    // Nếu ví nhận trùng với ví gửi mới, reset ví nhận
+                    const currentTargetValue = f.targetWallet;
+                    const targetWallet = walletList?.find(w => (w.name || w.walletName) === currentTargetValue);
+                    const targetWalletId = targetWallet ? String(targetWallet.id || targetWallet.walletId || "") : "";
+                    const newTarget = v === targetWalletId ? "" : f.targetWallet;
+                    return { ...f, sourceWallet: walletName, targetWallet: newTarget };
+                  });
+                } else {
+                  setForm(f => ({ ...f, sourceWallet: v }));
+                }
+              }}
               options={walletOptions}
               placeholder={t("transactions.form.wallet_placeholder") || "Nhập hoặc chọn ví..."}
               disabled={mode === "edit"}
@@ -551,8 +692,18 @@ export default function TransactionForm({
 
             <SearchableSelectInput
               label={t("transactions.form.target_wallet")}
-              value={form.targetWallet}
-              onChange={(v) => setForm(f => ({ ...f, targetWallet: v }))}
+              value={currentTargetWalletValue}
+              displayText={currentTargetWalletValue === "" && form.targetWallet ? form.targetWallet : undefined}
+              onChange={(v) => {
+                // v là walletId, cần tìm wallet và set walletName
+                const selectedOption = targetWalletOptions.find(opt => opt.value === v);
+                const wallet = selectedOption?.raw;
+                if (wallet) {
+                  setForm(f => ({ ...f, targetWallet: wallet.name || wallet.walletName || "" }));
+                } else {
+                  setForm(f => ({ ...f, targetWallet: v }));
+                }
+              }}
               options={targetWalletOptions}
               placeholder={t("transactions.form.wallet_placeholder") || "Nhập hoặc chọn ví..."}
               disabled={mode === "edit"}
@@ -676,8 +827,19 @@ export default function TransactionForm({
             <div className={form.walletName ? "col-md-6" : "col-12"}>
               <SearchableSelectInput
                 label={t("transactions.form.wallet")}
-                value={form.walletName}
-                onChange={(v) => setForm(f => ({ ...f, walletName: v }))}
+                value={currentWalletValue}
+                displayText={currentWalletValue === "" && form.walletName ? form.walletName : undefined}
+                onChange={(v) => {
+                  // v là walletId, cần tìm wallet và set walletName
+                  const selectedOption = walletOptions.find(opt => opt.value === v);
+                  const wallet = selectedOption?.raw;
+                  if (wallet) {
+                    setForm(f => ({ ...f, walletName: wallet.name || wallet.walletName || "" }));
+                  } else {
+                    // Fallback: nếu không tìm thấy, giữ nguyên
+                    setForm(f => ({ ...f, walletName: v }));
+                  }
+                }}
                 options={walletOptions}
                 placeholder={t("transactions.form.wallet_placeholder") || "Nhập hoặc chọn ví..."}
                 disabled={mode === "edit"}
