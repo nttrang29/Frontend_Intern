@@ -158,6 +158,48 @@ export function BudgetDataProvider({ children }) {
 
       const response = await budgetAPI.createBudget(body);
       const createdRaw = normalizeBudget(response?.budget || response);
+      
+      // Xác định walletId - QUAN TRỌNG: Ưu tiên từ body.walletId (từ payload), đây là source of truth
+      // Vì backend có thể trả về Budget entity với Wallet LAZY fetch, nên walletId có thể không có trong response
+      // Nhưng body.walletId đã được gửi lên backend, nên phải có giá trị đúng
+      const resolvedWalletId = 
+        (body.walletId !== undefined && body.walletId !== null)
+          ? body.walletId
+          : (createdRaw?.walletId !== undefined && createdRaw?.walletId !== null)
+            ? createdRaw.walletId
+            : (payload.walletId !== undefined && payload.walletId !== null)
+              ? payload.walletId
+              : null;
+      
+      // Xác định walletName - QUAN TRỌNG: Ưu tiên từ payload.walletName (người dùng đã chọn), đây là source of truth
+      let resolvedWalletName = "";
+      if (payload.walletName && payload.walletName.trim() !== "" && payload.walletName !== "Tất cả ví" && payload.walletName !== ALL_WALLETS_LABEL) {
+        // Ưu tiên cao nhất: walletName từ payload (người dùng đã chọn)
+        resolvedWalletName = payload.walletName;
+      } else if (resolvedWalletId !== null) {
+        // Nếu có walletId nhưng không có walletName từ payload, thử lấy từ response
+        if (createdRaw?.walletName && createdRaw.walletName.trim() !== "" && createdRaw.walletName !== "Tất cả ví" && createdRaw.walletName !== ALL_WALLETS_LABEL) {
+          resolvedWalletName = createdRaw.walletName;
+        } else {
+          // Fallback: dùng format "Ví {id}"
+          resolvedWalletName = `Ví ${resolvedWalletId}`;
+        }
+      } else {
+        // walletId = null => "Tất cả ví"
+        resolvedWalletName = ALL_WALLETS_LABEL;
+      }
+      
+      // Debug log để kiểm tra
+      console.log("📊 BudgetDataContext.createBudget - Resolved values:", {
+        bodyWalletId: body.walletId,
+        payloadWalletId: payload.walletId,
+        payloadWalletName: payload.walletName,
+        createdRawWalletId: createdRaw?.walletId,
+        createdRawWalletName: createdRaw?.walletName,
+        resolvedWalletId,
+        resolvedWalletName
+      });
+      
       const created = createdRaw
         ? {
             ...createdRaw,
@@ -166,12 +208,8 @@ export function BudgetDataProvider({ children }) {
               (payload.categoryId !== undefined ? Number(payload.categoryId) : null),
             categoryName:
               createdRaw.categoryName || payload.categoryName || "",
-            walletId:
-              createdRaw.walletId !== undefined && createdRaw.walletId !== null
-                ? createdRaw.walletId
-                : body.walletId ?? null,
-            walletName:
-              createdRaw.walletName || payload.walletName || (body.walletId == null ? "Tất cả ví" : ""),
+            walletId: resolvedWalletId,
+            walletName: resolvedWalletName,
           }
         : null;
       if (created) {
@@ -348,17 +386,32 @@ export function BudgetDataProvider({ children }) {
       if (t.type !== "expense") return;
       if (!t.category) return;
       if (t.category !== budget.categoryName) return;
-      // Check wallet match
-      if (budget.walletName && budget.walletName !== ALL_WALLETS_LABEL) {
+      
+      // Check wallet match - QUAN TRỌNG: So sánh cả walletId và walletName
+      if (budget.walletId !== null && budget.walletId !== undefined) {
+        // Budget áp dụng cho một ví cụ thể
+        const txWalletId = t.walletId || t.wallet?.walletId || t.wallet?.id || null;
+        if (txWalletId !== null) {
+          // So sánh bằng walletId (chính xác hơn)
+          if (Number(txWalletId) !== Number(budget.walletId)) return;
+        } else {
+          // Nếu transaction không có walletId, so sánh bằng walletName
+          if (budget.walletName && budget.walletName !== ALL_WALLETS_LABEL) {
+            if (t.walletName !== budget.walletName) return;
+          }
+        }
+      } else if (budget.walletName && budget.walletName !== ALL_WALLETS_LABEL) {
+        // Fallback: Nếu không có walletId, so sánh bằng walletName
         if (t.walletName !== budget.walletName) return;
       }
+      // Nếu budget.walletId = null và walletName = "Tất cả ví", thì tính tất cả transactions
       
       const transactionDate = new Date(t.date);
       if (isNaN(transactionDate.getTime())) return;
       
       // Check if transaction is within budget period
       if (transactionDate >= budgetStart && transactionDate <= budgetEnd) {
-        sum += t.amount;
+        sum += Number(t.amount) || 0;
       }
     });
     return sum;

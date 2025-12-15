@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { formatVietnamDate } from "../../../utils/dateFormat";
-import { useLanguage } from "../../../contexts/LanguageContext";
+import { useAuth } from "../../../contexts/AuthContext";
+import ConfirmModal from "../../common/Modal/ConfirmModal";
 
 export default function DetailViewTab({
   wallet,
@@ -15,10 +16,17 @@ export default function DetailViewTab({
   sharedFilter,
   demoTransactions,
   isLoadingTransactions = false,
+  effectiveIsOwner = true,
+  effectiveIsMember = false,
+  effectiveIsViewer = false,
+  onLeaveWallet,
 }) {
   const { t } = useLanguage();
   
   // Quick-share UI removed: we only display existing shared members.
+  const { currentUser } = useAuth();
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leavingWallet, setLeavingWallet] = useState(false);
 
   const fallbackEmails = Array.isArray(sharedEmails) ? sharedEmails : [];
   const displayMembers = sharedMembers.length
@@ -92,6 +100,42 @@ export default function DetailViewTab({
     );
   };
 
+  // Check if current user is a member (not owner)
+  const isCurrentUserMember = useMemo(() => {
+    if (!currentUser || effectiveIsOwner) return false;
+    const currentUserId = currentUser.id || currentUser.userId;
+    const currentUserEmail = (currentUser.email || "").toLowerCase().trim();
+    
+    const allMembers = sharedMembers.length ? sharedMembers : fallbackEmails.map((email) => ({ email }));
+    
+    return allMembers.some((member) => {
+      const memberId = member.userId ?? member.memberUserId ?? member.memberId;
+      const memberEmail = ((member.email || member.userEmail || "")).toLowerCase().trim();
+      const memberRole = (member.role || "").toUpperCase();
+      const isOwner = ["OWNER", "MASTER", "ADMIN"].includes(memberRole);
+      
+      if (isOwner) return false;
+      
+      return (
+        (currentUserId && memberId && String(currentUserId) === String(memberId)) ||
+        (currentUserEmail && memberEmail && currentUserEmail === memberEmail)
+      );
+    });
+  }, [currentUser, sharedMembers, fallbackEmails, effectiveIsOwner]);
+
+  const handleLeaveWallet = async () => {
+    if (!onLeaveWallet) return;
+    setLeavingWallet(true);
+    try {
+      await onLeaveWallet();
+      setShowLeaveConfirm(false);
+    } catch (error) {
+      // Error handling is done in onLeaveWallet
+    } finally {
+      setLeavingWallet(false);
+    }
+  };
+
   return (
     <div className="wallets-section wallets-section--view">
       <div className="wallets-section__header">
@@ -139,6 +183,21 @@ export default function DetailViewTab({
               </div>
               {/* quick share form removed; only display existing shared members */}
               {renderShareSection()}
+              
+              {/* Nút rời khỏi ví - chỉ hiển thị khi user không phải owner và là member */}
+              {!effectiveIsOwner && isCurrentUserMember && onLeaveWallet && (
+                <div style={{ marginTop: 16 }}>
+                  <button
+                    type="button"
+                    className="wallets-btn wallets-btn--danger"
+                    onClick={() => setShowLeaveConfirm(true)}
+                    disabled={leavingWallet}
+                    style={{ width: "100%" }}
+                  >
+                    {leavingWallet ? "Đang rời khỏi..." : "Rời khỏi ví"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -186,6 +245,11 @@ export default function DetailViewTab({
                       maximumFractionDigits: 0
                     });
                     
+                    // Debug: Log để kiểm tra email có trong transaction không
+                    if (tx.creatorEmail) {
+                      console.log("📧 Transaction has creatorEmail:", tx.creatorEmail, "tx:", tx);
+                    }
+                    
                     return (
                       <li key={tx.id} className="wallets-detail__history-item">
                         <div className="wallets-detail__history-main">
@@ -209,7 +273,12 @@ export default function DetailViewTab({
                             {tx.categoryName || "Danh mục khác"}
                           </span>
                           {tx.creatorName ? (
-                            <span className="wallets-detail__history-actor">{tx.creatorName}</span>
+                            <div className="wallets-detail__history-actor-wrapper" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                              <span className="wallets-detail__history-actor">{tx.creatorName}</span>
+                              {tx.creatorEmail ? (
+                                <span className="wallets-detail__history-actor-email" style={{ fontSize: '0.85em', color: '#666', marginTop: '2px' }}>{tx.creatorEmail}</span>
+                              ) : null}
+                            </div>
                           ) : null}
                           <span>{tx.timeLabel}</span>
                         </div>
@@ -222,6 +291,16 @@ export default function DetailViewTab({
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        open={showLeaveConfirm}
+        title="Rời khỏi ví"
+        message={`Bạn có chắc muốn rời khỏi ví "${wallet?.name || ""}"? Bạn sẽ không thể truy cập ví này nữa.`}
+        danger={true}
+        onOk={handleLeaveWallet}
+        onClose={() => setShowLeaveConfirm(false)}
+        okText="Rời khỏi"
+      />
     </div>
   );
 }

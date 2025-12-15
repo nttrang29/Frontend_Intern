@@ -11,6 +11,7 @@ export default function SearchableSelectInput({
   disabled = false,
   emptyMessage,
   error,
+  displayText, // Text để hiển thị khi value là empty nhưng muốn hiển thị text
 }) {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -31,17 +32,19 @@ export default function SearchableSelectInput({
           return { value: opt, label: opt };
         }
         if (typeof opt === "object") {
+          // Ưu tiên dùng opt.value nếu có (đã được set đúng từ walletOptions)
           const normalizedValue = opt.value ?? opt.name ?? opt.label ?? "";
           if (normalizedValue === undefined || normalizedValue === null || normalizedValue === "") {
             return null;
           }
+          // Đảm bảo value là string để so sánh nhất quán
+          const stringValue = String(normalizedValue);
+          // Giữ lại tất cả properties từ opt, nhưng đảm bảo value và label được set đúng
+          // Đặt value và label sau spread để đảm bảo chúng không bị ghi đè
           return {
-            value: String(normalizedValue),
-            label: opt.label || opt.name || String(normalizedValue),
-            icon: opt.icon,
-            iconColor: opt.iconColor,
-            iconBg: opt.iconBg,
-            description: opt.description,
+            ...opt, // Giữ lại tất cả properties khác từ opt (bao gồm raw, icon, description, etc.)
+            value: stringValue, // Đảm bảo value là string (override sau spread để đảm bảo không bị ghi đè)
+            label: opt.label || opt.name || stringValue, // Giữ label gốc nếu có (có thể đã format với email)
           };
         }
         return null;
@@ -57,12 +60,23 @@ export default function SearchableSelectInput({
 
   const selectedOption = useMemo(() => {
     if (value === undefined || value === null || value === "") return null;
-    return normalizedOptions.find((opt) => opt.value === String(value)) || null;
+    // So sánh value (đã được normalize thành string trong normalizedOptions)
+    const normalizedValue = String(value);
+    return normalizedOptions.find((opt) => {
+      // opt.value đã là string từ normalizedOptions
+      return String(opt.value || "") === normalizedValue;
+    }) || null;
   }, [normalizedOptions, value]);
 
   const placeholderText = placeholder || t("transactions.form.select_option");
   const showDropdown = isOpen && !disabled;
-  const displayValue = showDropdown ? searchText : (selectedOption?.label || (value ?? ""));
+  // Nếu đang mở dropdown, hiển thị searchText
+  // Nếu có selectedOption, hiển thị label của option (ưu tiên cao nhất)
+  // Nếu value là empty nhưng có displayText, hiển thị displayText
+  // Nếu không, hiển thị value hoặc empty
+  const displayValue = showDropdown 
+    ? searchText 
+    : (selectedOption?.label || (displayText && (!value || value === "") ? displayText : (value || "")));
 
   return (
     <div className="mb-3">
@@ -162,10 +176,34 @@ export default function SearchableSelectInput({
                 <button
                   key={opt.value}
                   type="button"
-                  className={`searchable-option ${String(value) === opt.value ? "active" : ""}`}
+                  className={`searchable-option ${String(value) === String(opt.value) ? "active" : ""}`}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    onChange(opt.value);
+                    console.log("🟠 [SearchableSelectInput] Option clicked:", {
+                      optValue: opt.value,
+                      optLabel: opt.label,
+                      currentValue: value,
+                      onChangeType: typeof onChange,
+                      onChange: onChange
+                    });
+                    if (onChange && typeof onChange === 'function') {
+                      try {
+                        console.log("🟠 [SearchableSelectInput] Calling onChange with value:", opt.value);
+                        console.log("🟠 [SearchableSelectInput] onChange function code (first 300 chars):", onChange.toString().substring(0, 300));
+                        console.log("🟠 [SearchableSelectInput] onChange function includes 'handleSourceWalletChange':", onChange.toString().includes('handleSourceWalletChange'));
+                        console.log("🟠 [SearchableSelectInput] onChange function includes 'handleTargetWalletChange':", onChange.toString().includes('handleTargetWalletChange'));
+                        console.log("🟠 [SearchableSelectInput] onChange function includes 'sourceWallet':", onChange.toString().includes('sourceWallet'));
+                        console.log("🟠 [SearchableSelectInput] onChange function includes 'targetWallet':", onChange.toString().includes('targetWallet'));
+                        console.log("🟠 [SearchableSelectInput] onChange function name:", onChange.name || 'anonymous');
+                        const result = onChange(opt.value);
+                        console.log("🟠 [SearchableSelectInput] onChange called successfully, result:", result);
+                      } catch (error) {
+                        console.error("🟠 [SearchableSelectInput] Error calling onChange:", error);
+                        console.error("🟠 [SearchableSelectInput] Error stack:", error.stack);
+                      }
+                    } else {
+                      console.error("🟠 [SearchableSelectInput] onChange is not a function:", onChange, "Type:", typeof onChange);
+                    }
                     setSearchText("");
                     setIsOpen(false);
                   }}
@@ -174,8 +212,8 @@ export default function SearchableSelectInput({
                     textAlign: "left",
                     padding: "10px 12px",
                     border: "none",
-                    background: String(value) === opt.value ? "#eff6ff" : "transparent",
-                    color: String(value) === opt.value ? "#1e40af" : "#111827",
+                    background: String(value) === String(opt.value) ? "#eff6ff" : "transparent",
+                    color: String(value) === String(opt.value) ? "#1e40af" : "#111827",
                     fontSize: "0.9rem",
                     cursor: "pointer",
                     transition: "background-color 0.2s, color 0.2s",

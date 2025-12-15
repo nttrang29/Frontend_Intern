@@ -83,6 +83,30 @@ export default function NotificationBell({ role = "user" }) {
           defaultTab: "info"
         },
       });
+    } else if (n.type === "WALLET_INVITED" || n.type === "wallet_invited") {
+      // Thông báo được mời vào ví - mở trang wallets
+      navigate("/home/wallets", {
+        state: { 
+          openWalletId: n.referenceId,
+          defaultTab: "view"
+        },
+      });
+    } else if (n.type === "WALLET_ROLE_UPDATED") {
+      // Thông báo quyền được nâng cấp - mở trang wallets
+      navigate("/home/wallets", {
+        state: { 
+          openWalletId: n.referenceId,
+          defaultTab: "view"
+        },
+      });
+    } else if (n.type === "WALLET_MEMBER_LEFT" || n.type === "wallet_member_left") {
+      // Thông báo thành viên rời khỏi ví - mở trang wallets với tab quản lý thành viên
+      navigate("/home/wallets", {
+        state: { 
+          openWalletId: n.referenceId,
+          defaultTab: "manageMembers"
+        },
+      });
     }
   };
 

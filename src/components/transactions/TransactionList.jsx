@@ -54,6 +54,20 @@ export default function TransactionList({
     return transactions.slice(start, start + PAGE_SIZE);
   }, [transactions, currentPage]);
 
+  // Kiểm tra xem có transaction nào không phải viewer/deleted/left không
+  // Nếu tất cả đều là viewer/deleted/left thì ẩn hoàn toàn cột hành động
+  // QUAN TRỌNG: Kiểm tra trên toàn bộ transactions list, không chỉ paginated
+  const hasActionableTransactions = React.useMemo(() => {
+    if (!transactions || transactions.length === 0) {
+      return false;
+    }
+    const hasActionable = transactions.some(tx => {
+      const isActionable = !tx.isWalletDeleted && !tx.isLeftWallet && !tx.isViewerWallet;
+      return isActionable;
+    });
+    return hasActionable;
+  }, [transactions]);
+
   if (loading) {
     return (
       <div className="card border-0 shadow-sm tx-table-card">
@@ -86,8 +100,8 @@ export default function TransactionList({
       {/* Header với filters và tabs */}
       <div className="card-header bg-transparent border-bottom">
         <div className="d-flex flex-column gap-3">
-          {/* Tabs cho Loại giao dịch - chỉ hiện khi activeTab === "external" */}
-          {activeTab === "external" && filterType !== undefined && onFilterTypeChange && (
+          {/* Tabs cho Loại giao dịch - chỉ hiện khi activeTab === "external" hoặc "group_external" */}
+          {(activeTab === "external" || activeTab === "group_external") && filterType !== undefined && onFilterTypeChange && (
             <div className="transaction-type-tabs">
               <button
                 type="button"
@@ -184,7 +198,7 @@ export default function TransactionList({
         </div>
       </div>
       <div className="table-responsive">
-        {activeTab === "external" ? (
+        {(activeTab === "external" || activeTab === "group_external") ? (
           <table className="table table-hover align-middle mb-0 tx-table-external">
             <thead>
               <tr>
@@ -209,6 +223,9 @@ export default function TransactionList({
                   const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
                   const d = toDateObj(tx.date);
                   const dateTimeStr = formatVietnamDateTime(d);
+                  
+                  // Kiểm tra xem transaction này có thể thực hiện hành động không
+                  const canPerformAction = !tx.isWalletDeleted && !tx.isLeftWallet && !tx.isViewerWallet;
 
                   return (
                     <tr 
@@ -247,7 +264,7 @@ export default function TransactionList({
                         </span>
                       </td>
                       <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                        {!tx.isWalletDeleted && (
+                        {canPerformAction ? (
                           <div className="tx-action-buttons">
                             <button className="btn btn-link btn-sm text-muted" title={t("transactions.action.edit")} onClick={() => onEdit(tx)}>
                               <i className="bi bi-pencil-square" />
@@ -256,7 +273,7 @@ export default function TransactionList({
                               <i className="bi bi-trash" />
                             </button>
                           </div>
-                        )}
+                        ) : null}
                       </td>
                     </tr>
                   );
@@ -288,6 +305,9 @@ export default function TransactionList({
                   const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
                   const d = toDateObj(tx.date);
                   const dateTimeStr = formatVietnamDateTime(d);
+                  
+                  // Kiểm tra xem transaction này có thể thực hiện hành động không
+                  const canPerformAction = !tx.isWalletDeleted && !tx.isLeftWallet && !tx.isViewerWallet;
 
                   return (
                     <tr 
@@ -312,7 +332,7 @@ export default function TransactionList({
                         </span>
                       </td>
                       <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                        {!tx.isWalletDeleted && (
+                        {canPerformAction ? (
                           <div className="tx-action-buttons">
                             <button className="btn btn-link btn-sm text-muted" title={t("transactions.action.edit")} onClick={() => onEdit(tx)}>
                               <i className="bi bi-pencil-square" />
@@ -321,7 +341,7 @@ export default function TransactionList({
                               <i className="bi bi-trash" />
                             </button>
                           </div>
-                        )}
+                        ) : null}
                       </td>
                     </tr>
                   );

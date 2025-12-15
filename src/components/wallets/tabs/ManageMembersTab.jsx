@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import ConfirmModal from "../../common/Modal/ConfirmModal";
-import { useLanguage } from "../../../contexts/LanguageContext";
+import { useAuth } from "../../../contexts/AuthContext";
 
 export default function ManageMembersTab({
   wallet,
@@ -13,6 +13,8 @@ export default function ManageMembersTab({
   quickShareLoading = false,
   onUpdateMemberRole,
   updatingMemberId,
+  effectiveIsOwner = true,
+  onLeaveWallet,
 }) {
   const { t } = useLanguage();
   const [showQuickShareForm, setShowQuickShareForm] = useState(false);
@@ -26,6 +28,8 @@ export default function ManageMembersTab({
     message: "",
     danger: false,
   });
+  const [leavingWallet, setLeavingWallet] = useState(false);
+  const { currentUser } = useAuth();
 
   const toggleQuickShareForm = () => {
     setShowQuickShareForm((s) => !s);
@@ -74,6 +78,17 @@ export default function ManageMembersTab({
     });
   };
 
+  const triggerLeaveConfirm = () => {
+    setConfirmState({
+      open: true,
+      type: "leave",
+      payload: null,
+      title: "Rời khỏi ví",
+      message: `Bạn có chắc muốn rời khỏi ví "${wallet?.name || ""}"? Bạn sẽ không thể truy cập ví này nữa.`,
+      danger: true,
+    });
+  };
+
   const resetConfirm = () => {
     setConfirmState({ open: false, type: null, payload: null, title: "", message: "", danger: false });
   };
@@ -104,6 +119,15 @@ export default function ManageMembersTab({
       if (type === "role" && onUpdateMemberRole) {
         await onUpdateMemberRole(payload.member, payload.newRole);
       }
+
+      if (type === "leave" && onLeaveWallet) {
+        setLeavingWallet(true);
+        try {
+          await onLeaveWallet();
+        } finally {
+          setLeavingWallet(false);
+        }
+      }
     } finally {
       resetConfirm();
     }
@@ -120,12 +144,47 @@ export default function ManageMembersTab({
 
   const safeMembers = Array.isArray(sharedMembers) ? sharedMembers : [];
 
+  // Check if current user is a member (not owner)
+  const isCurrentUserMember = useMemo(() => {
+    if (!currentUser || effectiveIsOwner) return false;
+    const currentUserId = currentUser.id || currentUser.userId;
+    const currentUserEmail = (currentUser.email || "").toLowerCase().trim();
+    
+    return safeMembers.some((member) => {
+      const memberId = member.userId ?? member.memberUserId ?? member.memberId;
+      const memberEmail = ((member.email || member.userEmail || "")).toLowerCase().trim();
+      const memberRole = (member.role || "").toUpperCase();
+      const isOwner = ["OWNER", "MASTER", "ADMIN"].includes(memberRole);
+      
+      if (isOwner) return false;
+      
+      return (
+        (currentUserId && memberId && String(currentUserId) === String(memberId)) ||
+        (currentUserEmail && memberEmail && currentUserEmail === memberEmail)
+      );
+    });
+  }, [currentUser, safeMembers, effectiveIsOwner]);
+
   return (
     <div className="wallets-section wallets-section--manage">
       <div className="wallets-section__header">
         <h3>{t('wallets.manage_members.title')}</h3>
         <span>{t('wallets.manage_members.subtitle', { name: wallet?.name || '' })}</span>
       </div>
+
+      {/* Nút rời khỏi ví - chỉ hiển thị khi user không phải owner và là member */}
+      {!effectiveIsOwner && isCurrentUserMember && onLeaveWallet && (
+        <div style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            className="wallets-btn wallets-btn--danger"
+            onClick={triggerLeaveConfirm}
+            disabled={leavingWallet}
+          >
+            {leavingWallet ? "Đang rời khỏi..." : "Rời khỏi ví"}
+          </button>
+        </div>
+      )}
 
       <div className="wallets-manage-list">
         <div style={{ marginBottom: 10 }}>
@@ -196,7 +255,8 @@ export default function ManageMembersTab({
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     {/* Role selector for owner to change - only show for shared (group) wallets */}
-                    {canChangeRole ? (
+                    {/* For personal wallets, only viewer role is available, so hide the role selector */}
+                    {canChangeRole && wallet?.isShared ? (
                       <select
                         className="wallet-role-select"
                         value={role || 'MEMBER'}
@@ -240,7 +300,13 @@ export default function ManageMembersTab({
         danger={confirmState.danger}
         onOk={handleConfirmOk}
         onClose={resetConfirm}
-        okText={confirmState.type === "add" ? t('wallets.manage_members.share_button') : t('wallets.manage_members.confirm_button')}
+        okText={
+          confirmState.type === "add"
+            ? "Chia sẻ"
+            : confirmState.type === "leave"
+            ? "Rời khỏi"
+            : "Xác nhận"
+        }
       />
     </div>
   );

@@ -48,12 +48,82 @@ export default function BudgetsPage() {
  
   // Helper function to convert currency (similar to WalletsPage)
   const convertCurrency = useCallback((amount) => Number(amount) || 0, []);
- 
+
   // Format money with proper currency
   const formatMoneyWithCurrency = useCallback((amount) => {
     const numAmount = Number(amount) || 0;
     return `${numAmount.toLocaleString("vi-VN")} VND`;
   }, []);
+
+  // Helper function to get wallet info and determine wallet type
+  const getWalletInfo = useCallback((budget) => {
+    if (!budget || !budget.walletId) {
+      return { walletTypeLabel: null, walletDisplayName: budget?.walletName || null };
+    }
+
+    // Tìm wallet từ wallets list
+    const wallet = wallets.find(
+      (w) => String(w.id) === String(budget.walletId) || String(w.walletId) === String(budget.walletId)
+    );
+
+    if (!wallet) {
+      return { walletTypeLabel: null, walletDisplayName: budget?.walletName || null };
+    }
+
+    // Lấy currentUserId
+    let currentUserId = null;
+    try {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("user");
+        if (stored) {
+          const user = JSON.parse(stored);
+          currentUserId = user.userId || user.id || null;
+        }
+      }
+    } catch (error) {
+      console.error("Không thể đọc user từ localStorage:", error);
+    }
+
+    // Xác định user hiện tại có phải là owner không
+    const role = (wallet.walletRole || wallet.sharedRole || wallet.role || "").toString().toUpperCase();
+    const isOwner = 
+      (wallet.ownerUserId && currentUserId && String(wallet.ownerUserId) === String(currentUserId)) ||
+      ["OWNER", "MASTER", "ADMIN"].includes(role);
+
+    // Kiểm tra walletType để phân biệt ví nhóm và ví cá nhân
+    const walletType = (wallet.walletType || wallet.type || "").toString().toUpperCase();
+    const isGroupWallet = walletType === "GROUP";
+
+    let walletTypeLabel = null;
+    let walletDisplayName = budget.walletName || wallet.name || wallet.walletName || "";
+
+    // Nếu user là owner
+    if (isOwner) {
+      if (isGroupWallet) {
+        walletTypeLabel = "Ví nhóm";
+      } else {
+        walletTypeLabel = "Ví cá nhân";
+      }
+    } else {
+      // Nếu user không phải owner (là member được mời) → "Ví được chia sẻ"
+      walletTypeLabel = "Ví được chia sẻ";
+      // Thêm email chủ ví vào tên ví
+      const ownerEmail = 
+        wallet.ownerEmail || 
+        wallet.ownerContact || 
+        wallet.owner?.email ||
+        wallet.ownerUser?.email ||
+        "";
+      if (ownerEmail && ownerEmail.trim() !== "") {
+        walletDisplayName = `${walletDisplayName} (${ownerEmail})`;
+      } else if (wallet.ownerName && wallet.ownerName.trim() !== "") {
+        // Fallback: nếu không có email, dùng tên chủ ví
+        walletDisplayName = `${walletDisplayName} (${wallet.ownerName})`;
+      }
+    }
+
+    return { walletTypeLabel, walletDisplayName };
+  }, [wallets]);
  
   const computeBudgetUsage = useCallback(
     (budget) => {
@@ -590,7 +660,19 @@ export default function BudgetsPage() {
                           </div>
                           <div>
                             <h5 className="budget-card-title">{budget.categoryName}</h5>
-                            {budget.walletName && <div className="text-muted small">{t('budgets.card.wallet_label', { wallet: budget.walletName })}</div>}
+                            {budget.walletName && (() => {
+                              const { walletTypeLabel, walletDisplayName } = getWalletInfo(budget);
+                              return (
+                                <>
+                                  <div className="text-muted small">Ví: {walletDisplayName}</div>
+                                  {walletTypeLabel && (
+                                    <div className="text-muted small" style={{ fontSize: "0.85em", marginTop: "2px" }}>
+                                      {walletTypeLabel}
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                         <span className={`budget-status-chip ${chipTone}`}>
@@ -684,9 +766,17 @@ export default function BudgetsPage() {
                         <div className="mt-2">
                           <small className="text-muted d-block">
                             <strong>{selectedBudget.categoryName}</strong>
-                            {selectedBudget.walletName && selectedBudget.walletName !== t('budgets.wallet.all') && (
-                              <> • {t('budgets.card.wallet_label', { wallet: selectedBudget.walletName })}</>
-                            )}
+                            {selectedBudget.walletName && selectedBudget.walletName !== "Tất cả ví" && (() => {
+                              const { walletTypeLabel, walletDisplayName } = getWalletInfo(selectedBudget);
+                              return (
+                                <>
+                                  <div>{"Ví: "}{walletDisplayName}</div>
+                                  {walletTypeLabel && (
+                                    <div style={{ fontSize: "0.9em", marginTop: "2px" }}>{walletTypeLabel}</div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </small>
                           {selectedBudget.startDate && selectedBudget.endDate && (
                             <small className="text-muted d-block">
