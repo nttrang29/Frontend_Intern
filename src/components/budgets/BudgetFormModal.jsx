@@ -3,6 +3,7 @@ import Modal from "../common/Modal/Modal";
 import SearchableSelectInput from "../common/SearchableSelectInput";
 import { mapWalletsToSelectOptions, WALLET_TYPE_ICON_CONFIG } from "../../utils/walletSelectHelpers";
 import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../utils/formatMoneyInput";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 const ALL_WALLETS_LABEL = "Tất cả ví";
  
@@ -27,6 +28,7 @@ export default function BudgetFormModal({
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { t } = useLanguage();
  
   const resolveWalletCurrency = (walletId) => {
     const wallet = wallets.find((w) => String(w.id) === String(walletId));
@@ -112,7 +114,7 @@ export default function BudgetFormModal({
     if (endDateObj) endDateObj.setHours(0, 0, 0, 0);
  
     if (!selectedCategoryId) {
-      newErrors.category = "Vui lòng chọn danh mục";
+      newErrors.category = t('budgets.error.category');
     }
     
     // Xử lý walletId và walletName trước để validate
@@ -152,26 +154,26 @@ export default function BudgetFormModal({
     if (selectedWalletId) {
       const currencyCode = resolveWalletCurrency(selectedWalletId);
       if (currencyCode !== "VND") {
-        newErrors.wallet = "Chỉ được chọn ví có đơn vị tiền tệ VND";
+        newErrors.wallet = t('budgets.error.wallet_vnd_only');
       }
     }
     if (!limitNumeric || limitNumeric <= 0) {
-      newErrors.limit = "Vui lòng nhập hạn mức lớn hơn 0";
+      newErrors.limit = t('budgets.error.limit_required');
     }
     if (!startDate) {
-      newErrors.startDate = "Vui lòng chọn ngày bắt đầu";
+      newErrors.startDate = t('budgets.error.start_date');
     }
     if (!endDate) {
-      newErrors.endDate = "Vui lòng chọn ngày kết thúc";
+      newErrors.endDate = t('budgets.error.end_date');
     }
     if (startDateObj && startDateObj < today) {
-      newErrors.startDate = "Ngày bắt đầu không được nhỏ hơn ngày hiện tại";
+      newErrors.startDate = t('budgets.error.start_date_past');
     }
     if (startDateObj && endDateObj && endDateObj <= startDateObj) {
-      newErrors.endDate = "Ngày kết thúc phải lớn hơn ngày bắt đầu";
+      newErrors.endDate = t('budgets.error.date_range');
     }
     if (alertThreshold < 50 || alertThreshold > 100) {
-      newErrors.alertThreshold = "Ngưỡng cảnh báo phải trong khoảng 50% - 100%";
+      newErrors.alertThreshold = t('budgets.error.alert_threshold');
     }
  
     // Đảm bảo walletName không rỗng nếu có walletId
@@ -417,22 +419,22 @@ export default function BudgetFormModal({
         <button
           type="button"
           className="btn-close budget-form-close"
-          aria-label="Đóng"
+          aria-label={t('common.close')}
           onClick={onClose}
         />
         <div className="budget-form-breadcrumbs">
-          <span>Ngân sách</span>
+          <span>{t('budgets.form.breadcrumb_budget')}</span>
           <i className="bi bi-chevron-right" />
-          <strong>{mode === "create" ? "Tạo hạn mức" : "Chỉnh sửa hạn mức"}</strong>
+          <strong>{mode === "create" ? t('budgets.form.breadcrumb_create') : t('budgets.form.breadcrumb_edit')}</strong>
         </div>
         <h4 className="mb-3" style={{ fontWeight: 600, color: "#212529" }}>
-          {mode === "create" ? "Thêm Hạn mức Chi tiêu Mới" : "Chỉnh sửa Hạn mức Chi tiêu"}
+          {mode === "create" ? t('budgets.form.title_create') : t('budgets.form.title_edit')}
         </h4>
         <div className="budget-form-info mb-4">
           <i className="bi bi-info-circle" />
           <div>
-            <p>Thiết lập hạn mức theo danh mục và ví cụ thể để dễ dàng theo dõi tiến độ chi tiêu.</p>
-            <span>Bạn có thể bật cảnh báo khi mức sử dụng đạt ngưỡng mong muốn.</span>
+            <p>{t('budgets.form.info_desc')}</p>
+            <span>{t('budgets.form.info_alert')}</span>
           </div>
         </div>
  
@@ -445,18 +447,18 @@ export default function BudgetFormModal({
           {/* Category Selector */}
           <div className="mb-3">
             <SearchableSelectInput
-              label="Chọn Danh mục"
+              label={t('budgets.form.category_label')}
               value={selectedCategoryId}
               onChange={handleCategoryChange}
               options={categoryOptions}
-              placeholder="-- Chọn danh mục --"
+              placeholder={t('budgets.form.category_placeholder')}
               disabled={mode === "edit"}
-              emptyMessage="Không có danh mục phù hợp"
+              emptyMessage={t('budgets.form.category_empty')}
               error={errors.category}
             />
             {mode === "edit" && (
               <div className="form-text text-muted">
-                Không thể thay đổi danh mục khi chỉnh sửa hạn mức.
+                {t('budgets.form.category_edit_hint')}
               </div>
             )}
           </div>
@@ -464,25 +466,25 @@ export default function BudgetFormModal({
           {/* Wallet Selector */}
           <div className="mb-3">
             <SearchableSelectInput
-              label="Áp dụng cho Ví"
+              label={t('budgets.form.wallet_label')}
               value={selectedWalletId}
               onChange={handleWalletChange}
               options={walletOptions}
-              placeholder="-- Chọn ví --"
+              placeholder={t('budgets.form.wallet_placeholder')}
               disabled={mode === "edit"}
-              emptyMessage="Không có ví khả dụng"
+              emptyMessage={t('budgets.form.wallet_empty')}
               error={errors.wallet}
             />
             {mode === "edit" && (
               <div className="form-text text-muted">
-                Không thể thay đổi ví áp dụng khi chỉnh sửa.
+                {t('budgets.form.wallet_edit_hint')}
               </div>
             )}
           </div>
  
           {/* Limit Amount */}
           <div className="mb-4">
-            <label className="form-label fw-semibold">Hạn mức Chi tiêu ({walletCurrency})</label>
+            <label className="form-label fw-semibold">{t('budgets.form.limit_label', { currency: walletCurrency })}</label>
             <div className="input-group">
               <input
                 type="text"
@@ -500,10 +502,10 @@ export default function BudgetFormModal({
  
           {/* Date Range Selector */}
           <div className="mb-3">
-            <label className="form-label fw-semibold">Khoảng thời gian áp dụng</label>
+            <label className="form-label fw-semibold">{t('budgets.form.date_range_label')}</label>
             <div className="row g-2">
               <div className="col-6">
-                <label className="form-text small mb-1 d-block">Từ ngày</label>
+                <label className="form-text small mb-1 d-block">{t('budgets.form.start_date_label')}</label>
                 <input
                   type="date"
                   className={`form-control ${errors.startDate ? "is-invalid" : ""}`}
@@ -537,7 +539,7 @@ export default function BudgetFormModal({
                 )}
               </div>
               <div className="col-6">
-                <label className="form-text small mb-1 d-block">Đến ngày</label>
+                <label className="form-text small mb-1 d-block">{t('budgets.form.end_date_label')}</label>
                 <input
                   type="date"
                   className={`form-control ${errors.endDate ? "is-invalid" : ""}`}
@@ -568,12 +570,12 @@ export default function BudgetFormModal({
                 )}
               </div>
             </div>
-            <div className="form-text mt-2">Hạn mức sẽ được theo dõi trong khoảng thời gian này.</div>
+            <div className="form-text mt-2">{t('budgets.form.date_range_hint')}</div>
           </div>
  
           {/* Alert threshold */}
           <div className="mb-4">
-            <label className="form-label fw-semibold">Ngưỡng cảnh báo (%)</label>
+            <label className="form-label fw-semibold">{t('budgets.form.alert_threshold_label')}</label>
             <input
               type="range"
               className="form-range"
@@ -591,37 +593,37 @@ export default function BudgetFormModal({
             {errors.alertThreshold && (
               <div className="invalid-feedback d-block">{errors.alertThreshold}</div>
             )}
-            <div className="form-text">Gửi cảnh báo khi mức sử dụng đạt ngưỡng này.</div>
+            <div className="form-text">{t('budgets.form.alert_threshold_hint')}</div>
           </div>
  
           {/* Notes */}
           <div className="mb-4">
-            <label className="form-label fw-semibold">Ghi chú (tùy chọn)</label>
+            <label className="form-label fw-semibold">{t('budgets.form.note_label')}</label>
             <textarea
               className="form-control"
               rows={3}
-              placeholder="Nhập lưu ý nội bộ cho hạn mức này"
+              placeholder={t('budgets.form.note_placeholder')}
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
-            <div className="form-text">Ghi chú sẽ hiển thị trong thẻ hạn mức để cả nhóm dễ theo dõi.</div>
+            <div className="form-text">{t('budgets.form.note_hint')}</div>
           </div>
  
           {/* Buttons */}
           <div className="d-flex gap-2 justify-content-end">
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
-              Hủy
+              {t('budgets.form.cancel')}
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? (
                 <span>
                   <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  Đang xử lý...
+                  {t('budgets.form.processing')}
                 </span>
               ) : mode === "create" ? (
-                "Thêm Hạn mức"
+                t('budgets.form.submit_create')
               ) : (
-                "Cập nhật"
+                t('budgets.form.submit_update')
               )}
             </button>
           </div>

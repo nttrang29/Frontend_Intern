@@ -1566,7 +1566,7 @@ export default function WalletDetail(props) {
           >
             <div className="wallet-form__row">
               <label>
-                Tên ví
+                {t('wallets.modal.name_label')}
                 <input
                   type="text"
                   required
@@ -1574,7 +1574,7 @@ export default function WalletDetail(props) {
                   onChange={(e) =>
                     onCreateFieldChange("name", e.target.value)
                   }
-                  placeholder="Ví tiền mặt, Ví ngân hàng..."
+                  placeholder={t('wallets.modal.name_placeholder')}
                 />
               </label>
 
@@ -1582,18 +1582,18 @@ export default function WalletDetail(props) {
 
             <div className="wallet-form__row">
               <label className="wallet-form__full">
-                Ghi chú
+                {t('wallets.modal.note_label')}
                 <input
                   type="text"
                   value={createForm.note}
                   onChange={(e) =>
                     onCreateFieldChange("note", e.target.value)
                   }
-                  placeholder="Thêm ghi chú cho ví"
+                  placeholder={t('wallets.modal.note_placeholder')}
                   maxLength={NOTE_MAX_LENGTH}
                 />
                 <span className="wallet-form__char-hint">
-                  {(createForm.note || "").length}/{NOTE_MAX_LENGTH} ký tự
+                  {(createForm.note || "").length}/{NOTE_MAX_LENGTH} {t('wallets.modal.characters')}
                 </span>
               </label>
             </div>
@@ -1601,7 +1601,7 @@ export default function WalletDetail(props) {
             {/* Currency fixed to VND */}
             <div className="wallet-form__row">
               <label>
-                Đơn vị tiền tệ
+                {t('wallets.modal.currency_label')}
                 <input type="text" value="VND" disabled className="form-control" />
               </label>
             </div>
@@ -1614,14 +1614,14 @@ export default function WalletDetail(props) {
                   checked={createShareEnabled}
                   onChange={(e) => setCreateShareEnabled(e.target.checked)}
                 />
-                <span>Chia sẻ ví này với người khác</span>
+                <span>{t('wallets.modal.share_wallet')}</span>
               </label>
             </div>
 
             {createShareEnabled && (
               <div className="wallet-form__share-block">
                 <label className="wallet-form__full">
-                  Email người được chia sẻ
+                  {t('wallets.modal.share_email_label')}
                   <div className="wallet-form__share-row">
                     <input
                       type="email"
@@ -1634,7 +1634,7 @@ export default function WalletDetail(props) {
                       className="wallets-btn wallets-btn--ghost"
                       onClick={onAddCreateShareEmail}
                     >
-                      Thêm
+                      {t('wallets.modal.add')}
                     </button>
                   </div>
                 </label>
@@ -1666,7 +1666,7 @@ export default function WalletDetail(props) {
                     onCreateFieldChange("isDefault", e.target.checked)
                   }
                 />
-                <span>Đặt làm ví mặc định</span>
+                <span>{t('wallets.modal.edit_default_label')}</span>
               </label>
               <div className="wallet-form__actions">
                 <button
@@ -1674,13 +1674,13 @@ export default function WalletDetail(props) {
                   className="wallets-btn wallets-btn--ghost"
                   onClick={() => setShowCreate(false)}
                 >
-                  Hủy
+                  {t('wallets.modal.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="wallets-btn wallets-btn--primary"
                 >
-                  Lưu ví cá nhân
+                  {t('wallets.modal.create_btn')}
                 </button>
               </div>
             </div>
@@ -1795,7 +1795,7 @@ export default function WalletDetail(props) {
                               onSharedWalletDemoCancel?.();
                             }}
                           >
-                            Hủy
+                            {t('wallets.modal.cancel')}
                           </button>
                         </div>
                       )}
@@ -1983,7 +1983,7 @@ export default function WalletDetail(props) {
                 }
                 onClick={() => setActiveDetailTab("convert")}
               >
-                Chuyển thành ví nhóm
+                {t('wallets.convert.tab_title')}
               </button>
             )}
 
@@ -1996,7 +1996,7 @@ export default function WalletDetail(props) {
                 }
                 onClick={() => setActiveDetailTab("manageMembers")}
               >
-                Quản lý người dùng
+                {t('wallets.manage_members.tab_title')}
               </button>
             )}
           </>

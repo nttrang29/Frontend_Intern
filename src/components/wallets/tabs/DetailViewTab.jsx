@@ -21,6 +21,8 @@ export default function DetailViewTab({
   effectiveIsViewer = false,
   onLeaveWallet,
 }) {
+  const { t } = useLanguage();
+  
   // Quick-share UI removed: we only display existing shared members.
   const { currentUser } = useAuth();
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -32,10 +34,10 @@ export default function DetailViewTab({
     : fallbackEmails.map((email) => ({ email }));
 
   const emptyShareMessage = canManageSharedMembers
-    ? "Bạn chưa chia sẻ ví này cho ai."
+    ? t('wallets.detail.empty_share_owner')
     : sharedFilter === "sharedWithMe"
-    ? "Ví này đang được người khác chia sẻ cho bạn."
-    : "Chưa có thành viên nào được chia sẻ.";
+    ? t('wallets.detail.empty_share_viewer')
+    : t('wallets.detail.empty_share_member');
 
   const renderShareSection = () => {
     if (sharedMembersLoading) {
@@ -137,47 +139,47 @@ export default function DetailViewTab({
   return (
     <div className="wallets-section wallets-section--view">
       <div className="wallets-section__header">
-        <h3>Chi tiết ví</h3>
-        <span>Thông tin cơ bản, chia sẻ và lịch sử giao dịch.</span>
+        <h3>{t('wallets.detail.title')}</h3>
+        <span>{t('wallets.detail.subtitle')}</span>
       </div>
 
       <div className="wallets-detail-view">
         <div className="wallets-detail-view__col">
           <div className="wallets-detail-view__card">
             <div className="wallets-detail-view__card-header">
-              <span>Thông tin &amp; chia sẻ</span>
+              <span>{t('wallets.detail.info_section')}</span>
             </div>
 
             <div className="wallet-detail-grid">
               <div className="wallet-detail-item">
-                <span className="wallet-detail-item__label">Loại ví</span>
+                <span className="wallet-detail-item__label">{t('wallets.detail.type_label')}</span>
                 <span className="wallet-detail-item__value">
-                  {wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
+                  {wallet.isShared ? t('wallets.type.group') : t('wallets.type.personal')}
                 </span>
               </div>
               <div className="wallet-detail-item">
-                <span className="wallet-detail-item__label">Tiền tệ</span>
+                <span className="wallet-detail-item__label">{t('wallets.detail.currency_label')}</span>
                 <span className="wallet-detail-item__value">
                   {wallet.currency || "VND"}
                 </span>
               </div>
               <div className="wallet-detail-item">
-                <span className="wallet-detail-item__label">Ngày tạo</span>
+                <span className="wallet-detail-item__label">{t('wallets.detail.created_at_label')}</span>
                 <span className="wallet-detail-item__value">
                   {wallet.createdAt ? formatVietnamDate(wallet.createdAt) : "—"}
                 </span>
               </div>
               <div className="wallet-detail-item wallet-detail-item--full">
-                <span className="wallet-detail-item__label">Ghi chú</span>
+                <span className="wallet-detail-item__label">{t('wallets.inspector.note')}</span>
                 <span className="wallet-detail-item__value">
-                  {wallet.note || "Chưa có ghi chú."}
+                  {wallet.note || t('wallets.detail.no_note')}
                 </span>
               </div>
             </div>
 
             <div className="wallets-detail__share">
               <div className="wallets-detail__share-header">
-                <h4>Chia sẻ ví</h4>
+                <h4>{t('wallets.detail.share_section')}</h4>
               </div>
               {/* quick share form removed; only display existing shared members */}
               {renderShareSection()}
@@ -203,9 +205,9 @@ export default function DetailViewTab({
         <div className="wallets-detail-view__col wallets-detail-view__col--history">
           <div className="wallets-detail-view__card">
             <div className="wallets-detail-view__card-header">
-              <span>Lịch sử giao dịch</span>
+              <span>{t('wallets.detail.transaction_history')}</span>
               <span className="wallets-detail-view__counter">
-                {isLoadingTransactions ? "Đang tải..." : `${demoTransactions.length} giao dịch`}
+                {isLoadingTransactions ? t('common.loading') : t('wallets.detail.transaction_count', { count: demoTransactions.length })}
               </span>
             </div>
 
@@ -227,7 +229,7 @@ export default function DetailViewTab({
                 </p>
               ) : demoTransactions.length === 0 ? (
                 <p className="wallets-detail__history-empty">
-                  Chưa có giao dịch cho ví này.
+                  {t('wallets.detail.no_transactions')}
                 </p>
               ) : (
                 <ul className="wallets-detail__history-list">

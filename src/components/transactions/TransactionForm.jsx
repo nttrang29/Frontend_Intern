@@ -7,7 +7,6 @@ import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../u
 import { useLanguage } from "../../contexts/LanguageContext";
 import { getVietnamDateTime, convertToVietnamDateTime, formatMoney } from "./utils/transactionUtils";
 import useOnClickOutside from "../../hooks/useOnClickOutside";
-import { getRate, formatConvertedBalance } from "../wallets/utils/walletUtils";
 import SearchableSelectInput from "../common/SearchableSelectInput";
 import { WALLET_TYPE_ICON_CONFIG, mapWalletsToSelectOptions } from "../../utils/walletSelectHelpers";
 
@@ -444,23 +443,7 @@ export default function TransactionForm({
   const walletBalance = Number(selectedWallet?.balance || 0);
   const sourceWalletBalance = Number(sourceWallet?.balance || 0);
 
-  // Kiểm tra ví khác loại tiền tệ (cho chuyển tiền giữa các ví)
-  const sourceCurrency = sourceWallet?.currency || "VND";
-  const targetCurrency = targetWallet?.currency || "VND";
-  const currenciesDiffer = variant === "internal" && sourceWallet && targetWallet && sourceCurrency !== targetCurrency;
-
-  // Tính tỷ giá và số tiền chuyển đổi
-  const exchangeRate = useMemo(() => {
-    if (!currenciesDiffer) return 1;
-    return getRate(sourceCurrency, targetCurrency);
-  }, [currenciesDiffer, sourceCurrency, targetCurrency]);
-
-  const convertedAmount = useMemo(() => {
-    if (!currenciesDiffer || !amountNum) return 0;
-    // Không làm tròn để giữ đúng giá như tỷ giá (giữ nhiều chữ số thập phân)
-    const converted = amountNum * exchangeRate;
-    return converted;
-  }, [amountNum, exchangeRate, currenciesDiffer]);
+  // Frontend chỉ dùng VND, không còn chức năng chuyển đổi tiền tệ
 
   const isExpenseAmountValid = form.type === "expense" 
     ? (amountNum > 0 && amountNum <= walletBalance)
@@ -728,33 +711,8 @@ export default function TransactionForm({
                   disabled={mode === "edit"}
                   required
                 />
-                <span className="input-group-text">{sourceCurrency}</span>
+                <span className="input-group-text">VND</span>
               </div>
-              {/* Hiển thị số tiền chuyển đổi và tỷ giá nếu ví khác loại tiền tệ */}
-              {currenciesDiffer && amountNum > 0 && (
-                <>
-                  <div style={{ 
-                    fontSize: "0.875rem", 
-                    color: "#6b7280",
-                    marginTop: "6px"
-                  }}>
-                    Tiền chuyển đổi:{" "}
-                    <strong style={{ color: "#059669" }}>
-                      {formatConvertedBalance(convertedAmount, targetCurrency)}
-                    </strong>
-                  </div>
-                  <div style={{ 
-                    fontSize: "0.875rem", 
-                    color: "#6b7280",
-                    marginTop: "4px"
-                  }}>
-                    Tỷ giá: 1 {sourceCurrency} = {exchangeRate.toLocaleString("vi-VN", { 
-                      minimumFractionDigits: 0, 
-                      maximumFractionDigits: 8 
-                    })} {targetCurrency}
-                  </div>
-                </>
-              )}
               {showAmountError && (
                 <div className="invalid-feedback">
                   {t("transactions.form.amount_invalid")}
@@ -1057,7 +1015,7 @@ export default function TransactionForm({
             />
             {attachmentPreview && (
               <div className="mt-2">
-                <img src={attachmentPreview} alt="Preview" style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "contain" }} />
+                <img src={attachmentPreview} alt={t("transactions.form.attachment_preview")} style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "contain" }} />
               </div>
             )}
           </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useLanguage } from "../../contexts/LanguageContext";
 import Modal from "../common/Modal/Modal";
 
 // Danh sách 40 icon đẹp cho category
@@ -28,6 +29,7 @@ export default function CategoryFormModal({
   selectedType, // "expense" | "income" - chỉ dùng khi activeTab === "system"
   onTypeChange, // callback khi chọn type ở tab system
 }) {
+  const { t } = useLanguage();
   // initialValue: string (name) hoặc object { name, description, isSystem, icon }
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -66,11 +68,11 @@ export default function CategoryFormModal({
     const trimmed = (name || "").trim();
 
     if (!trimmed) {
-      setError("Vui lòng nhập tên danh mục");
+      setError(t("categories.error.name_required"));
       return;
     }
     if (trimmed.length > 40) {
-      setError("Tên danh mục tối đa 40 ký tự");
+      setError(t("categories.error.name_length"));
       return;
     }
 
@@ -92,11 +94,11 @@ export default function CategoryFormModal({
 
   const title = isSystemTab
     ? mode === "edit"
-      ? `Sửa danh mục hệ thống`
-      : `Thêm danh mục hệ thống`
+      ? t("categories.form.title_edit_system")
+      : t("categories.form.title_create_system")
     : mode === "edit"
-    ? `Sửa danh mục ${typeLabel}`
-    : `Thêm danh mục ${typeLabel}`;
+    ? t("categories.form.title_edit", { type: typeLabel })
+    : t("categories.form.title_create", { type: typeLabel });
 
   return (
     <Modal open={open} onClose={onClose} width={460}>
@@ -228,7 +230,7 @@ export default function CategoryFormModal({
               <div>
                 <h5 className="modal-title fw-semibold mb-0">{title}</h5>
                 <div className="text-muted small">
-                  Danh mục giúp bạn phân loại thu chi rõ ràng hơn.
+                  {t("categories.form.subtitle")}
                 </div>
               </div>
             </div>
@@ -247,13 +249,13 @@ export default function CategoryFormModal({
               {/* Icon Picker */}
               <div className="mb-3">
                 <label className="form-label fw-semibold">
-                  Icon <span className="text-muted small">(tùy chọn)</span>
+                  {t("categories.form.icon_label")} <span className="text-muted small">({t("common.optional")})</span>
                 </label>
                 <div className="d-flex align-items-center gap-3">
                   <div 
                     className="category-icon-preview"
                     onClick={() => setShowIconPicker(!showIconPicker)}
-                    title="Chọn icon"
+                    title={t("categories.form.choose_icon")}
                   >
                     <i className={`bi ${selectedIcon}`} />
                   </div>
@@ -263,7 +265,7 @@ export default function CategoryFormModal({
                       className="btn btn-outline-secondary btn-sm"
                       onClick={() => setShowIconPicker(!showIconPicker)}
                     >
-                      {showIconPicker ? "Ẩn icon" : "Chọn icon"}
+                      {showIconPicker ? t("categories.form.hide_icon") : t("categories.form.choose_icon")}
                     </button>
                   </div>
                 </div>
@@ -294,7 +296,7 @@ export default function CategoryFormModal({
               {isSystemTab && mode === "create" && (
                 <div className="mb-3">
                   <label className="form-label fw-semibold">
-                    Loại danh mục <span className="text-danger">*</span>
+                    {t("categories.form.type_label")} <span className="text-danger">*</span>
                   </label>
                   <select
                     className="form-select"
@@ -302,23 +304,23 @@ export default function CategoryFormModal({
                     onChange={(e) => onTypeChange && onTypeChange(e.target.value)}
                     required
                   >
-                    <option value="expense">Chi phí</option>
-                    <option value="income">Thu nhập</option>
+                    <option value="expense">{t("categories.form.type_expense")}</option>
+                    <option value="income">{t("categories.form.type_income")}</option>
                   </select>
                   <div className="form-text text-muted small">
-                    Chọn loại danh mục bạn muốn tạo.
+                    {t("categories.form.type_hint")}
                   </div>
                 </div>
               )}
 
               <div className="mb-3">
                 <label className="form-label fw-semibold">
-                  Tên danh mục <span className="text-danger">*</span>
+                  {t("categories.form.name_label")} <span className="text-danger">*</span>
                 </label>
                 <input
                   type="text"
                   className={`form-control ${error ? "is-invalid" : ""}`}
-                  placeholder="Nhập tên danh mục..."
+                  placeholder={t("categories.form.name_placeholder")}
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -332,18 +334,18 @@ export default function CategoryFormModal({
 
               <div className="mb-3">
                 <label className="form-label fw-semibold">
-                  Mô tả (tùy chọn)
+                  {t("categories.form.desc_label")}
                 </label>
                 <textarea
                   className="form-control"
-                  placeholder="Mô tả ngắn cho danh mục..."
+                  placeholder={t("categories.form.desc_placeholder")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={120}
                   rows={3}
                 />
                 <div className="form-text text-muted small">
-                  Bạn có thể ghi chú mục đích sử dụng của danh mục này.
+                  {t("categories.form.desc_hint")}
                 </div>
               </div>
 
@@ -364,9 +366,7 @@ export default function CategoryFormModal({
                       htmlFor="isSystemCheck"
                       style={{ cursor: "pointer" }}
                     >
-                      Đặt làm{" "}
-                      <strong>Danh mục hệ thống</strong> (hiển thị cho tất cả
-                      người dùng)
+                      {t("categories.form.set_as_system")}
                     </label>
                   </div>
 
@@ -374,13 +374,12 @@ export default function CategoryFormModal({
                     {isSystemState ? (
                       <>
                         <i className="bi bi-globe-asia-australia me-1" />
-                        Danh mục sẽ xuất hiện trong phần{" "}
-                        <strong>Mặc định</strong> và áp dụng cho mọi tài khoản.
+                        {t("categories.form.system_hint_active")}
                       </>
                     ) : (
                       <>
                         <i className="bi bi-person me-1" />
-                        Nếu không chọn, danh mục chỉ hiển thị cho riêng bạn.
+                        {t("categories.form.system_hint_inactive")}
                       </>
                     )}
                   </div>
@@ -398,10 +397,10 @@ export default function CategoryFormModal({
                 className="btn btn-light"
                 onClick={onClose}
               >
-                Hủy
+                {t("common.cancel")}
               </button>
               <button type="submit" className="btn btn-primary">
-                {mode === "edit" ? "Lưu thay đổi" : "Thêm mới"}
+                {mode === "edit" ? t("common.save_changes") : t("categories.btn.create")}
               </button>
             </div>
           </form>
