@@ -3,7 +3,7 @@ import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDate } from "../../utils/dateFormat";
 import { calcEstimateDate } from "./utils/fundUtils";
 
-export default function DepositPreview({ depositAmount, fund, wallets, depositStatusInfo }) {
+export default function DepositPreview({ depositAmount, fund, wallets }) {
   if (!depositAmount || Number(depositAmount) <= 0) {
     return null;
   }
@@ -11,28 +11,19 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
   const amount = Number(depositAmount);
   const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
 
-  // Logic mới: Kiểm tra số tiền dựa trên trạng thái nạp
-  const shouldRequireAmountPerPeriod = depositStatusInfo?.hasEnoughForCurrentPeriod 
-    ? depositStatusInfo.extraDepositCount === 0 // Lần nạp thêm đầu tiên
-    : true; // Chưa nạp đủ cho chu kỳ hiện tại
-
-  // Kiểm tra số tiền nhỏ hơn số tiền theo tần suất (chỉ khi cần thiết)
-  if (shouldRequireAmountPerPeriod && fund.amountPerPeriod && amount < fund.amountPerPeriod) {
+  // Kiểm tra số tiền nhỏ hơn số tiền theo tần suất
+  if (fund.amountPerPeriod && amount < fund.amountPerPeriod) {
     return (
       <div style={{
         padding: '1rem',
         backgroundColor: '#fff7ed',
         border: '2px solid #f59e0b',
         borderRadius: '8px',
-        marginBottom: '1rem'
+        marginTop: '1rem'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <i className="bi bi-exclamation-triangle-fill" style={{ color: '#f59e0b', fontSize: '1.25rem' }}></i>
-          <strong style={{ color: '#f59e0b' }}>
-            {depositStatusInfo?.hasEnoughForCurrentPeriod 
-              ? 'Lần nạp thêm đầu tiên phải đủ số tiền theo tần suất!' 
-              : 'Số tiền nạp không đủ!'}
-          </strong>
+          <strong style={{ color: '#f59e0b' }}>Số tiền nạp không đủ!</strong>
         </div>
         <div style={{ fontSize: '0.875rem', color: '#92400e' }}>
           Số tiền bạn nhập: <strong>{formatMoney(amount, fund.currency)}</strong>
@@ -41,33 +32,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
           Số tiền theo tần suất: <strong>{formatMoney(fund.amountPerPeriod, fund.currency)}</strong>
         </div>
         <div style={{ fontSize: '0.875rem', color: '#92400e', marginTop: '0.5rem' }}>
-          ⚠️ {depositStatusInfo?.hasEnoughForCurrentPeriod 
-            ? `Lần nạp thêm đầu tiên phải nạp ít nhất ${formatMoney(fund.amountPerPeriod, fund.currency)}. Các lần sau có thể nạp bao nhiêu cũng được.`
-            : `Bạn cần nạp ít nhất ${formatMoney(fund.amountPerPeriod, fund.currency)} để đảm bảo theo đúng kế hoạch.`}
-        </div>
-      </div>
-    );
-  }
-  
-  // Hiển thị thông báo vượt tiến độ nếu đã nạp đủ và đang nạp thêm
-  if (depositStatusInfo?.hasEnoughForCurrentPeriod && depositStatusInfo.extraDepositCount > 0) {
-    return (
-      <div style={{
-        padding: '1rem',
-        backgroundColor: '#f0fdf4',
-        border: '2px solid #86efac',
-        borderRadius: '8px',
-        marginBottom: '1rem'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <i className="bi bi-rocket-takeoff-fill" style={{ color: '#10b981', fontSize: '1.25rem' }}></i>
-          <strong style={{ color: '#047857' }}>Nạp thêm - Vượt tiến độ!</strong>
-        </div>
-        <div style={{ fontSize: '0.875rem', color: '#065f46' }}>
-          Bạn đã nạp đủ cho chu kỳ hiện tại. Lần nạp này sẽ được tính là <strong>vượt tiến độ</strong>.
-        </div>
-        <div style={{ fontSize: '0.875rem', color: '#065f46', marginTop: '0.5rem' }}>
-          💡 Đây là lần nạp thêm thứ <strong>{depositStatusInfo.extraDepositCount + 1}</strong>. Bạn có thể nạp bao nhiêu cũng được.
+          ⚠️ Bạn cần nạp ít nhất <strong>{formatMoney(fund.amountPerPeriod, fund.currency)}</strong> để đảm bảo theo đúng kế hoạch.
         </div>
       </div>
     );
@@ -81,7 +46,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
         backgroundColor: '#fef2f2',
         border: '2px solid #ef4444',
         borderRadius: '8px',
-        marginBottom: '1rem'
+        marginTop: '1rem'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <i className="bi bi-exclamation-triangle-fill" style={{ color: '#ef4444', fontSize: '1.25rem' }}></i>
@@ -107,7 +72,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
       backgroundColor: '#e7f3ff',
       border: '2px solid #0d6efd',
       borderRadius: '8px',
-      marginBottom: '1rem'
+      marginTop: '1rem'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
         <i className="bi bi-info-circle-fill" style={{ color: '#0d6efd', fontSize: '1.25rem' }}></i>

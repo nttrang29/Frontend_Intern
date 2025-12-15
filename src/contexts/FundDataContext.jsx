@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import * as FundService from "../services/fund.service";
 import { useWalletData } from "./WalletDataContext";
 import { logActivity } from "../utils/activityLogger";
-import { parseAmount, parseAmountNonNegative } from "../utils/parseAmount";
 
 const FundDataContext = createContext(null);
 
@@ -32,14 +31,13 @@ const normalizeFund = (apiFund) => {
     fundType: normalizedType,
     hasTerm: apiFund.hasDeadline ?? apiFund.hasTerm ?? false,
     hasDeadline: apiFund.hasDeadline ?? apiFund.hasTerm ?? false,
-    // Parse số tiền từ API (có thể là string từ BigDecimal) - đảm bảo không mất precision
-    current: parseAmountNonNegative(apiFund.currentAmount ?? apiFund.current, 0),
-    currentAmount: parseAmountNonNegative(apiFund.currentAmount ?? apiFund.current, 0),
-    target: apiFund.targetAmount != null ? parseAmountNonNegative(apiFund.targetAmount ?? apiFund.target, null) : null,
-    targetAmount: apiFund.targetAmount != null ? parseAmountNonNegative(apiFund.targetAmount ?? apiFund.target, null) : null,
+    current: Number(apiFund.currentAmount ?? apiFund.current ?? 0),
+    currentAmount: Number(apiFund.currentAmount ?? apiFund.current ?? 0),
+    target: apiFund.targetAmount ?? apiFund.target ?? null,
+    targetAmount: apiFund.targetAmount ?? apiFund.target ?? null,
     currency: apiFund.currencyCode || apiFund.currency || "VND",
     frequency: apiFund.frequency || null,
-    amountPerPeriod: apiFund.amountPerPeriod != null ? parseAmountNonNegative(apiFund.amountPerPeriod, null) : null,
+    amountPerPeriod: apiFund.amountPerPeriod || null,
     startDate: apiFund.startDate || null,
     endDate: apiFund.endDate || null,
     note: apiFund.note || "",
@@ -75,11 +73,11 @@ const normalizeFund = (apiFund) => {
     autoDepositDayOfMonth: apiFund.autoDepositDayOfMonth || null,
     autoDepositMonth: apiFund.autoDepositMonth || null,
     autoDepositDay: apiFund.autoDepositDay || null,
-    autoDepositAmount: apiFund.autoDepositAmount != null ? parseAmountNonNegative(apiFund.autoDepositAmount, null) : null,
+    autoDepositAmount: apiFund.autoDepositAmount || null,
     autoDepositStartAt: apiFund.autoDepositStartAt || null,
     
     // Pending auto topup
-    pendingAutoTopupAmount: parseAmountNonNegative(apiFund.pendingAutoTopupAmount, 0),
+    pendingAutoTopupAmount: apiFund.pendingAutoTopupAmount ? Number(apiFund.pendingAutoTopupAmount) : 0,
     pendingAutoTopupAt: apiFund.pendingAutoTopupAt || null,
     
     // Thành viên (cho quỹ nhóm)
@@ -375,7 +373,7 @@ export function FundDataProvider({ children }) {
       logFundActivity("fund.deposit", `Nạp ${amount} vào quỹ ${normalizedUpdated.fundName || fundId}`,
         {
           fundId: normalizedUpdated.fundId || normalizedUpdated.id || fundId,
-          amount: parseAmountNonNegative(amount, 0),
+          amount: Number(amount) || 0,
           currency: normalizedUpdated.currency,
           targetWalletName: normalizedUpdated.targetWalletName,
         }
@@ -423,7 +421,7 @@ export function FundDataProvider({ children }) {
       logFundActivity("fund.withdraw", `Rút ${amount} từ quỹ ${normalizedUpdated.fundName || fundId}`,
         {
           fundId: normalizedUpdated.fundId || normalizedUpdated.id || fundId,
-          amount: parseAmountNonNegative(amount, 0),
+          amount: Number(amount) || 0,
           currency: normalizedUpdated.currency,
           sourceWalletName: normalizedUpdated.sourceWalletName,
         }

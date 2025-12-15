@@ -414,51 +414,23 @@
 .fund-card {
   background: linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.95) 0%,
-      rgba(240, 249, 255, 0.9) 50%,
-      rgba(255, 255, 255, 0.95) 100%
+      rgba(45, 153, 174, 0.08),
+      rgba(255, 255, 255, 0.96)
     );
-  border-radius: 16px;
-  border: 1px solid rgba(13, 110, 253, 0.2);
-  padding: 14px 16px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1),
-              0 4px 12px rgba(13, 110, 253, 0.08),
-              inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--funds-radius-md);
+  border: 1px solid rgba(45, 153, 174, 0.25);
+  padding: 10px 12px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  transition: transform var(--funds-transition),
+    box-shadow var(--funds-transition),
+    border-color var(--funds-transition);
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
-}
-
-.fund-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #0d6efd 0%, #3b82f6 50%, #00c2ff 100%);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.4s ease;
-}
-
-.fund-card:hover::before {
-  transform: scaleX(1);
 }
 
 .fund-card:hover {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18),
-              0 8px 20px rgba(13, 110, 253, 0.2),
-              inset 0 1px 0 rgba(255, 255, 255, 1);
-  border-color: rgba(13, 110, 253, 0.4);
-  background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 1) 0%,
-      rgba(240, 249, 255, 0.95) 50%,
-      rgba(255, 255, 255, 1) 100%
-    );
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.22);
+  border-color: rgba(45, 153, 174, 0.9);
 }
 
 .fund-card__top {
@@ -502,43 +474,8 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #0d6efd 0%, #3b82f6 50%, #00c2ff 100%);
-  background-size: 200% 100%;
-  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: progressShimmer 2s ease-in-out infinite;
-  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.4),
-              inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-.fund-card__progress-bar span::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
-  animation: progressShine 2s ease-in-out infinite;
-}
-
-@keyframes progressShimmer {
-  0%, 100% {
-    background-position: 0% center;
-  }
-  50% {
-    background-position: 100% center;
-  }
-}
-
-@keyframes progressShine {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
+  background: linear-gradient(90deg, #2d99ae, #38bdf8);
+  transition: width 0.3s ease-out;
 }
 
 .fund-card__progress-text {
@@ -681,19 +618,11 @@
    11) WRAPPER TỔNG – DANH SÁCH QUỸ
 ========================================================= */
 .funds-wrapper {
-  background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
-  border-radius: 24px;
-  border: 1px solid rgba(229, 231, 235, 0.8);
-  padding: 24px 28px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08),
-              0 6px 20px rgba(0, 0, 0, 0.04),
-              inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transition: all 0.3s ease;
-}
-
-.funds-wrapper:hover {
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.1),
-              0 8px 24px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid var(--funds-border);
+  padding: 18px 22px 22px;
+  box-shadow: var(--funds-shadow-subtle);
 }
 
 .funds-wrapper__title {
@@ -716,23 +645,11 @@
   flex: 1 1 260px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
+  gap: 8px;
+  padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(229, 231, 235, 0.8);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
-              inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  transition: all 0.3s ease;
-}
-
-.funds-toolbar__search:focus-within {
-  border-color: rgba(13, 110, 253, 0.4);
-  box-shadow: 0 6px 20px rgba(13, 110, 253, 0.15),
-              0 2px 8px rgba(13, 110, 253, 0.1),
-              inset 0 1px 0 rgba(255, 255, 255, 1);
+  border: 1px solid var(--funds-border);
   background: #ffffff;
-  transform: translateY(-1px);
 }
 
 .funds-toolbar__search i {
@@ -814,37 +731,18 @@
 
 /* nền nhẹ bọc cả section quỹ (outer) */
 .fund-section-wrapper {
-  background: linear-gradient(135deg, rgba(240, 249, 255, 0.6) 0%, rgba(224, 242, 254, 0.4) 100%);
-  border: 1px solid rgba(13, 110, 253, 0.2);
-  border-radius: 20px;
-  padding: 20px 24px;
+  background: rgba(45, 153, 174, 0.06);
+  border: 1px solid rgba(45, 153, 174, 0.15);
+  border-radius: 16px;
+  padding: 18px 20px;
   margin-bottom: 20px;
-  box-shadow: 0 8px 24px rgba(13, 110, 253, 0.1),
-              0 4px 12px rgba(0, 0, 0, 0.05),
-              inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-}
-
-.fund-section-wrapper::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #0d6efd 0%, #3b82f6 50%, #00c2ff 100%);
-  opacity: 0.6;
+  box-shadow: var(--funds-shadow-subtle);
+  transition: 0.25s ease;
 }
 
 .fund-section-wrapper:hover {
-  background: linear-gradient(135deg, rgba(240, 249, 255, 0.8) 0%, rgba(224, 242, 254, 0.6) 100%);
-  border-color: rgba(13, 110, 253, 0.35);
-  box-shadow: 0 12px 32px rgba(13, 110, 253, 0.15),
-              0 6px 16px rgba(0, 0, 0, 0.08),
-              inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transform: translateY(-2px);
+  background: rgba(45, 153, 174, 0.11);
+  border-color: rgba(45, 153, 174, 0.28);
 }
 
 /* =========================================================
@@ -988,69 +886,30 @@
    HEADER QUỸ (RIÊNG)
 =========================== */
 .funds-header-unique {
-  background: linear-gradient(135deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 40%, rgb(10, 181, 192) 80%, rgb(14, 165, 233) 100%);
-  border-radius: 24px;
-  box-shadow: 0 12px 40px rgba(11, 90, 165, 0.25),
-              0 6px 20px rgba(0, 0, 0, 0.15),
-              inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  padding: 28px 32px;
-  position: relative;
-  overflow: hidden;
+  background: linear-gradient(90deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 60%, rgb(10, 181, 192) 100%);
+  border-radius: 18px;
+  box-shadow: 0 4px 22px rgba(15, 23, 42, 0.08);
+  padding: 24px 28px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 22px;
 }
 
-.funds-header-unique::before {
-  content: "";
-  position: absolute;
-  top: -50%;
-  right: -10%;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
-  filter: blur(20px);
-  pointer-events: none;
-}
-
-.funds-header-unique::after {
-  content: "";
-  position: absolute;
-  bottom: -30%;
-  left: -5%;
-  width: 250px;
-  height: 250px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-  filter: blur(15px);
-  pointer-events: none;
-}
-
 /* ICON TRONG VÒNG TRÒN */
 .funds-header-icon {
-  width: 60px;
-  height: 60px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.2);
+
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
-  font-size: 2rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2),
-              inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: all 0.3s ease;
-  position: relative;
-  z-index: 1;
-}
 
-.funds-header-unique:hover .funds-header-icon {
-  transform: scale(1.1) rotate(10deg);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25),
-              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  font-size: 1.9rem;
 }
 
 /* NHÓM ICON + TEXT */
@@ -1061,19 +920,11 @@
 }
 
 /* STYLE TITLE */
-.funds-header-text {
-  position: relative;
-  z-index: 1;
-}
-
 .funds-header-text h2 {
-  font-weight: 700;
-  font-size: 1.5rem;
-  margin: 0 0 6px;
+  font-weight: 600;
+  font-size: 1.3rem;
+  margin: 0 0 4px;
   color: #ffffff;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2),
-               0 1px 4px rgba(0, 0, 0, 0.15);
-  letter-spacing: -0.02em;
 }
 
 .funds-header-text p {
@@ -1091,32 +942,27 @@
 /* BUTTON */
 .funds-header-btn {
   border-radius: 999px;
-  padding: 10px 22px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2),
-              0 2px 8px rgba(0, 0, 0, 0.15),
-              inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 6px 18px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid #2d99ae;
+  color: #2d99ae;
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(45, 153, 174, 0.15);
+  transition: background-color 0.18s ease-out,
+    color 0.18s ease-out,
+    box-shadow 0.18s ease-out,
+    transform 0.18s ease-out;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  position: relative;
-  z-index: 1;
+  gap: 6px;
 }
 
 .funds-header-btn:hover {
-  background: rgba(255, 255, 255, 0.95);
-  color: rgb(11, 90, 165);
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.25),
-              0 4px 16px rgba(0, 0, 0, 0.2),
-              inset 0 1px 0 rgba(255, 255, 255, 1);
-  border-color: rgba(255, 255, 255, 1);
+  background: #2d99ae;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(45, 153, 174, 0.25);
 }
 
 .funds-header-btn i {

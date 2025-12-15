@@ -13,8 +13,7 @@ export default function FundDepositTab({
   todayAutoDepositStatus,
   todayManualDepositStatus,
   depositStatus,
-  handleDeposit,
-  depositStatusInfo
+  handleDeposit
 }) {
   if (isFundCompleted) {
     return (
@@ -520,9 +519,6 @@ export default function FundDepositTab({
 
           <form onSubmit={handleDeposit}>
             <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #e5e7eb' }}>
-              {/* Cảnh báo - Hiển thị trước input */}
-              <DepositPreview depositAmount={depositAmount} fund={fund} wallets={wallets} depositStatusInfo={depositStatusInfo} />
-              
               <div className="funds-field">
                 <label>
                   Số tiền muốn nạp ({fund.currency}) <span className="req">*</span>
@@ -532,29 +528,7 @@ export default function FundDepositTab({
                   min="0"
                   step="any"
                   value={depositAmount}
-                  onChange={(e) => {
-                    // Chỉ cho phép số và dấu chấm
-                    const value = e.target.value.replace(/[^0-9.]/g, '');
-                    setDepositAmount(value);
-                  }}
-                  onWheel={(e) => {
-                    // Chặn cuộn chuột để thay đổi số tiền
-                    e.target.blur();
-                  }}
-                  onKeyDown={(e) => {
-                    // Chặn các phím không phải số, dấu chấm, backspace, delete, arrow keys
-                    if (!/[0-9.]/.test(e.key) && 
-                        !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab', 'Enter'].includes(e.key) &&
-                        !(e.ctrlKey || e.metaKey) && // Cho phép Ctrl+C, Ctrl+V, etc.
-                        !(e.key === 'a' && (e.ctrlKey || e.metaKey)) && // Cho phép Ctrl+A
-                        !(e.key === 'c' && (e.ctrlKey || e.metaKey)) &&
-                        !(e.key === 'v' && (e.ctrlKey || e.metaKey)) &&
-                        !(e.key === 'x' && (e.ctrlKey || e.metaKey))) {
-                      e.preventDefault();
-                    }
-                  }}
-                  inputMode="decimal"
-                  pattern="[0-9]*"
+                  onChange={(e) => setDepositAmount(e.target.value)}
                   placeholder="Nhập số tiền muốn nạp"
                   style={{
                     MozAppearance: 'textfield',
@@ -591,6 +565,8 @@ export default function FundDepositTab({
                   })()}
                 </div>
               </div>
+
+              <DepositPreview depositAmount={depositAmount} fund={fund} wallets={wallets} />
 
               <div className="funds-actions mt-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
                 <button 

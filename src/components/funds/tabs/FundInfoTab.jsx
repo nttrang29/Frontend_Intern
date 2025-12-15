@@ -1,234 +1,147 @@
 import React from "react";
 import { formatMoney } from "../../../utils/formatMoney";
 import { formatVietnamDate } from "../../../utils/dateFormat";
-import "../../../styles/components/funds/FundInfoTab.css";
 
 export default function FundInfoTab({ fund, wallets }) {
-  const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
-  
-  const getFrequencyLabel = (freq) => {
-    const labels = {
-      DAILY: "Hàng ngày",
-      WEEKLY: "Hàng tuần",
-      MONTHLY: "Hàng tháng",
-      YEARLY: "Hàng năm"
-    };
-    return labels[freq] || freq;
-  };
-
   return (
-    <div className="fund-info-tab">
-      <h6 className="fund-info-tab__subtitle">Xem thông tin chi tiết quỹ</h6>
+    <div>
+      <h6 className="mb-3 text-muted">Xem thông tin chi tiết quỹ</h6>
       
-      {/* THÔNG TIN CƠ BẢN */}
-      <div className="fund-info-section">
-        <div className="fund-info-section__header">
-          <div className="fund-info-section__icon">
-            <i className="bi bi-info-circle-fill"></i>
-          </div>
-          <h5 className="fund-info-section__title">Thông tin cơ bản</h5>
-        </div>
+      <div className="funds-fieldset">
+        <div className="funds-fieldset__legend">Thông tin cơ bản</div>
         
-        <div className="fund-info-section__content">
-          <div className="fund-info-item">
-            <div className="fund-info-item__icon">
-              <i className="bi bi-tag-fill"></i>
-            </div>
-            <div className="fund-info-item__content">
-              <div className="fund-info-item__label">Tên quỹ</div>
-              <div className="fund-info-item__value">{fund.name}</div>
-            </div>
+        <div className="funds-field">
+          <label>Tên quỹ</label>
+          <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+            {fund.name}
           </div>
-
-          <div className="fund-info-item">
-            <div className="fund-info-item__icon">
-              <i className="bi bi-currency-exchange"></i>
-            </div>
-            <div className="fund-info-item__content">
-              <div className="fund-info-item__label">Loại tiền tệ</div>
-              <div className="fund-info-item__value fund-info-item__value--currency">
-                {fund.currency}
-              </div>
-            </div>
-          </div>
-
-          <div className="fund-info-item">
-            <div className="fund-info-item__icon">
-              <i className="bi bi-calendar-check-fill"></i>
-            </div>
-            <div className="fund-info-item__content">
-              <div className="fund-info-item__label">Loại quỹ</div>
-              <div className={`fund-info-item__value fund-info-item__value--badge ${fund.hasTerm ? 'fund-info-item__value--term' : 'fund-info-item__value--no-term'}`}>
-                <i className={`bi ${fund.hasTerm ? 'bi-calendar-range' : 'bi-calendar-x'}`}></i>
-                {fund.hasTerm ? "Có kỳ hạn" : "Không kỳ hạn"}
-              </div>
-            </div>
-          </div>
-
-          <div className="fund-info-item">
-            <div className="fund-info-item__icon">
-              <i className="bi bi-wallet2"></i>
-            </div>
-            <div className="fund-info-item__content">
-              <div className="fund-info-item__label">Ví nguồn</div>
-              <div className="fund-info-item__value">{fund.sourceWalletName || "Không có thông tin"}</div>
-            </div>
-          </div>
-
-          <div className="fund-info-item">
-            <div className="fund-info-item__icon">
-              <i className="bi bi-cash-stack"></i>
-            </div>
-            <div className="fund-info-item__content">
-              <div className="fund-info-item__label">Số dư ví nguồn</div>
-              <div className="fund-info-item__value fund-info-item__value--money">
-                {sourceWallet 
-                  ? formatMoney(sourceWallet.balance, sourceWallet.currency)
-                  : 'Không tìm thấy ví'}
-              </div>
-            </div>
-          </div>
-
-          <div className="fund-info-item">
-            <div className="fund-info-item__icon">
-              <i className="bi bi-clock-history"></i>
-            </div>
-            <div className="fund-info-item__content">
-              <div className="fund-info-item__label">Ngày tạo</div>
-              <div className="fund-info-item__value">
-                {fund.createdAt ? new Date(fund.createdAt).toLocaleString('vi-VN') : "Không có thông tin"}
-              </div>
-            </div>
-          </div>
-
-          {fund.note && (
-            <div className="fund-info-item fund-info-item--full">
-              <div className="fund-info-item__icon">
-                <i className="bi bi-sticky-fill"></i>
-              </div>
-              <div className="fund-info-item__content">
-                <div className="fund-info-item__label">Ghi chú</div>
-                <div className="fund-info-item__value fund-info-item__value--note">
-                  {fund.note}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
+
+        <div className="funds-field funds-field--inline">
+          <div>
+            <label>Loại tiền tệ</label>
+            <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+              {fund.currency}
+            </div>
+          </div>
+          <div>
+            <label>Loại quỹ</label>
+            <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+              {fund.hasTerm ? "Có kỳ hạn" : "Không kỳ hạn"}
+            </div>
+          </div>
+        </div>
+
+        <div className="funds-field funds-field--inline">
+          <div>
+            <label>Ví nguồn</label>
+            <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+              {fund.sourceWalletName || "Không có thông tin"}
+            </div>
+          </div>
+          <div>
+            <label>Số dư ví nguồn</label>
+            <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+              {(() => {
+                const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
+                return sourceWallet 
+                  ? formatMoney(sourceWallet.balance, sourceWallet.currency)
+                  : 'Không tìm thấy ví';
+              })()}
+            </div>
+          </div>
+        </div>
+
+        <div className="funds-field">
+          <label>Ngày tạo</label>
+          <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+            {fund.createdAt ? new Date(fund.createdAt).toLocaleString('vi-VN') : "Không có thông tin"}
+          </div>
+        </div>
+
+        {fund.note && (
+          <div className="funds-field">
+            <label>Ghi chú</label>
+            <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
+              {fund.note}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* MỤC TIÊU & TẦN SUẤT */}
-      <div className="fund-info-section">
-        <div className="fund-info-section__header">
-          <div className="fund-info-section__icon">
-            <i className="bi bi-bullseye"></i>
-          </div>
-          <h5 className="fund-info-section__title">Mục tiêu & Tần suất</h5>
-        </div>
+      {/* MỤC TIÊU & TẦN SUẤT - Luôn hiển thị */}
+      <div className="funds-fieldset">
+        <div className="funds-fieldset__legend">Mục tiêu & Tần suất</div>
         
-        <div className="fund-info-section__content">
-          {fund.hasTerm && fund.target ? (
-            <>
-              <div className="fund-info-item fund-info-item--highlight">
-                <div className="fund-info-item__icon">
-                  <i className="bi bi-trophy-fill"></i>
-                </div>
-                <div className="fund-info-item__content">
-                  <div className="fund-info-item__label">Số tiền mục tiêu</div>
-                  <div className="fund-info-item__value fund-info-item__value--target">
-                    {formatMoney(fund.target, fund.currency)}
-                  </div>
-                </div>
+        {fund.hasTerm && fund.target ? (
+          <>
+            <div className="funds-field">
+              <label>Số tiền mục tiêu</label>
+              <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px', fontWeight: '600', color: '#0d6efd' }}>
+                {formatMoney(fund.target, fund.currency)}
               </div>
+            </div>
 
-              {fund.frequency && (
-                <div className="fund-info-item">
-                  <div className="fund-info-item__icon">
-                    <i className="bi bi-repeat"></i>
-                  </div>
-                  <div className="fund-info-item__content">
-                    <div className="fund-info-item__label">Tần suất gửi</div>
-                    <div className="fund-info-item__value fund-info-item__value--badge fund-info-item__value--frequency">
-                      <i className="bi bi-arrow-repeat"></i>
-                      {getFrequencyLabel(fund.frequency)}
-                    </div>
+            {fund.frequency && (
+              <div className="funds-field funds-field--inline">
+                <div>
+                  <label>Tần suất gửi</label>
+                  <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                    {fund.frequency}
                   </div>
                 </div>
-              )}
-
-              {fund.amountPerPeriod && (
-                <div className="fund-info-item">
-                  <div className="fund-info-item__icon">
-                    <i className="bi bi-cash-coin"></i>
-                  </div>
-                  <div className="fund-info-item__content">
-                    <div className="fund-info-item__label">Số tiền mỗi kỳ</div>
-                    <div className="fund-info-item__value fund-info-item__value--money">
+                {fund.amountPerPeriod && (
+                  <div>
+                    <label>Số tiền mỗi kỳ</label>
+                    <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
                       {formatMoney(fund.amountPerPeriod, fund.currency)}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            )}
 
-              <div className="fund-info-item fund-info-item--inline">
-                <div className="fund-info-item fund-info-item--date">
-                  <div className="fund-info-item__icon">
-                    <i className="bi bi-calendar-event"></i>
-                  </div>
-                  <div className="fund-info-item__content">
-                    <div className="fund-info-item__label">Ngày bắt đầu</div>
-                    <div className="fund-info-item__value fund-info-item__value--date">
-                      {fund.startDate ? formatVietnamDate(fund.startDate) : "Chưa thiết lập"}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="fund-info-item fund-info-item--date">
-                  <div className="fund-info-item__icon">
-                    <i className="bi bi-calendar-x"></i>
-                  </div>
-                  <div className="fund-info-item__content">
-                    <div className="fund-info-item__label">Ngày kết thúc</div>
-                    <div className="fund-info-item__value fund-info-item__value--date">
-                      {fund.endDate ? formatVietnamDate(fund.endDate) : "Chưa thiết lập"}
-                    </div>
-                  </div>
+            <div className="funds-field funds-field--inline">
+              <div>
+                <label>Ngày bắt đầu</label>
+                <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                  {fund.startDate ? formatVietnamDate(fund.startDate) : "Chưa thiết lập"}
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="fund-info-empty">
-              <i className="bi bi-info-circle"></i>
-              <p>Không sử dụng tính năng mục tiêu & tần suất cho quỹ này.</p>
+              <div>
+                <label>Ngày kết thúc</label>
+                <div style={{ padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                  {fund.endDate ? formatVietnamDate(fund.endDate) : "Chưa thiết lập"}
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="alert alert-secondary mb-0">
+            <i className="bi bi-info-circle me-2"></i>
+            Không sử dụng tính năng mục tiêu & tần suất cho quỹ này.
+          </div>
+        )}
       </div>
 
       {/* CHẾ ĐỘ NẠP TIỀN */}
-      <div className="fund-info-section fund-info-section--compact">
-        <div className="fund-info-section__header fund-info-section__header--inline">
-          <div className="fund-info-section__icon fund-info-section__icon--small">
-            <i className="bi bi-gear-fill"></i>
+      <div className="funds-fieldset">
+        <div className="funds-fieldset__legend">Chế độ nạp tiền</div>
+        {fund.autoDepositEnabled ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <i className="bi bi-arrow-repeat" style={{ color: '#10b981' }}></i>
+            <span style={{ fontSize: '0.875rem' }}>Nạp tự động</span>
           </div>
-          <h5 className="fund-info-section__title fund-info-section__title--small">Chế độ nạp tiền</h5>
-          <div className={`fund-info-mode ${fund.autoDepositEnabled ? 'fund-info-mode--auto' : 'fund-info-mode--manual'}`}>
-            <div className="fund-info-mode__icon fund-info-mode__icon--small">
-              <i className={`bi ${fund.autoDepositEnabled ? 'bi-arrow-repeat' : 'bi-wallet2'}`}></i>
-            </div>
-            <div className="fund-info-mode__content fund-info-mode__content--inline">
-              <div className="fund-info-mode__value fund-info-mode__value--small">
-                {fund.autoDepositEnabled ? "Nạp tự động" : "Nạp thủ công"}
-              </div>
-              {fund.autoDepositEnabled && fund.autoDepositAmount && (
-                <div className="fund-info-mode__desc fund-info-mode__desc--inline">
-                  {formatMoney(fund.autoDepositAmount, fund.currency)} mỗi kỳ
-                </div>
-              )}
-            </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <i className="bi bi-hand-thumbs-up" style={{ color: '#0d6efd' }}></i>
+            <span style={{ fontSize: '0.875rem' }}>Nạp thủ công</span>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
 }
+
+
+
