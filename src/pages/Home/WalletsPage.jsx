@@ -582,6 +582,7 @@ export default function WalletsPage() {
   }, []);
 
   const { expenseCategories = [], incomeCategories = [] } = useCategoryData();
+  const { pushNotification } = useNotifications() || {};
 
   const incomeCategoryOptions = useMemo(
     () => (incomeCategories.length ? incomeCategories : DEMO_CATEGORIES),
@@ -1878,6 +1879,14 @@ export default function WalletsPage() {
           }));
         }
         showToast(t('wallets.toast.topup_success'));
+        if (pushNotification && selectedWallet) {
+          pushNotification({
+            role: "user",
+            type: "wallet_topup",
+            title: t("wallets.toast.topup_success") || "Nạp ví thành công",
+            desc: `${formatMoney(amountNum, selectedWallet.currency || "VND")} → ${selectedWallet.name || selectedWallet.walletName || "Wallet"}`,
+          });
+        }
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
@@ -2008,6 +2017,14 @@ export default function WalletsPage() {
           }));
         }
         showToast(t('wallets.toast.withdraw_success'));
+        if (pushNotification && selectedWallet) {
+          pushNotification({
+            role: "user",
+            type: "wallet_spend",
+            title: t("wallets.toast.withdraw_success") || "Chi tiêu ví thành công",
+            desc: `${formatMoney(amountNum, selectedWallet.currency || "VND")} ← ${selectedWallet.name || selectedWallet.walletName || "Wallet"}`,
+          });
+        }
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
@@ -2085,6 +2102,15 @@ export default function WalletsPage() {
         }));
       }
       showToast(t('wallets.toast.transfer_success'));
+      if (pushNotification && selectedWallet && transferTargetId) {
+        const targetLabel = targetWallet?.name || targetWallet?.walletName || `#${transferTargetId}`;
+        pushNotification({
+          role: "user",
+          type: "wallet_transfer",
+          title: t("wallets.toast.transfer_success") || "Chuyển tiền thành công",
+          desc: `${formatMoney(amountNum, selectedWallet.currency || "VND")} ${selectedWallet.name || selectedWallet.walletName || "Wallet"} → ${targetLabel}`,
+        });
+      }
     } catch (error) {
       showToast(error.message || t('wallets.toast.create_error'), "error");
     } finally {

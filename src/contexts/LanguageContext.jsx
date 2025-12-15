@@ -238,6 +238,8 @@ const translations = {
     "activity.type.delete_budget": "Xóa ngân sách",
     "activity.type.create_fund": "Tạo quỹ",
     "activity.type.delete_fund": "Xóa quỹ",
+    "activity.type.fund_deposit": "Nạp quỹ",
+    "activity.type.create_category": "Tạo danh mục",
     "activity.description.by": "— bởi",
     "activity.description.merge_prefix": "Gộp ",
     "activity.description.merge_into": " vào ",
@@ -1342,6 +1344,8 @@ const translations = {
     "budgets.banner.warning_count": "{count} hạn mức vượt ngưỡng cảnh báo.",
     "budgets.banner.view_warnings": "Xem cảnh báo",
     "budgets.banner.view_over": "Xem vượt hạn mức",
+    "budgets.notification.detail_over": "Danh mục \"{category}\" đã sử dụng {percent}% hạn mức.",
+    "budgets.notification.detail_warning": "Danh mục \"{category}\" đã đạt {percent}% hạn mức, sắp chạm ngưỡng.",
     "budgets.side.recent_title": "Giao dịch gần đây",
     "budgets.transactions.empty": "Chưa có giao dịch được đồng bộ.",
     "transactions.all": "Tất cả",
@@ -1410,6 +1414,7 @@ const translations = {
     "budgets.error.start_date": "Vui lòng chọn ngày bắt đầu",
     "budgets.error.end_date": "Vui lòng chọn ngày kết thúc",
     "budgets.error.date_range": "Ngày kết thúc phải sau ngày bắt đầu",
+    "budgets.error.viewer_wallet": "Bạn chỉ có quyền xem trên ví này nên không thể đặt hạn mức.",
 
     // Budget Warning Modal
     "budgets.warning.title_alert": "⚠️ Nhắc nhở Sắp Quá Hạn mức",
@@ -1780,6 +1785,8 @@ const translations = {
     "activity.type.delete_budget": "Delete budget",
     "activity.type.create_fund": "Create fund",
     "activity.type.delete_fund": "Delete fund",
+    "activity.type.fund_deposit": "Fund deposit",
+    "activity.type.create_category": "Create category",
     "activity.description.by": "— by",
     "activity.description.merge_prefix": "Merge ",
     "activity.description.merge_into": " into ",
@@ -2859,6 +2866,7 @@ const translations = {
     "budgets.error.start_date": "Please select start date",
     "budgets.error.end_date": "Please select end date",
     "budgets.error.date_range": "End date must be after start date",
+    "budgets.error.viewer_wallet": "You only have viewer permission on this wallet, so you cannot create a budget on it.",
 
     // Budget Warning Modal
     "budgets.warning.title_alert": "⚠️ Approaching Limit Alert",

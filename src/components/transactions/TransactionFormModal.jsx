@@ -138,88 +138,45 @@ export default function TransactionFormModal({
   // GROUP_EXTERNAL: ví nhóm (GROUP) và ví được chia sẻ với role MEMBER
   // INTERNAL: ví cá nhân, ví nhóm và ví được chia sẻ với role MEMBER
   const filteredWalletList = useMemo(() => {
-    const allWallets = Array.isArray(availableWallets) ? availableWallets : (walletListFromContext || []);
-    
+    const allWallets = Array.isArray(availableWallets)
+      ? availableWallets
+      : walletListFromContext || [];
+
     return allWallets.filter((w) => {
-      // Bỏ qua ví đã bị xóa mềm
       if (w?.deleted) return false;
-      
-      // Lấy walletType để phân biệt PERSONAL và GROUP
+
       const walletType = (w?.walletType || w?.type || "").toString().toUpperCase();
       const role = (w?.walletRole || w?.sharedRole || w?.role || "").toString().toUpperCase();
       const isShared = !!w?.isShared || !!(w?.walletRole || w?.sharedRole || w?.role);
-      
-      // Nếu là tab "Giao dịch ví cá nhân" (EXTERNAL) - chỉ hiển thị ví cá nhân
+
+      const isOwner =
+        (w?.ownerUserId && currentUserId && String(w.ownerUserId) === String(currentUserId)) ||
+        ["OWNER", "MASTER", "ADMIN"].includes(role);
+      const isMember = ["MEMBER", "USER", "USE"].includes(role);
+      const isViewer = ["VIEW", "VIEWER"].includes(role);
+
+      // Không cho giao dịch trên ví chỉ có quyền xem
+      if (isViewer) return false;
+
       if (activeTab === "external") {
-        // Chỉ lấy ví PERSONAL (walletType !== "GROUP")
-        if (walletType === "GROUP") return false;
-        
-        // Ví cá nhân: kiểm tra xem user có phải owner không
-        if (w?.ownerUserId && currentUserId) {
-          return String(w.ownerUserId) === String(currentUserId);
-        }
-        // Nếu không có ownerUserId, mặc định là ví của user hiện tại
-        return true;
+        // Giao dịch ví cá nhân: cho phép cả ví cá nhân và ví được chia sẻ (member),
+        // miễn là không phải viewer
+        return isOwner || (isShared && isMember);
       }
-      
-      // Nếu là tab "Giao dịch ví nhóm" (GROUP_EXTERNAL) - chỉ hiển thị ví nhóm và ví được chia sẻ với role MEMBER
+
       if (activeTab === "group_external") {
-        // 1. Ví nhóm (walletType === "GROUP", user là OWNER/MASTER/ADMIN)
-        if (walletType === "GROUP" && isShared && ["OWNER", "MASTER", "ADMIN"].includes(role)) {
-          return true;
-        }
-        
-        // 2. Ví được chia sẻ với quyền MEMBER/USER/USE (không phải VIEW/VIEWER)
-        if (isShared && ["MEMBER", "USER", "USE"].includes(role)) {
-          return true;
-        }
-        
-        // Bỏ qua ví cá nhân và các ví khác
-        return false;
+        // Ví nhóm + các ví được chia sẻ mà user có thể thao tác (owner hoặc member)
+        if (!isShared) return false;
+        return isOwner || isMember;
       }
-      
-      // Nếu là tab "Giao dịch giữa các ví" (INTERNAL) - cho phép ví cá nhân, ví nhóm và ví được chia sẻ với role MEMBER
+
       if (activeTab === "internal") {
-        // 1. Ví cá nhân (walletType !== "GROUP", user là owner)
-        if (walletType !== "GROUP") {
-          if (w?.ownerUserId && currentUserId) {
-            return String(w.ownerUserId) === String(currentUserId);
-          }
-          // Nếu không có ownerUserId, mặc định là ví của user hiện tại
-          return true;
-        }
-        
-        // 2. Ví nhóm (walletType === "GROUP", user là OWNER/MASTER/ADMIN)
-        if (walletType === "GROUP" && isShared && ["OWNER", "MASTER", "ADMIN"].includes(role)) {
-          return true;
-        }
-        
-        // 3. Ví được chia sẻ với quyền MEMBER/USER/USE (không phải VIEW/VIEWER)
-        if (isShared && ["MEMBER", "USER", "USE"].includes(role)) {
-          return true;
-        }
-        
-        // Bỏ qua các ví khác
-        return false;
+        // Cho phép chuyển tiền giữa tất cả ví mà user là owner hoặc member
+        return isOwner || isMember;
       }
-      
-      // Fallback: nếu không có activeTab hoặc tab khác, dùng logic cũ (tương thích)
-      if (!isShared) {
-        if (w?.ownerUserId && currentUserId) {
-          return String(w.ownerUserId) === String(currentUserId);
-        }
-        return true;
-      }
-      
-      if (isShared && ["OWNER", "MASTER", "ADMIN"].includes(role)) {
-        return true;
-      }
-      
-      if (isShared && ["MEMBER", "USER", "USE"].includes(role)) {
-        return true;
-      }
-      
-      return false;
+
+      // Fallback: cho phép nếu user là owner hoặc member
+      return isOwner || isMember;
     });
   }, [availableWallets, walletListFromContext, currentUserId, activeTab]);
 

@@ -14,8 +14,6 @@ export default function DetailViewTab({
   onQuickShareEmail,
   quickShareLoading = false,
   sharedFilter,
-  demoTransactions,
-  isLoadingTransactions = false,
   effectiveIsOwner = true,
   effectiveIsMember = false,
   effectiveIsViewer = false,
@@ -138,7 +136,7 @@ export default function DetailViewTab({
     <div className="wallets-section wallets-section--view">
       <div className="wallets-section__header">
         <h3>Chi tiết ví</h3>
-        <span>Thông tin cơ bản, chia sẻ và lịch sử giao dịch.</span>
+        <span>Thông tin cơ bản và chia sẻ ví.</span>
       </div>
 
       <div className="wallets-detail-view">
@@ -200,94 +198,6 @@ export default function DetailViewTab({
           </div>
         </div>
 
-        <div className="wallets-detail-view__col wallets-detail-view__col--history">
-          <div className="wallets-detail-view__card">
-            <div className="wallets-detail-view__card-header">
-              <span>Lịch sử giao dịch</span>
-              <span className="wallets-detail-view__counter">
-                {isLoadingTransactions ? "Đang tải..." : `${demoTransactions.length} giao dịch`}
-              </span>
-            </div>
-
-            <div className="wallets-detail__history-summary">
-              <div className="wallet-detail-item wallet-detail-item--inline">
-                <span className="wallet-detail-item__label">
-                  Số giao dịch
-                </span>
-                <span className="wallet-detail-item__value">
-                  {isLoadingTransactions ? "..." : demoTransactions.length}
-                </span>
-              </div>
-            </div>
-
-            <div className="wallets-detail__history">
-              {isLoadingTransactions ? (
-                <p className="wallets-detail__history-empty">
-                  Đang tải lịch sử giao dịch...
-                </p>
-              ) : demoTransactions.length === 0 ? (
-                <p className="wallets-detail__history-empty">
-                  Chưa có giao dịch cho ví này.
-                </p>
-              ) : (
-                <ul className="wallets-detail__history-list">
-                  {demoTransactions.map((tx) => {
-                    // FIXED: Luôn dùng currency của wallet (không dùng currency của transaction)
-                    // Vì transaction.amount đã được chuyển đổi sang currency của wallet rồi
-                    const walletCurrency = wallet?.currency || "VND";
-                    const absAmount = Math.abs(tx.amount);
-                    
-                    // Format số tiền theo currency của wallet với độ chính xác cao
-                    const formattedAmount = absAmount.toLocaleString("vi-VN", {
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    });
-                    
-                    // Debug: Log để kiểm tra email có trong transaction không
-                    if (tx.creatorEmail) {
-                      console.log("📧 Transaction has creatorEmail:", tx.creatorEmail, "tx:", tx);
-                    }
-                    
-                    return (
-                      <li key={tx.id} className="wallets-detail__history-item">
-                        <div className="wallets-detail__history-main">
-                          <span className="wallets-detail__history-title">
-                            {tx.title}
-                          </span>
-                          <span
-                            className={
-                              tx.amount >= 0
-                                ? "wallets-detail__history-amount wallets-detail__history-amount--pos"
-                                : "wallets-detail__history-amount wallets-detail__history-amount--neg"
-                            }
-                          >
-                            {tx.amount >= 0 ? "+" : "-"}
-                          {`${formattedAmount} ${walletCurrency}`}
-                          </span>
-                        </div>
-
-                        <div className="wallets-detail__history-meta">
-                          <span className="wallets-detail__history-category">
-                            {tx.categoryName || "Danh mục khác"}
-                          </span>
-                          {tx.creatorName ? (
-                            <div className="wallets-detail__history-actor-wrapper" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                              <span className="wallets-detail__history-actor">{tx.creatorName}</span>
-                              {tx.creatorEmail ? (
-                                <span className="wallets-detail__history-actor-email" style={{ fontSize: '0.85em', color: '#666', marginTop: '2px' }}>{tx.creatorEmail}</span>
-                              ) : null}
-                            </div>
-                          ) : null}
-                          <span>{tx.timeLabel}</span>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
 
       <ConfirmModal

@@ -366,8 +366,15 @@ export default function TransactionViewModal({ open, tx, onClose }) {
 
       <div className="tx-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
         <div className="tx-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="tx-modal-header">
+          <div className="tx-modal-header d-flex justify-content-between align-items-start">
             <h5>Chi tiết Giao dịch</h5>
+            <button
+              type="button"
+              className="btn-close btn-close-white"
+              aria-label="Đóng"
+              onClick={onClose}
+              style={{ filter: "invert(1) brightness(2)" }}
+            />
           </div>
 
           <div className="tx-modal-body">

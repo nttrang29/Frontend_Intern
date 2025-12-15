@@ -155,6 +155,19 @@ export default function BudgetFormModal({
       const currencyCode = resolveWalletCurrency(selectedWalletId);
       if (currencyCode !== "VND") {
         newErrors.wallet = t('budgets.error.wallet_vnd_only');
+      } else if (mode === "create") {
+        // Kiểm tra quyền trên ví được chọn: nếu chỉ là VIEW/VIEWER thì không cho tạo hạn mức
+        const viewerOnlyWallet = vndWallets.find(
+          (w) => String(w.id) === String(selectedWalletId)
+        );
+        if (viewerOnlyWallet) {
+          const role = (viewerOnlyWallet.walletRole || viewerOnlyWallet.sharedRole || viewerOnlyWallet.role || "")
+            .toString()
+            .toUpperCase();
+          if (role === "VIEW" || role === "VIEWER") {
+            newErrors.wallet = t("budgets.error.viewer_wallet");
+          }
+        }
       }
     }
     if (!limitNumeric || limitNumeric <= 0) {

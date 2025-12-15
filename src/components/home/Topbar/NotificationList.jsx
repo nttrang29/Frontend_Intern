@@ -23,6 +23,61 @@ function getIconAndLabel(type) {
         icon: "bi-check-circle-fill",
         label: "Nạp tự động",
       };
+    case "wallet_topup":
+      return {
+        icon: "bi-arrow-down-circle",
+        label: "Nạp ví",
+      };
+    case "wallet_spend":
+      return {
+        icon: "bi-arrow-up-circle",
+        label: "Chi tiêu ví",
+      };
+    case "wallet_member_added":
+      return {
+        icon: "bi-person-plus-fill",
+        label: "Chia sẻ ví",
+      };
+    case "wallet_role_updated":
+      return {
+        icon: "bi-shield-check",
+        label: "Cập nhật quyền ví",
+      };
+    case "wallet_member_left":
+      return {
+        icon: "bi-person-dash-fill",
+        label: "Thành viên rời ví",
+      };
+    case "WALLET_INVITED":
+      return {
+        icon: "bi-person-plus-fill",
+        label: "Chia sẻ ví",
+      };
+    case "WALLET_ROLE_UPDATED":
+      return {
+        icon: "bi-shield-check",
+        label: "Cập nhật quyền ví",
+      };
+    case "WALLET_MEMBER_LEFT":
+      return {
+        icon: "bi-person-dash-fill",
+        label: "Thành viên rời ví",
+      };
+    case "WALLET_MEMBER_REMOVED":
+      return {
+        icon: "bi-person-x-fill",
+        label: "Bị xóa khỏi ví",
+      };
+    case "WALLET_TRANSACTION":
+      return {
+        icon: "bi-wallet2",
+        label: "Giao dịch ví",
+      };
+    case "wallet_transfer":
+      return {
+        icon: "bi-arrow-left-right",
+        label: "Chuyển tiền ví",
+      };
     default:
       return {
         icon: "bi-bell-fill",

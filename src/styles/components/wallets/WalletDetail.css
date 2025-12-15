@@ -593,10 +593,7 @@
    ============================= */
 .wallets-detail-view {
   margin-top: 10px;
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 10px var(--spacing-md);
-  align-items: flex-start;
+  display: block;
 }
 
 .wallets-detail-view__card {
@@ -604,6 +601,8 @@
   border: 1px solid var(--color-border-light);
   background: var(--color-bg-secondary);
   padding: var(--spacing-sm) 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .wallets-detail-view__card-header {
