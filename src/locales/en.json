@@ -95,5 +95,43 @@
   "login_log": "Sign-in activity",
   "security_group": "Security",
   "system_group": "System",
-  "loading": "Loading..."
+  "loading": "Loading...",
+  "transactions": {
+    "page": {
+      "title": "Transactions",
+      "subtitle": "Manage your income and expense transactions"
+    },
+    "type": {
+      "income": "Income",
+      "expense": "Expense"
+    },
+    "schedule": {
+      "title": "Scheduled Transactions",
+      "desc": "Set up automatic recurring transactions",
+      "create_btn": "Create Schedule",
+      "tab": {
+        "all": "All",
+        "pending": "Pending",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "status": {
+        "pending": "Pending",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "amount": "Amount:",
+      "next_run": "Next run:",
+      "completed_runs": "Completed:",
+      "view_history": "View History",
+      "cancel": "Cancel"
+    },
+    "toast": {
+      "schedule_created": "Schedule created successfully",
+      "schedule_cancelled": "Schedule cancelled"
+    }
+  }
 }
