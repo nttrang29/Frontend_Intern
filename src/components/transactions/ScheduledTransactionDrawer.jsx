@@ -79,7 +79,7 @@ export default function ScheduledTransactionDrawer({ open, schedule, onClose, on
         </div>
 
         <div className="d-flex justify-content-end gap-2 mt-3">
-          {schedule.status !== "CANCELLED" && (
+          {schedule.status !== "CANCELLED" && schedule.status !== "COMPLETED" && (
             <button type="button" className="btn btn-outline-danger" onClick={() => onCancel?.(schedule.id)}>
               Hủy lịch
             </button>
