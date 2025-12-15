@@ -175,6 +175,22 @@ export default function DetailViewTab({
                   {wallet.note || t('wallets.detail.no_note')}
                 </span>
               </div>
+              {/* Thông tin về quỹ nếu ví là source wallet hoặc target wallet */}
+              {fundInfo && (
+                <div className="wallet-detail-item wallet-detail-item--full">
+                  <span className="wallet-detail-item__label">
+                    {fundInfo.type === 'source' ? 'Ví nguồn của quỹ' : 'Ví quỹ'}
+                  </span>
+                  <span className="wallet-detail-item__value" style={{ color: '#3b82f6', fontWeight: '500' }}>
+                    {fundInfo.fund?.fundName || fundInfo.fund?.name || 'Quỹ không xác định'}
+                    {fundInfo.type === 'target' && (
+                      <span style={{ fontSize: '0.875rem', color: '#6b7280', marginLeft: '8px', fontWeight: 'normal' }}>
+                        (Ví này được quản lý bởi quỹ. Để xóa ví, vui lòng vào quỹ để đổi ví nguồn.)
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="wallets-detail__share">

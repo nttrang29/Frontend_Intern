@@ -1,5 +1,6 @@
 import React from "react";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useFundData } from "../../contexts/FundDataContext";
 import "../../styles/components/wallets/WalletList.css";
 
 const formatWalletBalance = (amount = 0) => {
@@ -36,8 +37,33 @@ export default function WalletList({
   onSelectSharedOwner,
 }) {
   const { t } = useLanguage();
+  const { funds } = useFundData();
   const showSharedWithMeOwners =
     activeTab === "shared" && sharedFilter === "sharedWithMe";
+
+  // Helper function to check if wallet is used as source wallet for a fund
+  const getFundInfoForWallet = (walletId) => {
+    if (!walletId || !funds || funds.length === 0) return null;
+    const walletIdStr = String(walletId);
+    
+    // Check if wallet is source wallet
+    const sourceFund = funds.find(f => 
+      String(f.sourceWalletId || f.sourceWallet?.walletId || f.sourceWallet?.id) === walletIdStr
+    );
+    if (sourceFund) {
+      return { type: 'source', fund: sourceFund };
+    }
+    
+    // Check if wallet is target wallet
+    const targetFund = funds.find(f => 
+      String(f.targetWalletId || f.targetWallet?.walletId || f.targetWallet?.id || f.walletId) === walletIdStr
+    );
+    if (targetFund) {
+      return { type: 'target', fund: targetFund };
+    }
+    
+    return null;
+  };
 
   const renderWalletCard = (w) => {
     const isActive = selectedId && String(selectedId) === String(w.id);
@@ -76,6 +102,19 @@ export default function WalletList({
               <span className="wallets-list-item__type-pill">
                 {w.isShared ? t('wallets.type.group', 'Nhóm') : t('wallets.type.personal', 'Cá nhân')}
               </span>
+
+              {/* Fund wallet badge - show if wallet is source wallet */}
+              {(() => {
+                const fundInfo = getFundInfoForWallet(w.id);
+                if (fundInfo && fundInfo.type === 'source') {
+                  return (
+                    <span className="wallets-list-item__type-pill" style={{ backgroundColor: '#3b82f6', color: 'white' }}>
+                      Ví quỹ
+                    </span>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Role for shared wallets (viewer / member) */}
               {w.isShared && (

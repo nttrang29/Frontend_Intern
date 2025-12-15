@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
 import { logActivity } from "../utils/activityLogger";
+import { parseAmount, parseAmountNonNegative } from "../utils/parseAmount";
 import { 
   createWallet as createWalletAPI, 
   getMyWallets, 
@@ -51,11 +52,8 @@ export function WalletDataProvider({ children }) {
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // nhóm ví
-  const [groups, setGroups] = useState([
-    { id: 10, name: "Gia đình", description: "", walletIds: [], budgetWalletId: null, isDefault: false, createdAt: "2025-11-01T09:00:00Z" },
-    { id: 11, name: "Đầu tư",  description: "", walletIds: [], budgetWalletId: null, isDefault: false, createdAt: "2025-11-02T09:00:00Z" },
-  ]);
+  // nhóm ví - load từ API, không dùng dữ liệu mẫu
+  const [groups, setGroups] = useState([]);
 
   // Load wallets từ API khi component mount hoặc khi user đăng nhập (chỉ khi có token)
   useEffect(() => {
@@ -298,7 +296,8 @@ export function WalletDataProvider({ children }) {
       id: apiWallet.walletId || apiWallet.id,
       name: apiWallet.walletName || apiWallet.name,
       currency: apiWallet.currencyCode || apiWallet.currency,
-      balance: apiWallet.balance || 0,
+      // Parse số dư từ API (có thể là string từ BigDecimal) - đảm bảo không mất precision
+      balance: parseAmount(apiWallet.balance, 0),
       type: walletType || "CASH",
       // Xử lý cả isDefault và default để tương thích với backend
       // Backend có thể serialize isDefault thành default do Java boolean getter naming

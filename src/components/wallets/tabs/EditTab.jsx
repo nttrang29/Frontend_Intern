@@ -11,6 +11,8 @@ export default function EditTab({
   onEditFieldChange,
   onSubmitEdit,
   onDeleteWallet,
+  isTargetWallet = false,
+  fundInfo = null,
 }) {
   const { t } = useLanguage();
   const isGroupWallet = !!wallet.isShared;
@@ -127,7 +129,7 @@ export default function EditTab({
           )}
 
           <div className="wallet-form__actions">
-            {onDeleteWallet && (
+            {onDeleteWallet && !isTargetWallet && (
               <button
                 type="button"
                 className="wallets-btn wallets-btn--danger-outline"
@@ -135,6 +137,19 @@ export default function EditTab({
               >
                 {t('wallets.edit.delete_button')}
               </button>
+            )}
+            {isTargetWallet && fundInfo && (
+              <div style={{ 
+                padding: '12px', 
+                backgroundColor: '#fef3c7', 
+                borderRadius: '8px', 
+                marginBottom: '16px',
+                fontSize: '0.875rem',
+                color: '#92400e'
+              }}>
+                <strong>Lưu ý:</strong> Ví này là ví quỹ của "{fundInfo.fund?.fundName || fundInfo.fund?.name || 'Quỹ không xác định'}". 
+                Để xóa ví, vui lòng vào quỹ để đổi ví nguồn.
+              </div>
             )}
             <button type="submit" className="wallets-btn wallets-btn--primary">
               {t('wallets.edit.save_button')}

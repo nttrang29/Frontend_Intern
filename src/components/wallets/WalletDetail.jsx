@@ -120,6 +120,33 @@ export default function WalletDetail(props) {
   // Extract loadingTransactions với default value
   const isLoadingTransactions = loadingTransactions || false;
 
+  // Helper function to check if wallet is used as source wallet or target wallet for a fund
+  const getFundInfoForWallet = useMemo(() => {
+    if (!wallet?.id || !funds || funds.length === 0) return null;
+    const walletIdStr = String(wallet.id);
+    
+    // Check if wallet is source wallet
+    const sourceFund = funds.find(f => 
+      String(f.sourceWalletId || f.sourceWallet?.walletId || f.sourceWallet?.id) === walletIdStr
+    );
+    if (sourceFund) {
+      return { type: 'source', fund: sourceFund };
+    }
+    
+    // Check if wallet is target wallet
+    const targetFund = funds.find(f => 
+      String(f.targetWalletId || f.targetWallet?.walletId || f.targetWallet?.id || f.walletId) === walletIdStr
+    );
+    if (targetFund) {
+      return { type: 'target', fund: targetFund };
+    }
+    
+    return null;
+  }, [wallet?.id, funds]);
+
+  const isSourceWallet = getFundInfoForWallet?.type === 'source';
+  const isTargetWallet = getFundInfoForWallet?.type === 'target';
+
   const sharedEmails = useMemo(() => {
     const base = Array.isArray(wallet?.sharedEmails)
       ? wallet.sharedEmails
@@ -1960,7 +1987,8 @@ export default function WalletDetail(props) {
                 {t("wallets.inspector.tab.edit") || "Sửa ví"}
               </button>
             )}
-            {!wallet.isShared && !effectiveIsMember && (
+            {/* Ẩn tab Gộp ví nếu ví là source wallet hoặc target wallet */}
+            {!wallet.isShared && !effectiveIsMember && !isSourceWallet && !isTargetWallet && (
               <button
                 className={
                   activeDetailTab === "merge"
@@ -1973,8 +2001,8 @@ export default function WalletDetail(props) {
               </button>
             )}
 
-            {/* Chỉ hiển thị tab chuyển thành ví nhóm cho ví cá nhân */}
-            {!wallet.isShared && walletTabType === "personal" && (
+            {/* Ẩn tab chuyển thành ví nhóm nếu ví là source wallet hoặc target wallet */}
+            {!wallet.isShared && walletTabType === "personal" && !isSourceWallet && !isTargetWallet && (
               <button
                 className={
                   activeDetailTab === "convert"
@@ -1987,7 +2015,8 @@ export default function WalletDetail(props) {
               </button>
             )}
 
-            {effectiveIsOwner && (
+            {/* Ẩn tab Quản lý người dùng nếu ví là source wallet hoặc target wallet */}
+            {effectiveIsOwner && !isSourceWallet && !isTargetWallet && (
               <button
                 className={
                   activeDetailTab === "manageMembers"
@@ -2090,7 +2119,9 @@ export default function WalletDetail(props) {
           editForm={editForm}
           onEditFieldChange={onEditFieldChange}
           onSubmitEdit={onSubmitEdit}
-          onDeleteWallet={onDeleteWallet}
+          onDeleteWallet={isTargetWallet ? undefined : onDeleteWallet}
+          isTargetWallet={isTargetWallet}
+          fundInfo={getFundInfoForWallet}
         />
       )}
 

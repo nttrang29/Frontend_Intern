@@ -438,7 +438,59 @@ export default function TransactionViewModal({ open, tx, onClose }) {
             </div>
 
             <div className="row g-3">
-              {isTransfer ? (
+              {isFundTransaction ? (
+                <>
+                  <div className="col-12">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Quỹ</div>
+                      <div className="tx-detail-value">{tx.fundName || "-"}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Ví nguồn</div>
+                      <div className="tx-detail-value">{tx.sourceWallet || "-"}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Ví quỹ</div>
+                      <div className="tx-detail-value">{tx.targetWallet || "-"}</div>
+                    </div>
+                  </div>
+                  <div className="col-12">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Số tiền</div>
+                      <div 
+                        className="tx-detail-value"
+                        style={{
+                          color: tx.type === "expense" ? "#dc2626" : "#16a34a",
+                          fontWeight: "600",
+                          fontSize: "1.1rem"
+                        }}
+                      >
+                        {tx.type === "expense" ? "-" : "+"}
+                        {formatMoney(tx.amount, tx.currency)}
+                      </div>
+                    </div>
+                  </div>
+                  {tx.transactionType && (
+                    <div className="col-12">
+                      <div className="tx-detail-item">
+                        <div className="tx-detail-label">Loại giao dịch quỹ</div>
+                        <div className="tx-detail-value">
+                          {tx.transactionType === "DEPOSIT" ? "Nạp tiền thủ công" :
+                           tx.transactionType === "AUTO_DEPOSIT" ? "Nạp tiền tự động" :
+                           tx.transactionType === "AUTO_DEPOSIT_RECOVERY" ? "Nạp bù tự động" :
+                           tx.transactionType === "WITHDRAW" ? "Rút tiền" :
+                           tx.transactionType === "SETTLE" ? "Tất toán quỹ" :
+                           tx.transactionType}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : isTransfer ? (
                 <>
                   <div className="col-6">
                     <div className="tx-detail-item">
