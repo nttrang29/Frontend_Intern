@@ -46,6 +46,17 @@ export default function TransferTab({
     return ["VIEW", "VIEWER"].includes(role);
   };
 
+  const isMemberWallet = (wallet) => {
+    const role = resolveRole(wallet);
+    // Chỉ coi là ví được chia sẻ (cho phép làm ví đích) khi role là MEMBER/USER/USE
+    return ["MEMBER", "USER", "USE"].includes(role);
+  };
+
+  const isOwnerWallet = (wallet) => {
+    const role = resolveRole(wallet);
+    return ["OWNER", "MASTER", "ADMIN"].includes(role);
+  };
+
 
   // Frontend chỉ dùng VND, không còn chức năng chuyển đổi tiền tệ
   const sourceBalance = Number(wallet?.balance || 0);
@@ -53,7 +64,17 @@ export default function TransferTab({
     return safeWallets.filter((candidate) => {
       if (!candidate) return false;
       if (String(candidate.id) === String(wallet?.id)) return false;
-      return !isViewerOnlyWallet(candidate);
+      // Bỏ các ví chỉ được xem
+      if (isViewerOnlyWallet(candidate)) return false;
+      // Xác định ví có phải shared không:
+      // Ở đây chỉ tin cậy cờ isShared từ backend, tránh hiểu nhầm ví cá nhân OWNER là ví chia sẻ.
+      const isShared = !!candidate.isShared;
+      if (!isShared) return true; // ví cá nhân (kể cả OWNER)
+      // Ví nhóm do mình sở hữu → cho phép
+      if (isOwnerWallet(candidate)) return true;
+      // Ví được chia sẻ: chỉ cho phép khi role là MEMBER/USER/USE
+      if (isMemberWallet(candidate)) return true;
+      return false;
     });
   }, [safeWallets, wallet?.id]);
 
@@ -95,7 +116,7 @@ export default function TransferTab({
             Ví nguồn
             <input
               type="text"
-              value={`${wallet.name || "Ví hiện tại"} (VND)`}
+              value={wallet.name || "Ví hiện tại"}
               disabled
             />
             <div style={{ 
@@ -116,12 +137,31 @@ export default function TransferTab({
               onChange={(e) => setTransferTargetId(e.target.value)}
             >
               <option value="">{t('wallets.transfer.target_placeholder')}</option>
-              {selectableTargets.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name || t('wallets.no_name')}{" "}
-                  {w.isShared ? t('wallets.transfer.group_tag') : t('wallets.transfer.personal_tag')} · VND
-                </option>
-              ))}
+              {selectableTargets.map((w) => {
+                const isShared = !!w.isShared;
+                // Xác định loại ví để hiển thị
+                let typeLabel = "";
+                if (!isShared) {
+                  // Ví cá nhân (không chia sẻ hoặc chỉ mình dùng)
+                  typeLabel = t("wallets.transfer.personal_tag"); // "(Cá nhân)"
+                } else if (isMemberWallet(w)) {
+                  // Ví được chia sẻ (mình là MEMBER/USER/USE)
+                  typeLabel = "(Ví được chia sẻ)";
+                } else {
+                  // Ví nhóm mà mình là owner/role cao hơn
+                  typeLabel = t("wallets.transfer.group_tag"); // "(Nhóm)"
+                }
+                const ownerEmail = w.ownerEmail || w.ownerContact || "";
+                const baseName = w.name || t("wallets.no_name");
+                const label = ownerEmail
+                  ? `${baseName} ${typeLabel} - ${ownerEmail}`
+                  : `${baseName} ${typeLabel}`;
+                return (
+                  <option key={w.id} value={w.id}>
+                    {label}
+                  </option>
+                );
+              })}
             </select>
             <div
               style={{

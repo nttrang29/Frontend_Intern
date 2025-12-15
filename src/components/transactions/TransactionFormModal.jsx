@@ -196,22 +196,6 @@ export default function TransactionFormModal({
 
   const walletList = filteredWalletList;
   
-  // Debug: Log walletList để kiểm tra
-  console.log("🟣 [walletList] Filtered wallets:", walletList.map(w => {
-    const walletId = getWalletId(w);
-    const walletName = getWalletName(w);
-    return {
-      id: w.id,
-      walletId: w.walletId,
-      name: w.name,
-      walletName: w.walletName,
-      balance: w.balance,
-      getWalletId: walletId,
-      getWalletName: walletName,
-      raw: w
-    };
-  }));
-  
   // Tìm ví mặc định
   const defaultWallet = walletList.find(w => w.isDefault === true);
 
@@ -222,36 +206,20 @@ export default function TransactionFormModal({
     
     // Nếu có sourceWallet name nhưng không có sourceWalletId, tự động tìm và set
     if (form.sourceWallet && form.sourceWallet.trim() !== "" && (!form.sourceWalletId || form.sourceWalletId === null)) {
-      console.log("🟦 [auto-sync] Attempting to sync sourceWalletId for:", form.sourceWallet);
-      
       const walletsWithSameName = walletList?.filter(w => {
         const walletName = getWalletName(w);
         return walletName === form.sourceWallet;
       }) || [];
-      
-      console.log("🟦 [auto-sync] Found wallets with same name:", walletsWithSameName.length);
       
       // Nếu chỉ có 1 ví với tên đó, tự động set sourceWalletId
       if (walletsWithSameName.length === 1) {
         const wallet = walletsWithSameName[0];
         const walletId = getWalletId(wallet);
         if (walletId !== null && walletId !== undefined) {
-          console.log("🟦 [auto-sync] Setting sourceWalletId from sourceWallet name:", {
-            sourceWallet: form.sourceWallet,
-            sourceWalletId: walletId,
-            walletBalance: wallet.balance
-          });
           setForm((f) => ({ ...f, sourceWalletId: Number(walletId) }));
-        } else {
-          console.log("🟦 [auto-sync] Wallet has no id:", wallet);
         }
       } else if (walletsWithSameName.length > 1) {
-        console.log("🟦 [auto-sync] Multiple wallets with same name, cannot auto-sync:", walletsWithSameName.map(w => ({
-          id: getWalletId(w),
-          name: getWalletName(w)
-        })));
-      } else {
-        console.log("🟦 [auto-sync] No wallet found with name:", form.sourceWallet);
+        // Nhiều ví trùng tên, không auto-sync được
       }
     }
   }, [form.sourceWallet, form.sourceWalletId, walletList, variant]);
@@ -486,15 +454,6 @@ export default function TransactionFormModal({
         };
       });
 
-    // Debug: Log walletOptions để kiểm tra
-    console.log("🔵 [walletOptions] Created:", normalized.map(opt => ({
-      value: opt.value,
-      label: opt.label,
-      walletId: getWalletId(opt.raw),
-      walletName: getWalletName(opt.raw),
-      raw: opt.raw
-    })));
-    
     return normalized;
   }, [walletList, walletTypeLabels, currentUserId]);
   const hasWallets = walletOptions.length > 0;
@@ -502,25 +461,28 @@ export default function TransactionFormModal({
   // Danh sách ví cho ví nhận (loại bỏ ví gửi đã chọn)
   const targetWalletOptions = useMemo(() => {
     if (!walletOptions || walletOptions.length === 0) return [];
-    if (!form.sourceWallet) return walletOptions;
-    // Loại bỏ ví gửi khỏi danh sách ví nhận
-    return walletOptions.filter((opt) => opt.value !== form.sourceWallet);
-  }, [walletOptions, form.sourceWallet]);
+    if (!form.sourceWallet && !form.sourceWalletId) return walletOptions;
+    // Loại bỏ đúng ví gửi (cùng ID), vẫn cho phép chọn các ví khác trùng tên
+    return walletOptions.filter((opt) => {
+      const wallet = opt.raw;
+      if (!wallet) return true;
+      const walletId = String(getWalletId(wallet) ?? "");
+      const sourceId = form.sourceWalletId != null ? String(form.sourceWalletId) : "";
+      if (sourceId) {
+        return walletId !== sourceId;
+      }
+      // Fallback: khi chưa có ID, loại theo tên như cũ
+      const walletName = getWalletName(wallet);
+      return walletName !== form.sourceWallet;
+    });
+  }, [walletOptions, form.sourceWallet, form.sourceWalletId]);
   const hasTargetWallets = targetWalletOptions.length > 0;
 
   // Tìm ví đã chọn trong form giao dịch thông thường
   const selectedWallet = useMemo(() => {
-    console.log("🟢 [selectedWallet] Form state:", {
-      walletId: form.walletId,
-      walletName: form.walletName,
-      walletIdType: typeof form.walletId
-    });
-    
     // Ưu tiên tìm theo walletId nếu có (chính xác nhất)
     if (form.walletId !== null && form.walletId !== undefined && form.walletId !== "") {
       const formWalletId = form.walletId;
-      console.log("🟢 [selectedWallet] Searching by walletId:", formWalletId);
-      
       const wallet = walletList?.find(w => {
         const walletId = getWalletId(w);
         if (walletId === null || walletId === undefined) return false;
@@ -536,22 +498,12 @@ export default function TransactionFormModal({
       });
       
       if (wallet) {
-        console.log("🟢 [selectedWallet] Found by walletId:", {
-          walletId: getWalletId(wallet),
-          walletName: getWalletName(wallet),
-          balance: wallet.balance
-        });
         return wallet;
-      } else {
-        console.log("🟢 [selectedWallet] NOT found by walletId:", formWalletId);
       }
     }
     
     // Nếu không có walletId, tìm theo walletName
-    if (!form.walletName) {
-      console.log("🟢 [selectedWallet] No walletName, returning null");
-      return null;
-    }
+    if (!form.walletName) return null;
     
     // Kiểm tra xem có bao nhiêu ví cùng tên trong walletList
     const walletsWithSameName = walletList?.filter(w => {
@@ -559,22 +511,14 @@ export default function TransactionFormModal({
       return walletName === form.walletName;
     }) || [];
     
-    console.log("🟢 [selectedWallet] Searching by walletName:", form.walletName, "Found:", walletsWithSameName.length, "wallets");
-    
     // Chỉ trả về ví nếu chỉ có 1 ví với tên đó
     if (walletsWithSameName.length === 1) {
       const found = walletsWithSameName[0];
-      console.log("🟢 [selectedWallet] Found by walletName (unique):", {
-        walletId: getWalletId(found),
-        walletName: getWalletName(found),
-        balance: found.balance
-      });
       return found;
     }
     
     // Nếu có nhiều ví cùng tên và không có walletId, không thể xác định chính xác
-    // Không tìm trong walletOptions vì nó sẽ trả về ví đầu tiên (không chính xác)
-    console.log("🟢 [selectedWallet] Multiple wallets with same name, returning null");
+    // Không trả về ví nào để tránh sai
     return null;
   }, [form.walletName, form.walletId, walletList]);
   
@@ -583,13 +527,9 @@ export default function TransactionFormModal({
     // Ưu tiên dùng walletId nếu có (đáng tin cậy nhất)
     if (form.walletId !== null && form.walletId !== undefined && form.walletId !== "") {
       const value = String(form.walletId);
-      console.log("🟡 [currentWalletValue] Using walletId:", value);
       return value;
     }
-    if (!form.walletName) {
-      console.log("🟡 [currentWalletValue] No walletName, returning empty");
-      return "";
-    }
+    if (!form.walletName) return "";
     // Nếu không có walletId, kiểm tra xem có bao nhiêu ví cùng tên
     const walletsWithSameName = walletList?.filter(w => {
       const walletName = getWalletName(w);
@@ -601,16 +541,13 @@ export default function TransactionFormModal({
       const walletId = getWalletId(wallet);
       if (walletId !== null && walletId !== undefined) {
         const value = String(walletId);
-        console.log("🟡 [currentWalletValue] Using walletId from unique name:", value);
         return value;
       }
       // Nếu ví không có id, không thể dùng (sẽ gây lỗi)
-      console.log("🟡 [currentWalletValue] Wallet has no id, returning empty");
       return "";
     }
     // Nếu có nhiều ví cùng tên và không có walletId, không thể xác định chính xác
     // Trả về empty để user phải chọn lại
-    console.log("🟡 [currentWalletValue] Multiple wallets with same name, returning empty");
     return "";
   }, [form.walletName, form.walletId, walletList]);
 
@@ -619,13 +556,9 @@ export default function TransactionFormModal({
     // Ưu tiên dùng sourceWalletId nếu có (đáng tin cậy nhất)
     if (form.sourceWalletId !== null && form.sourceWalletId !== undefined && form.sourceWalletId !== "") {
       const value = String(form.sourceWalletId);
-      console.log("🟡 [currentSourceWalletValue] Using sourceWalletId:", value);
       return value;
     }
-    if (!form.sourceWallet) {
-      console.log("🟡 [currentSourceWalletValue] No sourceWallet name, returning empty");
-      return "";
-    }
+    if (!form.sourceWallet) return "";
     // Nếu không có sourceWalletId, kiểm tra xem có bao nhiêu ví cùng tên
     const walletsWithSameName = walletList?.filter(w => getWalletName(w) === form.sourceWallet) || [];
     // Nếu chỉ có 1 ví với tên đó, có thể dùng walletId của ví đó
@@ -634,14 +567,11 @@ export default function TransactionFormModal({
       const walletId = getWalletId(wallet);
       if (walletId !== null && walletId !== undefined) {
         const value = String(walletId);
-        console.log("🟡 [currentSourceWalletValue] Using walletId from unique name:", value);
         return value;
       }
-      console.log("🟡 [currentSourceWalletValue] Wallet has no id, returning empty");
       return "";
     }
     // Nếu có nhiều ví cùng tên và không có sourceWalletId, không thể xác định chính xác
-    console.log("🟡 [currentSourceWalletValue] Multiple wallets with same name, returning empty");
     return "";
   }, [form.sourceWallet, form.sourceWalletId, walletList]);
   
@@ -668,66 +598,31 @@ export default function TransactionFormModal({
 
   // Tìm ví gửi và ví nhận từ walletList để lấy số dư
   const sourceWallet = useMemo(() => {
-    console.log("🟠 [sourceWallet] Form state:", {
-      sourceWalletId: form.sourceWalletId,
-      sourceWallet: form.sourceWallet,
-      sourceWalletIdType: typeof form.sourceWalletId,
-      walletListLength: walletList?.length
-    });
-    
     // Ưu tiên tìm theo sourceWalletId nếu có (chính xác nhất)
     if (form.sourceWalletId !== null && form.sourceWalletId !== undefined && form.sourceWalletId !== "") {
       const formWalletId = form.sourceWalletId;
-      console.log("🟠 [sourceWallet] Searching by sourceWalletId:", formWalletId, "Type:", typeof formWalletId);
-      
-      // Log tất cả wallet IDs để debug
-      const allWalletIds = walletList?.map(w => ({
-        id: getWalletId(w),
-        name: getWalletName(w),
-        idType: typeof getWalletId(w)
-      })) || [];
-      console.log("🟠 [sourceWallet] All wallet IDs in walletList:", allWalletIds);
-      
       const wallet = walletList?.find(w => {
         const walletId = getWalletId(w);
-        if (walletId === null || walletId === undefined) {
-          console.log("🟠 [sourceWallet] Wallet has null/undefined ID:", getWalletName(w));
-          return false;
-        }
+        if (walletId === null || walletId === undefined) return false;
         // So sánh cả number và string để đảm bảo match
         const walletIdNum = Number(walletId);
         const formWalletIdNum = Number(formWalletId);
         // So sánh number trước (chính xác hơn)
         if (!isNaN(walletIdNum) && !isNaN(formWalletIdNum) && walletIdNum === formWalletIdNum) {
-          console.log("🟠 [sourceWallet] Match found by number comparison:", walletIdNum, "===", formWalletIdNum);
           return true;
         }
         // Fallback: so sánh string
         const stringMatch = String(walletId) === String(formWalletId);
-        if (stringMatch) {
-          console.log("🟠 [sourceWallet] Match found by string comparison:", String(walletId), "===", String(formWalletId));
-        }
         return stringMatch;
       });
       
       if (wallet) {
-        console.log("🟠 [sourceWallet] ✅ Found by sourceWalletId:", {
-          walletId: getWalletId(wallet),
-          walletName: getWalletName(wallet),
-          balance: wallet.balance,
-          currency: wallet.currency
-        });
         return wallet;
-      } else {
-        console.log("🟠 [sourceWallet] ❌ NOT found by sourceWalletId:", formWalletId, "Available IDs:", allWalletIds.map(w => w.id));
       }
     }
     
     // Nếu không có sourceWalletId, tìm theo sourceWallet name
-    if (!form.sourceWallet) {
-      console.log("🟠 [sourceWallet] No sourceWallet name, returning null");
-      return null;
-    }
+    if (!form.sourceWallet) return null;
     
     // Kiểm tra xem có bao nhiêu ví cùng tên trong walletList
     const walletsWithSameName = walletList?.filter(w => {
@@ -735,16 +630,9 @@ export default function TransactionFormModal({
       return walletName === form.sourceWallet;
     }) || [];
     
-    console.log("🟠 [sourceWallet] Searching by sourceWallet name:", form.sourceWallet, "Found:", walletsWithSameName.length, "wallets");
-    
     // Chỉ trả về ví nếu chỉ có 1 ví với tên đó
     if (walletsWithSameName.length === 1) {
       const found = walletsWithSameName[0];
-      console.log("🟠 [sourceWallet] Found by name (unique):", {
-        walletId: getWalletId(found),
-        walletName: getWalletName(found),
-        balance: found.balance
-      });
       return found;
     }
     
@@ -753,88 +641,46 @@ export default function TransactionFormModal({
     const refValue = selectedSourceWalletIdRef.current;
     const valueToSearch = refValue || currentSourceWalletValue;
     if (valueToSearch && valueToSearch !== "") {
-      console.log("🟠 [sourceWallet] Multiple wallets with same name, trying to find by ref/value:", refValue, "/", currentSourceWalletValue);
       const walletFromValue = walletList?.find(w => {
         const walletId = getWalletId(w);
         if (walletId === null || walletId === undefined) return false;
         return String(walletId) === String(valueToSearch) || Number(walletId) === Number(valueToSearch);
       });
       if (walletFromValue) {
-        console.log("🟠 [sourceWallet] ✅ Found by ref/value:", {
-          walletId: getWalletId(walletFromValue),
-          walletName: getWalletName(walletFromValue),
-          balance: walletFromValue.balance,
-          currency: walletFromValue.currency
-        });
         return walletFromValue;
       }
     }
     
     // Nếu vẫn không tìm được, không thể xác định chính xác
-    console.log("🟠 [sourceWallet] Multiple wallets with same name, returning null");
     return null;
   }, [form.sourceWallet, form.sourceWalletId, walletList, currentSourceWalletValue, sourceWalletSelectionTrigger]);
   
   const targetWallet = useMemo(() => {
-    console.log("🟣 [targetWallet] Form state:", {
-      targetWalletId: form.targetWalletId,
-      targetWallet: form.targetWallet,
-      targetWalletIdType: typeof form.targetWalletId
-    });
-    
     // Ưu tiên tìm theo targetWalletId nếu có (chính xác nhất)
     if (form.targetWalletId !== null && form.targetWalletId !== undefined && form.targetWalletId !== "") {
       const formWalletId = form.targetWalletId;
-      console.log("🟣 [targetWallet] Searching by targetWalletId:", formWalletId, "Type:", typeof formWalletId);
-      
-      // Log tất cả wallet IDs để debug
-      const allWalletIds = walletList?.map(w => ({
-        id: getWalletId(w),
-        name: getWalletName(w),
-        idType: typeof getWalletId(w)
-      })) || [];
-      console.log("🟣 [targetWallet] All wallet IDs in walletList:", allWalletIds);
-      
       const wallet = walletList?.find(w => {
         const walletId = getWalletId(w);
-        if (walletId === null || walletId === undefined) {
-          console.log("🟣 [targetWallet] Wallet has null/undefined ID:", getWalletName(w));
-          return false;
-        }
+        if (walletId === null || walletId === undefined) return false;
         // So sánh cả number và string để đảm bảo match
         const walletIdNum = Number(walletId);
         const formWalletIdNum = Number(formWalletId);
         // So sánh number trước (chính xác hơn)
         if (!isNaN(walletIdNum) && !isNaN(formWalletIdNum) && walletIdNum === formWalletIdNum) {
-          console.log("🟣 [targetWallet] Match found by number comparison:", walletIdNum, "===", formWalletIdNum);
           return true;
         }
         // Fallback: so sánh string
         const stringMatch = String(walletId) === String(formWalletId);
-        if (stringMatch) {
-          console.log("🟣 [targetWallet] Match found by string comparison:", String(walletId), "===", String(formWalletId));
-        }
         return stringMatch;
       });
       
       if (wallet) {
-        console.log("🟣 [targetWallet] ✅ Found by targetWalletId:", {
-          walletId: getWalletId(wallet),
-          walletName: getWalletName(wallet),
-          balance: wallet.balance,
-          currency: wallet.currency
-        });
         return wallet;
-      } else {
-        console.log("🟣 [targetWallet] ❌ NOT found by targetWalletId:", formWalletId, "Available IDs:", allWalletIds.map(w => w.id));
       }
     }
     
     // Nếu không có targetWalletId, tìm theo targetWallet name
-    if (!form.targetWallet) {
-      console.log("🟣 [targetWallet] No targetWallet name, returning null");
-      return null;
-    }
+    if (!form.targetWallet) return null;
     
     // Kiểm tra xem có bao nhiêu ví cùng tên trong walletList
     const walletsWithSameName = walletList?.filter(w => {
@@ -842,16 +688,9 @@ export default function TransactionFormModal({
       return walletName === form.targetWallet;
     }) || [];
     
-    console.log("🟣 [targetWallet] Searching by targetWallet name:", form.targetWallet, "Found:", walletsWithSameName.length, "wallets");
-    
     // Chỉ trả về ví nếu chỉ có 1 ví với tên đó
     if (walletsWithSameName.length === 1) {
       const found = walletsWithSameName[0];
-      console.log("🟣 [targetWallet] Found by name (unique):", {
-        walletId: getWalletId(found),
-        walletName: getWalletName(found),
-        balance: found.balance
-      });
       return found;
     }
     
@@ -860,25 +699,17 @@ export default function TransactionFormModal({
     const refValue = selectedTargetWalletIdRef.current;
     const valueToSearch = refValue || currentTargetWalletValue;
     if (valueToSearch && valueToSearch !== "") {
-      console.log("🟣 [targetWallet] Multiple wallets with same name, trying to find by ref/value:", refValue, "/", currentTargetWalletValue);
       const walletFromValue = walletList?.find(w => {
         const walletId = getWalletId(w);
         if (walletId === null || walletId === undefined) return false;
         return String(walletId) === String(valueToSearch) || Number(walletId) === Number(valueToSearch);
       });
       if (walletFromValue) {
-        console.log("🟣 [targetWallet] ✅ Found by ref/value:", {
-          walletId: getWalletId(walletFromValue),
-          walletName: getWalletName(walletFromValue),
-          balance: walletFromValue.balance,
-          currency: walletFromValue.currency
-        });
         return walletFromValue;
       }
     }
     
     // Nếu vẫn không tìm được, không thể xác định chính xác
-    console.log("🟣 [targetWallet] Multiple wallets with same name, returning null");
     return null;
   }, [form.targetWallet, form.targetWalletId, walletList, currentTargetWalletValue, targetWalletSelectionTrigger]);
 
@@ -951,19 +782,9 @@ export default function TransactionFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.sourceWallet, sourceWallet, variant]);
 
-  // Debug: Log khi form state thay đổi (cho variant internal)
+  // Debug effect đã dùng xong, giữ logic nhưng bỏ log để sạch console
   useEffect(() => {
     if (variant !== "internal") return;
-    console.log("🔵 [FORM STATE CHANGE] Form state updated:", {
-      sourceWalletId: form.sourceWalletId,
-      sourceWallet: form.sourceWallet,
-      targetWalletId: form.targetWalletId,
-      targetWallet: form.targetWallet,
-      currentSourceWalletValue: currentSourceWalletValue,
-      currentTargetWalletValue: currentTargetWalletValue,
-      sourceWalletBalance: sourceWallet?.balance,
-      targetWalletBalance: targetWallet?.balance
-    });
   }, [form.sourceWalletId, form.sourceWallet, form.targetWalletId, form.targetWallet, sourceWallet, targetWallet, currentSourceWalletValue, currentTargetWalletValue, variant]);
 
   // Auto-sync targetWalletId từ currentTargetWalletValue nếu có value nhưng chưa có targetWalletId
@@ -975,7 +796,6 @@ export default function TransactionFormModal({
     // Nếu có currentTargetWalletValue nhưng chưa có targetWalletId, tự động set
     const walletIdNum = Number(currentTargetWalletValue);
     if (!isNaN(walletIdNum)) {
-      console.log("🔵 [AUTO-SYNC targetWalletId] Setting targetWalletId from currentTargetWalletValue:", walletIdNum);
       setForm((f) => ({ ...f, targetWalletId: walletIdNum }));
     }
   }, [currentTargetWalletValue, form.targetWalletId, variant]);
@@ -989,7 +809,6 @@ export default function TransactionFormModal({
     // Nếu có currentSourceWalletValue nhưng chưa có sourceWalletId, tự động set
     const walletIdNum = Number(currentSourceWalletValue);
     if (!isNaN(walletIdNum)) {
-      console.log("🔵 [AUTO-SYNC sourceWalletId] Setting sourceWalletId from currentSourceWalletValue:", walletIdNum);
       setForm((f) => ({ ...f, sourceWalletId: walletIdNum }));
     }
   }, [currentSourceWalletValue, form.sourceWalletId, variant]);
@@ -1002,31 +821,14 @@ export default function TransactionFormModal({
 
   // Handler cho sourceWallet onChange
   const handleSourceWalletChange = function handleSourceWalletChange(v) {
-    console.log("🔴 [handleSourceWalletChange] START - Selected value:", v, "Type:", typeof v);
-    console.log("🔴 [handleSourceWalletChange] Function name:", handleSourceWalletChange.name);
-    console.log("🔴 [handleSourceWalletChange] walletOptions length:", walletOptions?.length);
-    
     try {
       // v là walletId (string), cần tìm wallet và set cả sourceWallet và sourceWalletId
       // Tìm trong walletOptions trước (có label đã format với email)
       const selectedOption = walletOptions.find(opt => String(opt.value) === String(v));
-      console.log("🔴 [handleSourceWalletChange] Selected option:", selectedOption ? {
-        value: selectedOption.value,
-        label: selectedOption.label,
-        rawWalletId: getWalletId(selectedOption.raw),
-        rawWalletName: getWalletName(selectedOption.raw)
-      } : "NOT FOUND");
-      
       const wallet = selectedOption?.raw;
       if (wallet) {
         const walletId = getWalletId(wallet);
         const walletName = getWalletName(wallet);
-        console.log("🔴 [handleSourceWalletChange] Setting form with wallet from options:", {
-          walletId,
-          walletName,
-          balance: wallet.balance
-        });
-        
         setForm((f) => {
           // Nếu ví nhận trùng với ví gửi mới, reset ví nhận
           const targetWalletId = f.targetWalletId ? String(f.targetWalletId) : "";
@@ -1039,12 +841,10 @@ export default function TransactionFormModal({
             targetWallet: newTarget,
             targetWalletId: newTargetId
           };
-          console.log("🔴 [handleSourceWalletChange] New form state:", newForm);
           return newForm;
         });
       } else {
         // Fallback: tìm trực tiếp trong walletList
-        console.log("🔴 [handleSourceWalletChange] Option not found, searching in walletList...");
         const walletFromList = walletList?.find(w => {
           const wId = getWalletId(w);
           if (wId === null || wId === undefined) return false;
@@ -1054,11 +854,6 @@ export default function TransactionFormModal({
         if (walletFromList) {
           const walletId = getWalletId(walletFromList);
           const walletName = getWalletName(walletFromList);
-          console.log("🔴 [handleSourceWalletChange] Found in walletList, setting form:", {
-            walletId,
-            walletName,
-            balance: walletFromList.balance
-          });
           setForm((f) => {
             const targetWalletId = f.targetWalletId ? String(f.targetWalletId) : "";
             const newTarget = v === targetWalletId ? "" : f.targetWallet;
@@ -1070,66 +865,38 @@ export default function TransactionFormModal({
               targetWallet: newTarget,
               targetWalletId: newTargetId
             };
-            console.log("🔴 [handleSourceWalletChange] New form state:", newForm);
             return newForm;
           });
         } else {
           // Nếu vẫn không tìm thấy, reset form
-          console.log("🔴 [handleSourceWalletChange] NOT FOUND in walletList, resetting form");
           setForm((f) => ({ ...f, sourceWallet: "", sourceWalletId: null }));
         }
       }
     } catch (error) {
-      console.error("🔴 [handleSourceWalletChange] ERROR:", error);
-      console.error("🔴 [handleSourceWalletChange] Error stack:", error.stack);
+      console.error(error);
     }
   };
 
   // Handler cho targetWallet onChange
   const handleTargetWalletChange = function handleTargetWalletChange(v) {
-    console.log("🟣 [handleTargetWalletChange] START - Selected value:", v, "Type:", typeof v);
-    console.log("🟣 [handleTargetWalletChange] Function name:", handleTargetWalletChange.name);
-    console.log("🟣 [handleTargetWalletChange] targetWalletOptions length:", targetWalletOptions?.length);
-    
     try {
       // v là walletId (string), cần tìm wallet và set cả targetWallet và targetWalletId
       // Tìm trong targetWalletOptions trước (có label đã format với email)
       const selectedOption = targetWalletOptions.find(opt => String(opt.value) === String(v));
-      console.log("🟣 [handleTargetWalletChange] Selected option:", selectedOption ? {
-        value: selectedOption.value,
-        label: selectedOption.label,
-        rawWalletId: getWalletId(selectedOption.raw),
-        rawWalletName: getWalletName(selectedOption.raw)
-      } : "NOT FOUND");
-      
       const wallet = selectedOption?.raw;
       if (wallet) {
         const walletId = getWalletId(wallet);
         const walletName = getWalletName(wallet);
-        console.log("🟣 [handleTargetWalletChange] Setting form with wallet from options:", {
-          walletId,
-          walletName,
-          balance: wallet.balance,
-          currency: wallet.currency,
-          rawWallet: wallet
-        });
-        
         setForm((f) => {
           const newForm = { 
             ...f, 
             targetWallet: walletName,
             targetWalletId: walletId !== null && walletId !== undefined ? Number(walletId) : null
           };
-          console.log("🟣 [handleTargetWalletChange] New form state:", newForm);
-          console.log("🟣 [handleTargetWalletChange] About to return newForm, targetWalletId:", newForm.targetWalletId, "targetWallet:", newForm.targetWallet);
           return newForm;
         });
-        
-        // Force re-render để đảm bảo targetWallet được cập nhật
-        console.log("🟣 [handleTargetWalletChange] Form state updated, waiting for re-render...");
       } else {
         // Fallback: tìm trực tiếp trong walletList
-        console.log("🟣 [handleTargetWalletChange] Option not found, searching in walletList...");
         const walletFromList = walletList?.find(w => {
           const wId = getWalletId(w);
           if (wId === null || wId === undefined) return false;
@@ -1139,29 +906,21 @@ export default function TransactionFormModal({
         if (walletFromList) {
           const walletId = getWalletId(walletFromList);
           const walletName = getWalletName(walletFromList);
-          console.log("🟣 [handleTargetWalletChange] Found in walletList, setting form:", {
-            walletId,
-            walletName,
-            balance: walletFromList.balance
-          });
           setForm((f) => {
             const newForm = { 
               ...f, 
               targetWallet: walletName,
               targetWalletId: walletId !== null && walletId !== undefined ? Number(walletId) : null
             };
-            console.log("🟣 [handleTargetWalletChange] New form state:", newForm);
             return newForm;
           });
         } else {
           // Nếu vẫn không tìm thấy, reset form
-          console.log("🟣 [handleTargetWalletChange] NOT FOUND in walletList, resetting form");
           setForm((f) => ({ ...f, targetWallet: "", targetWalletId: null }));
         }
       }
     } catch (error) {
-      console.error("🟣 [handleTargetWalletChange] ERROR:", error);
-      console.error("🟣 [handleTargetWalletChange] Error stack:", error.stack);
+      console.error(error);
     }
   };
 
@@ -1250,7 +1009,9 @@ export default function TransactionFormModal({
         // Khi tạo mới, gửi đầy đủ thông tin
         onSubmit?.({
           sourceWallet: form.sourceWallet,
+          sourceWalletId: form.sourceWalletId,
           targetWallet: form.targetWallet,
+          targetWalletId: form.targetWalletId,
           amount: Number(form.amount || 0),
           date: form.date,
           note: form.note || "",
@@ -1362,27 +1123,13 @@ export default function TransactionFormModal({
                         value={currentWalletValue}
                         displayText={currentWalletValue === "" && form.walletName ? form.walletName : undefined}
                         onChange={(v) => {
-                          console.log("🔴 [onChange] Selected value:", v, "Type:", typeof v);
-                          
                           // v là walletId (string), cần tìm wallet và set cả walletName và walletId
                           // Tìm trong walletOptions trước (có label đã format với email)
                           const selectedOption = walletOptions.find(opt => String(opt.value) === String(v));
-                          console.log("🔴 [onChange] Selected option:", selectedOption ? {
-                            value: selectedOption.value,
-                            label: selectedOption.label,
-                            rawWalletId: getWalletId(selectedOption.raw),
-                            rawWalletName: getWalletName(selectedOption.raw)
-                          } : "NOT FOUND");
-                          
                           const wallet = selectedOption?.raw;
                           if (wallet) {
                             const walletId = getWalletId(wallet);
                             const walletName = getWalletName(wallet);
-                            console.log("🔴 [onChange] Setting form with wallet from options:", {
-                              walletId,
-                              walletName,
-                              balance: wallet.balance
-                            });
                             setForm((f) => ({ 
                               ...f, 
                               walletName: walletName,
@@ -1390,7 +1137,6 @@ export default function TransactionFormModal({
                             }));
                           } else {
                             // Fallback: tìm trực tiếp trong walletList
-                            console.log("🔴 [onChange] Option not found, searching in walletList...");
                             const walletFromList = walletList?.find(w => {
                               const wId = getWalletId(w);
                               if (wId === null || wId === undefined) return false;
@@ -1400,11 +1146,6 @@ export default function TransactionFormModal({
                             if (walletFromList) {
                               const walletId = getWalletId(walletFromList);
                               const walletName = getWalletName(walletFromList);
-                              console.log("🔴 [onChange] Found in walletList, setting form:", {
-                                walletId,
-                                walletName,
-                                balance: walletFromList.balance
-                              });
                               setForm((f) => ({ 
                                 ...f, 
                                 walletName: walletName,
@@ -1412,7 +1153,6 @@ export default function TransactionFormModal({
                               }));
                             } else {
                               // Nếu vẫn không tìm thấy, reset form
-                              console.log("🔴 [onChange] NOT FOUND in walletList, resetting form");
                               setForm((f) => ({ ...f, walletName: "", walletId: null }));
                             }
                           }
@@ -1678,19 +1418,11 @@ export default function TransactionFormModal({
                         value={currentSourceWalletValue}
                         displayText={currentSourceWalletValue === "" && form.sourceWallet && form.sourceWallet.trim() !== "" ? form.sourceWallet : undefined}
                         onChange={(v) => {
-                          console.log("🔴 [sourceWallet onChange INLINE] Called with value:", v);
                           // Lưu giá trị vào ref ngay lập tức và trigger re-render
                           selectedSourceWalletIdRef.current = v;
-                          setSourceWalletSelectionTrigger(prev => {
-                            const newValue = prev + 1;
-                            console.log("🔴 [sourceWallet onChange INLINE] Saved to ref:", selectedSourceWalletIdRef.current, "Trigger:", newValue);
-                            return newValue;
-                          });
-                          console.log("🔴 [sourceWallet onChange INLINE] handleSourceWalletChange exists:", typeof handleSourceWalletChange, "name:", handleSourceWalletChange?.name);
+                          setSourceWalletSelectionTrigger(prev => prev + 1);
                           if (typeof handleSourceWalletChange === 'function') {
                             handleSourceWalletChange(v);
-                          } else {
-                            console.error("🔴 [sourceWallet onChange INLINE] handleSourceWalletChange is not a function!");
                           }
                         }}
                         options={walletOptions}
@@ -1713,19 +1445,11 @@ export default function TransactionFormModal({
                         value={currentTargetWalletValue}
                         displayText={currentTargetWalletValue === "" && form.targetWallet ? form.targetWallet : undefined}
                         onChange={(v) => {
-                          console.log("🟣 [targetWallet onChange INLINE] Called with value:", v);
                           // Lưu giá trị vào ref ngay lập tức và trigger re-render
                           selectedTargetWalletIdRef.current = v;
-                          setTargetWalletSelectionTrigger(prev => {
-                            const newValue = prev + 1;
-                            console.log("🟣 [targetWallet onChange INLINE] Saved to ref:", selectedTargetWalletIdRef.current, "Trigger:", newValue);
-                            return newValue;
-                          });
-                          console.log("🟣 [targetWallet onChange INLINE] handleTargetWalletChange exists:", typeof handleTargetWalletChange);
+                          setTargetWalletSelectionTrigger(prev => prev + 1);
                           if (typeof handleTargetWalletChange === 'function') {
                             handleTargetWalletChange(v);
-                          } else {
-                            console.error("🟣 [targetWallet onChange INLINE] handleTargetWalletChange is not a function!");
                           }
                         }}
                         options={targetWalletOptions}

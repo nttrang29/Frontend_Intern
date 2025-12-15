@@ -126,15 +126,16 @@ const buildOwnerId = (wallet) => {
   return `owner-${wallet.id}`;
 };
 
+const normalizeOwnerEmail = (wallet) =>
+  wallet.ownerEmail || wallet.ownerContact || "";
+
+// Tên hiển thị cho chip owner: ưu tiên email chủ ví
 const normalizeOwnerName = (wallet) =>
+  normalizeOwnerEmail(wallet) ||
   wallet.ownerName ||
   wallet.ownerFullName ||
   wallet.ownerDisplayName ||
-  wallet.ownerEmail ||
   "Người chia sẻ";
-
-const normalizeOwnerEmail = (wallet) =>
-  wallet.ownerEmail || wallet.ownerContact || "";
 
 // Helper functions for budget warning evaluation
 const normalizeBudgetCategoryKey = (value) => {

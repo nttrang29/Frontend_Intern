@@ -932,13 +932,13 @@ export default function TransactionsPage() {
     const isPersonalWallet = walletType !== "GROUP";
 
     // Thêm "(đã rời ví)" vào tên ví nếu user đã rời ví
-    // Lưu ý: 
+    // Lưu ý:
     // - Nếu được mời lại với role VIEWER, vẫn không hiện "(đã rời ví)" nhưng vẫn ẩn hành động
-    // - Với ví cá nhân (PERSONAL), nếu đã bị xóa thì chỉ hiển thị "(đã xóa)", không hiển thị "(đã rời ví)"
+    // - Nếu ví đã bị xóa (bất kể PERSONAL hay GROUP), chỉ hiển thị "(đã xóa)", KHÔNG hiển thị "(đã rời ví)"
     let displayWalletName = walletName;
     if (isLeftWallet) {
-      // Với ví cá nhân, nếu đã bị xóa thì không thêm "(đã rời ví)" nữa
-      if (isPersonalWallet && isWalletDeleted) {
+      // Nếu ví đã bị xóa, không thêm "(đã rời ví)" nữa (tránh chuỗi "(đã xóa)(đã rời ví)")
+      if (isWalletDeleted) {
         // Đã có "(đã xóa)" rồi, không thêm gì nữa
         displayWalletName = walletName;
       } else {
@@ -1757,8 +1757,6 @@ export default function TransactionsPage() {
     const currentStr = Array.from(leftWalletIds).sort().join(',');
     if (currentStr !== leftWalletIdsStrRef.current) {
       leftWalletIdsStrRef.current = currentStr;
-      console.log("🔄 leftWalletIds changed, force refreshing transactions...", Array.from(leftWalletIds));
-      
       // Force refresh transactions trực tiếp, không qua runInitialLoad
       // Vì runInitialLoad có check walletsIds, mà walletsIds không thay đổi khi leftWalletIds thay đổi
       const forceRefresh = async () => {
@@ -1824,8 +1822,6 @@ export default function TransactionsPage() {
       );
 
       if (memberLeftNotifs.length > 0) {
-        console.log("🔄 Wallet member left/removed notification received, reloading page...");
-        
         // Lưu walletIds vào state để đánh dấu là đã rời ví
         const removedWalletIds = new Set();
         memberLeftNotifs.forEach(n => {
@@ -1890,8 +1886,6 @@ export default function TransactionsPage() {
       );
 
       if (memberLeftNotifs.length > 0) {
-        console.log("🔄 Wallet member left/removed notification received via walletNotificationReceived, reloading...");
-        
         // Lưu walletIds vào state để đánh dấu là đã rời ví
         const removedWalletIds = new Set();
         memberLeftNotifs.forEach(n => {
@@ -1942,8 +1936,6 @@ export default function TransactionsPage() {
       const invitedNotifs = notifications.filter(n => n.type === "WALLET_INVITED");
 
       if (invitedNotifs.length > 0) {
-        console.log("🔄 Wallet invited notification received, reloading page...");
-        
         // Xóa walletIds khỏi danh sách đã rời ví (vì được mời lại)
         const invitedWalletIds = new Set();
         invitedNotifs.forEach(n => {
@@ -1992,7 +1984,6 @@ export default function TransactionsPage() {
     
     // Lắng nghe event khi wallets được reload để tự động refresh transactions
     const handleWalletsReloaded = () => {
-      console.log("🔄 Wallets reloaded, refreshing transactions...");
       // Reset last refresh để force reload transactions
       lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
       setTimeout(() => {
@@ -2005,7 +1996,6 @@ export default function TransactionsPage() {
     const handleWalletRoleUpdated = async (event) => {
       const { walletId } = event.detail || {};
       if (walletId) {
-        console.log("🔄 Wallet role updated for wallet", walletId, "- refreshing transactions...");
         // Reload wallets để cập nhật role
         if (loadWallets && typeof loadWallets === "function") {
           try {
@@ -2166,7 +2156,10 @@ export default function TransactionsPage() {
     try {
         if (activeTab === TABS.EXTERNAL || activeTab === TABS.GROUP_EXTERNAL) {
         // Find walletId and categoryId
-        const wallet = findWalletByDisplayName(payload.walletName);
+        // Ưu tiên tìm theo walletId (tránh nhầm khi có nhiều ví trùng tên)
+        const wallet =
+          (payload.walletId && findWalletById(payload.walletId)) ||
+          findWalletByDisplayName(payload.walletName);
         if (!wallet) {
           setToast({ open: true, message: t("transactions.error.wallet_not_found").replace("{wallet}", payload.walletName), type: "error" });
           return;
@@ -2242,8 +2235,13 @@ export default function TransactionsPage() {
         setToast({ open: true, message: t("transactions.toast.add_success") });
       } else {
         // Internal transfer
-        const sourceWallet = findWalletByDisplayName(payload.sourceWallet);
-        const targetWallet = findWalletByDisplayName(payload.targetWallet);
+        // Với chuyển tiền, cũng ưu tiên dùng ID nếu có để tránh nhầm ví khi trùng tên
+        const sourceWallet =
+          (payload.sourceWalletId && findWalletById(payload.sourceWalletId)) ||
+          findWalletByDisplayName(payload.sourceWallet);
+        const targetWallet =
+          (payload.targetWalletId && findWalletById(payload.targetWalletId)) ||
+          findWalletByDisplayName(payload.targetWallet);
         
         if (!sourceWallet || !targetWallet) {
           setToast({ open: true, message: t("transactions.error.wallet_not_found_pair"), type: "error" });
@@ -2328,19 +2326,12 @@ export default function TransactionsPage() {
           showViewerRestrictionToast();
           return;
         }
-
-        console.log("Updating transfer:", {
-          transferId: editing.id,
-          note: payload.note || "",
-        });
         
         const response = await walletAPI.updateTransfer(
           editing.id,
           payload.note || ""
         );
         
-        console.log("Update transfer response:", response);
-
         await refreshTransactionsData();
 
         setEditing(null);
@@ -2383,13 +2374,6 @@ export default function TransactionsPage() {
       }
 
       // Gọi API update
-      console.log("Updating transaction:", {
-        transactionId: editing.id,
-        categoryId,
-        note: payload.note || "",
-        attachment: payload.attachment || null
-      });
-      
       const response = await transactionAPI.updateTransaction(
         editing.id,
         categoryId,
@@ -2397,8 +2381,6 @@ export default function TransactionsPage() {
         payload.attachment || null
       );
       
-      console.log("Update transaction response:", response);
-
       // Force refresh bằng cách reset lastRefreshRef để đảm bảo refresh ngay lập tức
       lastRefreshRef.current = { walletsIds: '', timestamp: 0 };
       await refreshTransactionsData();
