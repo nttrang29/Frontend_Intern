@@ -63,14 +63,20 @@ export function NotificationProvider({ children }) {
           mappedType = "FUND_AUTO_DEPOSIT_FAILED";
         } else if (n.referenceType === "FUND_COMPLETED") {
           mappedType = "FUND_COMPLETED";
-        } else if (n.type === "WALLET_INVITED" || n.referenceType === "WALLET") {
-          mappedType = n.type === "WALLET_INVITED" ? "WALLET_INVITED" : "wallet_invited";
+        } else if (n.type === "WALLET_INVITED") {
+          mappedType = "WALLET_INVITED";
         } else if (n.type === "WALLET_ROLE_UPDATED") {
           mappedType = "WALLET_ROLE_UPDATED";
         } else if (n.type === "WALLET_MEMBER_LEFT") {
           mappedType = "WALLET_MEMBER_LEFT";
         } else if (n.type === "WALLET_MEMBER_REMOVED") {
           mappedType = "WALLET_MEMBER_REMOVED";
+        } else if (n.type === "WALLET_TRANSACTION") {
+          mappedType = "WALLET_TRANSACTION";
+        } else if (n.type === "BUDGET_WARNING") {
+          mappedType = "BUDGET_WARNING";
+        } else if (n.type === "BUDGET_EXCEEDED") {
+          mappedType = "BUDGET_EXCEEDED";
         }
         
         return {
@@ -90,7 +96,10 @@ export function NotificationProvider({ children }) {
                   n.referenceType === "FUND_AUTO_DEPOSIT_FAILED" || 
                   n.referenceType === "FUND_COMPLETED" ? n.referenceId : null,
           reviewId: n.referenceType === "APP_REVIEW" || n.referenceType === "FEEDBACK" ? n.referenceId : null,
-          walletId: (n.referenceType === "WALLET" || n.type === "WALLET_INVITED" || n.type === "WALLET_ROLE_UPDATED" || n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED") ? (n.referenceId || n.walletId) : null,
+          walletId: (n.referenceType === "WALLET" || n.type === "WALLET_INVITED" || n.type === "WALLET_ROLE_UPDATED" || n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED" || n.type === "WALLET_TRANSACTION")
+            ? (n.referenceId || n.walletId)
+            : null,
+          budgetId: n.referenceType === "BUDGET" ? n.referenceId : null,
         };
       });
       // Lưu notifications cũ để so sánh - sử dụng ref để tránh stale closure
@@ -100,7 +109,7 @@ export function NotificationProvider({ children }) {
       
       // Kiểm tra xem có notification wallet mới (chưa đọc) không
       const walletNotifications = notifs.filter(n => 
-        (n.type === "WALLET_INVITED" || n.type === "WALLET_ROLE_UPDATED" || n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED") && 
+        (n.type === "WALLET_INVITED" || n.type === "WALLET_ROLE_UPDATED" || n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED" || n.type === "WALLET_TRANSACTION") && 
         !n.read
       );
       
@@ -177,7 +186,10 @@ export function NotificationProvider({ children }) {
       
       // Cũng dispatch cho các wallet notifications khác qua walletNotificationReceived
       const otherWalletNotifications = walletNotifications.filter(n => 
-        n.type !== "WALLET_MEMBER_LEFT" && n.type !== "WALLET_MEMBER_REMOVED" && n.type !== "WALLET_ROLE_UPDATED" && n.type !== "WALLET_INVITED"
+        n.type !== "WALLET_MEMBER_LEFT" && 
+        n.type !== "WALLET_MEMBER_REMOVED" && 
+        n.type !== "WALLET_ROLE_UPDATED" && 
+        n.type !== "WALLET_INVITED"
       );
       if (otherWalletNotifications.length > 0) {
         if (typeof window !== "undefined") {
