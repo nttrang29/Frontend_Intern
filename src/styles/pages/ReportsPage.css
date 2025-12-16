@@ -1818,10 +1818,17 @@ h6[style*="fontWeight: 600"] {
 
 .reports-summary-row {
   display: flex;
+  flex-direction: row;
   gap: 18px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   font-size: 0.9rem;
   color: var(--color-text);
+  align-items: flex-start;
+}
+
+.reports-summary-row > div {
+  flex: 1;
+  min-width: 0;
 }
 
 .summary-dot {
@@ -1921,6 +1928,7 @@ h6[style*="fontWeight: 600"] {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding-left: 16px;
 }
 
 .reports-history-list table {

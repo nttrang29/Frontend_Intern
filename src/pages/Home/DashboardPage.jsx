@@ -191,6 +191,33 @@ const getPeriodRange = (period) => {
 
 export default function DashboardPage() {
   const { formatCurrency } = useCurrency();
+  
+  // Hàm format số tiền dạng compact cho các bảng thống kê
+  // Khi quá 10 triệu sẽ hiển thị dạng compact (10M, 100M, 1B, etc.)
+  const formatCompactCurrency = (amount) => {
+    const value = Number(amount) || 0;
+    
+    // Nếu < 10 triệu, format bình thường
+    if (value < 10_000_000) {
+      const formatted = value.toLocaleString("vi-VN");
+      return `${formatted} VND`;
+    }
+    
+    // >= 10 triệu: format dạng compact
+    if (value >= 1_000_000_000) {
+      // >= 1 tỷ: hiển thị dạng B (tỷ)
+      const billions = value / 1_000_000_000;
+      return `${billions.toFixed(billions >= 10 ? 0 : 1)}B VND`;
+    } else if (value >= 10_000_000) {
+      // >= 10 triệu: hiển thị dạng M (triệu)
+      const millions = value / 1_000_000;
+      return `${millions.toFixed(millions >= 10 ? 0 : 1)}M VND`;
+    }
+    
+    // Fallback
+    const formatted = value.toLocaleString("vi-VN");
+    return `${formatted} VND`;
+  };
   const { t } = useLanguage();
   const [period, setPeriod] = useState("tuan");
   const [apiTransactions, setApiTransactions] = useState([]);
@@ -639,7 +666,7 @@ export default function DashboardPage() {
                     >
                       <div className="db-donut__tooltip-label">{tooltip.label}</div>
                       <div className="db-donut__tooltip-value">
-                        {tooltip.value}% · {formatCurrency(tooltip.amount)}
+                        {tooltip.value}% · {formatCompactCurrency(tooltip.amount)}
                       </div>
                     </div>
                   )}
@@ -686,11 +713,11 @@ export default function DashboardPage() {
                 <div className="db-card__kpi db-card__kpi--dual">
                   <div>
                     <p className="db-kpi__label">{t("dashboard.income")}</p>
-                    <p className="db-kpi__value db-kpi__value--income">{formatCurrency(totalIncome)}</p>
+                    <p className="db-kpi__value db-kpi__value--income">{formatCompactCurrency(totalIncome)}</p>
                   </div>
                   <div>
                     <p className="db-kpi__label">{t("dashboard.total_expense")}</p>
-                    <p className="db-kpi__value db-kpi__value--expense">{formatCurrency(totalSpending)}</p>
+                    <p className="db-kpi__value db-kpi__value--expense">{formatCompactCurrency(totalSpending)}</p>
                   </div>
                 </div>
                 <div className="db-line-chart-container">
@@ -738,7 +765,7 @@ export default function DashboardPage() {
                                 bottom: `${(index / yAxisSteps) * baseHeight}px`,
                               }}
                             >
-                              {formatCurrency(value)}
+                              {formatCompactCurrency(value)}
                             </div>
                           ))}
                         </div>
@@ -889,7 +916,7 @@ export default function DashboardPage() {
                                 bottom: `${(index / yAxisSteps) * baseHeight}px`,
                               }}
                             >
-                              {formatCurrency(value)}
+                              {formatCompactCurrency(value)}
                             </div>
                           ))}
                         </div>
@@ -998,7 +1025,7 @@ export default function DashboardPage() {
                               }}
                             >
                               <div className="db-bar-chart__tooltip-label">{barTooltip.type}</div>
-                              <div className="db-bar-chart__tooltip-value">{formatCurrency(barTooltip.amount)}</div>
+                              <div className="db-bar-chart__tooltip-value">{formatCompactCurrency(barTooltip.amount)}</div>
                               <div className="db-bar-chart__tooltip-period">{barTooltip.label}</div>
                             </div>
                           )}
