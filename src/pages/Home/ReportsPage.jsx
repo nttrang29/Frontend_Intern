@@ -20,7 +20,6 @@ import BudgetDetailModal from "../../components/budgets/BudgetDetailModal";
 import PDFPreviewModal from "../../components/common/PDFPreviewModal/PDFPreviewModal";
 
 const RANGE_OPTIONS = [
-  { value: "day", label: "Ngày" },
   { value: "week", label: "Tuần" },
   { value: "month", label: "Tháng" },
   { value: "year", label: "Năm" },
@@ -28,6 +27,7 @@ const RANGE_OPTIONS = [
 
 const INCOME_COLOR = "#0B63F6";
 const EXPENSE_COLOR = "#E91E63"; // Màu hồng đậm
+const TRANSFER_COLOR = "#0ea5e9"; // Màu xanh dương cho chuyển tiền
 const PAGE_SIZE = 10;
 
 const FUND_FILTERS = [
@@ -66,9 +66,15 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const isFundCompleted = (fund) => {
   if (!fund) return false;
   const status = (fund.status || "").toUpperCase();
-  // Chỉ quỹ có status COMPLETED hoặc CLOSED (đã tất toán) được coi là hoàn thành
-  // Không tính quỹ chỉ đạt mục tiêu nhưng chưa tất toán
-  return status === "COMPLETED" || status === "CLOSED";
+  // Quỹ có status COMPLETED hoặc CLOSED (đã tất toán) được coi là hoàn thành
+  if (status === "COMPLETED" || status === "CLOSED") {
+    return true;
+  }
+  // Hoặc quỹ đã đạt mục tiêu (current >= target)
+  const targetValue = Number(fund?.targetAmount ?? fund?.target ?? 0) || 0;
+  if (!targetValue) return false;
+  const currentValue = Number(fund?.currentAmount ?? fund?.current ?? 0) || 0;
+  return currentValue >= targetValue;
 };
 
 const normalizeTransaction = (raw) => {
@@ -78,7 +84,21 @@ const normalizeTransaction = (raw) => {
 
   const amount = Math.abs(Number(raw.amount) || 0);
   const typeName = (raw.transactionType?.typeName || raw.type || "").toLowerCase();
-  const type = typeName.includes("thu") || typeName.includes("income") ? "income" : "expense";
+  
+  // Phân loại chính xác:
+  // Thu nhập: thu nhập, nạp ví
+  // Chi tiêu: chi tiêu, rút ví
+  let type = "expense"; // Mặc định là chi tiêu
+  if (typeName.includes("thu") || typeName.includes("income")) {
+    type = "income"; // Thu nhập = Thu nhập
+  } else if (typeName.includes("nạp") || typeName.includes("deposit")) {
+    type = "income"; // Nạp ví = Thu nhập
+  } else if (typeName.includes("chi") || typeName.includes("expense")) {
+    type = "expense"; // Chi tiêu = Chi tiêu
+  } else if (typeName.includes("rút") || typeName.includes("withdraw")) {
+    type = "expense"; // Rút ví = Chi tiêu
+  }
+  
   const dateSource = raw.createdAt || raw.transactionDate || raw.date;
   const dateObj = dateSource ? new Date(dateSource) : null;
   if (!dateObj || Number.isNaN(dateObj.getTime())) return null;
@@ -93,6 +113,7 @@ const normalizeTransaction = (raw) => {
     currency: raw.wallet?.currencyCode || raw.currencyCode || raw.currency || "VND",
     createdBy: raw.createdBy || raw.userId || raw.user?.userId || raw.user?.id,
     createdByEmail: raw.createdByEmail || raw.userEmail || raw.user?.email,
+    transactionTypeName: raw.transactionType?.typeName || raw.type || "",
   };
 };
 
@@ -102,39 +123,54 @@ const addDays = (date, days) => {
   return result;
 };
 
-// Tính tổng Thu vào và Chi ra trong khoảng thời gian
-// Thu vào: income, deposit, transfer vào, merge nhận, fund withdraw
-// Chi ra: expense, withdraw, transfer ra, fund deposit, merge gửi
+// Tính tổng Thu nhập và Chi tiêu trong khoảng thời gian
+// Thu nhập: nạp ví, thu nhập, chuyển tiền vào, gộp ví (nhận), rút quỹ
+// Chi tiêu: chi tiêu, rút ví, nạp quỹ, chuyển tiền ra, gộp ví (gửi)
 const sumInRange = (list, start, end, selectedWalletId) => {
   const totals = { income: 0, expense: 0 };
   const walletId = Number(selectedWalletId);
   
   list.forEach((tx) => {
     if (!tx.date) return;
-    if (tx.date < start || tx.date > end) return;
+    const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
+    if (Number.isNaN(txDate.getTime())) return;
+    if (txDate < start || txDate > end) return;
     
-    // Xử lý transfer: transfer vào ví (toWalletId === walletId) = Thu vào, transfer ra ví (fromWalletId === walletId) = Chi ra
-    if (tx.type === "transfer") {
-      if (tx.toWalletId === walletId) {
-        // Transfer vào ví = Thu vào
+    // Bỏ qua transfer và merge - không tính vào thu nhập/chi tiêu
+    // Vì chuyển tiền giữa các ví không làm thay đổi tổng tài sản
+    if (tx.type === "transfer" || tx.type === "merge") {
+      return;
+    }
+    
+    // Xử lý fund transactions
+    if (tx.isFundTransaction) {
+      // Fund withdraw (rút quỹ) = Thu nhập (tiền từ quỹ về ví)
+      // Fund deposit (nạp quỹ) = Chi tiêu (tiền từ ví vào quỹ)
+      if (tx.type === "income" && (tx.walletId === walletId || tx.targetWalletId === walletId)) {
+        // Rút quỹ về ví này = Thu nhập
         totals.income += tx.amount;
-      } else if (tx.fromWalletId === walletId) {
-        // Transfer ra ví = Chi ra
+      } else if (tx.type === "expense" && (tx.walletId === walletId || tx.sourceWalletId === walletId)) {
+        // Nạp quỹ từ ví này = Chi tiêu
         totals.expense += tx.amount;
       }
       return;
     }
     
     // Xử lý transaction thông thường
-    // Thu vào: income, deposit (nếu có type là deposit)
-    // Chi ra: expense, withdraw (nếu có type là withdraw)
+    // Thu nhập: thu nhập, nạp ví
+    // Chi tiêu: chi tiêu, rút ví
     const typeName = (tx.transactionTypeName || tx.typeName || tx.type || "").toLowerCase();
     
-    if (typeName.includes("thu") || typeName.includes("income") || typeName.includes("deposit") || typeName === "income") {
+    // Thu nhập: thu nhập, nạp ví
+    if (typeName.includes("thu") || typeName.includes("income") || typeName === "income") {
       totals.income += tx.amount;
-    } else if (typeName.includes("chi") || typeName.includes("expense") || typeName.includes("withdraw") || typeName === "expense") {
+    } 
+    // Chi tiêu: chi tiêu, rút ví
+    else if (typeName.includes("chi") || typeName.includes("expense") || typeName.includes("withdraw") || typeName === "expense") {
       totals.expense += tx.amount;
-    } else if (tx.type === "income") {
+    } 
+    // Fallback: dựa vào type field
+    else if (tx.type === "income") {
       totals.income += tx.amount;
     } else if (tx.type === "expense") {
       totals.expense += tx.amount;
@@ -382,40 +418,16 @@ const buildFundGoalStats = (fund) => {
   if (!hasDeadline) {
     // Quỹ không thời hạn: luôn là "on_track", không có vượt/chậm tiến độ
     paceStatus = "on_track";
-  } else if (expectedPct == null || expectedAmount == null) {
+  } else if (expectedAmount == null) {
     paceStatus = targetValue > 0 ? (progressPct >= 100 ? "ahead" : "on_track") : "unknown";
+  } else if (currentValue >= expectedAmount * 1.05) {
+    paceStatus = "ahead";
+  } else if (currentValue >= expectedAmount * 0.9) {
+    paceStatus = "on_track";
+  } else if (currentValue >= expectedAmount * 0.6) {
+    paceStatus = "behind";
   } else {
-    // Sử dụng logic tương tự FundDetailView: so sánh theo phần trăm
-    // Tính chênh lệch giữa thực tế và kế hoạch (theo phần trăm)
-    const diffPct = progressPct - expectedPct;
-    
-    // Xử lý trường hợp expectedAmount = 0 hoặc rất nhỏ (ngày đầu tiên)
-    if (expectedAmount <= 0) {
-      // Nếu chưa có kỳ vọng (chưa đến ngày bắt đầu hoặc ngày đầu tiên), mặc định là "on_track"
-      paceStatus = "on_track";
-    } else if (currentValue > 0) {
-      // Có tiền đã nạp: so sánh theo phần trăm
-      if (diffPct >= 7) {
-        // Vượt tiến độ: chênh lệch >= 7%
-        paceStatus = "ahead";
-      } else if (diffPct >= -4) {
-        // Đúng tiến độ: chênh lệch từ -4% đến +7%
-        paceStatus = "on_track";
-      } else {
-        // Chậm tiến độ: chênh lệch < -4%
-        paceStatus = "behind";
-      }
-    } else {
-      // currentValue = 0 nhưng expectedAmount > 0: chưa nạp gì nhưng đã có kỳ vọng
-      // So sánh với thời gian đã trôi qua
-      if (elapsedDays != null && elapsedDays > 0) {
-        // Đã qua ngày bắt đầu nhưng chưa nạp gì → chậm tiến độ
-        paceStatus = "behind";
-      } else {
-        // Chưa đến ngày bắt đầu hoặc ngày đầu tiên → đúng tiến độ
-        paceStatus = "on_track";
-      }
-    }
+    paceStatus = "critical";
   }
 
   return {
@@ -741,6 +753,7 @@ export default function ReportsPage() {
   const [walletSearch, setWalletSearch] = useState("");
   const [transactions, setTransactions] = useState([]);
   const [transfers, setTransfers] = useState([]);
+  const [fundTransactions, setFundTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
   const [error, setError] = useState("");
   const [hoveredColumnIndex, setHoveredColumnIndex] = useState(null);
@@ -850,12 +863,18 @@ export default function ReportsPage() {
                 const dateObj = dateValue ? new Date(dateValue) : null;
                 if (!dateObj || Number.isNaN(dateObj.getTime())) return null;
 
+                // Kiểm tra xem có phải merge transaction không (dựa vào note hoặc type)
+                const isMerge = (transfer.note || "").toLowerCase().includes("gộp") || 
+                               (transfer.note || "").toLowerCase().includes("merge") ||
+                               transfer.isMerge === true ||
+                               transfer.merge === true;
+
                 return {
                   id: `transfer-${transfer.transferId}`,
                   fromWalletId: transfer.fromWallet?.walletId,
                   toWalletId: transfer.toWallet?.walletId,
                   amount,
-                  type: "transfer",
+                  type: isMerge ? "merge" : "transfer",
                   date: dateObj,
                   sourceWallet: transfer.fromWallet?.walletName || "Ví nguồn",
                   targetWallet: transfer.toWallet?.walletName || "Ví đích",
@@ -867,9 +886,82 @@ export default function ReportsPage() {
               })
               .filter(Boolean);
         
+        // Load fund transactions
+        let normalizedFundTransactions = [];
+        try {
+          const allFunds = funds || [];
+          const fundTransactionsPromises = allFunds.map(async (fund) => {
+            try {
+              const fundId = fund.fundId || fund.id;
+              if (!fundId) return [];
+              
+              const result = await getFundTransactions(fundId, 200);
+              let transactions = [];
+              if (result?.response?.ok && result?.data) {
+                transactions = Array.isArray(result.data) 
+                  ? result.data 
+                  : result.data?.transactions || [];
+              }
+              
+              // Normalize fund transactions
+              return transactions.map(tx => {
+                const amount = Math.abs(Number(tx.amount || 0));
+                const dateValue = tx.createdAt || tx.transactionDate || tx.date || new Date().toISOString();
+                const dateObj = dateValue ? new Date(dateValue) : null;
+                if (!dateObj || Number.isNaN(dateObj.getTime())) return null;
+                
+                const txType = (tx.type || "").toUpperCase();
+                const isDeposit = isDepositType(txType);
+                const isWithdraw = isWithdrawType(txType);
+                
+                // Fund deposit (nạp quỹ) = Chi tiêu (tiền từ ví vào quỹ)
+                // Fund withdraw (rút quỹ) = Thu nhập (tiền từ quỹ về ví)
+                const type = isWithdraw ? "income" : isDeposit ? "expense" : null;
+                if (!type) return null;
+                
+                // Lấy sourceWalletId (ví nguồn) cho fund transactions
+                const sourceWalletId = tx.sourceWalletId || 
+                                     fund.sourceWalletId || 
+                                     tx.sourceWallet?.walletId || 
+                                     tx.sourceWallet?.id ||
+                                     tx.fromWalletId ||
+                                     null;
+                
+                // Lấy targetWalletId (ví quỹ) cho fund transactions
+                const targetWalletId = fund.targetWalletId || fund.walletId || tx.targetWalletId;
+                
+                return {
+                  id: `fund-${fundId}-${tx.transactionId || tx.id}`,
+                  walletId: isWithdraw ? (targetWalletId ? Number(targetWalletId) : null) : (sourceWalletId ? Number(sourceWalletId) : null),
+                  amount,
+                  type,
+                  date: dateObj,
+                  note: tx.note || (isDeposit ? `Nạp tiền vào quỹ ${fund.fundName || fund.name || ""}` : `Rút tiền từ quỹ ${fund.fundName || fund.name || ""}`),
+                  currency: tx.currencyCode || fund.currency || "VND",
+                  createdBy: tx.createdBy || tx.userId || tx.user?.userId || tx.user?.id,
+                  createdByEmail: tx.createdByEmail || tx.userEmail || tx.user?.email,
+                  isFundTransaction: true,
+                  fundTransactionType: txType,
+                  sourceWalletId: sourceWalletId ? Number(sourceWalletId) : null,
+                  targetWalletId: targetWalletId ? Number(targetWalletId) : null,
+                };
+              }).filter(Boolean);
+            } catch (error) {
+              console.error(`Error fetching transactions for fund ${fund.fundId || fund.id}:`, error);
+              return [];
+            }
+          });
+          
+          const allFundTransactions = await Promise.all(fundTransactionsPromises);
+          normalizedFundTransactions = allFundTransactions.flat();
+        } catch (err) {
+          console.error("Error loading fund transactions:", err);
+        }
+        
         if (mounted) {
           setTransactions(normalized);
           setTransfers(normalizedTransfers);
+          setFundTransactions(normalizedFundTransactions);
           setError("");
         }
       } catch (err) {
@@ -886,7 +978,7 @@ export default function ReportsPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [funds]);
 
   const formatCompactNumber = (value) => {
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
@@ -915,26 +1007,21 @@ export default function ReportsPage() {
     const walletTransfers = transfers.filter((tf) => 
       tf.fromWalletId === walletId || tf.toWalletId === walletId
     );
-    const all = [...externalTxs, ...walletTransfers].sort((a, b) => {
+    // Fund transactions: chỉ lấy những giao dịch liên quan đến ví này
+    const walletFundTxs = fundTransactions.filter((ftx) => {
+      // Fund withdraw về ví này (targetWalletId === walletId) hoặc fund deposit từ ví này (sourceWalletId === walletId)
+      return ftx.walletId === walletId || 
+             ftx.sourceWalletId === walletId || 
+             ftx.targetWalletId === walletId;
+    });
+    const all = [...externalTxs, ...walletTransfers, ...walletFundTxs].sort((a, b) => {
       const dateA = a.date instanceof Date ? a.date : new Date(a.date);
       const dateB = b.date instanceof Date ? b.date : new Date(b.date);
       return dateB - dateA;
     });
     
-    // Debug: Log để kiểm tra (có thể bỏ sau khi test)
-    // console.log("ReportsPage: walletTransactions", {
-    //   total: all.length,
-    //   transactions: externalTxs.length,
-    //   transfers: walletTransfers.length,
-    //   byType: {
-    //     income: all.filter(tx => tx.type === "income").length,
-    //     expense: all.filter(tx => tx.type === "expense").length,
-    //     transfer: all.filter(tx => tx.type === "transfer").length,
-    //   }
-    // });
-    
     return all;
-  }, [transactions, transfers, selectedWalletId]);
+  }, [transactions, transfers, fundTransactions, selectedWalletId]);
 
   // Pagination logic
   const totalPages = useMemo(() => {
@@ -994,7 +1081,7 @@ export default function ReportsPage() {
 
       // Tạo tên file
       const walletName = (selectedWallet.name || "Vi").replace(/[^a-zA-Z0-9]/g, "_");
-      const rangeLabel = range === "day" ? "Ngay" : range === "week" ? "Tuan" : range === "month" ? "Thang" : "Nam";
+      const rangeLabel = range === "week" ? "Tuan" : range === "month" ? "Thang" : "Nam";
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
       const fileName = `BaoCao_${walletName}_${rangeLabel}_${dateStr}.pdf`;
 
@@ -1084,6 +1171,71 @@ export default function ReportsPage() {
   }, [chartData]);
   const chartNet = chartSummary.income - chartSummary.expense;
   
+  // Tính tổng chuyển tiền trong kỳ (transfer out và transfer in)
+  const transferSummary = useMemo(() => {
+    if (!selectedWalletId || !walletTransactions.length) {
+      return { transferOut: 0, transferIn: 0, total: 0 };
+    }
+    
+    // Tính khoảng thời gian của kỳ được chọn
+    const now = new Date();
+    let periodStart, periodEnd;
+    
+    switch (range) {
+      case "day":
+        periodStart = new Date(now);
+        periodStart.setHours(0, 0, 0, 0);
+        periodEnd = new Date(now);
+        periodEnd.setHours(23, 59, 59, 999);
+        break;
+      case "week":
+        const dayOfWeek = now.getDay() || 7; // 1..7 (Mon..Sun)
+        const monday = addDays(now, 1 - dayOfWeek);
+        periodStart = new Date(monday);
+        periodStart.setHours(0, 0, 0, 0);
+        periodEnd = addDays(monday, 6);
+        periodEnd.setHours(23, 59, 59, 999);
+        break;
+      case "month":
+        periodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+        periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        break;
+      case "year":
+        periodStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+        periodEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+        break;
+      default:
+        periodStart = new Date(0);
+        periodEnd = new Date();
+    }
+    
+    const walletId = Number(selectedWalletId);
+    let transferOut = 0;
+    let transferIn = 0;
+    
+    walletTransactions.forEach((tx) => {
+      if (tx.type !== "transfer") return;
+      if (!tx.date) return;
+      const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
+      if (Number.isNaN(txDate.getTime())) return;
+      if (txDate < periodStart || txDate > periodEnd) return;
+      
+      if (tx.fromWalletId === walletId) {
+        // Chuyển tiền ra = transfer out
+        transferOut += tx.amount;
+      } else if (tx.toWalletId === walletId) {
+        // Chuyển tiền vào = transfer in
+        transferIn += tx.amount;
+      }
+    });
+    
+    return {
+      transferOut,
+      transferIn,
+      total: transferOut + transferIn,
+    };
+  }, [walletTransactions, range, selectedWalletId]);
+  
   // Tính số dư đầu kỳ và cuối kỳ
   // Số dư hiện tại = Initial Balance + Tổng Thu (all-time) - Tổng Chi (all-time)
   // Số dư đầu kỳ = Số dư hiện tại - (Thu trong kỳ - Chi trong kỳ)
@@ -1093,19 +1245,15 @@ export default function ReportsPage() {
   }, [selectedWallet]);
   
   // Tính tổng Thu/Chi all-time
-  // Thu vào: income, deposit, transfer vào, merge nhận, fund withdraw
-  // Chi ra: expense, withdraw, transfer ra, fund deposit, merge gửi
+  // Thu vào: income, deposit, fund withdraw
+  // Chi ra: expense, withdraw, fund deposit
+  // KHÔNG tính transfer và merge vì không làm thay đổi tổng tài sản
   const allTimeSummary = useMemo(() => {
     const walletId = Number(selectedWalletId);
     return walletTransactions.reduce(
       (acc, tx) => {
-        // Xử lý transfer: transfer vào ví = Thu vào, transfer ra ví = Chi ra
-        if (tx.type === "transfer") {
-          if (tx.toWalletId === walletId) {
-            acc.income += tx.amount;
-          } else if (tx.fromWalletId === walletId) {
-            acc.expense += tx.amount;
-          }
+        // Bỏ qua transfer và merge - không tính vào thu nhập/chi tiêu
+        if (tx.type === "transfer" || tx.type === "merge") {
           return acc;
         }
         
@@ -1163,23 +1311,19 @@ export default function ReportsPage() {
     }
     
     // Tính tổng Thu/Chi TRƯỚC kỳ được chọn (từ đầu đến trước periodStart)
+    // KHÔNG tính transfer và merge vì không làm thay đổi tổng tài sản
     const beforePeriodSummary = walletTransactions.reduce(
       (acc, tx) => {
         if (!tx.date) return acc;
         const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
         if (txDate >= periodStart) return acc; // Chỉ tính giao dịch trước kỳ
         
-        const walletId = Number(selectedWalletId);
-        
-        // Xử lý transfer: transfer vào ví = Thu vào, transfer ra ví = Chi ra
-        if (tx.type === "transfer") {
-          if (tx.toWalletId === walletId) {
-            acc.income += tx.amount;
-          } else if (tx.fromWalletId === walletId) {
-            acc.expense += tx.amount;
-          }
+        // Bỏ qua transfer và merge - không tính vào thu nhập/chi tiêu
+        if (tx.type === "transfer" || tx.type === "merge") {
           return acc;
         }
+        
+        const walletId = Number(selectedWalletId);
         
         // Xử lý transaction thông thường
         const typeName = (tx.transactionTypeName || tx.typeName || tx.type || "").toLowerCase();
@@ -2003,41 +2147,32 @@ export default function ReportsPage() {
       }
       totalContributed += contributedAmount;
 
-      // Phân loại quỹ: Tất toán trước hạn vs Đã hoàn thành
-      // Tất toán trước hạn: chỉ tính quỹ không hoàn thành mục tiêu nhưng tất toán
-      // Điều kiện: đã tất toán (isCompleted), tất toán trước hạn (endDate > today), và chưa đạt mục tiêu (currentValue < targetValue)
-      if (isCompleted && endDate && endDate > today && currentValue < targetValue) {
-        // Tất toán trước hạn: chưa đạt mục tiêu
-        earlySettledCount += 1;
-        // Tính số tiền đã nạp từ lịch sử giao dịch
-        const fundId = Number(fund.fundId ?? fund.id);
-        const history = termFundsHistory[fundId] || [];
-        // Tính tổng các giao dịch DEPOSIT thành công
-        const totalDeposited = history
-          .filter((tx) => {
-            const txStatus = (tx.status || "").toUpperCase();
-            return isSuccessfulTx(tx) && isDepositType(tx.type);
-          })
-          .reduce((sum, tx) => {
-            const amount = Math.abs(Number(tx.amount) || 0);
-            return sum + amount;
-          }, 0);
-        
-        earlySettledAmount += totalDeposited > 0 ? totalDeposited : currentValue; // Fallback về currentValue nếu chưa có lịch sử
-      } else if (
-        // Đã hoàn thành: tính cả quỹ đã hoàn thành mục tiêu (vượt tiến độ/đạt mục tiêu)
-        // Bao gồm:
-        // 1. Quỹ đã đạt mục tiêu (currentValue >= targetValue) - dù chưa tất toán hoặc đã tất toán
-        // 2. Quỹ đã tất toán và đã đạt mục tiêu
-        currentValue >= targetValue || // Đã đạt mục tiêu (vượt tiến độ)
-        (isCompleted && (
-          (endDate && endDate > today && currentValue >= targetValue) || // Đã đạt mục tiêu trước hạn (tất toán trước hạn)
-          (!endDate || endDate <= today || currentValue >= targetValue) // Hoàn thành đúng hạn hoặc đã đạt mục tiêu
-        ))
-      ) {
-        completedCount += 1;
-        completedAmount += currentValue;
-        completedOnTimeCount += 1;
+      if (isCompleted) {
+        // Tất toán trước hạn: quỹ đã tất toán, tất toán trước hạn, và chưa hoàn thành mục tiêu
+        if (endDate && endDate > today && currentValue < targetValue) {
+          earlySettledCount += 1;
+          // Tính số tiền đã nạp từ lịch sử giao dịch
+          const fundId = Number(fund.fundId ?? fund.id);
+          const history = termFundsHistory[fundId] || [];
+          // Tính tổng các giao dịch DEPOSIT thành công
+          const totalDeposited = history
+            .filter((tx) => {
+              const txStatus = (tx.status || "").toUpperCase();
+              return isSuccessfulTx(tx) && isDepositType(tx.type);
+            })
+            .reduce((sum, tx) => {
+              const amount = Math.abs(Number(tx.amount) || 0);
+              return sum + amount;
+            }, 0);
+          
+          earlySettledAmount += totalDeposited > 0 ? totalDeposited : currentValue; // Fallback về currentValue nếu chưa có lịch sử
+        } else if (!endDate || endDate <= today || currentValue >= targetValue) {
+          // Quỹ đã hoàn thành đúng hạn (không phải tất toán trước hạn)
+          // Bao gồm: quỹ đã đạt mục tiêu hoặc quỹ đã hết hạn
+          completedCount += 1;
+          completedAmount += currentValue;
+          completedOnTimeCount += 1;
+        }
       }
     });
 
@@ -2465,30 +2600,23 @@ export default function ReportsPage() {
                         {t("dashboard.expense")}: <strong>{formatCurrency(chartSummary.expense)}</strong>
                         <small className="text-muted ms-1">({t("reports.in_period") || "trong kỳ"})</small>
                       </div>
-                    </div>
-                    {/* Hiển thị số dư đầu kỳ, biến động, và số dư cuối kỳ */}
-                    {selectedWallet && (
-                      <div className="reports-balance-row mt-2 pt-2 border-top">
-                        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                          <div>
-                            <small className="text-muted">{t("reports.starting_balance") || "Số dư đầu kỳ"}:</small>
-                            <strong className="ms-2">{formatCurrency(periodStartBalance)}</strong>
-                          </div>
-                          <div className="text-center">
-                            <small className="text-muted">+</small>
-                            <span className="mx-2" style={{ color: chartSummary.income >= chartSummary.expense ? "#16a34a" : "#dc2626" }}>
-                              {formatCurrency(chartSummary.income - chartSummary.expense)}
-                            </span>
-                            <small className="text-muted">({t("reports.in_period") || "trong kỳ"})</small>
-                          </div>
-                          <div className="text-end">
-                            <small className="text-muted">=</small>
-                            <strong className="ms-2">{formatCurrency(periodEndBalance)}</strong>
-                            <small className="text-muted ms-1">({t("reports.current_balance") || "Số dư hiện tại"})</small>
-                          </div>
-                        </div>
+                      <div>
+                        <span className="summary-dot" style={{ background: TRANSFER_COLOR }} />
+                        Nhận từ ví khác: <strong>{formatCurrency(transferSummary.transferIn)}</strong>
+                        <small className="text-muted ms-1">({t("reports.in_period") || "trong kỳ"})</small>
+                        <small className="text-muted d-block mt-1" style={{ fontSize: "0.7rem" }}>
+                          Không được tính vào tổng thu nhập
+                        </small>
                       </div>
-                    )}
+                      <div>
+                        <span className="summary-dot" style={{ background: TRANSFER_COLOR }} />
+                        Chuyển sang ví khác: <strong>{formatCurrency(transferSummary.transferOut)}</strong>
+                        <small className="text-muted ms-1">({t("reports.in_period") || "trong kỳ"})</small>
+                        <small className="text-muted d-block mt-1" style={{ fontSize: "0.7rem" }}>
+                          Không được tính vào tổng chi tiêu
+                        </small>
+                      </div>
+                    </div>
                   </div>
                   <div className="reports-header-actions">
                     <div className="reports-range-toggle">
@@ -2549,13 +2677,11 @@ export default function ReportsPage() {
                       className="reports-chart-grid"
                       style={{
                         gridTemplateColumns:
-                          range === "day"
-                            ? `repeat(${chartData.length}, minmax(32px, 1fr))`
-                            : range === "week"
-                              ? `repeat(${chartData.length}, minmax(48px, 1fr))`
-                              : range === "month"
-                                ? `repeat(${chartData.length}, minmax(60px, 1fr))`
-                                : `repeat(${chartData.length}, minmax(36px, 1fr))`,
+                          range === "week"
+                            ? `repeat(${chartData.length}, minmax(48px, 1fr))`
+                            : range === "month"
+                              ? `repeat(${chartData.length}, minmax(60px, 1fr))`
+                              : `repeat(${chartData.length}, minmax(36px, 1fr))`,
                       }}
                     >
                         {chartData.map((period, index) => {
@@ -2678,7 +2804,7 @@ export default function ReportsPage() {
                                 <td>
                                   {tx.type === "transfer" ? (
                                     <span className="badge bg-info-subtle text-info" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px" }}>
-                                      {t("transactions.type.transfer")}
+                                      {t("transactions.type.transfer") || "Chuyển tiền giữa các ví"}
                                     </span>
                                   ) : (
                                     <span
@@ -2695,7 +2821,38 @@ export default function ReportsPage() {
                                     </span>
                                   )}
                                 </td>
-                                <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
+                                <td className="tx-note-cell">
+                                  {tx.type === "transfer" || tx.type === "merge" ? (
+                                    (() => {
+                                      // Lấy tên ví từ transaction data hoặc từ wallets list
+                                      let fromWalletName = tx.sourceWallet || "";
+                                      let toWalletName = tx.targetWallet || "";
+                                      
+                                      // Nếu không có trong tx data, tìm từ wallets list
+                                      if (!fromWalletName && tx.fromWalletId) {
+                                        const fromWallet = wallets.find(w => w.id === tx.fromWalletId);
+                                        fromWalletName = fromWallet?.name || fromWallet?.walletName || `Ví ${tx.fromWalletId}`;
+                                      }
+                                      if (!toWalletName && tx.toWalletId) {
+                                        const toWallet = wallets.find(w => w.id === tx.toWalletId);
+                                        toWalletName = toWallet?.name || toWallet?.walletName || `Ví ${tx.toWalletId}`;
+                                      }
+                                      
+                                      // Hiển thị "fromWallet -> toWallet" giống PDF
+                                      const transferDescription = fromWalletName && toWalletName 
+                                        ? `${fromWalletName} -> ${toWalletName}`
+                                        : (tx.note || "-");
+                                      
+                                      return (
+                                        <span title={transferDescription}>
+                                          {transferDescription}
+                                        </span>
+                                      );
+                                    })()
+                                  ) : (
+                                    <span title={tx.note || "-"}>{tx.note || "-"}</span>
+                                  )}
+                                </td>
                                 <td className="text-end">
                                   {tx.type === "transfer" ? (
                                     <span
@@ -2705,6 +2862,7 @@ export default function ReportsPage() {
                                         fontSize: "0.95rem",
                                       }}
                                     >
+                                      {selectedWalletId && tx.fromWalletId === Number(selectedWalletId) ? "-" : ""}
                                       {formatAmountOnly(tx.amount)}
                                     </span>
                                   ) : (
@@ -3409,35 +3567,17 @@ export default function ReportsPage() {
                               const today = new Date();
                               today.setHours(0, 0, 0, 0);
                               
-                              // Kiểm tra có tất toán trước hạn không
-                              const isEarlySettled = endDate && endDate > today;
-                              // Kiểm tra có đạt mục tiêu không
-                              const hasReachedTarget = currentValue >= targetValue;
-                              
-                              if (isEarlySettled) {
-                                if (hasReachedTarget) {
-                                  // Đã hoàn thành mục tiêu trước hạn
-                                  fundStatusTag = (
-                                    <span className="fund-tag" style={{ 
-                                      background: 'rgba(16, 185, 129, 0.1)', 
-                                      color: '#10b981',
-                                      border: '1px solid rgba(16, 185, 129, 0.3)'
-                                    }}>
-                                      Đã hoàn thành mục tiêu trước hạn
-                                    </span>
-                                  );
-                                } else {
-                                  // Đã tất toán (trước hạn nhưng chưa đạt mục tiêu)
-                                  fundStatusTag = (
-                                    <span className="fund-tag" style={{ 
-                                      background: 'rgba(245, 158, 11, 0.1)', 
-                                      color: '#d97706',
-                                      border: '1px solid rgba(245, 158, 11, 0.3)'
-                                    }}>
-                                      Đã tất toán
-                                    </span>
-                                  );
-                                }
+                              // Tất toán trước hạn: đã tất toán, tất toán trước hạn, và chưa đạt mục tiêu
+                              if (endDate && endDate > today && currentValue < targetValue) {
+                                fundStatusTag = (
+                                  <span className="fund-tag" style={{ 
+                                    background: 'rgba(245, 158, 11, 0.1)', 
+                                    color: '#d97706',
+                                    border: '1px solid rgba(245, 158, 11, 0.3)'
+                                  }}>
+                                    Tất toán trước hạn
+                                  </span>
+                                );
                               } else {
                                 // Hoàn thành tất toán: đã hoàn thành đúng hạn hoặc đạt mục tiêu
                                 fundStatusTag = (
@@ -3876,6 +4016,47 @@ export default function ReportsPage() {
                               </div>
                             )}
                           </div>
+                        </div>
+                        <div className="fund-pace-card">
+                          <div className="fund-pace-header">
+                            <div>
+                              <p className="text-muted mb-1">{t("reports.funds.detail.pace_label")}</p>
+                              <h5 className={`fund-pace-status fund-pace-status--${paceStatus}`}>
+                                {fundPaceLabel}
+                              </h5>
+                            </div>
+                            <span className="fund-pace-days">{selectedFundRemainingLabel}</span>
+                          </div>
+                          {hasSelectedFundTarget ? (
+                            <>
+                              <div className="fund-pace-track">
+                                <span
+                                  className="fund-pace-marker fund-pace-marker--actual"
+                                  style={{ width: `${Math.min(selectedFundProgressPct, 100)}%` }}
+                                />
+                                {selectedFundExpectedPct != null && (
+                                  <span
+                                    className="fund-pace-marker fund-pace-marker--expected"
+                                    style={{ width: `${Math.min(selectedFundExpectedPct, 100)}%` }}
+                                  />
+                                )}
+                              </div>
+                              <div className="fund-pace-legend">
+                                <span>
+                                  <span className="legend-dot legend-dot--actual" />
+                                  {t("reports.funds.detail.actual_progress")}
+                                </span>
+                                {selectedFundExpectedPct != null && (
+                                  <span>
+                                    <span className="legend-dot legend-dot--expected" />
+                                    {t("reports.funds.detail.expected_progress")}
+                                  </span>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-muted small mb-0">{t("reports.funds.detail.no_target")}</p>
+                          )}
                         </div>
                       </>
                     )}
@@ -4376,5 +4557,4 @@ export default function ReportsPage() {
     </div>
   );
 }
-
 
