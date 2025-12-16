@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import "../../styles/components/dashboard/WeatherWidget.css";
 import { getWeatherByCity, getWeatherByCoords } from "../../services/weather.service";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function WeatherWidget({ compact = false }) {
+  const { t } = useLanguage();
   const [weather, setWeather] = useState({
     temp: 22,
     condition: "Có nắng",
@@ -44,7 +46,7 @@ export default function WeatherWidget({ compact = false }) {
       }
     } catch (err) {
       console.error("Error fetching weather:", err);
-      setError("Không thể tải dữ liệu thời tiết");
+      setError(t("weather.error"));
       setLoading(false);
     }
   };
@@ -66,15 +68,15 @@ export default function WeatherWidget({ compact = false }) {
 
   const getWeatherNote = () => {
     if (weather.icon.includes("sun")) {
-      return "Thời tiết đẹp, phù hợp cho các hoạt động ngoài trời";
+      return t("weather.note.sunny");
     }
     if (weather.icon.includes("cloud-rain")) {
-      return "Trời mưa, nhớ mang theo ô và áo mưa khi ra ngoài";
+      return t("weather.note.rainy");
     }
     if (weather.icon.includes("cloud")) {
-      return "Trời có mây, nhiệt độ dễ chịu";
+      return t("weather.note.cloudy");
     }
-    return "Thời tiết ổn định, thuận lợi cho mọi hoạt động";
+    return t("weather.note.default");
   };
 
   return (
@@ -86,7 +88,7 @@ export default function WeatherWidget({ compact = false }) {
         </div>
         <button 
           className="weather-widget__refresh" 
-          title="Làm mới"
+          title={t("weather.refresh")}
           onClick={fetchWeather}
           disabled={loading}
         >
@@ -97,7 +99,7 @@ export default function WeatherWidget({ compact = false }) {
       {loading ? (
         <div className="weather-widget__loading">
           <i className="bi bi-arrow-repeat weather-widget__spinner" />
-          <span>Đang tải...</span>
+          <span>{t("weather.loading")}</span>
         </div>
       ) : error ? (
         <div className="weather-widget__error">
@@ -125,14 +127,14 @@ export default function WeatherWidget({ compact = false }) {
         <div className="weather-widget__detail-item">
           <i className="bi bi-droplet" />
           <div>
-            <span className="weather-widget__detail-label">Độ ẩm</span>
+            <span className="weather-widget__detail-label">{t("weather.humidity")}</span>
             <span className="weather-widget__detail-value">{weather.humidity}%</span>
           </div>
         </div>
         <div className="weather-widget__detail-item">
           <i className="bi bi-wind" />
           <div>
-            <span className="weather-widget__detail-label">Gió</span>
+            <span className="weather-widget__detail-label">{t("weather.wind")}</span>
             <span className="weather-widget__detail-value">{weather.wind} km/h</span>
           </div>
         </div>

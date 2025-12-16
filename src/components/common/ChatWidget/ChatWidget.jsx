@@ -1,24 +1,99 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { useAuth } from "../../../contexts/AuthContext";
 import { formatVietnamTime } from "../../../utils/dateFormat";
 import { chatAPI } from "../../../services/api-client";
 import "./ChatWidget.css";
 
 export default function ChatWidget() {
   const { t } = useLanguage();
+  const { currentUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: "Xin chào! Tôi là trợ lí tài chính của bạn. Tôi có thể giúp bạn quản lý tài chính, xem số dư, theo dõi thu chi và nhiều hơn nữa. Bạn cần hỗ trợ gì?",
-      sender: "system",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const hasLoadedHistoryRef = useRef(false); // Để tránh load nhiều lần
+
+  // Load lịch sử chat từ database khi mở chat lần đầu
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      // Chỉ load nếu:
+      // 1. Chat đang mở
+      // 2. User đã đăng nhập
+      // 3. Chưa load lịch sử lần nào
+      if (!isOpen || !currentUser || hasLoadedHistoryRef.current || isLoadingHistory) {
+        return;
+      }
+
+      setIsLoadingHistory(true);
+      try {
+        const response = await chatAPI.getHistory();
+        
+        if (response && response.success && response.history && response.history.length > 0) {
+          // Convert từ format API (role, content) sang format frontend (sender, text, timestamp)
+          const loadedMessages = response.history.map((msg, index) => ({
+            id: Date.now() + index, // Tạm thời dùng timestamp + index
+            text: msg.content,
+            sender: msg.role === "user" ? "user" : "system",
+            timestamp: new Date(), // Backend chưa trả về timestamp, dùng Date.now() tạm thời
+          }));
+
+          // Nếu có lịch sử, hiển thị luôn
+          // Nếu không có, hiển thị tin nhắn chào mừng
+          if (loadedMessages.length > 0) {
+            setMessages(loadedMessages);
+          } else {
+            setMessages([
+              {
+                id: 1,
+                text: "Xin chào! Tôi là trợ lí tài chính của bạn. Tôi có thể giúp bạn quản lý tài chính, xem số dư, theo dõi thu chi và nhiều hơn nữa. Bạn cần hỗ trợ gì?",
+                sender: "system",
+                timestamp: new Date(),
+              },
+            ]);
+          }
+        } else {
+          // Không có lịch sử, hiển thị tin nhắn chào mừng
+          setMessages([
+            {
+              id: 1,
+              text: "Xin chào! Tôi là trợ lí tài chính của bạn. Tôi có thể giúp bạn quản lý tài chính, xem số dư, theo dõi thu chi và nhiều hơn nữa. Bạn cần hỗ trợ gì?",
+              sender: "system",
+              timestamp: new Date(),
+            },
+          ]);
+        }
+        
+        hasLoadedHistoryRef.current = true;
+      } catch (error) {
+        console.error("Error loading chat history:", error);
+        // Nếu lỗi, vẫn hiển thị tin nhắn chào mừng
+        setMessages([
+          {
+            id: 1,
+            text: "Xin chào! Tôi là trợ lí tài chính của bạn. Tôi có thể giúp bạn quản lý tài chính, xem số dư, theo dõi thu chi và nhiều hơn nữa. Bạn cần hỗ trợ gì?",
+            sender: "system",
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadChatHistory();
+  }, [isOpen, currentUser]);
+
+  // Reset hasLoadedHistoryRef khi user đăng xuất/đăng nhập lại
+  useEffect(() => {
+    if (!currentUser) {
+      hasLoadedHistoryRef.current = false;
+      setMessages([]);
+    }
+  }, [currentUser]);
 
   // Auto scroll to bottom when new message is added
   useEffect(() => {
@@ -53,9 +128,13 @@ export default function ChatWidget() {
     setIsTyping(true);
 
     try {
-      // Chuẩn bị lịch sử hội thoại cho API (bỏ qua tin nhắn chào mừng ban đầu)
+      // Chuẩn bị lịch sử hội thoại cho API
+      // Lọc bỏ tin nhắn chào mừng (nếu có) và convert sang format API
       const historyForApi = messages
-        .slice(1) // Bỏ qua tin nhắn chào mừng đầu tiên
+        .filter((msg) => {
+          // Bỏ qua tin nhắn chào mừng (có chứa "Xin chào! Tôi là trợ lí")
+          return !msg.text.includes("Xin chào! Tôi là trợ lí tài chính của bạn");
+        })
         .map((msg) => ({
           role: msg.sender === "user" ? "user" : "model",
           content: msg.text,
@@ -150,7 +229,24 @@ export default function ChatWidget() {
 
           {/* Messages */}
           <div className="chat-widget-messages">
-            {messages.map((message) => (
+            {/* Loading indicator khi đang load lịch sử */}
+            {isLoadingHistory && (
+              <div className="chat-widget-message chat-widget-message--system">
+                <div className="chat-widget-message-avatar">
+                  <i className="bi bi-robot"></i>
+                </div>
+                <div className="chat-widget-message-content">
+                  <div className="chat-widget-typing">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <div className="chat-widget-message-time">Đang tải lịch sử chat...</div>
+                </div>
+              </div>
+            )}
+
+            {!isLoadingHistory && messages.map((message) => (
               <div
                 key={message.id}
                 className={`chat-widget-message ${

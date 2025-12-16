@@ -1406,6 +1406,60 @@ export const chatAPI = {
       }),
     });
   },
+  /**
+   * Lấy lịch sử chat từ database
+   * @returns {Promise<{success: boolean, history: Array, count: number}>}
+   */
+  getHistory: async () => {
+    return apiCall("/api/chat/history", {
+      method: "GET",
+    });
+  },
+  /**
+   * Xóa toàn bộ lịch sử chat
+   * @returns {Promise<{success: boolean, message: string}>}
+   */
+  clearHistory: async () => {
+    return apiCall("/api/chat/history", {
+      method: "DELETE",
+    });
+  },
+};
+
+/**
+ * ==============================
+ * REPORT API (Export PDF/Excel)
+ * ==============================
+ */
+export const reportAPI = {
+  /**
+   * Export PDF cho ReportsPage
+   * @param {Object} params - { walletId, range }
+   * @returns {Promise<Blob>} PDF file blob
+   */
+  exportWalletPDF: async (params) => {
+    const { walletId, range } = params;
+    const response = await fetch(`${API_BASE_URL}/reports/export/wallet-pdf`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+      body: JSON.stringify({
+        walletId: walletId || null,
+        range: range || "week",
+        format: "PDF",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Lỗi khi xuất PDF");
+    }
+
+    // Trả về blob để download
+    return await response.blob();
+  },
 };
 
 /**
