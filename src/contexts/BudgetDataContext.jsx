@@ -353,12 +353,25 @@ export function BudgetDataProvider({ children }) {
       }
     };
 
+    const handleLogout = () => {
+      // Reset tất cả state khi logout
+      setBudgets([]);
+      setExternalTransactionsList([]);
+      setTransactionsByCategory({});
+      // Xóa cache
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(TRANSACTION_CACHE_KEY);
+      }
+    };
+
     window.addEventListener("userChanged", handleUserChange);
     window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("user:loggedout", handleLogout);
 
     return () => {
       window.removeEventListener("userChanged", handleUserChange);
       window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("user:loggedout", handleLogout);
     };
   }, [loadBudgets]);
 

@@ -14,8 +14,8 @@ export default function UserMenu({ avatarUrl }) {
   const ref = useRef(null);
   const navigate = useNavigate();
 
-  // 👇 Lấy thông tin người dùng
-  const { currentUser } = useAuth();
+  // 👇 Lấy thông tin người dùng và hàm logout
+  const { currentUser, logout } = useAuth();
 
   useOnClickOutside(ref, () => setOpen(false));
 
@@ -31,8 +31,8 @@ export default function UserMenu({ avatarUrl }) {
   const onLogout = () => setConfirm(true);
 
   const doLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("auth_token");
+    // Gọi logout từ AuthContext để xóa TẤT CẢ cache
+    logout();
     setConfirm(false);
     navigate("/login", { replace: true });
   };
