@@ -431,6 +431,55 @@ export function FundDataProvider({ children }) {
       
       // Reload funds list để cập nhật UI
       await loadFunds();
+
+      // Reload wallets để cập nhật số dư ví nguồn sau khi rút tiền (quan trọng: cần reload để hiển thị số dư ví đã được cộng)
+      if (typeof loadWalletsSafe === "function") {
+        try {
+          // Reload ngay lập tức
+          await loadWalletsSafe();
+          console.log("FundDataContext: Reloaded wallets immediately after withdraw");
+          
+          // Dispatch event để trigger reload wallets ở các component khác
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent('walletUpdated', {
+              detail: { 
+                walletId: normalizedUpdated.sourceWalletId, 
+                action: 'fundWithdraw',
+                amount: parseAmountNonNegative(amount, 0)
+              }
+            }));
+            console.log("FundDataContext: Dispatched walletUpdated event after withdraw");
+          }
+          
+          // Reload lại sau delay ngắn để đảm bảo backend đã cập nhật số dư ví
+          setTimeout(async () => {
+            if (typeof loadWalletsSafe === "function") {
+              await loadWalletsSafe();
+              console.log("FundDataContext: Reloaded wallets after 500ms delay");
+            }
+          }, 500);
+          
+          // Reload lại sau delay dài hơn để chắc chắn
+          setTimeout(async () => {
+            if (typeof loadWalletsSafe === "function") {
+              await loadWalletsSafe();
+              console.log("FundDataContext: Reloaded wallets after 1500ms delay");
+            }
+          }, 1500);
+          
+          // Reload lại một lần nữa sau delay dài nhất
+          setTimeout(async () => {
+            if (typeof loadWalletsSafe === "function") {
+              await loadWalletsSafe();
+              console.log("FundDataContext: Reloaded wallets after 3000ms delay");
+            }
+          }, 3000);
+        } catch (e) {
+          console.warn("FundDataContext: loadWallets sau khi rút tiền từ quỹ bị lỗi, bỏ qua", e);
+        }
+      } else {
+        console.warn("FundDataContext: loadWalletsSafe không có sẵn, không thể reload wallets sau khi rút tiền");
+      }
       
       return { success: true, data: normalizedUpdated };
     } catch (err) {

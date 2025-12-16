@@ -46,28 +46,31 @@ export default function FundsPage() {
   }, [location.state, funds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Chỉ lọc quỹ cá nhân
-  // Ẩn quỹ đã tất toán (CLOSED) và đã hoàn thành (COMPLETED) khỏi danh sách
+  // Ẩn quỹ đã tất toán (CLOSED) khỏi danh sách
+  // Hiển thị quỹ ACTIVE và quỹ COMPLETED (đã đạt mục tiêu nhưng chưa tất toán)
   // (Nhưng vẫn hiển thị trong báo cáo)
   const personalTermFunds = useMemo(() => {
     const filtered = funds.filter((f) => {
       if (f.type !== "personal" || !f.hasTerm) return false;
-      // Chỉ hiển thị quỹ có thời hạn với status ACTIVE
+      // Hiển thị quỹ có thời hạn với status ACTIVE hoặc COMPLETED (chưa tất toán)
+      // Ẩn quỹ đã tất toán (CLOSED)
       const status = (f.status || "").toUpperCase();
-      return status === "ACTIVE";
+      return status === "ACTIVE" || status === "COMPLETED";
     });
     console.log("FundsPage: Total funds:", funds.length);
-    console.log("FundsPage: Personal term funds (ACTIVE only):", filtered.length, filtered);
+    console.log("FundsPage: Personal term funds (ACTIVE + COMPLETED):", filtered.length, filtered);
     return filtered;
   }, [funds]);
   
   const personalNoTermFunds = useMemo(() => {
     const filtered = funds.filter((f) => {
       if (f.type !== "personal" || f.hasTerm) return false;
-      // Chỉ hiển thị quỹ không thời hạn với status ACTIVE
+      // Hiển thị quỹ không thời hạn với status ACTIVE hoặc COMPLETED (chưa tất toán)
+      // Ẩn quỹ đã tất toán (CLOSED)
       const status = (f.status || "").toUpperCase();
-      return status === "ACTIVE";
+      return status === "ACTIVE" || status === "COMPLETED";
     });
-    console.log("FundsPage: Personal no-term funds (ACTIVE only):", filtered.length, filtered);
+    console.log("FundsPage: Personal no-term funds (ACTIVE + COMPLETED):", filtered.length, filtered);
     return filtered;
   }, [funds]);
 
