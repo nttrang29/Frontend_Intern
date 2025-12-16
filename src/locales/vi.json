@@ -12,8 +12,7 @@
   "currency": "Đơn vị tiền tệ",
   "theme": "Chế độ nền",
   "password": "Đổi mật khẩu",
-  "logout_all": "Đăng xuất tất cả thiết bị"
-,
+  "logout_all": "Đăng xuất tất cả thiết bị",
   "profile_title": "Chỉnh sửa hồ sơ cá nhân",
   "profile_desc": "Cập nhật ảnh đại diện và tên hiển thị của bạn.",
   "display_name": "Tên hiển thị",
@@ -77,8 +76,7 @@
   "backup_manual": "Sao lưu dữ liệu thủ công.",
   "backup_auto": "Bật đồng bộ tự động với tài khoản của bạn.",
   "backup_now": "Sao lưu ngay",
-  "enable_sync": "Bật đồng bộ"
-,
+  "enable_sync": "Bật đồng bộ",
   "overview": "Tổng quan",
   "wallets": "Ví",
   "funds": "Quỹ",
@@ -90,8 +88,7 @@
   "admin_reviews": "Đánh giá & bình luận",
   "app_brand_title": "HỆ THỐNG QUẢN LÝ",
   "app_brand_sub": "Quản lý ví cá nhân",
-  "menu": "Menu"
-,
+  "menu": "Menu",
   "login_log": "Nhật ký đăng nhập",
   "security_group": "Bảo mật",
   "system_group": "Hệ thống",

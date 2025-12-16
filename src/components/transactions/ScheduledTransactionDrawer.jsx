@@ -1,6 +1,9 @@
 import React from "react";
 import Modal from "../common/Modal/Modal";
-import { formatVietnamDate, formatVietnamDateTime } from "../../utils/dateFormat";
+import {
+  formatVietnamDate,
+  formatVietnamDateTime,
+} from "../../utils/dateFormat";
 
 const STATUS_LABEL = {
   PENDING: "Chờ chạy",
@@ -24,7 +27,12 @@ function formatDateTime(value) {
   return formatted || "--";
 }
 
-export default function ScheduledTransactionDrawer({ open, schedule, onClose, onCancel }) {
+export default function ScheduledTransactionDrawer({
+  open,
+  schedule,
+  onClose,
+  onCancel,
+}) {
   if (!open || !schedule) return null;
 
   const typeLabel = schedule.scheduleTypeLabel || schedule.scheduleType;
@@ -34,10 +42,14 @@ export default function ScheduledTransactionDrawer({ open, schedule, onClose, on
       <div className="modal__content" style={{ padding: "1.65rem" }}>
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div>
-            <p className="text-uppercase text-muted small mb-1">Chi tiết lịch #{schedule.id}</p>
+            <p className="text-uppercase text-muted small mb-1">
+              Chi tiết lịch #{schedule.id}
+            </p>
             <h4 className="mb-0">{schedule.walletName}</h4>
           </div>
-          <span className={STATUS_CLASS[schedule.status] || "badge bg-secondary"}>
+          <span
+            className={STATUS_CLASS[schedule.status] || "badge bg-secondary"}
+          >
             {STATUS_LABEL[schedule.status] || schedule.status}
           </span>
         </div>
@@ -45,15 +57,30 @@ export default function ScheduledTransactionDrawer({ open, schedule, onClose, on
         <div className="schedule-detail-box mb-3">
           <p className="fw-semibold mb-2">Thông tin lịch</p>
           <ul className="list-unstyled mb-0 schedule-detail-list">
-            <li><span>Danh mục:</span> {schedule.categoryName} ({schedule.transactionType === "income" ? "Thu nhập" : "Chi tiêu"})</li>
-            <li><span>Kiểu lịch:</span> {typeLabel}</li>
+            <li>
+              <span>Danh mục:</span> {schedule.categoryName} (
+              {schedule.transactionType === "income" ? "Thu nhập" : "Chi tiêu"})
+            </li>
+            <li>
+              <span>Kiểu lịch:</span> {typeLabel}
+            </li>
             <li>
               <span>Khoảng thời gian:</span> {formatDateTime(schedule.firstRun)}
-              {schedule.endDate ? ` → ${formatVietnamDate(schedule.endDate)}` : " (Không giới hạn)"}
+              {schedule.endDate
+                ? ` → ${formatVietnamDate(schedule.endDate)}`
+                : " (Không giới hạn)"}
             </li>
-            <li><span>Số tiền:</span> {schedule.amount.toLocaleString("vi-VN") } VND</li>
-            <li><span>Tiếp theo:</span> {formatDateTime(schedule.nextRun)}</li>
-            <li><span>Số lần hoàn thành:</span> {schedule.successRuns}/{schedule.totalRuns}</li>
+            <li>
+              <span>Số tiền:</span> {schedule.amount.toLocaleString("vi-VN")}{" "}
+              VND
+            </li>
+            <li>
+              <span>Tiếp theo:</span> {formatDateTime(schedule.nextRun)}
+            </li>
+            <li>
+              <span>Số lần hoàn thành:</span> {schedule.successRuns}/
+              {schedule.totalRuns}
+            </li>
           </ul>
         </div>
 
@@ -65,7 +92,13 @@ export default function ScheduledTransactionDrawer({ open, schedule, onClose, on
                 <li key={log.id}>
                   <div>
                     <strong>{formatDateTime(log.time)}</strong>
-                    <span className={`ms-2 ${log.status === "COMPLETED" ? "schedule-status schedule-status--success" : "schedule-status schedule-status--failed"}`}>
+                    <span
+                      className={`ms-2 ${
+                        log.status === "COMPLETED"
+                          ? "schedule-status schedule-status--success"
+                          : "schedule-status schedule-status--failed"
+                      }`}
+                    >
                       {log.status === "COMPLETED" ? "Thành công" : "Thất bại"}
                     </span>
                   </div>
@@ -79,11 +112,16 @@ export default function ScheduledTransactionDrawer({ open, schedule, onClose, on
         </div>
 
         <div className="d-flex justify-content-end gap-2 mt-3">
-          {schedule.status !== "CANCELLED" && schedule.status !== "COMPLETED" && (
-            <button type="button" className="btn btn-outline-danger" onClick={() => onCancel?.(schedule.id)}>
-              Hủy lịch
-            </button>
-          )}
+          {schedule.status !== "CANCELLED" &&
+            schedule.status !== "COMPLETED" && (
+              <button
+                type="button"
+                className="btn btn-outline-danger"
+                onClick={() => onCancel?.(schedule.id)}
+              >
+                Hủy lịch
+              </button>
+            )}
           <button type="button" className="btn btn-primary" onClick={onClose}>
             Đóng
           </button>

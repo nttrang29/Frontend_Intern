@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api-client';
+import { API_BASE_URL } from "./api-client";
 
 /**
  * Service để quản lý scheduled transactions (lịch hẹn giao dịch tự động)
@@ -39,7 +39,8 @@ async function apiCall(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    const errorMessage = data.error || data.message || `HTTP ${response.status}`;
+    const errorMessage =
+      data.error || data.message || `HTTP ${response.status}`;
     const error = new Error(errorMessage);
     error.status = response.status;
     error.response = { data };
@@ -67,8 +68,8 @@ async function apiCall(endpoint, options = {}) {
  * @param {number} data.day - Ngày (1-31) - cho YEARLY
  */
 export const createScheduledTransaction = async (data) => {
-  return apiCall('/scheduled-transactions/create', {
-    method: 'POST',
+  return apiCall("/scheduled-transactions/create", {
+    method: "POST",
     body: JSON.stringify(data),
   });
 };
@@ -77,7 +78,7 @@ export const createScheduledTransaction = async (data) => {
  * Lấy danh sách tất cả scheduled transactions của user
  */
 export const getAllScheduledTransactions = async () => {
-  return apiCall('/scheduled-transactions');
+  return apiCall("/scheduled-transactions");
 };
 
 /**
@@ -94,7 +95,7 @@ export const getScheduledTransactionById = async (scheduleId) => {
  */
 export const cancelScheduledTransaction = async (scheduleId) => {
   return apiCall(`/scheduled-transactions/${scheduleId}/cancel`, {
-    method: 'PUT',
+    method: "PUT",
   });
 };
 
@@ -104,7 +105,7 @@ export const cancelScheduledTransaction = async (scheduleId) => {
  */
 export const deleteScheduledTransaction = async (scheduleId) => {
   return apiCall(`/scheduled-transactions/${scheduleId}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 };
 
@@ -113,8 +114,8 @@ export const deleteScheduledTransaction = async (scheduleId) => {
  * @param {Object} data - Dữ liệu preview
  */
 export const previewNextExecution = async (data) => {
-  return apiCall('/scheduled-transactions/preview', {
-    method: 'POST',
+  return apiCall("/scheduled-transactions/preview", {
+    method: "POST",
     body: JSON.stringify(data),
   });
 };
