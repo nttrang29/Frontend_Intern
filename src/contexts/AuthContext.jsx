@@ -10,6 +10,54 @@ export const ROLES = {
 const STORAGE_KEY = "auth_user";
 const AuthContext = createContext(null);
 
+/**
+ * Xóa TẤT CẢ cache và dữ liệu localStorage khi logout
+ * Đảm bảo không còn dữ liệu của user cũ
+ */
+export function clearAllCache() {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  
+  // Xóa tất cả các key liên quan đến authentication
+  localStorage.removeItem("auth_user");
+  localStorage.removeItem("user");
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("auth_token");
+  
+  // Xóa cache transactions từ BudgetDataContext
+  localStorage.removeItem("budget_external_transactions");
+  
+  // Xóa TẤT CẢ activity logs (bao gồm cả legacy keys và theo userId)
+  const activityKeys = [
+    "activity_log",
+    "activityLog", 
+    "activity-log"
+  ];
+  
+  // Xóa tất cả activity logs theo pattern
+  // Lưu ý: Phải tạo array trước khi loop vì localStorage.length thay đổi khi removeItem
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (
+      activityKeys.some(ak => key.startsWith(ak + ":")) ||
+      activityKeys.includes(key)
+    )) {
+      keysToRemove.push(key);
+    }
+  }
+  
+  // Xóa tất cả keys đã tìm thấy
+  keysToRemove.forEach(key => localStorage.removeItem(key));
+  
+  // Dispatch event để các context khác có thể reset state
+  try {
+    window.dispatchEvent(new CustomEvent("user:loggedout"));
+  } catch (e) {
+    // ignore
+  }
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -66,10 +114,8 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     setCurrentUser(null);
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("accessToken");
-    // nếu bạn dùng thêm key khác như "user" thì có thể xóa luôn
-    // localStorage.removeItem("user");
+    // Xóa TẤT CẢ cache và dữ liệu localStorage
+    clearAllCache();
   };
 
   /**

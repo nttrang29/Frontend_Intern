@@ -3,7 +3,6 @@ import { useCurrency } from "../../hooks/useCurrency";
 import { useLanguage } from "../../contexts/LanguageContext";
 
 import "../../styles/pages/DashboardPage.css";
-import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { transactionAPI } from "../../services/transaction.service";
 import CalendarWidget from "../../components/dashboard/CalendarWidget";
 import WeatherWidget from "../../components/dashboard/WeatherWidget";
@@ -193,7 +192,6 @@ const getPeriodRange = (period) => {
 export default function DashboardPage() {
   const { formatCurrency } = useCurrency();
   const { t } = useLanguage();
-  const { externalTransactionsList = [] } = useBudgetData();
   const [period, setPeriod] = useState("tuan");
   const [apiTransactions, setApiTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -221,6 +219,11 @@ export default function DashboardPage() {
     const fetchTransactions = async () => {
       setLoading(true);
       setLoadError("");
+      // Reset state trước khi fetch để tránh hiển thị dữ liệu cũ
+      if (!cancelled) {
+        setApiTransactions([]);
+      }
+      
       try {
         console.log("DashboardPage: Đang gọi API getAllTransactions...");
         const response = await transactionAPI.getAllTransactions();
@@ -254,20 +257,30 @@ export default function DashboardPage() {
       }
     };
 
+    const handleLogout = () => {
+      // Reset state khi logout
+      setApiTransactions([]);
+      setLoading(false);
+      setLoadError("");
+    };
+
     fetchTransactions();
+    window.addEventListener("user:loggedout", handleLogout);
+    
     return () => {
       cancelled = true;
+      window.removeEventListener("user:loggedout", handleLogout);
     };
   }, [t]);
 
-  // Ưu tiên dữ liệu từ API, fallback về context nếu API chưa có dữ liệu
-  const transactions = apiTransactions.length > 0 
-    ? apiTransactions 
-    : externalTransactionsList;
+  // CHỈ dùng dữ liệu từ API, KHÔNG fallback về context
+  // Điều này đảm bảo khi API trả về rỗng (database rỗng), UI sẽ hiển thị empty state
+  // KHÔNG hiển thị dữ liệu cũ từ cache
+  const transactions = apiTransactions;
 
   const normalizedTransactions = useMemo(() => {
     console.log("DashboardPage: Đang normalize", transactions.length, "giao dịch");
-    console.log("DashboardPage: Nguồn dữ liệu:", apiTransactions.length > 0 ? "API" : "Context");
+    console.log("DashboardPage: Nguồn dữ liệu: API");
     const normalized = transactions.map(normalizeTransaction).filter(Boolean);
     console.log("DashboardPage: Sau khi normalize:", normalized.length, "giao dịch hợp lệ");
     if (normalized.length > 0) {
@@ -280,7 +293,7 @@ export default function DashboardPage() {
     console.log("DashboardPage: Thu nhập:", incomeCount, "| Chi tiêu:", expenseCount);
     
     return normalized;
-  }, [transactions, apiTransactions.length, externalTransactionsList]);
+  }, [transactions]);
 
   const currentTransactions = useMemo(() => {
     const { start, end } = getPeriodRange(period);

@@ -34,16 +34,22 @@ export default function ActivityHistoryPage() {
 
   const loadEvents = useCallback(() => {
     try {
-      if (typeof window === "undefined" || !window.localStorage) {
+      // QUAN TRỌNG: Chỉ load khi có currentUser
+      // Nếu không có user, reset về rỗng để tránh hiển thị dữ liệu cũ
+      if (!currentUser || typeof window === "undefined" || !window.localStorage) {
         setEvents([]);
         return;
       }
 
       const keysToCheck = [];
       if (activityKey) keysToCheck.push(activityKey);
-      legacyKeys.forEach((key) => {
-        if (key && !keysToCheck.includes(key)) keysToCheck.push(key);
-      });
+      // CHỈ load legacy keys nếu không có activityKey (fallback)
+      // Nhưng vẫn filter theo user hiện tại
+      if (!activityKey) {
+        legacyKeys.forEach((key) => {
+          if (key && !keysToCheck.includes(key)) keysToCheck.push(key);
+        });
+      }
 
       const allowedIds = new Set();
       const allowedEmails = new Set();
@@ -65,6 +71,12 @@ export default function ActivityHistoryPage() {
         pushEmail(candidate.email);
       });
 
+      // QUAN TRỌNG: Nếu không có userId hoặc email, không load gì cả
+      if (allowedIds.size === 0 && allowedEmails.size === 0) {
+        setEvents([]);
+        return;
+      }
+
       const parseArray = (raw) => {
         try {
           const parsed = JSON.parse(raw);
@@ -75,25 +87,31 @@ export default function ActivityHistoryPage() {
       };
 
       const shouldInclude = (entry, isPrimaryKey) => {
+        // Nếu là primary key (activityKey của user hiện tại), luôn include
         if (isPrimaryKey) return true;
+        
+        // Nếu không có allowedIds và allowedEmails, không include
         if (allowedIds.size === 0 && allowedEmails.size === 0) return false;
+        
+        // Kiểm tra userId
         const idCandidates = [
           entry?.userId,
           entry?.user_id,
           entry?.user?.id,
           entry?.user?.userId,
         ];
-        if (
-          idCandidates.some(
-            (candidate) => candidate !== undefined && candidate !== null && allowedIds.has(String(candidate))
-          )
-        ) {
-          return true;
-        }
+        const hasMatchingId = idCandidates.some(
+          (candidate) => candidate !== undefined && candidate !== null && allowedIds.has(String(candidate))
+        );
+        if (hasMatchingId) return true;
+        
+        // Kiểm tra email
         const entryEmail = (entry?.userEmail || entry?.user?.email || "").toLowerCase();
         if (entryEmail && allowedEmails.has(entryEmail)) {
           return true;
         }
+        
+        // KHÔNG include nếu không match
         return false;
       };
 
@@ -138,6 +156,23 @@ export default function ActivityHistoryPage() {
     }
   }, [activityKey, legacyKeys, currentUser, userMeta]);
 
+  // Reset events khi logout hoặc khi currentUser thay đổi
+  useEffect(() => {
+    const handleLogout = () => {
+      setEvents([]);
+    };
+
+    // Reset events khi currentUser thay đổi (đăng nhập user khác)
+    if (!currentUser) {
+      setEvents([]);
+    }
+
+    window.addEventListener("user:loggedout", handleLogout);
+    return () => {
+      window.removeEventListener("user:loggedout", handleLogout);
+    };
+  }, [currentUser]);
+
   const formatTimestamp = useCallback(
     (ts) => {
       if (!ts) return "--";
@@ -161,11 +196,24 @@ export default function ActivityHistoryPage() {
   );
 
   useEffect(() => {
-    loadEvents();
-    const onUpdated = () => loadEvents();
+    // CHỈ load events khi có currentUser
+    if (currentUser) {
+      loadEvents();
+    } else {
+      // Nếu không có user, reset về rỗng
+      setEvents([]);
+    }
+    
+    const onUpdated = () => {
+      // CHỈ reload khi có currentUser
+      if (currentUser) {
+        loadEvents();
+      }
+    };
+    
     window.addEventListener("activity:updated", onUpdated);
     return () => window.removeEventListener("activity:updated", onUpdated);
-  }, [loadEvents]);
+  }, [loadEvents, currentUser]);
 
   // Apply filters
   const filteredEvents = useMemo(() => {
