@@ -90,12 +90,18 @@ export default function FundHistoryTab({
             const isSuccess = tx.status === 'success';
             const isWithdraw = tx.isWithdraw || tx.type === 'withdraw';
             const isSettle = tx.isSettle || tx.txType === 'settle';
-            const isRegularWithdraw = isWithdraw && !isSettle;
-            const isDeposit = !isWithdraw;
+            const isInfoOnly = tx.isInfoOnly || tx.txType === 'info'; // Mục thông báo, không phải giao dịch thực sự
+            const isRegularWithdraw = isWithdraw && !isSettle && !isInfoOnly;
+            const isDeposit = !isWithdraw && !isInfoOnly;
             
-            // Màu sắc đồng bộ với biểu đồ: xanh cho nạp, đỏ cho rút, cam cho tất toán
+            // Màu sắc đồng bộ với biểu đồ: xanh cho nạp, đỏ cho rút, cam cho tất toán, xanh lá cho thông báo
             let borderColor, iconColor, bgColor;
-            if (isSettle) {
+            if (isInfoOnly) {
+              // Mục thông báo "Đã hoàn thành mục tiêu": màu xanh lá
+              borderColor = isSuccess ? '#10b981' : '#059669';
+              iconColor = isSuccess ? '#10b981' : '#059669';
+              bgColor = isSuccess ? '#d1fae5' : '#a7f3d0';
+            } else if (isSettle) {
               borderColor = isSuccess ? '#f59e0b' : '#d97706';
               iconColor = isSuccess ? '#f59e0b' : '#d97706';
               bgColor = isSuccess ? '#fef3c7' : '#fde68a';
@@ -159,11 +165,13 @@ export default function FundHistoryTab({
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <i className={
-                        isSettle 
-                          ? 'bi bi-x-circle' 
-                          : (isRegularWithdraw 
-                            ? 'bi bi-arrow-down-circle' 
-                            : (tx.type === 'auto' ? 'bi bi-arrow-repeat' : 'bi bi-hand-thumbs-up'))
+                        isInfoOnly
+                          ? 'bi bi-trophy-fill'
+                          : (isSettle 
+                            ? 'bi bi-x-circle' 
+                            : (isRegularWithdraw 
+                              ? 'bi bi-arrow-down-circle' 
+                              : (tx.type === 'auto' ? 'bi bi-arrow-repeat' : 'bi bi-hand-thumbs-up')))
                       } style={{ 
                         fontSize: '1rem',
                         color: iconColor
@@ -173,16 +181,30 @@ export default function FundHistoryTab({
                       </span>
                     </div>
                     
-                    <div style={{ 
-                      padding: '0.375rem 0.75rem',
-                      backgroundColor: bgColor,
-                      borderRadius: '20px',
-                      fontSize: '0.875rem', 
-                      fontWeight: '700', 
-                      color: iconColor 
-                    }}>
-                      {(isSettle || isRegularWithdraw) ? '-' : (isSuccess ? '+' : '')}{formatMoney(tx.amount, fund.currency)}
-                    </div>
+                    {!isInfoOnly && (
+                      <div style={{ 
+                        padding: '0.375rem 0.75rem',
+                        backgroundColor: bgColor,
+                        borderRadius: '20px',
+                        fontSize: '0.875rem', 
+                        fontWeight: '700', 
+                        color: iconColor 
+                      }}>
+                        {(isSettle || isRegularWithdraw) ? '-' : (isSuccess ? '+' : '')}{formatMoney(tx.amount, fund.currency)}
+                      </div>
+                    )}
+                    {isInfoOnly && (
+                      <div style={{ 
+                        padding: '0.375rem 0.75rem',
+                        backgroundColor: bgColor,
+                        borderRadius: '20px',
+                        fontSize: '0.875rem', 
+                        fontWeight: '700', 
+                        color: iconColor 
+                      }}>
+                        {formatMoney(tx.amount, fund.currency)}
+                      </div>
+                    )}
                   </div>
                   
                   <div style={{ 

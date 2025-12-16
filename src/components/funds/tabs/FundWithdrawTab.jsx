@@ -294,7 +294,7 @@ export default function FundWithdrawTab({
         {/* Actions - UI khác nhau cho quỹ có thời hạn và không thời hạn */}
         {isNoTermFund ? (
           <>
-            {/* Quỹ không thời hạn: Nút Rút tiền và Tất toán cùng hàng */}
+            {/* Quỹ không thời hạn: Nút Rút tiền và Tất toán cùng hàng (khi có số dư), Xóa quỹ (khi số dư = 0) */}
             {fund.current > 0 ? (
               <div className="fund-withdraw-actions">
                 <button 

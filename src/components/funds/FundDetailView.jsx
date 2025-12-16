@@ -713,22 +713,76 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       } else if (fund.reminderEnabled && !hasDepositedInCurrentPeriod) {
         // Đã đến giờ nhắc nhở nhưng chưa nạp -> chậm tiến độ
         paceStatus = "behind";
-      } else if (depositCount > expectedPeriodCount) {
-        // Nạp nhiều hơn số kỳ đã trôi qua -> vượt tiến độ
-        paceStatus = isAutoDeposit ? "on_track" : "ahead";
-      } else if (hasDepositedInCurrentPeriod || depositCount === expectedPeriodCount) {
-        // Đã nạp đúng hoặc đủ số kỳ -> theo kế hoạch
-        paceStatus = "on_track";
       } else {
-        // Các trường hợp khác: so sánh theo phần trăm (chỉ khi đã đến giờ nhắc nhở)
-        const diff = progressValue - expectedPct;
-        if (diff >= 7) {
+        // Kiểm tra xem có nạp vượt tần suất hay không (dựa trên số tiền)
+        const amountPerPeriod = parseAmountNonNegative(fund.amountPerPeriod, 0);
+        let isAheadByAmount = false;
+        
+        if (amountPerPeriod > 0 && startDate && fund.frequency && transactionHistory.length > 0) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          let daysPerPeriod = 1;
+          switch (fund.frequency) {
+            case 'DAILY': daysPerPeriod = 1; break;
+            case 'WEEKLY': daysPerPeriod = 7; break;
+            case 'MONTHLY': daysPerPeriod = 30; break;
+          }
+          
+          const daysSinceStart = Math.max(0, Math.floor((today.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+          const currentPeriod = Math.floor(daysSinceStart / daysPerPeriod) + 1;
+          
+          // Tính tổng số tiền đã nạp trong kỳ hiện tại
+          const periodDeposits = transactionHistory.filter(tx => {
+            const txType = tx.type || '';
+            const isDeposit = txType === 'DEPOSIT' || txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY';
+            if (!isDeposit) return false;
+            
+            const txDate = new Date(tx.date);
+            txDate.setHours(0, 0, 0, 0);
+            const daysFromStartToTx = Math.max(0, Math.floor((txDate.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+            const txPeriod = Math.floor(daysFromStartToTx / daysPerPeriod) + 1;
+            
+            return txPeriod === currentPeriod;
+          });
+          
+          const totalPeriodDeposit = periodDeposits.reduce((sum, tx) => sum + tx.amount, 0);
+          const threshold = 1000; // Ngưỡng vượt tiến độ: 1,000 VND
+          const extraAmount = totalPeriodDeposit - amountPerPeriod;
+          
+          // Kiểm tra có lần nạp thủ công vượt >= 1,000 VND không
+          const hasLargeManualDeposit = !isAutoDeposit && periodDeposits.some(tx => {
+            const txType = tx.type || '';
+            const isManualDeposit = txType === 'DEPOSIT' || txType === 'MANUAL_DEPOSIT';
+            if (!isManualDeposit) return false;
+            const txExtra = tx.amount - amountPerPeriod;
+            return txExtra >= threshold;
+          });
+          
+          // Vượt tiến độ nếu: tổng số tiền vượt >= 1,000 VND hoặc có lần nạp thủ công vượt >= 1,000 VND
+          isAheadByAmount = (extraAmount >= threshold) || hasLargeManualDeposit;
+        }
+        
+        if (isAheadByAmount) {
+          // Nạp vượt tần suất -> vượt tiến độ (chỉ cho nạp thủ công)
           paceStatus = isAutoDeposit ? "on_track" : "ahead";
-        } else if (diff >= -4) {
+        } else if (depositCount > expectedPeriodCount) {
+          // Nạp nhiều hơn số kỳ đã trôi qua -> vượt tiến độ
+          paceStatus = isAutoDeposit ? "on_track" : "ahead";
+        } else if (hasDepositedInCurrentPeriod || depositCount === expectedPeriodCount) {
+          // Đã nạp đúng hoặc đủ số kỳ -> theo kế hoạch
           paceStatus = "on_track";
         } else {
-          // Chỉ đánh dấu "behind" nếu đã đến giờ nhắc nhở
-          paceStatus = isReminderTimePassed ? "behind" : "on_track";
+          // Các trường hợp khác: so sánh theo phần trăm (chỉ khi đã đến giờ nhắc nhở)
+          const diff = progressValue - expectedPct;
+          if (diff >= 7) {
+            paceStatus = isAutoDeposit ? "on_track" : "ahead";
+          } else if (diff >= -4) {
+            paceStatus = "on_track";
+          } else {
+            // Chỉ đánh dấu "behind" nếu đã đến giờ nhắc nhở
+            paceStatus = isReminderTimePassed ? "behind" : "on_track";
+          }
         }
       }
     } else {
@@ -837,6 +891,24 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     : "--";
   const remainingDaysLabel = (() => {
     if (fundPacing.totalDays == null || fundPacing.elapsedDays == null) return "Chưa có thời hạn";
+    
+    // Tính số ngày còn lại dựa trên số tiền còn thiếu và số tiền theo tần suất
+    const amountPerPeriod = parseAmountNonNegative(fund.amountPerPeriod, 0);
+    const shortage = fundPacing.shortage != null ? fundPacing.shortage : 0;
+    
+    if (amountPerPeriod > 0 && shortage > 0 && fund.frequency) {
+      // Tính số ngày còn lại dựa trên số tiền còn thiếu và số tiền theo tần suất
+      // Luôn tính dựa trên số tiền theo tần suất (không phải tốc độ thực tế)
+      const daysRemaining = Math.ceil(shortage / amountPerPeriod);
+      
+      // Đảm bảo không vượt quá số ngày còn lại theo thời gian
+      const timeBasedRemaining = Math.max(0, fundPacing.totalDays - fundPacing.elapsedDays);
+      const finalDaysRemaining = Math.min(daysRemaining, timeBasedRemaining);
+      
+      return finalDaysRemaining === 0 ? "Đến hạn hôm nay" : `${finalDaysRemaining} ngày còn lại`;
+    }
+    
+    // Fallback: tính dựa trên thời gian nếu không có amountPerPeriod
     const remaining = Math.max(0, fundPacing.totalDays - fundPacing.elapsedDays);
     return remaining === 0 ? "Đến hạn hôm nay" : `${remaining} ngày còn lại`;
   })();
@@ -1282,7 +1354,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   };
 
   const displayHistory = useMemo(() => {
-    return historyItems.map(tx => {
+    const mappedHistory = historyItems.map(tx => {
       const isSuccess = tx.status === 'SUCCESS';
       const txType = tx.type || 'DEPOSIT';
       const isWithdraw = txType === 'WITHDRAW';
@@ -1315,7 +1387,59 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         isSettle: isSettle
       };
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [historyItems]);
+
+    // Kiểm tra quỹ đã hoàn thành mục tiêu chưa
+    const targetAmount = parseAmountNonNegative(fund.target ?? fund.targetAmount, 0);
+    const currentAmount = parseAmountNonNegative(fund.current ?? fund.currentAmount, 0);
+    const hasReachedTarget = targetAmount > 0 && currentAmount >= targetAmount;
+    const fundStatus = (fund.status || "").toUpperCase();
+    const isFundCompleted = fundStatus === "COMPLETED" || fundStatus === "CLOSED" || hasReachedTarget;
+    
+    // Kiểm tra xem đã có giao dịch tất toán trong lịch sử chưa
+    const hasSettleInHistory = mappedHistory.some(tx => tx.isSettle || tx.txType === 'settle');
+    
+    // Nếu quỹ đã hoàn thành mục tiêu nhưng chưa có giao dịch tất toán trong lịch sử, thêm mục "Đã hoàn thành mục tiêu"
+    if (isFundCompleted && !hasSettleInHistory && hasReachedTarget) {
+      // Tìm ngày đạt mục tiêu (ngày của giao dịch nạp cuối cùng làm cho current >= target)
+      let targetReachedDate = new Date();
+      if (mappedHistory.length > 0) {
+        // Tìm giao dịch nạp đầu tiên (theo thời gian tăng dần) làm cho tổng >= target
+        let cumulativeAmount = 0;
+        const sortedByDateAsc = [...mappedHistory]
+          .filter(tx => !tx.isWithdraw && tx.status === 'success')
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        for (const tx of sortedByDateAsc) {
+          cumulativeAmount += tx.amount;
+          if (cumulativeAmount >= targetAmount) {
+            targetReachedDate = new Date(tx.date);
+            break;
+          }
+        }
+      }
+      
+      // Thêm mục "Đã hoàn thành mục tiêu" vào đầu danh sách
+      // Đây không phải giao dịch rút tiền thực sự, chỉ là thông báo
+      const completionEntry = {
+        id: 'goal-completed-' + (fund.id || fund.fundId),
+        type: 'info',
+        txType: 'info',
+        typeLabel: 'Đã hoàn thành mục tiêu',
+        amount: currentAmount, // Số tiền hiện tại (để hiển thị, không phải số tiền rút)
+        status: 'success',
+        date: targetReachedDate.toISOString(),
+        message: `Đã đạt mục tiêu ${formatMoney(targetAmount, fund.currency)}`,
+        walletBalance: undefined,
+        isWithdraw: false,
+        isSettle: false, // Không phải tất toán thực sự
+        isInfoOnly: true // Flag để phân biệt với giao dịch thực sự
+      };
+      
+      return [completionEntry, ...mappedHistory];
+    }
+    
+    return mappedHistory;
+  }, [historyItems, fund.target, fund.targetAmount, fund.current, fund.currentAmount, fund.status, fund.id, fund.fundId, fund.currency]);
 
   // Tính toán trạng thái nạp: đã nạp đủ cho chu kỳ hiện tại chưa
   const depositStatusInfo = useMemo(() => {
@@ -1559,22 +1683,59 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         // Reload history after successful withdraw
         await loadHistory();
         
-        // Reload wallets so UI shows updated balances
+        // Reload wallets so UI shows updated balances (quan trọng: cần reload để hiển thị số dư ví nguồn đã được cộng)
         try {
-          if (loadWallets) await loadWallets();
+          if (loadWallets) {
+            // Reload ngay lập tức
+            await loadWallets();
+            console.log("FundDetailView: Reloaded wallets immediately after withdraw");
+            
+            // Dispatch event để trigger reload wallets ở các component khác (bao gồm WalletsPage)
+            window.dispatchEvent(new CustomEvent('walletUpdated', {
+              detail: { 
+                walletId: fund.sourceWalletId, 
+                action: 'fundWithdraw',
+                amount: amount
+              }
+            }));
+            console.log("FundDetailView: Dispatched walletUpdated event after withdraw");
+            
+            // Reload lại sau delay để đảm bảo backend đã cập nhật số dư ví
+            setTimeout(async () => {
+              await loadWallets();
+              console.log("FundDetailView: Reloaded wallets after 800ms delay");
+            }, 800);
+            
+            // Reload thêm một lần nữa sau delay dài hơn để chắc chắn
+            setTimeout(async () => {
+              await loadWallets();
+              console.log("FundDetailView: Reloaded wallets after 1500ms delay");
+            }, 1500);
+            
+            // Reload lại một lần nữa sau delay dài nhất
+            setTimeout(async () => {
+              await loadWallets();
+              console.log("FundDetailView: Reloaded wallets after 3000ms delay");
+            }, 3000);
+          } else {
+            console.warn("FundDetailView: loadWallets không có sẵn, không thể reload wallets sau khi rút tiền");
+          }
         } catch (e) {
           console.warn('Unable to reload wallets after withdraw', e);
         }
         // Let parent refresh funds list if provided
         if (onUpdateFund) await onUpdateFund();
 
-        // Kiểm tra số dư sau khi rút để quyết định có xóa quỹ không
+        // Kiểm tra số dư sau khi rút
         const updatedFundResult = await getFundById(fund.id);
         const updatedFund = updatedFundResult?.response?.ok ? updatedFundResult.data?.fund || updatedFundResult.data : null;
         const remainingBalance = updatedFund?.currentAmount || updatedFund?.current || 0;
-        const shouldDeleteFund = isFullWithdraw && remainingBalance === 0;
+        
+        // Quỹ có thời hạn: xóa quỹ nếu rút hết
+        // Quỹ không thời hạn: giữ quỹ ngay cả khi rút về số 0 (không tự động xóa)
+        const shouldDeleteFund = fund.hasTerm && isFullWithdraw && remainingBalance === 0;
 
-        // Xóa quỹ nếu rút hết (cho cả quỹ có thời hạn và không thời hạn)
+        // Xóa quỹ nếu rút hết (chỉ cho quỹ có thời hạn)
         if (shouldDeleteFund) {
           await deleteFund(fund.id);
         }
@@ -1590,17 +1751,8 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
             }
           }, 1000);
         } else {
-          // Quỹ không thời hạn: nếu rút hết (số dư = 0), xóa quỹ và quay về danh sách
-          if (shouldDeleteFund) {
-            setTimeout(() => {
-              if (onBack) {
-                onBack();
-              }
-            }, 1000);
-          } else {
-            // Nếu còn số dư, reload fund data để cập nhật số dư
-            if (onUpdateFund) await onUpdateFund();
-          }
+          // Quỹ không thời hạn: luôn reload fund data để cập nhật số dư (giữ quỹ ngay cả khi số dư = 0)
+          if (onUpdateFund) await onUpdateFund();
         }
       } else {
         showToast(`Không thể rút tiền: ${result.error}`, "error");
@@ -1663,8 +1815,23 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         // Xóa quỹ sau khi tất toán thành công (cho cả quỹ có thời hạn và không thời hạn)
         await deleteFund(fund.id);
         
+        // Reload wallets để cập nhật số dư ví nguồn sau khi tất toán
         try {
-          if (loadWallets) await loadWallets();
+          if (loadWallets) {
+            await loadWallets();
+            // Dispatch event để trigger reload wallets ở các component khác
+            window.dispatchEvent(new CustomEvent('walletUpdated', {
+              detail: { 
+                walletId: fund.sourceWalletId, 
+                action: 'fundSettle',
+                amount: fund.current
+              }
+            }));
+            // Reload lại sau delay để đảm bảo backend đã cập nhật
+            setTimeout(async () => {
+              await loadWallets();
+            }, 800);
+          }
         } catch (e) {
           console.warn('Unable to reload wallets after settle', e);
         }

@@ -37,7 +37,6 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
         marginBottom: '1rem'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <i className="bi bi-exclamation-triangle-fill" style={{ color: '#f59e0b', fontSize: '1.25rem' }}></i>
           <strong style={{ color: '#f59e0b' }}>
             {depositStatusInfo?.hasEnoughForCurrentPeriod 
               ? 'Lần nạp thêm đầu tiên phải đủ số tiền theo tần suất!' 
@@ -100,7 +99,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
         </div>
         {todayDepositedAmount > 0 && (
           <div style={{ fontSize: '0.875rem', color: '#065f46', marginTop: '0.5rem' }}>
-            📊 Đã nạp hôm nay: <strong>{formatMoney(todayDepositedAmount, fund.currency)}</strong>
+            Đã nạp hôm nay: <strong>{formatMoney(todayDepositedAmount, fund.currency)}</strong>
             {fund.amountPerPeriod && (
               <> (Tần suất: {formatMoney(fund.amountPerPeriod, fund.currency)})</>
             )}
@@ -117,7 +116,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
             fontWeight: '600'
           }}>
             <div style={{ marginBottom: '0.5rem' }}>
-              🎉 Bạn đang nạp <strong style={{ fontSize: '1rem', color: '#047857' }}>+{aheadPercent}%</strong> so với số tiền theo tần suất.
+              Bạn đang nạp <strong style={{ fontSize: '1rem', color: '#047857' }}>+{aheadPercent}%</strong> so với số tiền theo tần suất.
             </div>
             <div style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '0.25rem' }}>
               • Số tiền theo tần suất: <strong>{formatMoney(fund.amountPerPeriod, fund.currency)}</strong>
@@ -136,7 +135,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
           </div>
         )}
         <div style={{ fontSize: '0.875rem', color: '#065f46', marginTop: '0.5rem' }}>
-          💡 Đây là lần nạp thêm thứ <strong>{displayCount}</strong>. Bạn có thể nạp bao nhiêu cũng được.
+          Đây là lần nạp thêm thứ <strong>{displayCount}</strong>. Bạn có thể nạp bao nhiêu cũng được.
         </div>
       </div>
     );
@@ -153,7 +152,6 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
         marginBottom: '1rem'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <i className="bi bi-exclamation-triangle-fill" style={{ color: '#ef4444', fontSize: '1.25rem' }}></i>
           <strong style={{ color: '#ef4444' }}>Số dư ví nguồn không đủ!</strong>
         </div>
         <div style={{ fontSize: '0.875rem', color: '#dc2626' }}>
@@ -179,7 +177,6 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
       marginBottom: '1rem'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <i className="bi bi-info-circle-fill" style={{ color: '#0d6efd', fontSize: '1.25rem' }}></i>
         <strong style={{ color: '#0d6efd' }}>Xác nhận thông tin</strong>
       </div>
       <div style={{ fontSize: '0.875rem', color: '#374151' }}>
@@ -325,12 +322,11 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
                 borderRadius: '8px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  <i className="bi bi-rocket-takeoff-fill" style={{ color: '#10b981', fontSize: '1.5rem' }}></i>
                   <strong style={{ fontSize: '1rem', color: '#047857' }}>Vượt kế hoạch - Hoàn thành sớm hơn!</strong>
                 </div>
 
                 <div style={{ fontSize: '0.875rem', color: '#065f46', marginBottom: '0.5rem' }}>
-                  🎉 Nạp nhiều hơn dự kiến! Bạn đang nạp <strong style={{ color: '#047857', fontSize: '1rem' }}>+{aheadPercent}%</strong> so với số tiền theo tần suất.
+                  Nạp nhiều hơn dự kiến! Bạn đang nạp <strong style={{ color: '#047857', fontSize: '1rem' }}>+{aheadPercent}%</strong> so với số tiền theo tần suất.
                   {periodsSaved > 0 && (
                     <> Bạn sẽ hoàn thành mục tiêu <strong>sớm hơn {periodsSaved} {timeUnit}</strong> so với kế hoạch ban đầu.</>
                   )}
@@ -344,7 +340,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
                   marginTop: '0.5rem'
                 }}>
                   <div style={{ fontSize: '0.875rem', color: '#047857', marginBottom: '0.5rem', fontWeight: '600' }}>
-                    📊 Chi tiết vượt tiến độ:
+                    Chi tiết vượt tiến độ:
                   </div>
                   <div style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '0.25rem' }}>
                     • Số tiền theo tần suất: <strong>{formatMoney(fund.amountPerPeriod, fund.currency)}</strong>
@@ -364,7 +360,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
                   {originalEndDate && (
                     <>
                       <div style={{ fontSize: '0.875rem', color: '#047857', marginBottom: '0.5rem', fontWeight: '600', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #86efac' }}>
-                        📅 Dự báo hoàn thành:
+                        Dự báo hoàn thành:
                       </div>
                       <div style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '0.25rem' }}>
                         • Theo kế hoạch ban đầu: <strong>{formatVietnamDate(originalEndDate)}</strong>
@@ -376,7 +372,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
                       )}
                       {remaining <= 0 && (
                         <div style={{ fontSize: '0.875rem', color: '#065f46', marginBottom: '0.5rem', fontWeight: '600' }}>
-                          • 🎉 Đã hoàn thành mục tiêu!
+                          • Đã hoàn thành mục tiêu!
                         </div>
                       )}
                       {timeSavedPercent > 0 && (
@@ -391,7 +387,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
                           border: '1px solid #86efac',
                           marginTop: '0.5rem'
                         }}>
-                          ⚡ Hoàn thành sớm hơn <strong style={{ fontSize: '1.1rem' }}>{timeSavedPercent}%</strong> so với dự kiến!
+                          Hoàn thành sớm hơn <strong style={{ fontSize: '1.1rem' }}>{timeSavedPercent}%</strong> so với dự kiến!
                           {daysSaved > 0 && (
                             <> ({daysSaved} ngày)</>
                           )}
@@ -402,7 +398,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
 
                   {!originalEndDate && (
                     <div style={{ fontSize: '0.875rem', color: '#065f46', fontStyle: 'italic', marginTop: '0.5rem' }}>
-                      💡 Tiếp tục nạp với số tiền này sẽ giúp bạn đạt mục tiêu nhanh hơn!
+                      Tiếp tục nạp với số tiền này sẽ giúp bạn đạt mục tiêu nhanh hơn!
                     </div>
                   )}
                 </div>

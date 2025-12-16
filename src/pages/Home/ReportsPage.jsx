@@ -64,15 +64,9 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const isFundCompleted = (fund) => {
   if (!fund) return false;
   const status = (fund.status || "").toUpperCase();
-  // Quỹ có status COMPLETED hoặc CLOSED (đã tất toán) được coi là hoàn thành
-  if (status === "COMPLETED" || status === "CLOSED") {
-    return true;
-  }
-  // Hoặc quỹ đã đạt mục tiêu (current >= target)
-  const targetValue = Number(fund?.targetAmount ?? fund?.target ?? 0) || 0;
-  if (!targetValue) return false;
-  const currentValue = Number(fund?.currentAmount ?? fund?.current ?? 0) || 0;
-  return currentValue >= targetValue;
+  // Chỉ quỹ có status COMPLETED hoặc CLOSED (đã tất toán) được coi là hoàn thành
+  // Không tính quỹ chỉ đạt mục tiêu nhưng chưa tất toán
+  return status === "COMPLETED" || status === "CLOSED";
 };
 
 const normalizeTransaction = (raw) => {
@@ -356,16 +350,40 @@ const buildFundGoalStats = (fund) => {
   if (!hasDeadline) {
     // Quỹ không thời hạn: luôn là "on_track", không có vượt/chậm tiến độ
     paceStatus = "on_track";
-  } else if (expectedAmount == null) {
+  } else if (expectedPct == null || expectedAmount == null) {
     paceStatus = targetValue > 0 ? (progressPct >= 100 ? "ahead" : "on_track") : "unknown";
-  } else if (currentValue >= expectedAmount * 1.05) {
-    paceStatus = "ahead";
-  } else if (currentValue >= expectedAmount * 0.9) {
-    paceStatus = "on_track";
-  } else if (currentValue >= expectedAmount * 0.6) {
-    paceStatus = "behind";
   } else {
-    paceStatus = "critical";
+    // Sử dụng logic tương tự FundDetailView: so sánh theo phần trăm
+    // Tính chênh lệch giữa thực tế và kế hoạch (theo phần trăm)
+    const diffPct = progressPct - expectedPct;
+    
+    // Xử lý trường hợp expectedAmount = 0 hoặc rất nhỏ (ngày đầu tiên)
+    if (expectedAmount <= 0) {
+      // Nếu chưa có kỳ vọng (chưa đến ngày bắt đầu hoặc ngày đầu tiên), mặc định là "on_track"
+      paceStatus = "on_track";
+    } else if (currentValue > 0) {
+      // Có tiền đã nạp: so sánh theo phần trăm
+      if (diffPct >= 7) {
+        // Vượt tiến độ: chênh lệch >= 7%
+        paceStatus = "ahead";
+      } else if (diffPct >= -4) {
+        // Đúng tiến độ: chênh lệch từ -4% đến +7%
+        paceStatus = "on_track";
+      } else {
+        // Chậm tiến độ: chênh lệch < -4%
+        paceStatus = "behind";
+      }
+    } else {
+      // currentValue = 0 nhưng expectedAmount > 0: chưa nạp gì nhưng đã có kỳ vọng
+      // So sánh với thời gian đã trôi qua
+      if (elapsedDays != null && elapsedDays > 0) {
+        // Đã qua ngày bắt đầu nhưng chưa nạp gì → chậm tiến độ
+        paceStatus = "behind";
+      } else {
+        // Chưa đến ngày bắt đầu hoặc ngày đầu tiên → đúng tiến độ
+        paceStatus = "on_track";
+      }
+    }
   }
 
   return {
@@ -1894,32 +1912,41 @@ export default function ReportsPage() {
       }
       totalContributed += contributedAmount;
 
-      if (isCompleted) {
-        // Tất toán trước hạn: quỹ đã tất toán, tất toán trước hạn, và chưa hoàn thành mục tiêu
-        if (endDate && endDate > today && currentValue < targetValue) {
-          earlySettledCount += 1;
-          // Tính số tiền đã nạp từ lịch sử giao dịch
-          const fundId = Number(fund.fundId ?? fund.id);
-          const history = termFundsHistory[fundId] || [];
-          // Tính tổng các giao dịch DEPOSIT thành công
-          const totalDeposited = history
-            .filter((tx) => {
-              const txStatus = (tx.status || "").toUpperCase();
-              return isSuccessfulTx(tx) && isDepositType(tx.type);
-            })
-            .reduce((sum, tx) => {
-              const amount = Math.abs(Number(tx.amount) || 0);
-              return sum + amount;
-            }, 0);
-          
-          earlySettledAmount += totalDeposited > 0 ? totalDeposited : currentValue; // Fallback về currentValue nếu chưa có lịch sử
-        } else if (!endDate || endDate <= today || currentValue >= targetValue) {
-          // Quỹ đã hoàn thành đúng hạn (không phải tất toán trước hạn)
-          // Bao gồm: quỹ đã đạt mục tiêu hoặc quỹ đã hết hạn
-          completedCount += 1;
-          completedAmount += currentValue;
-          completedOnTimeCount += 1;
-        }
+      // Phân loại quỹ: Tất toán trước hạn vs Đã hoàn thành
+      // Tất toán trước hạn: chỉ tính quỹ không hoàn thành mục tiêu nhưng tất toán
+      // Điều kiện: đã tất toán (isCompleted), tất toán trước hạn (endDate > today), và chưa đạt mục tiêu (currentValue < targetValue)
+      if (isCompleted && endDate && endDate > today && currentValue < targetValue) {
+        // Tất toán trước hạn: chưa đạt mục tiêu
+        earlySettledCount += 1;
+        // Tính số tiền đã nạp từ lịch sử giao dịch
+        const fundId = Number(fund.fundId ?? fund.id);
+        const history = termFundsHistory[fundId] || [];
+        // Tính tổng các giao dịch DEPOSIT thành công
+        const totalDeposited = history
+          .filter((tx) => {
+            const txStatus = (tx.status || "").toUpperCase();
+            return isSuccessfulTx(tx) && isDepositType(tx.type);
+          })
+          .reduce((sum, tx) => {
+            const amount = Math.abs(Number(tx.amount) || 0);
+            return sum + amount;
+          }, 0);
+        
+        earlySettledAmount += totalDeposited > 0 ? totalDeposited : currentValue; // Fallback về currentValue nếu chưa có lịch sử
+      } else if (
+        // Đã hoàn thành: tính cả quỹ đã hoàn thành mục tiêu (vượt tiến độ/đạt mục tiêu)
+        // Bao gồm:
+        // 1. Quỹ đã đạt mục tiêu (currentValue >= targetValue) - dù chưa tất toán hoặc đã tất toán
+        // 2. Quỹ đã tất toán và đã đạt mục tiêu
+        currentValue >= targetValue || // Đã đạt mục tiêu (vượt tiến độ)
+        (isCompleted && (
+          (endDate && endDate > today && currentValue >= targetValue) || // Đã đạt mục tiêu trước hạn (tất toán trước hạn)
+          (!endDate || endDate <= today || currentValue >= targetValue) // Hoàn thành đúng hạn hoặc đã đạt mục tiêu
+        ))
+      ) {
+        completedCount += 1;
+        completedAmount += currentValue;
+        completedOnTimeCount += 1;
       }
     });
 
@@ -3270,17 +3297,35 @@ export default function ReportsPage() {
                               const today = new Date();
                               today.setHours(0, 0, 0, 0);
                               
-                              // Tất toán trước hạn: đã tất toán, tất toán trước hạn, và chưa đạt mục tiêu
-                              if (endDate && endDate > today && currentValue < targetValue) {
-                                fundStatusTag = (
-                                  <span className="fund-tag" style={{ 
-                                    background: 'rgba(245, 158, 11, 0.1)', 
-                                    color: '#d97706',
-                                    border: '1px solid rgba(245, 158, 11, 0.3)'
-                                  }}>
-                                    Tất toán trước hạn
-                                  </span>
-                                );
+                              // Kiểm tra có tất toán trước hạn không
+                              const isEarlySettled = endDate && endDate > today;
+                              // Kiểm tra có đạt mục tiêu không
+                              const hasReachedTarget = currentValue >= targetValue;
+                              
+                              if (isEarlySettled) {
+                                if (hasReachedTarget) {
+                                  // Đã hoàn thành mục tiêu trước hạn
+                                  fundStatusTag = (
+                                    <span className="fund-tag" style={{ 
+                                      background: 'rgba(16, 185, 129, 0.1)', 
+                                      color: '#10b981',
+                                      border: '1px solid rgba(16, 185, 129, 0.3)'
+                                    }}>
+                                      Đã hoàn thành mục tiêu trước hạn
+                                    </span>
+                                  );
+                                } else {
+                                  // Đã tất toán (trước hạn nhưng chưa đạt mục tiêu)
+                                  fundStatusTag = (
+                                    <span className="fund-tag" style={{ 
+                                      background: 'rgba(245, 158, 11, 0.1)', 
+                                      color: '#d97706',
+                                      border: '1px solid rgba(245, 158, 11, 0.3)'
+                                    }}>
+                                      Đã tất toán
+                                    </span>
+                                  );
+                                }
                               } else {
                                 // Hoàn thành tất toán: đã hoàn thành đúng hạn hoặc đạt mục tiêu
                                 fundStatusTag = (
@@ -3719,47 +3764,6 @@ export default function ReportsPage() {
                               </div>
                             )}
                           </div>
-                        </div>
-                        <div className="fund-pace-card">
-                          <div className="fund-pace-header">
-                            <div>
-                              <p className="text-muted mb-1">{t("reports.funds.detail.pace_label")}</p>
-                              <h5 className={`fund-pace-status fund-pace-status--${paceStatus}`}>
-                                {fundPaceLabel}
-                              </h5>
-                            </div>
-                            <span className="fund-pace-days">{selectedFundRemainingLabel}</span>
-                          </div>
-                          {hasSelectedFundTarget ? (
-                            <>
-                              <div className="fund-pace-track">
-                                <span
-                                  className="fund-pace-marker fund-pace-marker--actual"
-                                  style={{ width: `${Math.min(selectedFundProgressPct, 100)}%` }}
-                                />
-                                {selectedFundExpectedPct != null && (
-                                  <span
-                                    className="fund-pace-marker fund-pace-marker--expected"
-                                    style={{ width: `${Math.min(selectedFundExpectedPct, 100)}%` }}
-                                  />
-                                )}
-                              </div>
-                              <div className="fund-pace-legend">
-                                <span>
-                                  <span className="legend-dot legend-dot--actual" />
-                                  {t("reports.funds.detail.actual_progress")}
-                                </span>
-                                {selectedFundExpectedPct != null && (
-                                  <span>
-                                    <span className="legend-dot legend-dot--expected" />
-                                    {t("reports.funds.detail.expected_progress")}
-                                  </span>
-                                )}
-                              </div>
-                            </>
-                          ) : (
-                            <p className="text-muted small mb-0">{t("reports.funds.detail.no_target")}</p>
-                          )}
                         </div>
                       </>
                     )}
