@@ -925,6 +925,11 @@
   flex-direction: column;
   gap: 24px;
   animation: fundCardFadeIn 0.6s ease-out;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fund-growth-modern:hover {
+  transform: translateY(-2px);
 }
 
 .fund-growth-header {
@@ -969,8 +974,9 @@
 .fund-growth-chart {
   background: rgba(255, 255, 255, 0.6);
   border-radius: 16px;
-  padding: 16px;
+  padding: 20px;
   min-height: 200px;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1091,6 +1097,10 @@
   color: #ef4444;
 }
 
+.fund-growth-tooltip__value--settle {
+  color: #f59e0b;
+}
+
 .fund-growth-empty {
   text-align: center;
   padding: 2rem;
@@ -1111,7 +1121,7 @@
 
 .fund-growth-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
   animation: statCardSlideUp 0.6s ease-out 0.6s backwards;
 }
@@ -1126,6 +1136,23 @@
               inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(10px);
+  animation: fundGrowthStatFadeIn 0.6s ease-out backwards;
+}
+
+.fund-growth-stat:nth-child(1) { animation-delay: 0.7s; }
+.fund-growth-stat:nth-child(2) { animation-delay: 0.8s; }
+.fund-growth-stat:nth-child(3) { animation-delay: 0.9s; }
+.fund-growth-stat:nth-child(4) { animation-delay: 1s; }
+
+@keyframes fundGrowthStatFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fund-growth-stat:hover {

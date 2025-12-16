@@ -5,6 +5,7 @@ import { useToast } from "../common/Toast/ToastContext";
 import { calcEstimateDate } from "./utils/fundUtils";
 import { formatVietnamDate } from "../../utils/dateFormat";
 import { formatMoney } from "../../utils/formatMoney";
+import { formatMoneyInput, parseMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -87,7 +88,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
       return;
     }
 
-    const targetNum = Number(targetAmount);
+    const targetNum = getMoneyValue(targetAmount);
     if (Number.isNaN(targetNum) || targetNum <= 0) {
       setTargetError(t('funds.form.error.target_invalid'));
       return;
@@ -106,8 +107,8 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
 
   // Tính ngày kết thúc tự động
   useEffect(() => {
-    const targetNum = Number(targetAmount);
-    const periodNum = Number(periodAmount);
+    const targetNum = getMoneyValue(targetAmount);
+    const periodNum = getMoneyValue(periodAmount);
 
     if (
       !targetAmount ||
@@ -207,7 +208,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
       return;
     }
     
-    if (!periodAmount || Number(periodAmount) <= 0) {
+    if (!periodAmount || getMoneyValue(periodAmount) <= 0) {
       showToast(t('funds.form.error.period_amount_required'), "error");
       return;
     }
@@ -272,9 +273,9 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
         currency: selectedCurrency,
         fundType: "PERSONAL",
         hasDeadline: true,
-        targetAmount: Number(targetAmount),
+        targetAmount: getMoneyValue(targetAmount),
         frequency: freq,
-        amountPerPeriod: periodAmount ? Number(periodAmount) : null,
+        amountPerPeriod: periodAmount ? getMoneyValue(periodAmount) : null,
         startDate,
         endDate: calculatedEndDate, // Sử dụng ngày kết thúc tự động tính
         note: note.trim() || null,
@@ -459,11 +460,20 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
             {t('funds.form.target_amount')} {selectedCurrency && `(${selectedCurrency})`} <span className="req">*</span>
           </label>
           <input
-            type="number"
-            min={targetMin}
+            type="text"
+            inputMode="numeric"
             placeholder={t('funds.form.target_placeholder', { min: targetMin.toLocaleString("en-US"), currency: selectedCurrency || '' })}
             value={targetAmount}
-            onChange={(e) => setTargetAmount(e.target.value)}
+            onChange={(e) => {
+              const inputValue = e.target.value;
+              if (!inputValue) {
+                setTargetAmount("");
+                return;
+              }
+              const parsed = parseMoneyInput(inputValue);
+              const formatted = formatMoneyInput(parsed);
+              setTargetAmount(formatted);
+            }}
           />
           <div className="funds-hint">
             {t('funds.form.target_hint', { min: targetMin.toLocaleString("en-US") })}
@@ -483,12 +493,20 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
           <div>
             <label>{t('funds.form.period_amount')}</label>
             <input
-              type="number"
-              // Chỉ dùng VND, tối thiểu 0
-              min={0}
+              type="text"
+              inputMode="numeric"
               placeholder={t('funds.form.period_amount_placeholder')}
               value={periodAmount}
-              onChange={(e) => setPeriodAmount(e.target.value)}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                if (!inputValue) {
+                  setPeriodAmount("");
+                  return;
+                }
+                const parsed = parseMoneyInput(inputValue);
+                const formatted = formatMoneyInput(parsed);
+                setPeriodAmount(formatted);
+              }}
             />
             <div className="funds-hint">
               {t('funds.form.period_amount_hint')}

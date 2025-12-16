@@ -20,29 +20,50 @@ export function formatMoneyInput(value, currency = "VND") {
   // Format kiểu Việt Nam:
   // - Dấu chấm (.) mỗi 3 số từ bên phải cho phần nguyên (VD: 1.000.000)
   // - Dấu phẩy (,) là dấu thập phân (VD: 1.000.000,5)
+  // Khi người dùng nhập, nếu có dấu chấm làm dấu thập phân (chuẩn quốc tế), 
+  // chuyển thành dấu phẩy để nhất quán với format Việt Nam
   
   // Loại bỏ ký tự không hợp lệ, giữ số, dấu chấm và dấu phẩy
   let cleaned = str.replace(/[^\d.,]/g, "");
   
-  // Tách phần nguyên và phần thập phân
-  // Dấu phẩy là dấu thập phân, dấu chấm là dấu nghìn
+  // Xác định dấu thập phân: ưu tiên dấu phẩy
   const commaIndex = cleaned.indexOf(",");
   const lastCommaIndex = cleaned.lastIndexOf(",");
+  const lastDotIndex = cleaned.lastIndexOf(".");
   
   let integerPart = "";
   let decimalPart = "";
   
   if (commaIndex !== -1) {
-    // Có dấu phẩy (dấu thập phân)
+    // Có dấu phẩy (dấu thập phân theo chuẩn Việt Nam)
     // Phần trước dấu phẩy đầu tiên là phần nguyên
     integerPart = cleaned.substring(0, commaIndex);
     // Phần sau dấu phẩy cuối cùng là phần thập phân
     decimalPart = cleaned.substring(lastCommaIndex + 1);
     // Loại bỏ tất cả dấu chấm trong phần nguyên (sẽ format lại sau)
     integerPart = integerPart.replace(/\./g, "");
+  } else if (lastDotIndex !== -1) {
+    // Không có dấu phẩy, nhưng có dấu chấm
+    // Kiểm tra xem dấu chấm cuối cùng có phải là dấu thập phân không
+    // Chỉ coi là dấu thập phân nếu:
+    // 1. Có ít hơn 3 chữ số sau dấu chấm (không phải dấu nghìn)
+    // 2. VÀ không có dấu chấm nào khác trước đó (để tránh nhầm với "1.000.5")
+    const beforeLastDot = cleaned.substring(0, lastDotIndex);
+    const afterLastDot = cleaned.substring(lastDotIndex + 1);
+    const hasOtherDots = beforeLastDot.indexOf(".") !== -1;
+    
+    if (!hasOtherDots && afterLastDot.length > 0 && afterLastDot.length < 3 && /^\d+$/.test(afterLastDot)) {
+      // Dấu chấm cuối là dấu thập phân (chỉ có 1 dấu chấm và < 3 chữ số sau)
+      integerPart = beforeLastDot;
+      decimalPart = afterLastDot;
+    } else {
+      // Tất cả dấu chấm đều là dấu nghìn
+      integerPart = cleaned.replace(/\./g, "");
+      decimalPart = "";
+    }
   } else {
-    // Không có dấu phẩy, toàn bộ là phần nguyên
-    integerPart = cleaned.replace(/\./g, "");
+    // Không có dấu phẩy và dấu chấm, toàn bộ là phần nguyên
+    integerPart = cleaned;
     decimalPart = "";
   }
   
@@ -71,6 +92,7 @@ export function parseMoneyInput(formattedValue) {
   // Format kiểu Việt Nam:
   // - Dấu chấm (.) là dấu nghìn (loại bỏ)
   // - Dấu phẩy (,) là dấu thập phân (chuyển thành dấu chấm)
+  // Lưu ý: Khi đã format với dấu chấm làm dấu nghìn, TẤT CẢ dấu chấm đều là dấu nghìn
   
   // Tách phần nguyên và phần thập phân
   const commaIndex = str.indexOf(",");
@@ -79,12 +101,12 @@ export function parseMoneyInput(formattedValue) {
   let decimalPart = "";
   
   if (commaIndex !== -1) {
-    // Có dấu phẩy (dấu thập phân)
-    integerPart = str.substring(0, commaIndex).replace(/\./g, ""); // Loại bỏ dấu chấm (dấu nghìn)
+    // Có dấu phẩy (dấu thập phân theo chuẩn Việt Nam)
+    integerPart = str.substring(0, commaIndex).replace(/\./g, ""); // Loại bỏ tất cả dấu chấm (dấu nghìn)
     decimalPart = str.substring(commaIndex + 1);
   } else {
-    // Không có dấu phẩy, toàn bộ là phần nguyên
-    integerPart = str.replace(/\./g, ""); // Loại bỏ dấu chấm (dấu nghìn)
+    // Không có dấu phẩy, tất cả dấu chấm đều là dấu nghìn
+    integerPart = str.replace(/\./g, ""); // Loại bỏ tất cả dấu chấm
     decimalPart = "";
   }
   

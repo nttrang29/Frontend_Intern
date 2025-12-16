@@ -521,7 +521,13 @@ export default function FundDepositTab({
           <form onSubmit={handleDeposit}>
             <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #e5e7eb' }}>
               {/* Cảnh báo - Hiển thị trước input */}
-              <DepositPreview depositAmount={depositAmount} fund={fund} wallets={wallets} depositStatusInfo={depositStatusInfo} />
+              <DepositPreview 
+                depositAmount={depositAmount} 
+                fund={fund} 
+                wallets={wallets} 
+                depositStatusInfo={depositStatusInfo}
+                todayManualDepositStatus={todayManualDepositStatus}
+              />
               
               <div className="funds-field">
                 <label>

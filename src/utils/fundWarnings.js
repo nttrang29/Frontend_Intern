@@ -32,8 +32,8 @@ export const calculateFundWarnings = (fund, wallets) => {
     }
   }
 
-  // WARNING 2: Progress behind schedule
-  if (fund.hasTerm && fund.target && fund.startDate && fund.frequency && fund.amountPerPeriod) {
+  // WARNING 2: Progress behind schedule (chỉ cho quỹ có thời hạn)
+  if ((fund.hasTerm || fund.hasDeadline) && fund.target && fund.startDate && fund.frequency && fund.amountPerPeriod) {
     const daysSinceStart = Math.floor((new Date() - new Date(fund.startDate)) / (1000 * 60 * 60 * 24));
     const periodsElapsed =
       fund.frequency === "DAILY"
@@ -63,8 +63,8 @@ export const calculateFundWarnings = (fund, wallets) => {
     }
   }
 
-  // WARNING 3: Deadline approaching with large remaining amount
-  if (fund.hasTerm && fund.target && fund.endDate) {
+  // WARNING 3: Deadline approaching with large remaining amount (chỉ cho quỹ có thời hạn)
+  if ((fund.hasTerm || fund.hasDeadline) && fund.target && fund.endDate) {
     const daysRemaining = Math.floor((new Date(fund.endDate) - new Date()) / (1000 * 60 * 60 * 24));
     const amountRemaining = fund.target - fund.current;
 

@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useFundData } from "../../contexts/FundDataContext";
 import { useToast } from "../common/Toast/ToastContext";
 import { formatMoney } from "../../utils/formatMoney";
+import { formatMoneyInput, parseMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -17,8 +18,15 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
   const [selectedCurrency] = useState("VND");
   const [sourceWalletId, setSourceWalletId] = useState("");
   const [note, setNote] = useState("");
-  // Default start date to today so user can adjust if needed
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  // Default start date to today (local date, not UTC) so user can adjust if needed
+  const getTodayLocal = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const [startDate, setStartDate] = useState(getTodayLocal());
   const [periodAmount, setPeriodAmount] = useState("");
   const [saving, setSaving] = useState(false);
   
@@ -106,9 +114,9 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
       }
     }
 
-    // Validate startDate không được là ngày quá khứ
+    // Validate startDate không được là ngày quá khứ (dùng local date)
     if (startDate) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayLocal();
       if (startDate < today) {
         showToast(t('funds.form.error.start_date_past'), "error");
         setStartDate(today); // Reset về hôm nay
@@ -126,8 +134,9 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
         fundType: "PERSONAL",
         hasDeadline: false,
         frequency: freq,
-        amountPerPeriod: periodAmount ? Number(periodAmount) : null,
+        amountPerPeriod: periodAmount ? getMoneyValue(periodAmount) : null,
         startDate: startDate || null,
+        // Không gửi endDate cho quỹ không thời hạn
         note: note.trim() || null,
       };
 
@@ -316,12 +325,20 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
           <div>
             <label>{t('funds.form.period_amount')}</label>
             <input 
-              type="number" 
-              // Chỉ dùng VND, tối thiểu 0
-              min={0} 
+              type="text"
+              inputMode="numeric"
               placeholder={t('funds.form.period_amount_optional')}
               value={periodAmount}
-              onChange={(e) => setPeriodAmount(e.target.value)}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                if (!inputValue) {
+                  setPeriodAmount("");
+                  return;
+                }
+                const parsed = parseMoneyInput(inputValue);
+                const formatted = formatMoneyInput(parsed);
+                setPeriodAmount(formatted);
+              }}
             />
           </div>
         </div>
