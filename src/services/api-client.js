@@ -1386,6 +1386,29 @@ export const notificationAPI = {
 };
 
 /**
+ * ==============================
+ * CHAT API (AI Chatbot)
+ * ==============================
+ */
+export const chatAPI = {
+  /**
+   * Gửi message đến AI chatbot
+   * @param {string} message - Câu hỏi của người dùng
+   * @param {Array} history - Lịch sử hội thoại (optional)
+   * @returns {Promise<Object>} Response từ AI
+   */
+  sendMessage: async (message, history = []) => {
+    return apiCall("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message,
+        history,
+      }),
+    });
+  },
+};
+
+/**
  * Export default object chứa tất cả APIs
  */
 const apiClient = {
@@ -1400,6 +1423,7 @@ const apiClient = {
   admin: adminAPI,
   loginLog: loginLogAPI,
   notification: notificationAPI,
+  chat: chatAPI,
 };
 
 export default apiClient;
