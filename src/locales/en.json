@@ -12,8 +12,7 @@
   "currency": "Currency",
   "theme": "Theme",
   "password": "Change password",
-  "logout_all": "Log out all devices"
-,
+  "logout_all": "Log out all devices",
   "profile_title": "Edit profile",
   "profile_desc": "Update your avatar and display name.",
   "display_name": "Display name",
@@ -77,8 +76,7 @@
   "backup_manual": "Manually backup current data.",
   "backup_auto": "Enable automatic sync with your account.",
   "backup_now": "Backup now",
-  "enable_sync": "Enable sync"
-,
+  "enable_sync": "Enable sync",
   "overview": "Overview",
   "wallets": "Wallets",
   "funds": "Funds",
@@ -90,8 +88,7 @@
   "admin_reviews": "Reviews & comments",
   "app_brand_title": "PERSONAL FINANCE",
   "app_brand_sub": "Manage your personal wallets",
-  "menu": "Menu"
-,
+  "menu": "Menu",
   "login_log": "Sign-in activity",
   "security_group": "Security",
   "system_group": "System",
