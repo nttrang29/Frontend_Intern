@@ -1,6 +1,7 @@
 import React from "react";
 import { formatMoney } from "../../../utils/formatMoney";
 import { formatVietnamDate } from "../../../utils/dateFormat";
+import { formatMoneyInput, parseMoneyInput, getMoneyValue } from "../../../utils/formatMoneyInput";
 import DepositPreview from "../DepositPreview";
 
 export default function FundDepositTab({
@@ -534,36 +535,25 @@ export default function FundDepositTab({
                   Số tiền muốn nạp ({fund.currency}) <span className="req">*</span>
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  step="any"
+                  type="text"
+                  inputMode="numeric"
                   value={depositAmount}
                   onChange={(e) => {
-                    // Chỉ cho phép số và dấu chấm
-                    const value = e.target.value.replace(/[^0-9.]/g, '');
-                    setDepositAmount(value);
+                    const inputValue = e.target.value;
+                    if (!inputValue) {
+                      setDepositAmount("");
+                      return;
+                    }
+                    const parsed = parseMoneyInput(inputValue);
+                    const formatted = formatMoneyInput(parsed);
+                    setDepositAmount(formatted);
                   }}
                   onWheel={(e) => {
                     // Chặn cuộn chuột để thay đổi số tiền
                     e.target.blur();
                   }}
-                  onKeyDown={(e) => {
-                    // Chặn các phím không phải số, dấu chấm, backspace, delete, arrow keys
-                    if (!/[0-9.]/.test(e.key) && 
-                        !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab', 'Enter'].includes(e.key) &&
-                        !(e.ctrlKey || e.metaKey) && // Cho phép Ctrl+C, Ctrl+V, etc.
-                        !(e.key === 'a' && (e.ctrlKey || e.metaKey)) && // Cho phép Ctrl+A
-                        !(e.key === 'c' && (e.ctrlKey || e.metaKey)) &&
-                        !(e.key === 'v' && (e.ctrlKey || e.metaKey)) &&
-                        !(e.key === 'x' && (e.ctrlKey || e.metaKey))) {
-                      e.preventDefault();
-                    }
-                  }}
-                  inputMode="decimal"
-                  pattern="[0-9]*"
                   placeholder="Nhập số tiền muốn nạp"
                   style={{
-                    MozAppearance: 'textfield',
                     width: '100%',
                     borderRadius: '10px',
                     border: '1px solid var(--color-border)',
@@ -572,7 +562,6 @@ export default function FundDepositTab({
                     outline: 'none',
                     transition: 'var(--transition-base)'
                   }}
-                  className="no-spinner"
                   onFocus={(e) => {
                     e.target.style.borderColor = 'var(--color-primary)';
                     e.target.style.boxShadow = '0 0 0 1px rgba(45, 153, 174, 0.35)';
@@ -603,7 +592,7 @@ export default function FundDepositTab({
                   type="submit" 
                   className="btn-primary" 
                   disabled={saving || (() => {
-                    const amount = Number(depositAmount);
+                    const amount = getMoneyValue(depositAmount);
                     const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
                     return amount > 0 && sourceWallet && amount > sourceWallet.balance;
                   })()}

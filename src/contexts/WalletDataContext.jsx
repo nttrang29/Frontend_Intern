@@ -304,6 +304,10 @@ export function WalletDataProvider({ children }) {
       isDefault: apiWallet.isDefault !== undefined 
         ? apiWallet.isDefault 
         : (apiWallet.default !== undefined ? apiWallet.default : false),
+      // ✨ Map isFundWallet từ backend (đã được lưu trong database)
+      isFundWallet: apiWallet.isFundWallet !== undefined 
+        ? apiWallet.isFundWallet 
+        : (existingWallet?.isFundWallet || false),
       isShared: rawIsShared,
       groupId: apiWallet.groupId || null,
       ownerUserId: apiWallet.ownerId || apiWallet.ownerUserId || apiWallet.createdBy || existingWallet?.ownerUserId || null,
@@ -379,6 +383,7 @@ export function WalletDataProvider({ children }) {
                    oldWallet.currency !== newWallet.currency ||
                    oldWallet.currencyCode !== newWallet.currencyCode ||
                    oldWallet.isDefault !== newWallet.isDefault ||
+                   oldWallet.isFundWallet !== newWallet.isFundWallet || // ✨ So sánh isFundWallet
                    oldWallet.isShared !== newWallet.isShared ||
                    oldWallet.transactionCount !== newWallet.transactionCount ||
                    oldWallet.txCount !== newWallet.txCount ||
@@ -386,24 +391,6 @@ export function WalletDataProvider({ children }) {
                    oldSharedEmails !== newSharedEmails ||
                    oldRole !== newRole; // So sánh role đã normalize
             
-            // Log thay đổi để debug
-            if (changed) {
-              console.log("🔄 Wallet changed:", {
-                walletId: newWallet.id,
-                walletName: newWallet.name,
-                changes: {
-                  name: oldWallet.name !== newWallet.name,
-                  balance: oldWallet.balance !== newWallet.balance,
-                  membersCount: oldWallet.membersCount !== newWallet.membersCount,
-                  sharedEmails: oldSharedEmails !== newSharedEmails,
-                  role: oldRole !== newRole
-                },
-                oldMembersCount: oldWallet.membersCount,
-                newMembersCount: newWallet.membersCount,
-                oldSharedEmails: oldSharedEmails,
-                newSharedEmails: newSharedEmails
-              });
-            }
             
             return changed;
           });
@@ -430,8 +417,23 @@ export function WalletDataProvider({ children }) {
   // ====== helpers ======
   const createWallet = async (payload) => {
     try {
+      // Validate payload trước khi gửi
+      if (!payload || !payload.name || !payload.name.trim()) {
+        throw new Error("Tên ví không được để trống");
+      }
+
+      const walletName = payload.name.trim();
+      
+      // Kiểm tra xem đã có ví với tên này chưa (chỉ check local để tránh race condition)
+      const existingWallet = wallets.find(
+        w => w.name && w.name.trim().toLowerCase() === walletName.toLowerCase() && !w.deleted
+      );
+      if (existingWallet) {
+        throw new Error(`Bạn đã có ví tên "${walletName}"`);
+      }
+
       const { response, data } = await createWalletAPI({
-        walletName: payload.name,
+        walletName: walletName,
         currencyCode: payload.currency || "VND",
         description: payload.note || "",
         setAsDefault: payload.isDefault || false,
@@ -489,11 +491,22 @@ export function WalletDataProvider({ children }) {
         }
         return finalWallet;
       } else {
-        throw new Error(data.error || "Không thể tạo ví");
+        // Xử lý lỗi từ server một cách rõ ràng hơn
+        const errorMessage = data?.error || data?.message || "Không thể tạo ví";
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error("Error creating wallet:", error);
-      throw error;
+      // Nếu error đã có message, giữ nguyên; nếu không, tạo message mặc định
+      if (error.message) {
+        throw error;
+      } else if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      } else if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else {
+        throw new Error("Không thể tạo ví. Vui lòng thử lại.");
+      }
     }
   };
 

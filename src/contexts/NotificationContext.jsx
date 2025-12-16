@@ -137,7 +137,6 @@ export function NotificationProvider({ children }) {
       // để đảm bảo UI được cập nhật khi có thay đổi
       if (allWalletMemberLeftNotifications.length > 0) {
         if (typeof window !== "undefined") {
-          console.log("🔄 Dispatching walletNotificationReceived with all WALLET_MEMBER_LEFT notifications:", allWalletMemberLeftNotifications.length);
           window.dispatchEvent(new CustomEvent("walletNotificationReceived", {
             detail: { notifications: allWalletMemberLeftNotifications }
           }));
@@ -149,7 +148,6 @@ export function NotificationProvider({ children }) {
       const allRoleUpdatedNotifs = notifs.filter(n => n.type === "WALLET_ROLE_UPDATED");
       if (allRoleUpdatedNotifs.length > 0) {
         if (typeof window !== "undefined") {
-          console.log("🔄 Dispatching walletRoleUpdated events for", allRoleUpdatedNotifs.length, "notifications");
           
           // Dispatch qua walletNotificationReceived để handleNotificationReceived xử lý
           window.dispatchEvent(new CustomEvent("walletNotificationReceived", {
@@ -160,7 +158,6 @@ export function NotificationProvider({ children }) {
           allRoleUpdatedNotifs.forEach(notif => {
             const walletId = notif.referenceId || notif.walletId || notif.reference_id;
             if (walletId) {
-              console.log("🔄 Dispatching walletRoleUpdated event for wallet", walletId, "notification:", notif.id, "read:", notif.read);
               window.dispatchEvent(new CustomEvent("walletRoleUpdated", {
                 detail: { 
                   walletId: Number(walletId),
@@ -177,7 +174,6 @@ export function NotificationProvider({ children }) {
       const allInvitedNotifs = notifs.filter(n => n.type === "WALLET_INVITED");
       if (allInvitedNotifs.length > 0) {
         if (typeof window !== "undefined") {
-          console.log("🔄 Dispatching walletNotificationReceived with WALLET_INVITED notifications:", allInvitedNotifs.length);
           window.dispatchEvent(new CustomEvent("walletNotificationReceived", {
             detail: { notifications: allInvitedNotifs }
           }));
@@ -211,7 +207,6 @@ export function NotificationProvider({ children }) {
             })
             .filter(Boolean);
           
-          console.log("🔄 Dispatching walletMemberLeft event with walletIds:", walletIds, "notifications:", newMemberLeftNotifications.map(n => ({ id: n.id, type: n.type, read: n.read, createdAt: n.createdAt })));
           
           // Dispatch event ngay lập tức
           window.dispatchEvent(new CustomEvent("walletMemberLeft", {
@@ -239,7 +234,6 @@ export function NotificationProvider({ children }) {
           // Kiểm tra xem có notification nào chưa được dispatch trong lần này không
           const alreadyDispatched = newMemberLeftNotifications.some(n => !n.read);
           if (!alreadyDispatched) {
-            console.log("🔄 Dispatching walletMemberLeft event for unread notifications, walletIds:", unreadWalletIds);
             window.dispatchEvent(new CustomEvent("walletMemberLeft", {
               detail: { 
                 notifications: unreadMemberLeftNotifications,

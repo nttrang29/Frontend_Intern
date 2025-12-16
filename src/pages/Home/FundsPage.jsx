@@ -18,7 +18,7 @@ import FundDetailView from "../../components/funds/FundDetailView";
 
 export default function FundsPage() {
   const location = useLocation();
-  const { wallets } = useWalletData();
+  const { wallets, loadWallets } = useWalletData();
   const { funds, loading, loadFunds, getFundById } = useFundData();
   const { t } = useLanguage();
 
@@ -311,9 +311,20 @@ export default function FundsPage() {
 
           {personalTab === "term" ? (
             <PersonalTermForm 
-              wallets={personalWallets} 
+              wallets={personalWallets}
               onSuccess={async () => {
+                // Reload funds để cập nhật danh sách quỹ
                 await loadFunds();
+                // Reload wallets sau một chút để đảm bảo backend đã commit transaction
+                if (loadWallets) {
+                  // Đợi backend commit transaction
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  await loadWallets();
+                  // Reload lại sau một chút để đảm bảo backend đã xử lý xong hoàn toàn
+                  setTimeout(async () => {
+                    await loadWallets();
+                  }, 2500);
+                }
                 setViewMode("overview");
               }}
             />
@@ -321,7 +332,18 @@ export default function FundsPage() {
             <PersonalNoTermForm 
               wallets={personalWallets}
               onSuccess={async () => {
+                // Reload funds để cập nhật danh sách quỹ
                 await loadFunds();
+                // Reload wallets sau một chút để đảm bảo backend đã commit transaction
+                if (loadWallets) {
+                  // Đợi backend commit transaction
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  await loadWallets();
+                  // Reload lại sau một chút để đảm bảo backend đã xử lý xong hoàn toàn
+                  setTimeout(async () => {
+                    await loadWallets();
+                  }, 2500);
+                }
                 setViewMode("overview");
               }}
             />

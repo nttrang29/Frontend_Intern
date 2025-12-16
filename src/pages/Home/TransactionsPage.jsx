@@ -1488,37 +1488,88 @@ export default function TransactionsPage() {
     const fundId = fund.id || fund.fundId;
     const fundName = fund.name || fund.fundName || "Unknown Fund";
     
-    // Lấy ví nguồn (source wallet) - ví mà tiền được nạp từ đó vào quỹ
-    // Ưu tiên: fundTx.sourceWalletId > fund.sourceWalletId > fundTx.sourceWallet?.walletId
-    const sourceWalletId = fundTx.sourceWalletId || 
-                          fund.sourceWalletId || 
-                          fundTx.sourceWallet?.walletId || 
-                          fundTx.sourceWallet?.id ||
-                          fundTx.fromWalletId ||
-                          null;
+    // Lấy ví nguồn (source wallet) - làm giống y hệt mapTransactionToFrontend
+    // Khai báo các biến ở scope lớn hơn để dùng trong return
+    let sourceWalletId = null;
+    let isWalletDeleted = false;
+    
+    // Lấy sourceWalletId (tương ứng walletId trong mapTransactionToFrontend)
+    sourceWalletId = fundTx.sourceWalletId || 
+                    fund.sourceWalletId || 
+                    fundTx.sourceWallet?.walletId || 
+                    fundTx.sourceWallet?.id ||
+                    fund.sourceWallet?.walletId ||
+                    fund.sourceWallet?.id ||
+                    fundTx.fromWalletId ||
+                    null;
+    
+    // Lấy sourceWallet từ walletsMap (giống mapTransactionToFrontend: wallet = walletsMap.get(walletId))
+    // Lưu ý: wallets list từ WalletDataContext đã filter deleted wallets, nhưng walletsMap vẫn có thể chứa
     const sourceWallet = sourceWalletId ? walletsMap.get(sourceWalletId) : null;
     
-    let walletName = sourceWallet?.walletName || 
-                     sourceWallet?.name || 
-                     fundTx.sourceWallet?.walletName ||
-                     fundTx.sourceWallet?.name ||
-                     fundTx.sourceWalletName ||
-                     "Unknown";
+    // Lấy tên ví nguồn (giống mapTransactionToFrontend: walletName từ wallet hoặc tx.wallet)
+    // Ưu tiên từ sourceWallet (từ walletsMap), sau đó từ fundTx.sourceWallet hoặc fund.sourceWallet
+    let sourceWalletName = 
+        sourceWallet?.walletName ||
+        sourceWallet?.name ||
+        fundTx.sourceWallet?.walletName ||
+        fundTx.sourceWallet?.name ||
+        fund.sourceWallet?.walletName ||
+        fund.sourceWallet?.name ||
+        fund.sourceWalletName ||
+        fundTx.sourceWalletName ||
+        "Ví nguồn";
     
     // Kiểm tra xem wallet có bị deleted không
-    const isWalletDeleted = sourceWallet?.deleted === true || sourceWallet?.isDeleted === true;
-    if (isWalletDeleted) {
-      walletName = `${walletName} (đã xóa)`;
+    // Vì FundTransactionResponse không có sourceWallet object, chỉ có sourceWalletId và sourceWalletName
+    // Nên cách kiểm tra là: nếu có sourceWalletId nhưng không tìm thấy trong walletsMap,
+    // thì có thể wallet đã bị xóa (vì wallets list đã filter deleted wallets)
+    // Tuy nhiên, cũng cần kiểm tra từ fundTx.sourceWallet và fund.sourceWallet nếu có
+    
+    const sourceWalletFromTx = fundTx.sourceWallet || null;
+    const sourceWalletFromFund = fund.sourceWallet || null;
+    
+    // Kiểm tra deleted từ sourceWallet object nếu có (từ transaction/fund entity)
+    const deletedFromEntity =
+      sourceWalletFromTx?.deleted === true ||
+      sourceWalletFromFund?.deleted === true ||
+      sourceWalletFromTx?.isDeleted === true ||
+      sourceWalletFromFund?.isDeleted === true;
+    
+    // Nếu không có trong walletsMap nhưng có sourceWalletId, có thể wallet đã bị xóa
+    // (vì wallets list đã filter deleted wallets)
+    // Chỉ áp dụng logic này nếu sourceWalletName không phải là "Ví nguồn" (default)
+    // để tránh false positive khi sourceWalletId không hợp lệ
+    const notFoundInWalletsMap = sourceWalletId && !sourceWallet && sourceWalletName !== "Ví nguồn";
+    
+    isWalletDeleted = deletedFromEntity || notFoundInWalletsMap;
+    
+    // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
+    if (isWalletDeleted && !sourceWalletName.includes("(đã xóa)")) {
+      sourceWalletName = `${sourceWalletName} (đã xóa)`;
     }
     
-    // Lưu targetWalletId để dùng cho các mục đích khác (nếu cần)
-    const targetWalletId = fund.targetWalletId || fund.walletId;
+    // Ví nguồn sẽ dùng cho walletName (để hiển thị trong cột Ví của bảng)
+    let walletName = sourceWalletName;
+    
+    // Ví quỹ hiển thị dạng "{fundName} - Ví Quỹ" theo TransactionFund
+    let targetWalletName = fundName 
+                          ? `${fundName} - Ví Quỹ`
+                          : (fund.targetWalletName || 
+                             fund.targetWallet?.name ||
+                             fund.targetWallet?.walletName ||
+                             "Ví quỹ");
 
     // Xác định type: DEPOSIT/WITHDRAW -> income/expense
+    // Theo logic trong TransactionFund:
+    // - Nạp tiền vào quỹ (DEPOSIT) = Chi tiêu (tiền ra khỏi ví nguồn) = expense
+    // - Rút tiền từ quỹ (WITHDRAW) = Thu nhập (tiền về ví nguồn) = income
+    // - Tất toán quỹ (SETTLE) = Thu nhập (tiền về ví nguồn) = income
     const txType = fundTx.type?.toUpperCase() || "";
     const isDeposit = txType === "DEPOSIT" || txType === "AUTO_DEPOSIT" || txType === "AUTO_DEPOSIT_RECOVERY" || txType === "MANUAL_DEPOSIT";
     const isWithdraw = txType === "WITHDRAW" || txType === "AUTO_WITHDRAW";
-    const type = isDeposit ? "income" : isWithdraw ? "expense" : "income"; // Mặc định là income
+    const isSettle = txType === "SETTLE";
+    const type = isDeposit ? "expense" : (isWithdraw || isSettle) ? "income" : "expense"; // Nạp = chi tiêu, Rút/Tất toán = thu nhập
 
     // Format date
     const rawDateValue = fundTx.createdAt || fundTx.transactionDate || fundTx.date || new Date().toISOString();
@@ -1528,16 +1579,18 @@ export default function TransactionsPage() {
     const displayAmount = parseFloat(fundTx.amount || 0);
     const currency = fundTx.currencyCode || fund.currency || "VND";
 
-    // Category label dựa trên type
+    // Category label dựa trên type - theo TransactionFund
     let categoryName = "Giao dịch quỹ";
     if (txType === "DEPOSIT" || txType === "MANUAL_DEPOSIT") {
-      categoryName = "Nạp tiền quỹ";
+      categoryName = "Nạp tiền vào quỹ";
     } else if (txType === "AUTO_DEPOSIT") {
-      categoryName = "Nạp tự động quỹ";
+      categoryName = "Nạp tiền tự động";
     } else if (txType === "AUTO_DEPOSIT_RECOVERY") {
-      categoryName = "Nạp bù tự động quỹ";
+      categoryName = "Nạp bù tự động";
     } else if (txType === "WITHDRAW" || txType === "AUTO_WITHDRAW") {
-      categoryName = "Rút tiền quỹ";
+      categoryName = "Rút tiền từ quỹ";
+    } else if (txType === "SETTLE") {
+      categoryName = "Tất toán quỹ";
     }
 
     // Status
@@ -1554,6 +1607,8 @@ export default function TransactionsPage() {
       defaultNote = `Nạp bù tự động vào quỹ ${fundName}`;
     } else if (txType === "WITHDRAW" || txType === "AUTO_WITHDRAW") {
       defaultNote = `Rút tiền từ quỹ ${fundName}`;
+    } else if (txType === "SETTLE") {
+      defaultNote = `Tất toán quỹ ${fundName}`;
     } else {
       defaultNote = `Giao dịch quỹ ${fundName}`;
     }
@@ -1578,7 +1633,7 @@ export default function TransactionsPage() {
       code: `FTX-${String(fundId).padStart(3, "0")}-${String(transactionId).padStart(4, "0")}`,
       type,
       walletId: sourceWalletId ? Number(sourceWalletId) : null,
-      walletName: walletName,
+      walletName: walletName, // Ví nguồn (source wallet)
       fundId: fundId ? Number(fundId) : null,
       fundName: fundName,
       fundHasDeadline: hasDeadline,
@@ -1591,8 +1646,12 @@ export default function TransactionsPage() {
       attachment: "",
       // Flags để đánh dấu đây là fund transaction
       isFundTransaction: true,
+      transactionType: txType, // Thêm transactionType để hiển thị trong modal
       fundTransactionType: txType,
       fundTransactionStatus: status,
+      // Thông tin ví nguồn và ví quỹ để hiển thị trong modal
+      sourceWallet: sourceWalletName,
+      targetWallet: targetWalletName,
       // Lưu raw data
       rawFundTx: fundTx,
       rawFund: fund,
@@ -1601,7 +1660,7 @@ export default function TransactionsPage() {
       isLeftWallet: false,
       isViewerWallet: false,
     };
-  }, [walletsMap]);
+  }, [walletsMap, wallets]);
 
   const refreshTransactionsData = useCallback(async () => {
     // Lấy walletIds từ walletsIds string
@@ -1824,6 +1883,11 @@ export default function TransactionsPage() {
       });
 
       const personalInternal = mappedInternal.filter((tx) => {
+        // Loại bỏ fund transactions - kiểm tra nếu targetWalletId là fund wallet
+        const targetWalletId = tx.targetWalletId || tx.rawTransfer?.toWalletId || tx.rawTransfer?.toWallet?.walletId;
+        if (targetWalletId && fundWalletIds.has(String(targetWalletId))) {
+          return false; // Đây là fund transaction, loại bỏ khỏi internal
+        }
         if (!tx.sourceWallet || !tx.targetWallet) return false;
         // Lấy tên ví từ transaction (đã được map, có thể có "(đã rời ví)" hoặc "(đã xóa)")
         const sourceWalletName = tx.sourceWallet
@@ -1880,6 +1944,11 @@ export default function TransactionsPage() {
         return sourceType !== "GROUP" && targetType !== "GROUP";
       });
       const groupInternal = mappedInternal.filter((tx) => {
+        // Loại bỏ fund transactions - kiểm tra nếu targetWalletId là fund wallet
+        const targetWalletId = tx.targetWalletId || tx.rawTransfer?.toWalletId || tx.rawTransfer?.toWallet?.walletId;
+        if (targetWalletId && fundWalletIds.has(String(targetWalletId))) {
+          return false; // Đây là fund transaction, loại bỏ khỏi internal
+        }
         if (!tx.sourceWallet || !tx.targetWallet) return false;
         // Lấy tên ví từ transaction (đã được map, có thể có "(đã rời ví)" hoặc "(đã xóa)")
         const sourceWalletName = tx.sourceWallet
@@ -2068,6 +2137,9 @@ export default function TransactionsPage() {
         "TransactionsPage: scoped history fetch failed, using legacy APIs",
         scopedError
       );
+      // Fetch fund transactions trong catch block để có fundWalletIds
+      const fundData = await fetchFundTransactions();
+      const { fundTransactions: legacyFundTransactionsList, fundWalletIds: legacyFundWalletIds } = fundData;
       const legacy = await fetchLegacyHistory();
       const filteredLegacyExternal = legacy.external.filter(matchesCurrentUser);
       const filteredLegacyInternal = legacy.internal.filter(matchesCurrentUser);
@@ -2150,6 +2222,11 @@ export default function TransactionsPage() {
       });
 
       const personalInternalLegacy = mappedInternal.filter((tx) => {
+        // Loại bỏ fund transactions - kiểm tra nếu targetWalletId là fund wallet
+        const targetWalletId = tx.targetWalletId || tx.rawTransfer?.toWalletId || tx.rawTransfer?.toWallet?.walletId;
+        if (targetWalletId && legacyFundWalletIds && legacyFundWalletIds.has(String(targetWalletId))) {
+          return false; // Đây là fund transaction, loại bỏ khỏi internal
+        }
         if (!tx.sourceWallet || !tx.targetWallet) return false;
         // Lấy tên ví từ transaction (đã được map, có thể có "(đã rời ví)" hoặc "(đã xóa)")
         const sourceWalletName = tx.sourceWallet
@@ -2206,6 +2283,11 @@ export default function TransactionsPage() {
         return sourceType !== "GROUP" && targetType !== "GROUP";
       });
       const groupInternalLegacy = mappedInternal.filter((tx) => {
+        // Loại bỏ fund transactions - kiểm tra nếu targetWalletId là fund wallet
+        const targetWalletId = tx.targetWalletId || tx.rawTransfer?.toWalletId || tx.rawTransfer?.toWallet?.walletId;
+        if (targetWalletId && legacyFundWalletIds && legacyFundWalletIds.has(String(targetWalletId))) {
+          return false; // Đây là fund transaction, loại bỏ khỏi internal
+        }
         if (!tx.sourceWallet || !tx.targetWallet) return false;
         // Lấy tên ví từ transaction (đã được map, có thể có "(đã rời ví)" hoặc "(đã xóa)")
         const sourceWalletName = tx.sourceWallet
@@ -2369,6 +2451,23 @@ export default function TransactionsPage() {
           }
         }
         return allInternalLegacy;
+      });
+
+      // Set fund transactions trong legacy path
+      setFundTransactions((prev) => {
+        const prevIds = new Set(
+          prev.map((t) => t.id || t.transactionId || t.code)
+        );
+        const newIds = new Set(
+          legacyFundTransactionsList.map((t) => t.id || t.transactionId || t.code)
+        );
+        if (
+          prevIds.size === newIds.size &&
+          [...prevIds].every((id) => newIds.has(id))
+        ) {
+          return prev; // Không thay đổi, giữ nguyên
+        }
+        return legacyFundTransactionsList;
       });
     }
   }, [
@@ -4015,6 +4114,17 @@ export default function TransactionsPage() {
               <button
                 type="button"
                 className={`funds-tab ${
+                  activeTab === TABS.FUND ? "funds-tab--active" : ""
+                }`}
+                onClick={() =>
+                  handleTabChange({ target: { value: TABS.FUND } })
+                }
+              >
+                Giao dịch quỹ
+              </button>
+              <button
+                type="button"
+                className={`funds-tab ${
                   activeTab === TABS.SCHEDULE ? "funds-tab--active" : ""
                 }`}
                 onClick={() =>
@@ -4179,11 +4289,13 @@ export default function TransactionsPage() {
             className={`transactions-layout ${
               expandedPanel
                 ? "transactions-layout--expanded"
+                : activeTab === TABS.FUND
+                ? "transactions-layout--fund-only"
                 : "transactions-layout--with-history"
             }`}
           >
-            {/* LEFT: Create Transaction Form */}
-            {(!expandedPanel || expandedPanel === "form") && (
+            {/* LEFT: Create Transaction Form - Ẩn khi activeTab === FUND */}
+            {activeTab !== TABS.FUND && (!expandedPanel || expandedPanel === "form") && (
               <div
                 className={`transactions-form-panel ${
                   expandedPanel === "form" ? "expanded" : ""

@@ -49,6 +49,11 @@
   grid-template-columns: 1fr;
 }
 
+  /* Layout chỉ có history panel (cho fund transactions) */
+.transactions-layout--fund-only {
+  grid-template-columns: 1fr;
+}
+
 @media (min-width: 992px) {
   .transactions-layout--with-history {
     grid-template-columns: 0.85fr 1.15fr;
@@ -61,6 +66,10 @@
   .transactions-layout--expanded .transactions-form-panel.expanded,
   .transactions-layout--expanded .transactions-history-panel.expanded {
     grid-column: 1 / -1;
+  }
+  
+  .transactions-layout--fund-only {
+    grid-template-columns: 1fr;
   }
 }
 
