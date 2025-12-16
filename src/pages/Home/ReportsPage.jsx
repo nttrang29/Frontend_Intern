@@ -13,9 +13,11 @@ import { useBudgetData } from "../../contexts/BudgetDataContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services";
 import { getFundTransactions } from "../../services/fund.service";
+import { reportAPI } from "../../services/api-client";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
 import BudgetDetailModal from "../../components/budgets/BudgetDetailModal";
+import PDFPreviewModal from "../../components/common/PDFPreviewModal/PDFPreviewModal";
 
 const RANGE_OPTIONS = [
   { value: "day", label: "Ngày" },
@@ -25,7 +27,7 @@ const RANGE_OPTIONS = [
 ];
 
 const INCOME_COLOR = "#0B63F6";
-const EXPENSE_COLOR = "#00C2FF";
+const EXPENSE_COLOR = "#E91E63"; // Màu hồng đậm
 const PAGE_SIZE = 10;
 
 const FUND_FILTERS = [
@@ -100,19 +102,49 @@ const addDays = (date, days) => {
   return result;
 };
 
-const sumInRange = (list, start, end) => {
+// Tính tổng Thu vào và Chi ra trong khoảng thời gian
+// Thu vào: income, deposit, transfer vào, merge nhận, fund withdraw
+// Chi ra: expense, withdraw, transfer ra, fund deposit, merge gửi
+const sumInRange = (list, start, end, selectedWalletId) => {
   const totals = { income: 0, expense: 0 };
+  const walletId = Number(selectedWalletId);
+  
   list.forEach((tx) => {
     if (!tx.date) return;
-    if (tx.date >= start && tx.date <= end) {
-      if (tx.type === "income") totals.income += tx.amount;
-      else totals.expense += tx.amount;
+    if (tx.date < start || tx.date > end) return;
+    
+    // Xử lý transfer: transfer vào ví (toWalletId === walletId) = Thu vào, transfer ra ví (fromWalletId === walletId) = Chi ra
+    if (tx.type === "transfer") {
+      if (tx.toWalletId === walletId) {
+        // Transfer vào ví = Thu vào
+        totals.income += tx.amount;
+      } else if (tx.fromWalletId === walletId) {
+        // Transfer ra ví = Chi ra
+        totals.expense += tx.amount;
+      }
+      return;
+    }
+    
+    // Xử lý transaction thông thường
+    // Thu vào: income, deposit (nếu có type là deposit)
+    // Chi ra: expense, withdraw (nếu có type là withdraw)
+    const typeName = (tx.transactionTypeName || tx.typeName || tx.type || "").toLowerCase();
+    
+    if (typeName.includes("thu") || typeName.includes("income") || typeName.includes("deposit") || typeName === "income") {
+      totals.income += tx.amount;
+    } else if (typeName.includes("chi") || typeName.includes("expense") || typeName.includes("withdraw") || typeName === "expense") {
+      totals.expense += tx.amount;
+    } else if (tx.type === "income") {
+      totals.income += tx.amount;
+    } else if (tx.type === "expense") {
+      totals.expense += tx.amount;
     }
   });
+  
   return totals;
 };
 
-const buildDailyData = (transactions) => {
+const buildDailyData = (transactions, selectedWalletId) => {
   const now = new Date();
   const periods = Array.from({ length: 24 }, (_, hour) => {
     const start = new Date(now);
@@ -128,11 +160,11 @@ const buildDailyData = (transactions) => {
 
   return periods.map((period) => ({
     label: period.label,
-    ...sumInRange(transactions, period.start, period.end),
+    ...sumInRange(transactions, period.start, period.end, selectedWalletId),
   }));
 };
 
-const buildWeeklyData = (transactions) => {
+const buildWeeklyData = (transactions, selectedWalletId) => {
   const now = new Date();
   const dayOfWeek = now.getDay() || 7; // 1..7 (Mon..Sun)
   const monday = addDays(now, 1 - dayOfWeek);
@@ -146,11 +178,11 @@ const buildWeeklyData = (transactions) => {
 
   return periods.map((period) => ({
     label: period.label,
-    ...sumInRange(transactions, period.start, period.end),
+    ...sumInRange(transactions, period.start, period.end, selectedWalletId),
   }));
 };
 
-const buildMonthlyData = (transactions) => {
+const buildMonthlyData = (transactions, selectedWalletId) => {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
@@ -164,11 +196,11 @@ const buildMonthlyData = (transactions) => {
   return periods.map(({ label, startDay, endDay }) => {
     const start = new Date(year, month, startDay, 0, 0, 0);
     const end = new Date(year, month, endDay, 23, 59, 59);
-    return { label, ...sumInRange(transactions, start, end) };
+    return { label, ...sumInRange(transactions, start, end, selectedWalletId) };
   });
 };
 
-const buildYearlyData = (transactions) => {
+const buildYearlyData = (transactions, selectedWalletId) => {
   const now = new Date();
   const year = now.getFullYear();
   const periods = Array.from({ length: 12 }, (_, idx) => ({
@@ -179,22 +211,22 @@ const buildYearlyData = (transactions) => {
   return periods.map(({ label, month }) => {
     const start = new Date(year, month, 1, 0, 0, 0);
     const end = new Date(year, month + 1, 0, 23, 59, 59);
-    return { label, ...sumInRange(transactions, start, end) };
+    return { label, ...sumInRange(transactions, start, end, selectedWalletId) };
   });
 };
 
-const buildChartData = (transactions, range) => {
+const buildChartData = (transactions, range, selectedWalletId) => {
   if (!transactions.length) return [];
   switch (range) {
     case "day":
-      return buildDailyData(transactions);
+      return buildDailyData(transactions, selectedWalletId);
     case "month":
-      return buildMonthlyData(transactions);
+      return buildMonthlyData(transactions, selectedWalletId);
     case "year":
-      return buildYearlyData(transactions);
+      return buildYearlyData(transactions, selectedWalletId);
     case "week":
     default:
-      return buildWeeklyData(transactions);
+      return buildWeeklyData(transactions, selectedWalletId);
   }
 };
 
@@ -723,6 +755,11 @@ export default function ReportsPage() {
   const [fundHistoryItems, setFundHistoryItems] = useState([]);
   const [fundHistoryLoading, setFundHistoryLoading] = useState(false);
   const [fundHistoryError, setFundHistoryError] = useState(false);
+  
+  // PDF Preview Modal states
+  const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
+  const [pdfPreviewBlob, setPdfPreviewBlob] = useState(null);
+  const [pdfPreviewFileName, setPdfPreviewFileName] = useState("");
   const [allFlexibleFundsHistory, setAllFlexibleFundsHistory] = useState([]);
   const [allFlexibleFundsHistoryLoading, setAllFlexibleFundsHistoryLoading] = useState(false);
   const [termFundsHistory, setTermFundsHistory] = useState({}); // { fundId: [transactions] }
@@ -883,6 +920,19 @@ export default function ReportsPage() {
       const dateB = b.date instanceof Date ? b.date : new Date(b.date);
       return dateB - dateA;
     });
+    
+    // Debug: Log để kiểm tra (có thể bỏ sau khi test)
+    // console.log("ReportsPage: walletTransactions", {
+    //   total: all.length,
+    //   transactions: externalTxs.length,
+    //   transfers: walletTransfers.length,
+    //   byType: {
+    //     income: all.filter(tx => tx.type === "income").length,
+    //     expense: all.filter(tx => tx.type === "expense").length,
+    //     transfer: all.filter(tx => tx.type === "transfer").length,
+    //   }
+    // });
+    
     return all;
   }, [transactions, transfers, selectedWalletId]);
 
@@ -928,189 +978,87 @@ export default function ReportsPage() {
     setCurrentPage(1);
   }, [selectedWalletId]);
 
-  // Export PDF function
-  const handleExportPDF = () => {
-    if (!selectedWallet || walletTransactions.length === 0) return;
-
-    // Create a new window for printing
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert(t("reports.export_pdf_error"));
+  // Export PDF function - Gọi API backend để tạo PDF và hiển thị preview
+  const handleExportPDF = async () => {
+    if (!selectedWallet || walletTransactions.length === 0) {
+      alert(t("reports.export_pdf_error") || "Không có dữ liệu để xuất PDF");
       return;
     }
 
-    const walletName = selectedWallet.name || "Ví";
-    const dateRange = range === "day" ? "Ngày" : range === "week" ? "Tuần" : range === "month" ? "Tháng" : "Năm";
-    const currentDate = formatDate(new Date());
+    try {
+      // Gọi API backend để tạo PDF từ database
+      const blob = await reportAPI.exportWalletPDF({
+        walletId: selectedWallet.id || selectedWallet.walletId,
+        range: range, // "day", "week", "month", "year"
+      });
 
-    // Build HTML content
-    let htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Báo cáo giao dịch - ${walletName}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-              color: #333;
-            }
-            h1 {
-              color: #2d99ae;
-              margin-bottom: 10px;
-            }
-            .report-info {
-              margin-bottom: 20px;
-              color: #666;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 20px;
-            }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-            }
-            th {
-              background-color: #2d99ae;
-              color: white;
-              font-weight: bold;
-            }
-            tr:nth-child(even) {
-              background-color: #f9f9f9;
-            }
-            .text-end {
-              text-align: right;
-            }
-            .badge {
-              padding: 4px 8px;
-              border-radius: 4px;
-              font-size: 0.85rem;
-            }
-            .badge-income {
-              background-color: #d1fae5;
-              color: #059669;
-            }
-            .badge-expense {
-              background-color: #fee2e2;
-              color: #dc2626;
-            }
-            .badge-transfer {
-              background-color: #dbeafe;
-              color: #0ea5e9;
-            }
-            @media print {
-              body { margin: 0; }
-              @page { margin: 1cm; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>Báo cáo giao dịch</h1>
-          <div class="report-info">
-            <p><strong>Ví:</strong> ${walletName}</p>
-            <p><strong>Kỳ báo cáo:</strong> ${dateRange}</p>
-            <p><strong>Ngày xuất:</strong> ${currentDate}</p>
-            <p><strong>Tổng số giao dịch:</strong> ${walletTransactions.length}</p>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>STT</th>
-                <th>Thời gian</th>
-                <th>Loại</th>
-                <th>Ghi chú</th>
-                <th class="text-end">Số tiền</th>
-                <th>Tiền tệ</th>
-                ${selectedWallet?.isShared ? '<th>Thành viên</th>' : ''}
-              </tr>
-            </thead>
-            <tbody>
-    `;
+      // Tạo tên file
+      const walletName = (selectedWallet.name || "Vi").replace(/[^a-zA-Z0-9]/g, "_");
+      const rangeLabel = range === "day" ? "Ngay" : range === "week" ? "Tuan" : range === "month" ? "Thang" : "Nam";
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const fileName = `BaoCao_${walletName}_${rangeLabel}_${dateStr}.pdf`;
 
-    walletTransactions.forEach((tx, index) => {
-      const dateObj = tx.date instanceof Date ? tx.date : new Date(tx.date);
-      const dateTimeStr = `${formatDate(dateObj)} ${formatVietnamTime(dateObj)}`.trim();
-
-      const formatAmountOnly = (amount) => {
-        const numAmount = Number(amount) || 0;
-        return numAmount.toLocaleString("vi-VN", {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 2,
-        });
-      };
-
-      let typeBadge = "";
-      let amountDisplay = "";
-      if (tx.type === "transfer") {
-        typeBadge = '<span class="badge badge-transfer">Chuyển khoản</span>';
-        amountDisplay = formatAmountOnly(tx.amount);
-      } else if (tx.type === "income") {
-        typeBadge = '<span class="badge badge-income">Thu nhập</span>';
-        amountDisplay = "+" + formatAmountOnly(tx.amount);
-      } else {
-        typeBadge = '<span class="badge badge-expense">Chi tiêu</span>';
-        amountDisplay = "-" + formatAmountOnly(tx.amount);
-      }
-
-      const txCreatedBy = tx.createdBy || tx.userId;
-      const isCreatedByCurrentUser = currentUserId && txCreatedBy && (
-        String(txCreatedBy) === String(currentUserId) ||
-        String(txCreatedBy) === String(currentUser?.id)
-      );
+      // Lưu blob và tên file để hiển thị preview
+      setPdfPreviewBlob(blob);
+      setPdfPreviewFileName(fileName);
+      setIsPdfPreviewOpen(true);
       
-      const displayEmail = isCreatedByCurrentUser && currentUserEmail
-        ? currentUserEmail
-        : (tx.createdByEmail || null);
-      
-      const walletMemberEmails = selectedWallet?.isShared && Array.isArray(selectedWallet.sharedEmails)
-        ? selectedWallet.sharedEmails.filter(email => email && typeof email === 'string' && email.trim())
-        : [];
-
-      let memberCell = "";
-      if (selectedWallet?.isShared) {
-        if (displayEmail) {
-          memberCell = `<td>${displayEmail}</td>`;
-        } else if (walletMemberEmails.length > 0) {
-          memberCell = `<td>${walletMemberEmails.slice(0, 2).join(", ")}${walletMemberEmails.length > 2 ? ` +${walletMemberEmails.length - 2}` : ""}</td>`;
-        } else {
-          memberCell = "<td>-</td>";
-        }
-      }
-
-      htmlContent += `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${dateTimeStr}</td>
-          <td>${typeBadge}</td>
-          <td>${tx.note || "-"}</td>
-          <td class="text-end">${amountDisplay}</td>
-          <td>${tx.currency || "VND"}</td>
-          ${memberCell}
-        </tr>
-      `;
-    });
-
-    htmlContent += `
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    
-    // Wait for content to load, then print
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
+    } catch (error) {
+      console.error("Error exporting PDF:", error);
+      alert(t("reports.export_pdf_error") || "Đã xảy ra lỗi khi xuất PDF. Vui lòng thử lại sau.");
+    }
   };
 
-  const chartData = useMemo(() => buildChartData(walletTransactions, range), [walletTransactions, range]);
+  // Handler khi user xác nhận download PDF
+  const handleConfirmDownloadPDF = (blob, fileName) => {
+    if (!blob || !fileName) return;
+
+    try {
+      // Tạo URL từ blob và download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+      
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      alert("Đã xảy ra lỗi khi tải PDF. Vui lòng thử lại sau.");
+    }
+  };
+
+  // Handler đóng preview modal
+  const handleClosePdfPreview = () => {
+    setIsPdfPreviewOpen(false);
+    // Cleanup blob sau khi đóng modal
+    if (pdfPreviewBlob) {
+      setTimeout(() => {
+        setPdfPreviewBlob(null);
+        setPdfPreviewFileName("");
+      }, 300); // Delay để animation đóng hoàn tất
+    }
+  };
+
+  const chartData = useMemo(() => {
+    const data = buildChartData(walletTransactions, range, selectedWalletId);
+    // Debug: Log để kiểm tra (có thể bỏ sau khi test)
+    // console.log("ReportsPage: chartData", {
+    //   range,
+    //   periods: data.length,
+    //   totalIncome: data.reduce((sum, item) => sum + item.income, 0),
+    //   totalExpense: data.reduce((sum, item) => sum + item.expense, 0),
+    //   sample: data.slice(0, 3),
+    // });
+    return data;
+  }, [walletTransactions, range, selectedWalletId]);
   const chartMaxValue = chartData.reduce((max, item) => Math.max(max, item.income, item.expense), 0);
   const yAxisTicks = useMemo(() => {
     if (!chartMaxValue) return [0];
@@ -1122,6 +1070,8 @@ export default function ReportsPage() {
     }
     return ticks;
   }, [chartMaxValue]);
+  // ChartSummary: Tính tổng Thu/Chi TRONG KỲ ĐƯỢC CHỌN (day/week/month/year)
+  // Đã được lọc bởi buildChartData và sumInRange (đã loại bỏ transfer)
   const chartSummary = useMemo(() => {
     return chartData.reduce(
       (acc, item) => {
@@ -1133,12 +1083,153 @@ export default function ReportsPage() {
     );
   }, [chartData]);
   const chartNet = chartSummary.income - chartSummary.expense;
+  
+  // Tính số dư đầu kỳ và cuối kỳ
+  // Số dư hiện tại = Initial Balance + Tổng Thu (all-time) - Tổng Chi (all-time)
+  // Số dư đầu kỳ = Số dư hiện tại - (Thu trong kỳ - Chi trong kỳ)
+  // Số dư cuối kỳ = Số dư đầu kỳ + (Thu trong kỳ - Chi trong kỳ) = Số dư hiện tại
+  const currentBalance = useMemo(() => {
+    return Number(selectedWallet?.balance || 0);
+  }, [selectedWallet]);
+  
+  // Tính tổng Thu/Chi all-time
+  // Thu vào: income, deposit, transfer vào, merge nhận, fund withdraw
+  // Chi ra: expense, withdraw, transfer ra, fund deposit, merge gửi
+  const allTimeSummary = useMemo(() => {
+    const walletId = Number(selectedWalletId);
+    return walletTransactions.reduce(
+      (acc, tx) => {
+        // Xử lý transfer: transfer vào ví = Thu vào, transfer ra ví = Chi ra
+        if (tx.type === "transfer") {
+          if (tx.toWalletId === walletId) {
+            acc.income += tx.amount;
+          } else if (tx.fromWalletId === walletId) {
+            acc.expense += tx.amount;
+          }
+          return acc;
+        }
+        
+        // Xử lý transaction thông thường
+        const typeName = (tx.transactionTypeName || tx.typeName || tx.type || "").toLowerCase();
+        if (typeName.includes("thu") || typeName.includes("income") || typeName.includes("deposit") || tx.type === "income") {
+          acc.income += tx.amount;
+        } else if (typeName.includes("chi") || typeName.includes("expense") || typeName.includes("withdraw") || tx.type === "expense") {
+          acc.expense += tx.amount;
+        }
+        return acc;
+      },
+      { income: 0, expense: 0 }
+    );
+  }, [walletTransactions, selectedWalletId]);
+  
+  // Tính số dư ban đầu (initial balance)
+  // Initial Balance = Current Balance - (All-time Income - All-time Expense)
+  const initialBalance = useMemo(() => {
+    const allTimeNet = allTimeSummary.income - allTimeSummary.expense;
+    return currentBalance - allTimeNet;
+  }, [currentBalance, allTimeSummary]);
+  
+  const periodStartBalance = useMemo(() => {
+    // Lấy khoảng thời gian của kỳ được chọn
+    const now = new Date();
+    let periodStart, periodEnd;
+    
+    switch (range) {
+      case "day":
+        periodStart = new Date(now);
+        periodStart.setHours(0, 0, 0, 0);
+        periodEnd = new Date(now);
+        periodEnd.setHours(23, 59, 59, 999);
+        break;
+      case "week":
+        const dayOfWeek = now.getDay() || 7; // 1..7 (Mon..Sun)
+        const monday = addDays(now, 1 - dayOfWeek);
+        periodStart = new Date(monday);
+        periodStart.setHours(0, 0, 0, 0);
+        periodEnd = addDays(monday, 6);
+        periodEnd.setHours(23, 59, 59, 999);
+        break;
+      case "month":
+        periodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+        periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        break;
+      case "year":
+        periodStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+        periodEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+        break;
+      default:
+        periodStart = new Date(0);
+        periodEnd = new Date();
+    }
+    
+    // Tính tổng Thu/Chi TRƯỚC kỳ được chọn (từ đầu đến trước periodStart)
+    const beforePeriodSummary = walletTransactions.reduce(
+      (acc, tx) => {
+        if (!tx.date) return acc;
+        const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
+        if (txDate >= periodStart) return acc; // Chỉ tính giao dịch trước kỳ
+        
+        const walletId = Number(selectedWalletId);
+        
+        // Xử lý transfer: transfer vào ví = Thu vào, transfer ra ví = Chi ra
+        if (tx.type === "transfer") {
+          if (tx.toWalletId === walletId) {
+            acc.income += tx.amount;
+          } else if (tx.fromWalletId === walletId) {
+            acc.expense += tx.amount;
+          }
+          return acc;
+        }
+        
+        // Xử lý transaction thông thường
+        const typeName = (tx.transactionTypeName || tx.typeName || tx.type || "").toLowerCase();
+        if (typeName.includes("thu") || typeName.includes("income") || typeName.includes("deposit") || tx.type === "income") {
+          acc.income += tx.amount;
+        } else if (typeName.includes("chi") || typeName.includes("expense") || typeName.includes("withdraw") || tx.type === "expense") {
+          acc.expense += tx.amount;
+        }
+        return acc;
+      },
+      { income: 0, expense: 0 }
+    );
+    
+    // Số dư đầu kỳ = Initial Balance + (Thu trước kỳ - Chi trước kỳ)
+    const beforePeriodNet = beforePeriodSummary.income - beforePeriodSummary.expense;
+    const startBalance = initialBalance + beforePeriodNet;
+    
+    // Debug: Log để kiểm tra (có thể bỏ sau khi test)
+    // console.log("ReportsPage: Balance calculation", {
+    //   range,
+    //   periodStart: periodStart.toISOString(),
+    //   periodEnd: periodEnd.toISOString(),
+    //   initialBalance,
+    //   currentBalance,
+    //   allTimeSummary,
+    //   beforePeriodSummary,
+    //   beforePeriodNet,
+    //   periodStartBalance: startBalance,
+    //   chartNet,
+    //   chartSummary,
+    //   verification: Math.abs((startBalance + chartNet) - currentBalance) < 0.01,
+    // });
+    
+    return startBalance;
+  }, [currentBalance, initialBalance, allTimeSummary, walletTransactions, range, chartNet, chartSummary, selectedWalletId]);
+  
+  const periodEndBalance = useMemo(() => {
+    // Số dư cuối kỳ = Số dư hiện tại (vì đây là số dư thực tế hiện tại)
+    return currentBalance;
+  }, [currentBalance]);
 
+  // Summary: Tính tổng Thu/Chi TẤT CẢ THỜI GIAN (all-time) để khớp với số dư hiện tại
+  // Loại bỏ transfer vì transfer không ảnh hưởng đến tổng tài sản
   const summary = useMemo(() => {
     return walletTransactions.reduce(
       (acc, tx) => {
+        // Loại bỏ giao dịch transfer (chuyển tiền nội bộ) khỏi tính toán Thu/Chi
+        if (tx.type === "transfer") return acc;
         if (tx.type === "income") acc.income += tx.amount;
-        else acc.expense += tx.amount;
+        else if (tx.type === "expense") acc.expense += tx.amount;
         return acc;
       },
       { income: 0, expense: 0 }
@@ -1146,7 +1237,7 @@ export default function ReportsPage() {
   }, [walletTransactions]);
 
   const currency = selectedWallet?.currency || "VND";
-  const net = summary.income - summary.expense;
+  // net không còn được sử dụng, thay bằng chartNet (net trong kỳ được chọn)
 
   const safeFunds = useMemo(() => (Array.isArray(funds) ? funds : []), [funds]);
 
@@ -2366,17 +2457,38 @@ export default function ReportsPage() {
                     <div className="reports-summary-row">
                       <div>
                         <span className="summary-dot" style={{ background: INCOME_COLOR }} />
-                        {t("dashboard.income")}: <strong>{formatCurrency(summary.income)}</strong>
+                        {t("dashboard.income")}: <strong>{formatCurrency(chartSummary.income)}</strong>
+                        <small className="text-muted ms-1">({t("reports.in_period") || "trong kỳ"})</small>
                       </div>
                       <div>
                         <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
-                        {t("dashboard.expense")}: <strong>{formatCurrency(summary.expense)}</strong>
-                      </div>
-                      <div>
-                        <span className="summary-dot" style={{ background: net >= 0 ? "#16a34a" : "#dc2626" }} />
-                        {t("reports.remaining")}: <strong>{formatCurrency(net)}</strong>
+                        {t("dashboard.expense")}: <strong>{formatCurrency(chartSummary.expense)}</strong>
+                        <small className="text-muted ms-1">({t("reports.in_period") || "trong kỳ"})</small>
                       </div>
                     </div>
+                    {/* Hiển thị số dư đầu kỳ, biến động, và số dư cuối kỳ */}
+                    {selectedWallet && (
+                      <div className="reports-balance-row mt-2 pt-2 border-top">
+                        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                          <div>
+                            <small className="text-muted">{t("reports.starting_balance") || "Số dư đầu kỳ"}:</small>
+                            <strong className="ms-2">{formatCurrency(periodStartBalance)}</strong>
+                          </div>
+                          <div className="text-center">
+                            <small className="text-muted">+</small>
+                            <span className="mx-2" style={{ color: chartSummary.income >= chartSummary.expense ? "#16a34a" : "#dc2626" }}>
+                              {formatCurrency(chartSummary.income - chartSummary.expense)}
+                            </span>
+                            <small className="text-muted">({t("reports.in_period") || "trong kỳ"})</small>
+                          </div>
+                          <div className="text-end">
+                            <small className="text-muted">=</small>
+                            <strong className="ms-2">{formatCurrency(periodEndBalance)}</strong>
+                            <small className="text-muted ms-1">({t("reports.current_balance") || "Số dư hiện tại"})</small>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="reports-header-actions">
                     <div className="reports-range-toggle">
@@ -4252,6 +4364,15 @@ export default function ReportsPage() {
         })()}
         </div>
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        open={isPdfPreviewOpen}
+        pdfBlob={pdfPreviewBlob}
+        fileName={pdfPreviewFileName}
+        onConfirm={handleConfirmDownloadPDF}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   );
 }

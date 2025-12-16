@@ -1,20 +1,30 @@
 import React, { useMemo, useState } from "react";
 import "../../styles/components/dashboard/CalendarWidget.css";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function CalendarWidget({ compact = false }) {
+  const { t } = useLanguage();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
   // Tên tháng và năm
-  const monthNames = [
-    "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
-    "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
-  ];
+  const monthNames = useMemo(() => [
+    t("calendar.month.1"), t("calendar.month.2"), t("calendar.month.3"), t("calendar.month.4"),
+    t("calendar.month.5"), t("calendar.month.6"), t("calendar.month.7"), t("calendar.month.8"),
+    t("calendar.month.9"), t("calendar.month.10"), t("calendar.month.11"), t("calendar.month.12")
+  ], [t]);
 
-  const dayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-  const dayNamesFull = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+  const dayNames = useMemo(() => [
+    t("calendar.day_short.0"), t("calendar.day_short.1"), t("calendar.day_short.2"), t("calendar.day_short.3"),
+    t("calendar.day_short.4"), t("calendar.day_short.5"), t("calendar.day_short.6")
+  ], [t]);
+  
+  const dayNamesFull = useMemo(() => [
+    t("calendar.day.0"), t("calendar.day.1"), t("calendar.day.2"), t("calendar.day.3"),
+    t("calendar.day.4"), t("calendar.day.5"), t("calendar.day.6")
+  ], [t]);
 
   const today = useMemo(() => new Date(), []);
   const weekdayLabel = dayNamesFull[today.getDay()];
@@ -41,12 +51,12 @@ export default function CalendarWidget({ compact = false }) {
           </p>
           <button className="calendar-widget__today-btn calendar-widget__today-btn--ghost" onClick={goToToday}>
             <i className="bi bi-calendar-check me-1" />
-            Hôm nay
+            {t("calendar.today")}
           </button>
         </div>
         <div className="calendar-widget__compact-date">
           <span className="calendar-widget__compact-day">
-            {weekdayLabel}/Ngày {dayNumber}
+            {weekdayLabel}/{t("calendar.day_label")} {dayNumber}
           </span>
         </div>
       </div>
@@ -84,7 +94,7 @@ export default function CalendarWidget({ compact = false }) {
         <button
           className="calendar-widget__nav-btn"
           onClick={goToPreviousMonth}
-          title="Tháng trước"
+          title={t("calendar.prev_month")}
         >
           <i className="bi bi-chevron-left" />
         </button>
@@ -95,7 +105,7 @@ export default function CalendarWidget({ compact = false }) {
         <button
           className="calendar-widget__nav-btn"
           onClick={goToNextMonth}
-          title="Tháng sau"
+          title={t("calendar.next_month")}
         >
           <i className="bi bi-chevron-right" />
         </button>
@@ -130,7 +140,7 @@ export default function CalendarWidget({ compact = false }) {
           onClick={goToToday}
         >
           <i className="bi bi-calendar-check me-1" />
-          Hôm nay
+          {t("calendar.today")}
         </button>
       </div>
     </div>

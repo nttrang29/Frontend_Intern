@@ -930,7 +930,7 @@ export default function DashboardPage() {
                                           show: true,
                                           x: rect.left - containerRect.left + rect.width / 2,
                                           y: rect.top - containerRect.top - 10,
-                                          type: "Thu nhập",
+                                          type: t("dashboard.income"),
                                           amount: incomeAmount,
                                           label: item.label,
                                         });
@@ -962,7 +962,7 @@ export default function DashboardPage() {
                                           show: true,
                                           x: rect.left - containerRect.left + rect.width / 2,
                                           y: rect.top - containerRect.top - 10,
-                                          type: "Chi tiêu",
+                                          type: t("dashboard.expense"),
                                           amount: expenseAmount,
                                           label: item.label,
                                         });
@@ -1012,10 +1012,10 @@ export default function DashboardPage() {
                 </div>
                 <div className="db-bar-chart__legend">
                   <span className="db-bar-chart__legend-item">
-                    <span className="dot dot--primary" /> Thu nhập
+                    <span className="dot dot--primary" /> {t("dashboard.income")}
                   </span>
                   <span className="db-bar-chart__legend-item">
-                    <span className="dot dot--secondary" /> Chi tiêu
+                    <span className="dot dot--secondary" /> {t("dashboard.expense")}
                   </span>
                 </div>
               </div>
