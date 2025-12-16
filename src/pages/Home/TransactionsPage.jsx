@@ -27,6 +27,7 @@ import { useNotifications } from "../../contexts/NotificationContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
 import { scheduledTransactionAPI } from "../../services/scheduled-transaction.service";
+import { getAllFunds, getFundTransactions } from "../../services/fund.service";
 import { API_BASE_URL } from "../../services/api-client";
 import { formatVietnamDateTime } from "../../utils/dateFormat";
 
@@ -584,6 +585,7 @@ export default function TransactionsPage() {
   const [groupExternalTransactions, setGroupExternalTransactions] = useState(
     []
   );
+  const [fundTransactions, setFundTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(TABS.EXTERNAL);
 
@@ -1757,7 +1759,7 @@ export default function TransactionsPage() {
       // GROUP: walletType === "GROUP"
       // Lưu ý: Lấy walletType từ raw transaction entity trước, fallback về wallets list
       // QUAN TRỌNG: Loại bỏ fund transactions khỏi personalExternal và groupExternal
-      const personalExternal = allExternalTransactions.filter((tx) => {
+      const personalExternal = mappedExternal.filter((tx) => {
         // Loại bỏ fund transactions - chúng chỉ hiển thị trong tab FUND
         if (tx.isFundTransaction) return false;
         if (!tx.walletName && !tx.walletId) return false;
@@ -1789,7 +1791,7 @@ export default function TransactionsPage() {
         // Không bao gồm fund transactions (đã tách ra riêng)
         return walletType !== "GROUP";
       });
-      const groupExternal = allExternalTransactions.filter((tx) => {
+      const groupExternal = mappedExternal.filter((tx) => {
         // Loại bỏ fund transactions - chúng chỉ hiển thị trong tab FUND
         if (tx.isFundTransaction) return false;
         if (!tx.walletName && !tx.walletId) return false;
@@ -2043,6 +2045,23 @@ export default function TransactionsPage() {
           }
         }
         return allInternal;
+      });
+
+      // Set fund transactions state
+      setFundTransactions((prev) => {
+        const prevIds = new Set(
+          prev.map((t) => t.id || t.transactionId || t.code)
+        );
+        const newIds = new Set(
+          fundTransactionsList.map((t) => t.id || t.transactionId || t.code)
+        );
+        if (
+          prevIds.size === newIds.size &&
+          [...prevIds].every((id) => newIds.has(id))
+        ) {
+          return prev; // Không thay đổi, giữ nguyên
+        }
+        return fundTransactionsList;
       });
     } catch (scopedError) {
       console.warn(
@@ -3417,6 +3436,7 @@ export default function TransactionsPage() {
     externalTransactions,
     internalTransactions,
     groupExternalTransactions,
+    fundTransactions,
   ]);
 
   const allCategories = useMemo(() => {
