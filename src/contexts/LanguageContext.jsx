@@ -278,7 +278,8 @@ const translations = {
     "activity.description.add_to_wallet": " vào ví ",
     "activity.description.with_role": " với vai trò ",
     "activity.description.create_budget_prefix": "Tạo ngân sách ",
-    "activity.description.create_budget_for_category": "Tạo ngân sách cho danh mục ",
+    "activity.description.create_budget_for_category":
+      "Tạo ngân sách cho danh mục ",
     "activity.description.update_budget_prefix": "Cập nhật ngân sách ",
     "activity.description.category_separator": " — danh mục: ",
     "activity.description.category_unknown": " — chưa xác định danh mục",
@@ -388,7 +389,8 @@ const translations = {
     "reports.funds.detail.pace.behind": "Đang chậm",
     "reports.funds.detail.pace.critical": "Nguy cơ trễ hạn",
     "reports.funds.detail.pace.unknown": "Chưa có dữ liệu",
-    "reports.funds.detail.pace.on_track_settled": "Đúng tiến độ như đã tất toán",
+    "reports.funds.detail.pace.on_track_settled":
+      "Đúng tiến độ như đã tất toán",
     "reports.funds.detail.pace.behind_settled": "Chậm tiến độ nhưng tất toán",
     "reports.funds.detail.actual_progress": "Thực tế",
     "reports.funds.detail.expected_progress": "Theo kế hoạch",
@@ -432,8 +434,10 @@ const translations = {
     "reports.budgets.overview.safe_count": "Số ngân sách an toàn",
     "reports.budgets.overview.warning_count": "Số ngân sách cảnh báo",
     "reports.budgets.overview.exceeded_count": "Số ngân sách vượt",
-    "reports.budgets.status_distribution.title": "Phân tích trạng thái ngân sách",
-    "reports.budgets.status_distribution.subtitle": "Phân bố ngân sách theo trạng thái",
+    "reports.budgets.status_distribution.title":
+      "Phân tích trạng thái ngân sách",
+    "reports.budgets.status_distribution.subtitle":
+      "Phân bố ngân sách theo trạng thái",
     "reports.budgets.detail_list.title": "Danh sách ngân sách chi tiết",
     "reports.budgets.detail_list.category": "Danh mục",
     "reports.budgets.detail_list.wallet": "Ví áp dụng",
@@ -446,18 +450,24 @@ const translations = {
     "reports.budgets.time_comparison.title": "So sánh theo thời gian",
     "reports.budgets.time_comparison.this_period": "Kỳ này",
     "reports.budgets.time_comparison.last_period": "Kỳ trước",
-    "reports.budgets.time_comparison.insight_more": "Tháng này bạn tiêu nhiều hơn {percent}% so với tháng trước",
-    "reports.budgets.time_comparison.insight_less": "Tháng này bạn tiêu ít hơn {percent}% so với tháng trước",
+    "reports.budgets.time_comparison.insight_more":
+      "Tháng này bạn tiêu nhiều hơn {percent}% so với tháng trước",
+    "reports.budgets.time_comparison.insight_less":
+      "Tháng này bạn tiêu ít hơn {percent}% so với tháng trước",
     "reports.budgets.top_dangerous.title": "Top ngân sách nguy hiểm",
-    "reports.budgets.top_dangerous.subtitle": "Top 3 ngân sách có % sử dụng cao nhất",
+    "reports.budgets.top_dangerous.subtitle":
+      "Top 3 ngân sách có % sử dụng cao nhất",
     "reports.budgets.analysis.title": "Phân tích nguyên nhân",
     "reports.budgets.analysis.daily_chart": "Biểu đồ chi tiêu theo ngày",
     "reports.budgets.analysis.top_transactions": "Top giao dịch lớn nhất",
     "reports.budgets.analysis.peak_day": "Ngày tiêu mạnh nhất",
     "reports.budgets.suggestions.title": "Gợi ý thông minh",
-    "reports.budgets.suggestions.weekly_pattern": "Bạn thường vượt ngân sách {category} vào tuần cuối tháng",
-    "reports.budgets.suggestions.increase_limit": "Bạn nên tăng ngân sách {category} thêm {percent}%",
-    "reports.budgets.suggestions.end_period": "{percent}% ngân sách bị vượt trong 5 ngày cuối kỳ",
+    "reports.budgets.suggestions.weekly_pattern":
+      "Bạn thường vượt ngân sách {category} vào tuần cuối tháng",
+    "reports.budgets.suggestions.increase_limit":
+      "Bạn nên tăng ngân sách {category} thêm {percent}%",
+    "reports.budgets.suggestions.end_period":
+      "{percent}% ngân sách bị vượt trong 5 ngày cuối kỳ",
     "reports.budgets.filters.wallet": "Chọn Ví",
     "reports.budgets.filters.time": "Chọn Thời gian",
     "reports.budgets.filters.status": "Chọn Trạng thái",
@@ -1401,7 +1411,7 @@ const translations = {
       "Cần ít nhất hai ví để chuyển tiền. Vui lòng tạo thêm ví.",
     "transactions.history.title": "Lịch sử giao dịch",
 
-    // Transaction View
+    //// Transaction View
     "transactions.view.title": "Chi tiết Giao dịch",
     "transactions.view.type": "Loại giao dịch",
     "transactions.view.wallet": "Ví",
@@ -1584,10 +1594,14 @@ const translations = {
     "budgets.metric.used": "Đã sử dụng",
     "budgets.metric.remaining": "Còn lại",
     "budgets.metric.alerts": "Cảnh báo",
-    "budgets.tooltip.total_limit": "Tổng số tiền hạn mức bạn đã đặt cho tất cả danh mục đang hoạt động.",
-    "budgets.tooltip.used": "Tổng số tiền đã chi trong các hạn mức đang hoạt động (bao gồm cả phần đã vượt).",
-    "budgets.tooltip.remaining": "Số tiền còn lại trong tất cả hạn mức (có thể âm nếu đã chi vượt).",
-    "budgets.tooltip.alerts": "Tổng số hạn mức đang ở trạng thái cảnh báo hoặc đã vượt hạn mức.",
+    "budgets.tooltip.total_limit":
+      "Tổng số tiền hạn mức bạn đã đặt cho tất cả danh mục đang hoạt động.",
+    "budgets.tooltip.used":
+      "Tổng số tiền đã chi trong các hạn mức đang hoạt động (bao gồm cả phần đã vượt).",
+    "budgets.tooltip.remaining":
+      "Số tiền còn lại trong tất cả hạn mức (có thể âm nếu đã chi vượt).",
+    "budgets.tooltip.alerts":
+      "Tổng số hạn mức đang ở trạng thái cảnh báo hoặc đã vượt hạn mức.",
     "budgets.metric.active_count": "{count} hạn mức đang hoạt động",
     "budgets.metric.used_percent": "{percent} tổng hạn mức",
     "budgets.metric.no_data": "Chưa có dữ liệu",
@@ -2107,7 +2121,8 @@ const translations = {
     "activity.description.add_to_wallet": " to wallet ",
     "activity.description.with_role": " with role ",
     "activity.description.create_budget_prefix": "Create budget ",
-    "activity.description.create_budget_for_category": "Create budget for category ",
+    "activity.description.create_budget_for_category":
+      "Create budget for category ",
     "activity.description.update_budget_prefix": "Update budget ",
     "activity.description.category_separator": " — category: ",
     "activity.description.category_unknown": " — category unknown",
@@ -2255,7 +2270,8 @@ const translations = {
     "reports.budgets.overview.warning_count": "Warning budgets",
     "reports.budgets.overview.exceeded_count": "Exceeded budgets",
     "reports.budgets.status_distribution.title": "Budget status distribution",
-    "reports.budgets.status_distribution.subtitle": "Distribution of budgets by status",
+    "reports.budgets.status_distribution.subtitle":
+      "Distribution of budgets by status",
     "reports.budgets.detail_list.title": "Detailed budget list",
     "reports.budgets.detail_list.category": "Category",
     "reports.budgets.detail_list.wallet": "Applied wallet",
@@ -2268,18 +2284,24 @@ const translations = {
     "reports.budgets.time_comparison.title": "Time comparison",
     "reports.budgets.time_comparison.this_period": "This period",
     "reports.budgets.time_comparison.last_period": "Last period",
-    "reports.budgets.time_comparison.insight_more": "This month you spent {percent}% more than last month",
-    "reports.budgets.time_comparison.insight_less": "This month you spent {percent}% less than last month",
+    "reports.budgets.time_comparison.insight_more":
+      "This month you spent {percent}% more than last month",
+    "reports.budgets.time_comparison.insight_less":
+      "This month you spent {percent}% less than last month",
     "reports.budgets.top_dangerous.title": "Top dangerous budgets",
-    "reports.budgets.top_dangerous.subtitle": "Top 3 budgets with highest usage %",
+    "reports.budgets.top_dangerous.subtitle":
+      "Top 3 budgets with highest usage %",
     "reports.budgets.analysis.title": "Cause analysis",
     "reports.budgets.analysis.daily_chart": "Daily spending chart",
     "reports.budgets.analysis.top_transactions": "Top largest transactions",
     "reports.budgets.analysis.peak_day": "Peak spending day",
     "reports.budgets.suggestions.title": "Smart suggestions",
-    "reports.budgets.suggestions.weekly_pattern": "You usually exceed {category} budget at the end of the month",
-    "reports.budgets.suggestions.increase_limit": "You should increase {category} budget by {percent}%",
-    "reports.budgets.suggestions.end_period": "{percent}% of budgets exceeded in the last 5 days of the period",
+    "reports.budgets.suggestions.weekly_pattern":
+      "You usually exceed {category} budget at the end of the month",
+    "reports.budgets.suggestions.increase_limit":
+      "You should increase {category} budget by {percent}%",
+    "reports.budgets.suggestions.end_period":
+      "{percent}% of budgets exceeded in the last 5 days of the period",
     "reports.budgets.filters.wallet": "Select Wallet",
     "reports.budgets.filters.time": "Select Time",
     "reports.budgets.filters.status": "Select Status",
@@ -3329,10 +3351,14 @@ const translations = {
     "budgets.metric.used": "Used",
     "budgets.metric.remaining": "Remaining",
     "budgets.metric.alerts": "Alerts",
-    "budgets.tooltip.total_limit": "Total limit amount across all active budgets.",
-    "budgets.tooltip.used": "Total spent amount within active budgets (including any exceeded part).",
-    "budgets.tooltip.remaining": "Remaining amount across all budgets (can be negative if exceeded).",
-    "budgets.tooltip.alerts": "Number of budgets currently in warning or exceeded state.",
+    "budgets.tooltip.total_limit":
+      "Total limit amount across all active budgets.",
+    "budgets.tooltip.used":
+      "Total spent amount within active budgets (including any exceeded part).",
+    "budgets.tooltip.remaining":
+      "Remaining amount across all budgets (can be negative if exceeded).",
+    "budgets.tooltip.alerts":
+      "Number of budgets currently in warning or exceeded state.",
     "budgets.metric.active_count": "{count} active limits",
     "budgets.metric.used_percent": "{percent} of total limits",
     "budgets.metric.no_data": "No data",
