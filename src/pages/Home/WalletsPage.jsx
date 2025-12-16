@@ -545,7 +545,7 @@ const getVietnamDateTime = () => {
 
 export default function WalletsPage() {
   const { t } = useLanguage();
-  const { budgets = [], refreshBudgets, getSpentForBudget } = useBudgetData();
+  const { budgets = [], refreshBudgets, getSpentForBudget, updateAllExternalTransactions, updateTransactionsByCategory } = useBudgetData();
   const { loadNotifications } = useNotifications() || {};
   const {
     wallets = [],
@@ -2062,9 +2062,79 @@ export default function WalletsPage() {
         if (response?.transaction) {
         await loadWallets();
         refreshTransactions();
+        
+        // QUAN TRỌNG: Reload và map transactions giống TransactionsPage để cập nhật externalTransactionsList
+        // Điều này đảm bảo budget % được cập nhật ngay lập tức
+        try {
+          const allTransactionsResponse = await transactionAPI.getAllTransactions();
+          const allTransactions = Array.isArray(allTransactionsResponse)
+            ? allTransactionsResponse
+            : Array.isArray(allTransactionsResponse?.transactions)
+            ? allTransactionsResponse.transactions
+            : Array.isArray(allTransactionsResponse?.data?.transactions)
+            ? allTransactionsResponse.data.transactions
+            : Array.isArray(allTransactionsResponse?.data)
+            ? allTransactionsResponse.data
+            : [];
+
+          // Map transactions giống TransactionsPage - chỉ lấy expense (budget chỉ tính expense)
+          const mappedExternalTransactions = allTransactions
+            .filter(tx => {
+              // Lọc chỉ expense transactions - dùng detectTransactionDirection
+              const direction = detectTransactionDirection(tx);
+              return direction === "expense";
+            })
+            .map(tx => {
+              // Map giống TransactionsPage.mapTransactionToFrontend
+              const walletId = tx.wallet?.walletId || tx.walletId;
+              const wallet = walletId ? wallets.find(w => String(w.id || w.walletId) === String(walletId)) : null;
+              
+              let walletName = wallet?.walletName || wallet?.name || tx.wallet?.walletName || tx.wallet?.name || tx.walletName || "";
+              
+              // Thêm "(đã xóa)" nếu wallet bị deleted
+              const isWalletDeleted = tx.wallet?.deleted === true || wallet?.deleted === true || 
+                                     tx.wallet?.isDeleted === true || wallet?.isDeleted === true;
+              if (isWalletDeleted && !walletName.includes("(đã xóa)")) {
+                walletName = `${walletName} (đã xóa)`;
+              }
+              
+              const categoryName = tx.category?.categoryName || tx.category?.name || tx.categoryName || tx.category || "";
+              
+              // Format date giống TransactionsPage
+              const rawDateValue = tx.createdAt || tx.created_at || tx.transactionDate || tx.transaction_date || tx.date || new Date().toISOString();
+              const dateValue = ensureIsoDateWithTimezone(rawDateValue);
+              
+              return {
+                id: tx.transactionId,
+                transactionId: tx.transactionId,
+                type: "expense",
+                category: categoryName,
+                amount: Number(tx.amount || 0),
+                date: dateValue,
+                walletId: walletId ? Number(walletId) : null,
+                walletName: walletName,
+                note: tx.note || "",
+                wallet: {
+                  walletId: walletId ? Number(walletId) : null,
+                  walletName: walletName,
+                }
+              };
+            })
+            .filter(tx => tx.category && tx.walletName && tx.transactionId); // Chỉ lấy transactions có đủ thông tin
+
+          // Cập nhật externalTransactionsList - QUAN TRỌNG: Đây là nguồn dữ liệu cho getSpentForBudget
+          if (updateAllExternalTransactions && mappedExternalTransactions.length > 0) {
+            updateAllExternalTransactions(mappedExternalTransactions);
+          }
+        } catch (error) {
+          console.debug("Failed to reload transactions for budget update:", error);
+        }
+        
         // Reload budgets để cập nhật spent amount sau khi tạo giao dịch chi tiêu
+        // Đợi một chút để đảm bảo externalTransactionsList đã được cập nhật
         if (refreshBudgets && typeof refreshBudgets === "function") {
           try {
+            await new Promise(resolve => setTimeout(resolve, 300));
             await refreshBudgets();
           } catch (e) {
             console.debug("Failed to reload budgets after expense transaction:", e);
