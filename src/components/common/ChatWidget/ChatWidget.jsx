@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { formatVietnamTime } from "../../../utils/dateFormat";
+import { chatAPI } from "../../../services/api-client";
 import "./ChatWidget.css";
 
 export default function ChatWidget() {
@@ -9,7 +10,7 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: "Xin chào! Tôi là trợ lý ảo của MyWallet. Tôi có thể giúp bạn gì?",
+      text: "Xin chào! Tôi là trợ lí tài chính của bạn. Tôi có thể giúp bạn quản lý tài chính, xem số dư, theo dõi thu chi và nhiều hơn nữa. Bạn cần hỗ trợ gì?",
       sender: "system",
       timestamp: new Date(),
     },
@@ -51,60 +52,61 @@ export default function ChatWidget() {
     setInputValue("");
     setIsTyping(true);
 
-    // Simulate system response (có thể thay bằng API call thật)
-    setTimeout(() => {
-      const systemResponse = generateSystemResponse(text);
+    try {
+      // Chuẩn bị lịch sử hội thoại cho API (bỏ qua tin nhắn chào mừng ban đầu)
+      const historyForApi = messages
+        .slice(1) // Bỏ qua tin nhắn chào mừng đầu tiên
+        .map((msg) => ({
+          role: msg.sender === "user" ? "user" : "model",
+          content: msg.text,
+        }));
+
+      // Gọi API backend
+      // apiCall trả về data trực tiếp (ChatResponse object)
+      const chatResponse = await chatAPI.sendMessage(text, historyForApi);
+
+      // Kiểm tra response từ backend
+      // ChatResponse có: { message: string, success: boolean, error: string }
+      if (chatResponse && chatResponse.success && chatResponse.message) {
+        // Thêm response từ AI vào messages
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            text: chatResponse.message,
+            sender: "system",
+            timestamp: new Date(),
+          },
+        ]);
+      } else {
+        // Xử lý lỗi từ backend
+        const errorMessage = chatResponse?.error || chatResponse?.message || "Đã xảy ra lỗi khi gửi tin nhắn. Vui lòng thử lại sau.";
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            text: errorMessage,
+            sender: "system",
+            timestamp: new Date(),
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error sending message to chat API:", error);
+      // Xử lý lỗi từ API call
+      const errorMessage = error.message || error.data?.error || "Đã xảy ra lỗi khi gửi tin nhắn. Vui lòng thử lại sau.";
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
-          text: systemResponse,
+          text: errorMessage,
           sender: "system",
           timestamp: new Date(),
         },
       ]);
+    } finally {
       setIsTyping(false);
-    }, 1000 + Math.random() * 1000); // Random delay 1-2 seconds
-  };
-
-  const generateSystemResponse = (userMessage) => {
-    const lowerMessage = userMessage.toLowerCase();
-
-    // Responses based on keywords
-    if (lowerMessage.includes("xin chào") || lowerMessage.includes("hello") || lowerMessage.includes("hi")) {
-      return "Xin chào! Tôi có thể giúp bạn quản lý ví, xem giao dịch, hoặc trả lời các câu hỏi về ứng dụng. Bạn cần hỗ trợ gì?";
     }
-
-    if (lowerMessage.includes("ví") || lowerMessage.includes("wallet")) {
-      return "Để quản lý ví, bạn có thể:\n- Tạo ví mới từ trang 'Ví'\n- Nạp/rút tiền từ ví\n- Chuyển tiền giữa các ví\n- Xem chi tiết giao dịch\n\nBạn muốn làm gì với ví?";
-    }
-
-    if (lowerMessage.includes("giao dịch") || lowerMessage.includes("transaction")) {
-      return "Trang 'Giao dịch' cho phép bạn:\n- Xem tất cả giao dịch thu/chi\n- Tạo giao dịch mới\n- Lọc theo ngày, danh mục, ví\n- Xem giao dịch chuyển khoản nội bộ\n\nBạn cần xem giao dịch nào?";
-    }
-
-    if (lowerMessage.includes("danh mục") || lowerMessage.includes("category")) {
-      return "Trang 'Danh mục' giúp bạn:\n- Quản lý danh mục chi tiêu và thu nhập\n- Tạo danh mục mới\n- Chỉnh sửa hoặc xóa danh mục\n\nBạn muốn tạo danh mục mới không?";
-    }
-
-    if (lowerMessage.includes("ngân sách") || lowerMessage.includes("budget")) {
-      return "Trang 'Ngân sách' cho phép bạn:\n- Đặt hạn mức chi tiêu cho từng danh mục\n- Theo dõi mức chi tiêu\n- Nhận cảnh báo khi gần vượt hạn mức\n\nBạn muốn thiết lập ngân sách không?";
-    }
-
-    if (lowerMessage.includes("báo cáo") || lowerMessage.includes("report")) {
-      return "Trang 'Báo cáo' hiển thị:\n- Thống kê thu chi theo thời gian\n- Biểu đồ phân tích chi tiêu\n- Báo cáo theo danh mục\n\nBạn muốn xem báo cáo nào?";
-    }
-
-    if (lowerMessage.includes("giúp") || lowerMessage.includes("help") || lowerMessage.includes("hướng dẫn")) {
-      return "Tôi có thể giúp bạn:\n- Quản lý ví và giao dịch\n- Thiết lập ngân sách\n- Xem báo cáo tài chính\n- Quản lý danh mục\n\nHãy hỏi tôi bất cứ điều gì về ứng dụng!";
-    }
-
-    if (lowerMessage.includes("cảm ơn") || lowerMessage.includes("thanks") || lowerMessage.includes("thank")) {
-      return "Không có gì! Nếu bạn cần thêm hỗ trợ, cứ hỏi tôi nhé. 😊";
-    }
-
-    // Default response
-    return "Tôi hiểu bạn đang hỏi về: \"" + userMessage + "\". Hiện tại tôi có thể giúp bạn với:\n- Quản lý ví và giao dịch\n- Thiết lập ngân sách\n- Xem báo cáo\n- Quản lý danh mục\n\nBạn muốn biết thêm về tính năng nào?";
   };
 
   const formatTime = (date) => formatVietnamTime(date) || "";
@@ -133,8 +135,8 @@ export default function ChatWidget() {
                 <i className="bi bi-robot"></i>
               </div>
               <div>
-                <div className="chat-widget-title">Trợ lý MyWallet</div>
-                <div className="chat-widget-subtitle">Thường phản hồi ngay</div>
+                      <div className="chat-widget-title">Trợ lí tài chính của bạn</div>
+                      <div className="chat-widget-subtitle">Hỗ trợ quản lý tài chính 24/7</div>
               </div>
             </div>
             <button
