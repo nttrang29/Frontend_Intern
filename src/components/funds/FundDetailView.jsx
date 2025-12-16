@@ -237,6 +237,29 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       ? Math.min(100, Math.round((fund.current / fund.target) * 100))
       : null;
   const progressValue = progress ?? 0;
+  // Transaction history for chart (from historyItems) - bao gồm cả DEPOSIT và WITHDRAW
+  // Được tính trước fundPacing để có thể sử dụng chung, đảm bảo đồng bộ dữ liệu
+  const transactionHistory = useMemo(() => {
+    if (!historyItems || historyItems.length === 0) return [];
+    
+    // Sort by date descending, then map to chart format
+    return historyItems
+      .filter(tx => tx.status === 'SUCCESS' && (
+        tx.type === 'DEPOSIT' || 
+        tx.type === 'AUTO_DEPOSIT' || 
+        tx.type === 'AUTO_DEPOSIT_RECOVERY' ||
+        tx.type === 'WITHDRAW'
+      ))
+      .sort((a, b) => new Date(b.createdAt || b.transactionDate || b.transactionAt) - new Date(a.createdAt || a.transactionDate || a.transactionAt))
+      .map(tx => ({
+        date: tx.createdAt || tx.transactionDate || tx.transactionAt,
+        amount: tx.type === 'WITHDRAW' 
+          ? -parseAmountNonNegative(tx.amount, 0) // Rút tiền là số âm
+          : parseAmountNonNegative(tx.amount, 0), // Nạp tiền là số dương
+        type: tx.type
+      }));
+  }, [historyItems]);
+
   const fundPacing = useMemo(() => {
     const currentAmount = parseAmountNonNegative(fund.current ?? fund.currentAmount, 0);
     const targetAmount = parseAmountNonNegative(fund.target ?? fund.targetAmount, 0);
@@ -329,6 +352,41 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     let hasDepositedInCurrentPeriod = false;
     let isReminderTimePassed = false;
     
+    // Kiểm tra xem đã đến giờ nhắc nhở chưa (áp dụng cho cả quỹ có thời hạn và không thời hạn)
+    if (fund.reminderEnabled && fund.reminderTime) {
+      const reminderTimeStr = fund.reminderTime.substring(0, 5); // HH:mm
+      const [reminderHour, reminderMinute] = reminderTimeStr.split(':').map(Number);
+      const reminderType = fund.reminderType || fund.frequency || 'MONTHLY';
+      const currentTime = new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (reminderType === 'DAILY') {
+        // Kiểm tra giờ nhắc nhở hôm nay
+        const reminderTime = new Date();
+        reminderTime.setHours(reminderHour, reminderMinute, 0, 0);
+        isReminderTimePassed = currentTime >= reminderTime;
+      } else if (reminderType === 'WEEKLY') {
+        // Kiểm tra xem hôm nay có phải ngày nhắc nhở và đã qua giờ nhắc nhở chưa
+        const targetDow = fund.reminderDayOfWeek || 1; // 1=Mon, 7=Sun
+        const jsDow = today.getDay(); // 0=Sun..6
+        const todayDow1 = ((jsDow + 6) % 7) + 1; // convert to 1=Mon..7=Sun
+        if (todayDow1 === targetDow) {
+          const reminderTime = new Date();
+          reminderTime.setHours(reminderHour, reminderMinute, 0, 0);
+          isReminderTimePassed = currentTime >= reminderTime;
+        }
+      } else if (reminderType === 'MONTHLY') {
+        // Kiểm tra xem hôm nay có phải ngày nhắc nhở và đã qua giờ nhắc nhở chưa
+        const targetDay = fund.reminderDayOfMonth || 1;
+        if (today.getDate() === targetDay) {
+          const reminderTime = new Date();
+          reminderTime.setHours(reminderHour, reminderMinute, 0, 0);
+          isReminderTimePassed = currentTime >= reminderTime;
+        }
+      }
+    }
+    
     if (startDate && fund.frequency) {
       const now = new Date();
       const today = new Date();
@@ -352,18 +410,17 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       
       expectedPeriodCount = Math.floor(daysSinceStart / daysPerPeriod) + 1; // +1 vì kỳ đầu tiên bắt đầu từ ngày 0
       
-      // Đếm số lần nạp từ lịch sử giao dịch
-      const depositTransactions = historyItems.filter(tx => {
+      // Đếm số lần nạp từ transactionHistory (đồng bộ với biểu đồ)
+      const depositTransactions = transactionHistory.filter(tx => {
         const txType = tx.type || '';
-        return (txType === 'DEPOSIT' || txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY') 
-          && tx.status === 'SUCCESS';
+        return txType === 'DEPOSIT' || txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY';
       });
       depositCount = depositTransactions.length;
       
       // Kiểm tra xem đã nạp trong chu kỳ hiện tại chưa
       if (depositTransactions.length > 0) {
-        const latestDeposit = depositTransactions[depositTransactions.length - 1];
-        const latestDepositDate = new Date(latestDeposit.createdAt || latestDeposit.transactionDate || latestDeposit.transactionAt);
+        const latestDeposit = depositTransactions[0]; // transactionHistory đã sort descending
+        const latestDepositDate = new Date(latestDeposit.date);
         latestDepositDate.setHours(0, 0, 0, 0);
         
         // Tính kỳ của lần nạp cuối cùng
@@ -374,55 +431,286 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         // Đã nạp trong chu kỳ hiện tại nếu kỳ của lần nạp cuối cùng bằng kỳ hiện tại
         hasDepositedInCurrentPeriod = depositPeriod === currentPeriod;
       }
-      
-      // Kiểm tra xem đã đến giờ nhắc nhở chưa (chỉ cho quỹ có reminder)
-      if (fund.reminderEnabled && fund.reminderTime) {
-        const reminderTimeStr = fund.reminderTime.substring(0, 5); // HH:mm
-        const [reminderHour, reminderMinute] = reminderTimeStr.split(':').map(Number);
-        const reminderType = fund.reminderType || fund.frequency || 'MONTHLY';
-        const currentTime = new Date();
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        if (reminderType === 'DAILY') {
-          // Kiểm tra giờ nhắc nhở hôm nay
-          const reminderTime = new Date();
-          reminderTime.setHours(reminderHour, reminderMinute, 0, 0);
-          isReminderTimePassed = currentTime >= reminderTime;
-        } else if (reminderType === 'WEEKLY') {
-          // Kiểm tra xem hôm nay có phải ngày nhắc nhở và đã qua giờ nhắc nhở chưa
-          const targetDow = fund.reminderDayOfWeek || 1; // 1=Mon, 7=Sun
-          const jsDow = today.getDay(); // 0=Sun..6
-          const todayDow1 = ((jsDow + 6) % 7) + 1; // convert to 1=Mon..7=Sun
-          if (todayDow1 === targetDow) {
-            const reminderTime = new Date();
-            reminderTime.setHours(reminderHour, reminderMinute, 0, 0);
-            isReminderTimePassed = currentTime >= reminderTime;
-          }
-        } else if (reminderType === 'MONTHLY') {
-          // Kiểm tra xem hôm nay có phải ngày nhắc nhở và đã qua giờ nhắc nhở chưa
-          const targetDay = fund.reminderDayOfMonth || 1;
-          if (today.getDate() === targetDay) {
-            const reminderTime = new Date();
-            reminderTime.setHours(reminderHour, reminderMinute, 0, 0);
-            isReminderTimePassed = currentTime >= reminderTime;
-          }
-        }
-      }
     }
     
+    // Kiểm tra quỹ có thời hạn hay không
+    const hasDeadline = fund.hasDeadline || fund.hasTerm || !!endDate;
+    
     if (expectedPct == null) {
+      // Logic cho quỹ không thời hạn (không có endDate)
       if (hasTarget && progressValue >= 100) {
         // Chỉ hiển thị "ahead" nếu là nạp thủ công
         paceStatus = isAutoDeposit ? "on_track" : "ahead";
+      } else if (!hasDeadline) {
+        // Quỹ không thời hạn: không áp dụng logic vượt/chậm tiến độ
+        paceStatus = "on_track";
+        // Quỹ không thời hạn (không có ngày kết thúc)
+        // Tính tổng số tiền đã nạp trong kỳ hiện tại và kiểm tra từng lần nạp
+        let currentPeriodDepositAmount = 0;
+        let hasLargeManualDeposit = false; // Có lần nạp thủ công lớn hơn số tiền theo tần suất
+        const amountPerPeriod = parseAmountNonNegative(fund.amountPerPeriod, 0);
+        
+        // Tính toán số tiền đã nạp trong kỳ hiện tại (nếu có startDate và frequency)
+        // Hoặc tính tổng số tiền đã nạp gần đây (nếu không có startDate)
+        if (startDate && fund.frequency && transactionHistory.length > 0) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          let daysPerPeriod = 1;
+          switch (fund.frequency) {
+            case 'DAILY':
+              daysPerPeriod = 1;
+              break;
+            case 'WEEKLY':
+              daysPerPeriod = 7;
+              break;
+            case 'MONTHLY':
+              daysPerPeriod = 30;
+              break;
+          }
+          
+          const daysSinceStart = Math.max(0, Math.floor((today.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+          const currentPeriod = Math.floor(daysSinceStart / daysPerPeriod) + 1;
+          
+          // Tính tổng số tiền đã nạp trong kỳ hiện tại và kiểm tra từng lần nạp
+          // Sử dụng transactionHistory đã được filter để đồng bộ với biểu đồ
+          const depositTransactions = transactionHistory
+            .filter(tx => {
+              // Chỉ lấy các giao dịch nạp (không phải rút)
+              const txType = tx.type || '';
+              const isDeposit = txType === 'DEPOSIT' || txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY';
+              if (!isDeposit) return false;
+              
+              // Tính kỳ của giao dịch này
+              const txDate = new Date(tx.date);
+              txDate.setHours(0, 0, 0, 0);
+              const daysFromStartToTx = Math.max(0, Math.floor((txDate.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+              const txPeriod = Math.floor(daysFromStartToTx / daysPerPeriod) + 1;
+              
+              // Chỉ tính các giao dịch trong kỳ hiện tại
+              return txPeriod === currentPeriod;
+            });
+          
+          currentPeriodDepositAmount = depositTransactions.reduce((sum, tx) => {
+            return sum + tx.amount; // amount đã được parse trong transactionHistory
+          }, 0);
+          
+          // Kiểm tra xem có lần nạp thủ công nào lớn hơn số tiền theo tần suất + 1,000 VND không
+          const threshold = 1000; // Ngưỡng vượt tiến độ: 1,000 VND
+          if (amountPerPeriod > 0 && !isAutoDeposit) {
+            hasLargeManualDeposit = depositTransactions.some(tx => {
+              const txType = tx.type || '';
+              const isManualDeposit = txType === 'DEPOSIT' || txType === 'MANUAL_DEPOSIT';
+              if (!isManualDeposit) return false;
+              
+              const txExtra = tx.amount - amountPerPeriod;
+              return txExtra >= threshold; // Vượt >= 1,000 VND
+            });
+          }
+        } else if (transactionHistory.length > 0 && amountPerPeriod > 0) {
+          // Nếu không có startDate hoặc frequency, kiểm tra các giao dịch nạp gần đây
+          // Lấy các giao dịch nạp trong 7 ngày gần nhất (hoặc tất cả nếu ít hơn 7 ngày)
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const sevenDaysAgo = new Date(today);
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          
+          const recentDeposits = transactionHistory.filter(tx => {
+            const txType = tx.type || '';
+            const isDeposit = txType === 'DEPOSIT' || txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY';
+            if (!isDeposit) return false;
+            
+            const txDate = new Date(tx.date);
+            txDate.setHours(0, 0, 0, 0);
+            return txDate >= sevenDaysAgo;
+          });
+          
+          currentPeriodDepositAmount = recentDeposits.reduce((sum, tx) => sum + tx.amount, 0);
+          
+          // Kiểm tra xem có lần nạp thủ công nào lớn hơn số tiền theo tần suất + 1,000 VND không
+          const threshold = 1000; // Ngưỡng vượt tiến độ: 1,000 VND
+          if (!isAutoDeposit) {
+            hasLargeManualDeposit = recentDeposits.some(tx => {
+              const txType = tx.type || '';
+              const isManualDeposit = txType === 'DEPOSIT' || txType === 'MANUAL_DEPOSIT';
+              if (!isManualDeposit) return false;
+              
+              const txExtra = tx.amount - amountPerPeriod;
+              return txExtra >= threshold; // Vượt >= 1,000 VND
+            });
+          }
+        }
+        
+        // Áp dụng logic:
+        // 1. Chưa thông báo (chưa đến giờ nhắc nhở) → "đúng tiến độ"
+        // 2. Đã thông báo:
+        //    - Nếu có lần nạp thủ công lớn hơn số tiền theo tần suất → "vượt tiến độ"
+        //    - Hoặc tổng số tiền đã nạp > số tiền theo tần suất → "vượt tiến độ"
+        //    - Hoặc đã nạp đủ số tiền theo tần suất và có nạp thêm trong ngày → "vượt tiến độ"
+        //    - Nạp đúng hoặc bằng số tiền theo tần suất → "đúng tiến độ"
+        if (!isReminderTimePassed) {
+          // Chưa thông báo → đúng tiến độ
+          paceStatus = "on_track";
+        } else {
+          // Đã thông báo
+          if (amountPerPeriod > 0) {
+            // Tính số tiền đã nạp trong kỳ hiện tại (trước hôm nay)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayEnd = new Date(today);
+            todayEnd.setHours(23, 59, 59, 999);
+            
+            let periodDepositBeforeToday = 0;
+            let todayDepositAmount = 0;
+            
+            if (startDate && fund.frequency && transactionHistory.length > 0) {
+              let daysPerPeriod = 1;
+              switch (fund.frequency) {
+                case 'DAILY':
+                  daysPerPeriod = 1;
+                  break;
+                case 'WEEKLY':
+                  daysPerPeriod = 7;
+                  break;
+                case 'MONTHLY':
+                  daysPerPeriod = 30;
+                  break;
+              }
+              
+              const daysSinceStart = Math.max(0, Math.floor((today.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+              const currentPeriod = Math.floor(daysSinceStart / daysPerPeriod) + 1;
+              
+              // Tách giao dịch trong kỳ hiện tại thành: trước hôm nay và hôm nay
+              const periodDeposits = transactionHistory.filter(tx => {
+                const txType = tx.type || '';
+                const isDeposit = txType === 'DEPOSIT' || txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY';
+                if (!isDeposit) return false;
+                
+                const txDate = new Date(tx.date);
+                txDate.setHours(0, 0, 0, 0);
+                const daysFromStartToTx = Math.max(0, Math.floor((txDate.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+                const txPeriod = Math.floor(daysFromStartToTx / daysPerPeriod) + 1;
+                
+                return txPeriod === currentPeriod;
+              });
+              
+              periodDeposits.forEach(tx => {
+                const txDate = new Date(tx.date);
+                txDate.setHours(0, 0, 0, 0); // Normalize để so sánh
+                const txDateEnd = new Date(txDate);
+                txDateEnd.setHours(23, 59, 59, 999);
+                
+                if (txDate.getTime() === today.getTime()) {
+                  // Giao dịch hôm nay (so sánh normalized date)
+                  todayDepositAmount += tx.amount;
+                } else {
+                  // Giao dịch trước hôm nay
+                  periodDepositBeforeToday += tx.amount;
+                }
+              });
+            }
+            
+            // Tính tổng số tiền đã nạp trong kỳ hiện tại (bao gồm cả hôm nay)
+            // Ưu tiên sử dụng periodDepositBeforeToday + todayDepositAmount nếu đã tính được
+            // Nếu chưa tính được (không có startDate/frequency), sử dụng currentPeriodDepositAmount
+            let totalPeriodDeposit = 0;
+            if (startDate && fund.frequency) {
+              // Đã tính periodDepositBeforeToday và todayDepositAmount từ periodDeposits
+              totalPeriodDeposit = periodDepositBeforeToday + todayDepositAmount;
+            } else if (currentPeriodDepositAmount > 0) {
+              // Chưa có startDate/frequency, sử dụng currentPeriodDepositAmount (từ recentDeposits)
+              totalPeriodDeposit = currentPeriodDepositAmount;
+            } else {
+              // Fallback: tính từ transactionHistory nếu chưa có gì
+              totalPeriodDeposit = transactionHistory
+                .filter(tx => {
+                  const txType = tx.type || '';
+                  return txType === 'DEPOSIT' || txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY';
+                })
+                .reduce((sum, tx) => sum + tx.amount, 0);
+            }
+            
+            // Kiểm tra các điều kiện "vượt tiến độ":
+            // Chỉ cần tổng số tiền đã nạp trong kỳ >= số tiền theo tần suất + 1,000 VND
+            // Hoặc có lần nạp thủ công vượt >= 1,000 VND
+            // Hoặc đã nạp đủ số tiền theo tần suất (trước hôm nay) và có nạp thêm >= 1,000 VND hôm nay
+            const threshold = 1000; // Ngưỡng vượt tiến độ: 1,000 VND
+            const extraAmount = totalPeriodDeposit - amountPerPeriod; // Số tiền vượt so với tần suất
+            const hasEnoughBeforeToday = periodDepositBeforeToday >= amountPerPeriod;
+            const hasExtraToday = todayDepositAmount >= threshold; // Nạp thêm >= 1,000 VND hôm nay
+            
+            // Kiểm tra có lần nạp thủ công nào vượt >= 1,000 VND không
+            // Sử dụng hasLargeManualDeposit đã tính ở trên (từ depositTransactions hoặc recentDeposits)
+            // Hoặc kiểm tra lại từ periodDeposits nếu có startDate và frequency
+            let hasLargeManualDepositAboveThreshold = hasLargeManualDeposit;
+            
+            // Nếu chưa có hasLargeManualDeposit, kiểm tra lại từ periodDeposits
+            if (!hasLargeManualDepositAboveThreshold && startDate && fund.frequency && transactionHistory.length > 0) {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              let daysPerPeriod = 1;
+              switch (fund.frequency) {
+                case 'DAILY': daysPerPeriod = 1; break;
+                case 'WEEKLY': daysPerPeriod = 7; break;
+                case 'MONTHLY': daysPerPeriod = 30; break;
+              }
+              const daysSinceStart = Math.max(0, Math.floor((today.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+              const currentPeriod = Math.floor(daysSinceStart / daysPerPeriod) + 1;
+              
+              const periodDeposits = transactionHistory.filter(tx => {
+                const txType = tx.type || '';
+                const isDeposit = txType === 'DEPOSIT' || txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY';
+                if (!isDeposit) return false;
+                const txDate = new Date(tx.date);
+                txDate.setHours(0, 0, 0, 0);
+                const daysFromStartToTx = Math.max(0, Math.floor((txDate.getTime() - startDateNormalized.getTime()) / MS_PER_DAY));
+                const txPeriod = Math.floor(daysFromStartToTx / daysPerPeriod) + 1;
+                return txPeriod === currentPeriod;
+              });
+              
+              hasLargeManualDepositAboveThreshold = !isAutoDeposit && periodDeposits.some(tx => {
+                const txType = tx.type || '';
+                const isManualDeposit = txType === 'DEPOSIT' || txType === 'MANUAL_DEPOSIT';
+                if (!isManualDeposit) return false;
+                const txExtra = tx.amount - amountPerPeriod;
+                return txExtra >= threshold;
+              });
+            }
+            
+            // Chỉ tính là "vượt tiến độ" khi vượt >= 1,000 VND
+            // Điều kiện chính: tổng số tiền vượt >= 1,000 VND (đơn giản và rõ ràng)
+            // Hoặc có lần nạp thủ công vượt >= 1,000 VND
+            // Hoặc đã nạp đủ trước hôm nay và nạp thêm >= 1,000 VND hôm nay
+            const isAhead = (extraAmount >= threshold) 
+              || hasLargeManualDepositAboveThreshold
+              || (hasEnoughBeforeToday && hasExtraToday);
+            
+            if (isAhead) {
+              // Vượt tiến độ
+              // Chỉ hiển thị "ahead" cho nạp thủ công, nạp tự động vẫn là "on_track"
+              paceStatus = isAutoDeposit ? "on_track" : "ahead";
+            } else {
+              // Nạp đúng hoặc bằng số tiền theo tần suất → đúng tiến độ
+              paceStatus = "on_track";
+            }
+          } else {
+            // Không có số tiền theo tần suất → mặc định là đúng tiến độ
+            paceStatus = "on_track";
+          }
+        }
       }
-    } else {
-      // Logic mới: 
-      // 1. Chỉ đánh dấu "chậm tiến độ" khi đến giờ nhắc nhở mà chưa nạp
-      // 2. Khi nạp xong thì là "theo kế hoạch"
-      // 3. Khi nạp nhiều hơn tần suất thì là "vượt tiến độ"
+    } else if (hasDeadline) {
+      // Logic cho quỹ có thời hạn:
+      // 1. Chưa đến giờ nhắc nhở → "đúng tiến độ"
+      // 2. Đã đến giờ nhắc nhở nhưng chưa nạp → "chậm tiến độ"
+      // 3. Khi nạp xong thì là "theo kế hoạch"
+      // 4. Khi nạp nhiều hơn tần suất thì là "vượt tiến độ"
       
-      if (fund.reminderEnabled && isReminderTimePassed && !hasDepositedInCurrentPeriod) {
+      // Kiểm tra xem chưa đến giờ nhắc nhở
+      if (!isReminderTimePassed) {
+        // Chưa thông báo → đúng tiến độ
+        paceStatus = "on_track";
+      } else if (fund.reminderEnabled && !hasDepositedInCurrentPeriod) {
         // Đã đến giờ nhắc nhở nhưng chưa nạp -> chậm tiến độ
         paceStatus = "behind";
       } else if (depositCount > expectedPeriodCount) {
@@ -432,16 +720,20 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
         // Đã nạp đúng hoặc đủ số kỳ -> theo kế hoạch
         paceStatus = "on_track";
       } else {
-        // Các trường hợp khác: so sánh theo phần trăm
+        // Các trường hợp khác: so sánh theo phần trăm (chỉ khi đã đến giờ nhắc nhở)
         const diff = progressValue - expectedPct;
         if (diff >= 7) {
           paceStatus = isAutoDeposit ? "on_track" : "ahead";
         } else if (diff >= -4) {
           paceStatus = "on_track";
         } else {
-          paceStatus = "behind";
+          // Chỉ đánh dấu "behind" nếu đã đến giờ nhắc nhở
+          paceStatus = isReminderTimePassed ? "behind" : "on_track";
         }
       }
+    } else {
+      // Quỹ không thời hạn: luôn là "on_track", không có vượt/chậm tiến độ
+      paceStatus = "on_track";
     }
 
     // Tính diffPct: chênh lệch giữa thực tế và kế hoạch (làm tròn đến 1 chữ số thập phân)
@@ -464,7 +756,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       totalDays,
       elapsedDays,
     };
-  }, [fund.current, fund.currentAmount, fund.target, fund.targetAmount, fund.startDate, fund.endDate, fund.autoDepositEnabled, fund.reminderEnabled, fund.reminderTime, fund.reminderType, fund.reminderDayOfWeek, fund.reminderDayOfMonth, fund.frequency, progressValue, todayAutoDepositStatus, historyItems]);
+  }, [fund.current, fund.currentAmount, fund.target, fund.targetAmount, fund.startDate, fund.endDate, fund.autoDepositEnabled, fund.reminderEnabled, fund.reminderTime, fund.reminderType, fund.reminderDayOfWeek, fund.reminderDayOfMonth, fund.frequency, progressValue, todayAutoDepositStatus, transactionHistory]);
 
   // Tạo gradient ID dựa trên pace status để thay đổi màu
   const gaugeGradientId = useMemo(() => {
@@ -707,27 +999,6 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     loadHistory();
   }, [loadHistory]);
 
-  // Transaction history for chart (from historyItems) - bao gồm cả DEPOSIT và WITHDRAW
-  const transactionHistory = useMemo(() => {
-    if (!historyItems || historyItems.length === 0) return [];
-    
-    // Sort by date descending, then map to chart format
-    return historyItems
-      .filter(tx => tx.status === 'SUCCESS' && (
-        tx.type === 'DEPOSIT' || 
-        tx.type === 'AUTO_DEPOSIT' || 
-        tx.type === 'AUTO_DEPOSIT_RECOVERY' ||
-        tx.type === 'WITHDRAW'
-      ))
-      .sort((a, b) => new Date(b.createdAt || b.transactionDate) - new Date(a.createdAt || a.transactionDate))
-      .map(tx => ({
-        date: tx.createdAt || tx.transactionDate,
-        amount: tx.type === 'WITHDRAW' 
-          ? -parseAmountNonNegative(tx.amount, 0) // Rút tiền là số âm
-          : parseAmountNonNegative(tx.amount, 0), // Nạp tiền là số dương
-        type: tx.type
-      }));
-  }, [historyItems]);
 
   // Growth chart data for no-term funds (cumulative growth) - tính cả nạp và rút
   const growthChartData = useMemo(() => {
@@ -999,30 +1270,49 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
   }, [fund.reminderEnabled, fund.reminderType, fund.frequency, fund.reminderDayOfWeek, fund.reminderDayOfMonth, hasTodayReminder]);
   
   // Map historyItems to display format - phân biệt DEPOSIT và WITHDRAW
+  // Helper function to check if transaction is settle
+  const isLikelySettleTx = (tx) => {
+    const message = (tx?.note || tx?.description || tx?.message || tx?.remark || "").toLowerCase();
+    return (
+      message.includes("tất toán") ||
+      message.includes("settle") ||
+      message.includes("thanh lý") ||
+      message.includes("thanh ly")
+    );
+  };
+
   const displayHistory = useMemo(() => {
     return historyItems.map(tx => {
       const isSuccess = tx.status === 'SUCCESS';
       const txType = tx.type || 'DEPOSIT';
       const isWithdraw = txType === 'WITHDRAW';
+      const isSettle = isWithdraw && isLikelySettleTx(tx);
+      const isRegularWithdraw = isWithdraw && !isSettle;
       const isAuto = txType === 'AUTO_DEPOSIT' || txType === 'AUTO_DEPOSIT_RECOVERY';
       const isRecovery = txType === 'AUTO_DEPOSIT_RECOVERY';
-      
+
       return {
         id: tx.id || tx.transactionId,
-        type: isWithdraw ? 'withdraw' : (isAuto ? 'auto' : 'manual'),
-        typeLabel: isWithdraw 
-          ? 'Rút tiền' 
-          : (isRecovery ? 'Nạp bù tự động' : (isAuto ? 'Nạp tự động' : 'Nạp thủ công')),
+        type: isSettle ? 'settle' : (isRegularWithdraw ? 'withdraw' : (isAuto ? 'auto' : 'manual')),
+        txType: isSettle ? 'settle' : (isRegularWithdraw ? 'withdraw' : 'deposit'), // For color coding
+        typeLabel: isSettle 
+          ? 'Tất toán quỹ' 
+          : (isRegularWithdraw 
+            ? 'Rút tiền' 
+            : (isRecovery ? 'Nạp bù tự động' : (isAuto ? 'Nạp tự động' : 'Nạp thủ công'))),
         amount: parseAmountNonNegative(tx.amount, 0),
         status: isSuccess ? 'success' : 'failed',
         date: tx.createdAt || tx.transactionDate || tx.transactionAt,
         message: tx.message || (
-          isWithdraw 
-            ? 'Rút tiền khỏi quỹ' 
-            : (isRecovery ? 'Nạp bù tự động thành công' : (isAuto ? 'Nạp tự động thành công' : 'Nạp tiền thành công'))
+          isSettle 
+            ? 'Tất toán quỹ' 
+            : (isRegularWithdraw 
+              ? 'Rút tiền khỏi quỹ' 
+              : (isRecovery ? 'Nạp bù tự động thành công' : (isAuto ? 'Nạp tự động thành công' : 'Nạp tiền thành công')))
         ),
         walletBalance: tx.walletBalance,
-        isWithdraw: isWithdraw
+        isWithdraw: isWithdraw,
+        isSettle: isSettle
       };
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [historyItems]);
@@ -1106,10 +1396,19 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       return;
     }
 
-    // Logic mới: Nếu đã nạp đủ cho chu kỳ hiện tại
+    // Logic mới: Kiểm tra số tiền đã nạp hôm nay
+    const todayDepositedAmount = todayManualDepositStatus?.status === 'deposited' 
+      ? (todayManualDepositStatus.amount || 0) 
+      : 0;
+    const hasEnoughToday = todayDepositedAmount >= (fund.amountPerPeriod || 0);
+    
+    // Logic: Nếu đã nạp đủ cho chu kỳ hiện tại
     if (depositStatusInfo.hasEnoughForCurrentPeriod) {
-      // Lần nạp thêm đầu tiên: phải >= amountPerPeriod
-      if (depositStatusInfo.extraDepositCount === 0 && fund.amountPerPeriod && amount < fund.amountPerPeriod) {
+      // Nếu hôm nay đã nạp >= tần suất, thì lần nạp tiếp theo không cần yêu cầu >= tần suất
+      // Chỉ yêu cầu >= tần suất nếu:
+      // - Lần nạp thêm đầu tiên (extraDepositCount === 0) VÀ
+      // - Chưa nạp đủ tần suất hôm nay (!hasEnoughToday)
+      if (depositStatusInfo.extraDepositCount === 0 && !hasEnoughToday && fund.amountPerPeriod && amount < fund.amountPerPeriod) {
         showToast(
           `Lần nạp thêm đầu tiên phải lớn hơn hoặc bằng số tiền theo tần suất: ${formatMoney(fund.amountPerPeriod, fund.currency)}.`,
           "error"
@@ -1118,8 +1417,10 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       }
       // Các lần nạp thêm sau: nạp bao nhiêu cũng được (không cần validation)
     } else {
-      // Chưa nạp đủ cho chu kỳ hiện tại: phải >= amountPerPeriod
-      if (fund.amountPerPeriod && amount < fund.amountPerPeriod) {
+      // Chưa nạp đủ cho chu kỳ hiện tại: 
+      // Nếu hôm nay đã nạp >= tần suất, thì không cần yêu cầu >= tần suất nữa
+      // Chỉ yêu cầu >= tần suất nếu chưa nạp đủ hôm nay
+      if (!hasEnoughToday && fund.amountPerPeriod && amount < fund.amountPerPeriod) {
         showToast(
           `Số tiền nạp phải lớn hơn hoặc bằng số tiền theo tần suất: ${formatMoney(fund.amountPerPeriod, fund.currency)}.`,
           "error"

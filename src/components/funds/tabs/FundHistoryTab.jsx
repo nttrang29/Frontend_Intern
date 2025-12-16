@@ -89,13 +89,26 @@ export default function FundHistoryTab({
           {displayHistory.map((tx) => {
             const isSuccess = tx.status === 'success';
             const isWithdraw = tx.isWithdraw || tx.type === 'withdraw';
-            // Màu sắc: xanh cho nạp tiền, đỏ cho rút tiền
-            const borderColor = isWithdraw 
-              ? (isSuccess ? '#ef4444' : '#dc2626') 
-              : (isSuccess ? '#10b981' : '#ef4444');
-            const iconColor = isWithdraw 
-              ? (isSuccess ? '#ef4444' : '#dc2626') 
-              : (isSuccess ? '#10b981' : '#ef4444');
+            const isSettle = tx.isSettle || tx.txType === 'settle';
+            const isRegularWithdraw = isWithdraw && !isSettle;
+            const isDeposit = !isWithdraw;
+            
+            // Màu sắc đồng bộ với biểu đồ: xanh cho nạp, đỏ cho rút, cam cho tất toán
+            let borderColor, iconColor, bgColor;
+            if (isSettle) {
+              borderColor = isSuccess ? '#f59e0b' : '#d97706';
+              iconColor = isSuccess ? '#f59e0b' : '#d97706';
+              bgColor = isSuccess ? '#fef3c7' : '#fde68a';
+            } else if (isRegularWithdraw) {
+              borderColor = isSuccess ? '#ef4444' : '#dc2626';
+              iconColor = isSuccess ? '#ef4444' : '#dc2626';
+              bgColor = isSuccess ? '#fee2e2' : '#fecaca';
+            } else {
+              borderColor = isSuccess ? '#0d6efd' : '#0b63f6';
+              iconColor = isSuccess ? '#0d6efd' : '#0b63f6';
+              bgColor = isSuccess ? '#dbeafe' : '#bfdbfe';
+            }
+            
             const iconName = isSuccess ? 'bi-check-circle-fill' : 'bi-x-circle-fill';
             
             return (
@@ -146,12 +159,14 @@ export default function FundHistoryTab({
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <i className={
-                        isWithdraw 
-                          ? 'bi bi-arrow-down-circle' 
-                          : (tx.type === 'auto' ? 'bi bi-arrow-repeat' : 'bi bi-hand-thumbs-up')
+                        isSettle 
+                          ? 'bi bi-x-circle' 
+                          : (isRegularWithdraw 
+                            ? 'bi bi-arrow-down-circle' 
+                            : (tx.type === 'auto' ? 'bi bi-arrow-repeat' : 'bi bi-hand-thumbs-up'))
                       } style={{ 
                         fontSize: '1rem',
-                        color: isWithdraw ? '#ef4444' : '#6c757d'
+                        color: iconColor
                       }}></i>
                       <span style={{ fontWeight: '600', fontSize: '1rem', color: '#111827' }}>
                         {tx.typeLabel}
@@ -160,15 +175,13 @@ export default function FundHistoryTab({
                     
                     <div style={{ 
                       padding: '0.375rem 0.75rem',
-                      backgroundColor: isWithdraw 
-                        ? (isSuccess ? '#fee2e2' : '#fecaca') 
-                        : (isSuccess ? '#d1fae5' : '#fee2e2'),
+                      backgroundColor: bgColor,
                       borderRadius: '20px',
                       fontSize: '0.875rem', 
                       fontWeight: '700', 
                       color: iconColor 
                     }}>
-                      {isWithdraw ? '-' : (isSuccess ? '+' : '')}{formatMoney(tx.amount, fund.currency)}
+                      {(isSettle || isRegularWithdraw) ? '-' : (isSuccess ? '+' : '')}{formatMoney(tx.amount, fund.currency)}
                     </div>
                   </div>
                   
@@ -183,9 +196,7 @@ export default function FundHistoryTab({
                       alignItems: 'center',
                       gap: '0.375rem',
                       padding: '0.25rem 0.625rem',
-                      backgroundColor: isWithdraw 
-                        ? (isSuccess ? '#fef2f2' : '#fee2e2') 
-                        : (isSuccess ? '#ecfdf5' : '#fef2f2'),
+                      backgroundColor: bgColor,
                       border: `1px solid ${borderColor}`,
                       borderRadius: '12px',
                       fontSize: '0.75rem',
