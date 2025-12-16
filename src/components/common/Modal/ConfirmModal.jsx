@@ -11,6 +11,7 @@ export default function ConfirmModal({
   onOk,
   onClose,
   danger = true,
+  allowClose = true, // Cho phép đóng bằng click outside hoặc ESC
 }) {
   // ✅ Hook luôn được gọi — không nằm trong if
   useEffect(() => {
@@ -18,7 +19,12 @@ export default function ConfirmModal({
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    const onKey = (e) => e.key === "Escape" && onClose?.();
+    // Chỉ cho phép đóng bằng ESC nếu allowClose = true
+    const onKey = (e) => {
+      if (e.key === "Escape" && allowClose && onClose) {
+        onClose();
+      }
+    };
     document.addEventListener("keydown", onKey);
 
     return () => {
@@ -83,7 +89,15 @@ export default function ConfirmModal({
         }
       `}</style>
 
-      <div className="cm-backdrop" onClick={onClose}>
+      <div 
+        className="cm-backdrop" 
+        onClick={() => {
+          // Chỉ cho phép đóng khi click outside nếu allowClose = true
+          if (allowClose && onClose) {
+            onClose();
+          }
+        }}
+      >
         <div
           className="cm-box"
           onClick={(e) => e.stopPropagation()}
@@ -94,9 +108,11 @@ export default function ConfirmModal({
           <p className="cm-msg">{message}</p>
 
           <div className="cm-actions">
-            <button className="cm-btn cm-btn-cancel" onClick={onClose}>
-              {cancelText}
-            </button>
+            {cancelText && (
+              <button className="cm-btn cm-btn-cancel" onClick={onClose}>
+                {cancelText}
+              </button>
+            )}
             <button className="cm-btn cm-btn-ok" onClick={onOk}>
               {okText}
             </button>

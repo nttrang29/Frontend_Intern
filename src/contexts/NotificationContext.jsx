@@ -77,6 +77,8 @@ export function NotificationProvider({ children }) {
           mappedType = "BUDGET_WARNING";
         } else if (n.type === "BUDGET_EXCEEDED") {
           mappedType = "BUDGET_EXCEEDED";
+        } else if (n.type === "ROLE_CHANGED") {
+          mappedType = "ROLE_CHANGED";
         }
         
         return {
@@ -191,6 +193,18 @@ export function NotificationProvider({ children }) {
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("walletNotificationReceived", {
             detail: { notifications: otherWalletNotifications }
+          }));
+        }
+      }
+      
+      // Dispatch event cho ROLE_CHANGED notifications (chưa đọc)
+      const roleChangedNotifications = notifs.filter(n => 
+        n.type === "ROLE_CHANGED" && !n.read
+      );
+      if (roleChangedNotifications.length > 0) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("roleChangedNotification", {
+            detail: { notifications: roleChangedNotifications }
           }));
         }
       }
