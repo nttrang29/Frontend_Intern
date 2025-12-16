@@ -1429,7 +1429,7 @@ const translations = {
     "transactions.view.attachment_hint":
       "Ảnh minh họa (demo). Sau này sẽ lấy từ API file thật.",
     "transactions.btn.close": "Đóng",
-    // Loading / Errors / Schedule (VI)
+    // // Loading / Errors / Schedule (VI)
     "transactions.btn.clear": "Xóa lọc",
     "transactions.loading.list": "Đang tải danh sách giao dịch...",
     "transactions.error.wallet_not_found": "Không tìm thấy ví {wallet}.",
