@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import HomeSidebar from "../components/home/Sidebar/HomeSidebar";
 import HomeTopbar from "../components/home/Topbar/HomeTopbar";
 import ChatWidget from "../components/common/ChatWidget/ChatWidget";
+import RoleChangedModal from "../components/common/RoleChangedModal";
 import "../styles/pages/HomeLayout.css";
 
 export default function HomeLayout() {
@@ -39,6 +40,9 @@ export default function HomeLayout() {
 
       {/* Chat Widget */}
       <ChatWidget />
+      
+      {/* Role Changed Modal - hiển thị khi admin thay đổi role */}
+      <RoleChangedModal />
     </div>
   );
 }

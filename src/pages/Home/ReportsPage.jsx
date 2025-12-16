@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
 import { useDateFormat } from "../../hooks/useDateFormat";
-import { formatVietnamTime, formatVietnamDate } from "../../utils/dateFormat";
+import { formatVietnamTime, formatVietnamDate, formatVietnamDateTime } from "../../utils/dateFormat";
 import { formatMoney } from "../../utils/formatMoney";
 import { parseAmountNonNegative } from "../../utils/parseAmount";
 
@@ -18,6 +18,43 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
 import BudgetDetailModal from "../../components/budgets/BudgetDetailModal";
 import PDFPreviewModal from "../../components/common/PDFPreviewModal/PDFPreviewModal";
+
+// Hàm đảm bảo date string có timezone đúng (giống TransactionsPage)
+const ensureIsoDateWithTimezone = (rawValue) => {
+  if (!rawValue) return rawValue;
+  if (typeof rawValue !== "string") {
+    return rawValue;
+  }
+
+  let value = rawValue.trim();
+  if (!value) return value;
+
+  if (value.includes(" ")) {
+    value = value.replace(" ", "T");
+  }
+
+  const hasTimePart = /T\d{2}:\d{2}/.test(value);
+  if (!hasTimePart) {
+    return value;
+  }
+
+  const hasSeconds = /T\d{2}:\d{2}:\d{2}/.test(value);
+  if (!hasSeconds) {
+    value = value.replace(/T(\d{2}:\d{2})(?!:)/, "T$1:00");
+  }
+
+  const hasTimezone = /(Z|z|[+\-]\d{2}:?\d{2})$/.test(value);
+  if (!hasTimezone) {
+    // Backend lưu date theo GMT+7 (Asia/Ho_Chi_Minh), nên thêm +07:00 thay vì Z (UTC)
+    // Giống TransactionsPage để đảm bảo thời gian hiển thị đúng
+    value = `${value}+07:00`;
+  } else if (/Z$/i.test(value)) {
+    // Nếu date string có Z (UTC), giữ nguyên để formatVietnamTime tự convert từ UTC sang GMT+7
+    // Không cần thay đổi gì
+  }
+
+  return value;
+};
 
 const RANGE_OPTIONS = [
   { value: "week", label: "Tuần" },
@@ -99,21 +136,31 @@ const normalizeTransaction = (raw) => {
     type = "expense"; // Rút ví = Chi tiêu
   }
   
-  const dateSource = raw.createdAt || raw.transactionDate || raw.date;
-  const dateObj = dateSource ? new Date(dateSource) : null;
-  if (!dateObj || Number.isNaN(dateObj.getTime())) return null;
+  // Lưu date string gốc để formatVietnamDateTime có thể xử lý đúng timezone
+  const dateSource = raw.createdAt || raw.created_at || raw.transactionDate || raw.transaction_date || raw.date;
+  // Lưu date string thay vì Date object để tránh vấn đề timezone khi hiển thị
+  const dateString = dateSource ? (typeof dateSource === 'string' ? dateSource : dateSource.toISOString()) : null;
+  if (!dateString) return null;
+
+  // Normalize tất cả các date fields để đảm bảo khi hiển thị dùng field nào cũng đúng
+  const normalizeDateField = (dateValue) => {
+    if (!dateValue) return null;
+    return typeof dateValue === 'string' ? dateValue : dateValue.toISOString();
+  };
 
   return {
     id: raw.transactionId || raw.id,
     walletId: Number(walletId),
     amount,
     type,
-    date: dateObj,
+    date: dateString, // Lưu string để formatVietnamDateTime xử lý đúng
+    createdAt: normalizeDateField(raw.createdAt || raw.created_at),
+    transactionDate: normalizeDateField(raw.transactionDate || raw.transaction_date),
     note: raw.note || raw.description || "",
     currency: raw.wallet?.currencyCode || raw.currencyCode || raw.currency || "VND",
-    createdBy: raw.createdBy || raw.userId || raw.user?.userId || raw.user?.id,
-    createdByEmail: raw.createdByEmail || raw.userEmail || raw.user?.email,
-    transactionTypeName: raw.transactionType?.typeName || raw.type || "",
+    createdBy: raw.createdBy || raw.userId || raw.user?.userId || raw.user?.id || raw.creator?.userId || raw.creator?.userId,
+    createdByEmail: raw.createdByEmail || raw.userEmail || raw.user?.email || raw.creator?.email,
+    transactionTypeName: raw.transactionType?.typeName || raw.transactionType || raw.type || "",
   };
 };
 
@@ -849,19 +896,39 @@ export default function ReportsPage() {
     const loadTransactions = async () => {
       try {
         setLoadingTransactions(true);
-        const [txResponse, transferResponse] = await Promise.all([
-          transactionAPI.getAllTransactions(),
-          walletAPI.getAllTransfers(),
-        ]);
+        
+        // Nếu có selectedWalletId, load transactions và transfers của ví đó (bao gồm cả của thành viên khác)
+        // Nếu không, load tất cả transactions và transfers của user
+        let txResponse;
+        let transferResponse;
+        
+        if (selectedWalletId) {
+          // Load transactions của ví cụ thể - API này trả về tất cả transactions của ví, bao gồm cả của thành viên khác
+          txResponse = await transactionAPI.getWalletTransactions(selectedWalletId, { includeTransfers: false });
+          // Load transfers của ví cụ thể - API này trả về tất cả transfers của ví, bao gồm cả của thành viên khác
+          transferResponse = await walletAPI.getWalletTransfers(selectedWalletId);
+        } else {
+          // Load tất cả transactions và transfers của user (khi chưa chọn ví)
+          [txResponse, transferResponse] = await Promise.all([
+            transactionAPI.getAllTransactions(),
+            walletAPI.getAllTransfers(),
+          ]);
+        }
         const normalized = (txResponse.transactions || [])
           .map(normalizeTransaction)
           .filter(Boolean);
             const normalizedTransfers = (transferResponse.transfers || [])
               .map((transfer) => {
                 const amount = parseFloat(transfer.amount || 0);
-                const dateValue = transfer.createdAt || transfer.transferDate || new Date().toISOString();
-                const dateObj = dateValue ? new Date(dateValue) : null;
-                if (!dateObj || Number.isNaN(dateObj.getTime())) return null;
+                // Lưu date string thay vì Date object để formatVietnamDateTime xử lý đúng timezone
+                const dateSource = transfer.createdAt || transfer.created_at || transfer.transferDate || transfer.transfer_date || new Date().toISOString();
+                const dateString = typeof dateSource === 'string' ? dateSource : dateSource.toISOString();
+
+                // Normalize tất cả các date fields để đảm bảo khi hiển thị dùng field nào cũng đúng
+                const normalizeDateField = (dateValue) => {
+                  if (!dateValue) return null;
+                  return typeof dateValue === 'string' ? dateValue : dateValue.toISOString();
+                };
 
                 // Kiểm tra xem có phải merge transaction không (dựa vào note hoặc type)
                 const isMerge = (transfer.note || "").toLowerCase().includes("gộp") || 
@@ -871,17 +938,19 @@ export default function ReportsPage() {
 
                 return {
                   id: `transfer-${transfer.transferId}`,
-                  fromWalletId: transfer.fromWallet?.walletId,
-                  toWalletId: transfer.toWallet?.walletId,
+                  fromWalletId: transfer.fromWallet?.walletId || transfer.fromWalletId,
+                  toWalletId: transfer.toWallet?.walletId || transfer.toWalletId,
                   amount,
                   type: isMerge ? "merge" : "transfer",
-                  date: dateObj,
-                  sourceWallet: transfer.fromWallet?.walletName || "Ví nguồn",
-                  targetWallet: transfer.toWallet?.walletName || "Ví đích",
+                  date: dateString, // Lưu string để formatVietnamDateTime xử lý đúng
+                  createdAt: normalizeDateField(transfer.createdAt || transfer.created_at),
+                  transferDate: normalizeDateField(transfer.transferDate || transfer.transfer_date),
+                  sourceWallet: transfer.fromWallet?.walletName || transfer.fromWalletName || "Ví nguồn",
+                  targetWallet: transfer.toWallet?.walletName || transfer.toWalletName || "Ví đích",
                   note: transfer.note || "",
                   currency: transfer.currencyCode || "VND",
-                  createdBy: transfer.createdBy || transfer.userId || transfer.user?.userId || transfer.user?.id,
-                  createdByEmail: transfer.createdByEmail || transfer.userEmail || transfer.user?.email,
+                  createdBy: transfer.createdBy || transfer.userId || transfer.user?.userId || transfer.user?.id || transfer.creator?.userId,
+                  createdByEmail: transfer.createdByEmail || transfer.userEmail || transfer.user?.email || transfer.creator?.email,
                 };
               })
               .filter(Boolean);
@@ -978,7 +1047,7 @@ export default function ReportsPage() {
     return () => {
       mounted = false;
     };
-  }, [funds]);
+  }, [funds, selectedWalletId]); // Thêm selectedWalletId vào dependency để reload khi chọn ví khác
 
   const formatCompactNumber = (value) => {
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
@@ -989,17 +1058,53 @@ export default function ReportsPage() {
 
   const filteredWallets = useMemo(() => {
     const keyword = walletSearch.trim().toLowerCase();
-    const filtered = keyword
-      ? wallets.filter((wallet) => (wallet.name || "").toLowerCase().includes(keyword))
-      : wallets;
+    
+    // Lọc ví: loại bỏ ví mà user chỉ có quyền VIEWER (chỉ hiển thị ví cá nhân, ví nhóm mà user là OWNER/MEMBER)
+    const filterByRole = (wallet) => {
+      // Ví cá nhân của user luôn hiển thị
+      const isPersonal = !wallet.isShared && !(wallet.walletRole || wallet.sharedRole || wallet.role);
+      if (isPersonal) return true;
+      
+      // Ví nhóm: chỉ hiển thị nếu user là OWNER hoặc MEMBER (không hiển thị nếu là VIEWER)
+      if (wallet.isShared || wallet.walletRole || wallet.sharedRole || wallet.role) {
+        const role = (wallet.walletRole || wallet.sharedRole || wallet.role || "").toUpperCase();
+        // Loại bỏ VIEWER và VIEW
+        if (role === "VIEWER" || role === "VIEW") {
+          return false;
+        }
+        // Hiển thị OWNER, MEMBER, ADMIN, MASTER, USE, USER
+        return true;
+      }
+      
+      return true;
+    };
+    
+    const filtered = wallets.filter(filterByRole);
+    const searchFiltered = keyword
+      ? filtered.filter((wallet) => (wallet.name || "").toLowerCase().includes(keyword))
+      : filtered;
     // Sắp xếp theo thứ tự ưu tiên
-    return sortWalletsByMode(filtered, "default");
+    return sortWalletsByMode(searchFiltered, "default");
   }, [wallets, walletSearch]);
 
-  const selectedWallet = useMemo(
-    () => wallets.find((wallet) => wallet.id === selectedWalletId),
-    [wallets, selectedWalletId]
-  );
+  const selectedWallet = useMemo(() => {
+    const wallet = wallets.find((wallet) => wallet.id === selectedWalletId);
+    // Nếu ví được chọn là VIEWER, không cho phép xem báo cáo
+    if (wallet) {
+      const role = (wallet.walletRole || wallet.sharedRole || wallet.role || "").toUpperCase();
+      if (role === "VIEWER" || role === "VIEW") {
+        return null; // Không cho phép xem báo cáo ví VIEWER
+      }
+    }
+    return wallet;
+  }, [wallets, selectedWalletId]);
+  
+  // Clear selectedWalletId nếu ví được chọn là VIEWER
+  useEffect(() => {
+    if (selectedWalletId && !selectedWallet) {
+      setSelectedWalletId(null);
+    }
+  }, [selectedWalletId, selectedWallet]);
   const walletTransactions = useMemo(() => {
     if (!selectedWalletId) return [];
     const walletId = Number(selectedWalletId);
@@ -1015,8 +1120,9 @@ export default function ReportsPage() {
              ftx.targetWalletId === walletId;
     });
     const all = [...externalTxs, ...walletTransfers, ...walletFundTxs].sort((a, b) => {
-      const dateA = a.date instanceof Date ? a.date : new Date(a.date);
-      const dateB = b.date instanceof Date ? b.date : new Date(b.date);
+      // Xử lý cả Date object và date string
+      const dateA = a.date instanceof Date ? a.date : (typeof a.date === 'string' ? new Date(a.date) : new Date());
+      const dateB = b.date instanceof Date ? b.date : (typeof b.date === 'string' ? new Date(b.date) : new Date());
       return dateB - dateA;
     });
     
@@ -2555,6 +2661,10 @@ export default function ReportsPage() {
                       ? String(ownerId) === String(currentUserId)
                       : !wallet.isShared;
                     const showDefaultBadge = wallet.isDefault && isOwnedByCurrentUser;
+                    
+                    // Kiểm tra xem ví có được chia sẻ cho user không (user là member/viewer, không phải owner)
+                    const isSharedWithMe = wallet.isShared && !isOwnedByCurrentUser;
+                    
                     return (
                       <button
                         key={wallet.id}
@@ -2568,6 +2678,7 @@ export default function ReportsPage() {
                             {showDefaultBadge && <span className="badge rounded-pill text-bg-primary">Mặc định</span>}
                             {isPersonal && <span className="badge rounded-pill text-bg-secondary">Ví cá nhân</span>}
                             {wallet.isShared && <span className="badge rounded-pill text-bg-info">Ví nhóm</span>}
+                            {isSharedWithMe && <span className="badge rounded-pill text-bg-warning">Ví được chia sẻ</span>}
                           </div>
                         </div>
                         <div className="wallet-balance text-end">
@@ -2769,8 +2880,14 @@ export default function ReportsPage() {
                         </thead>
                         <tbody>
                           {paginatedTransactions.map((tx, index) => {
-                            const dateObj = tx.date instanceof Date ? tx.date : new Date(tx.date);
-                            const dateTimeStr = `${formatDate(dateObj)} ${formatVietnamTime(dateObj)}`.trim();
+                            // Sử dụng formatVietnamDateTime để đảm bảo thời gian hiển thị đúng như trang Giao dịch
+                            // Ưu tiên createdAt/transactionDate nếu có, nhưng fallback về date (đã được normalize)
+                            const rawDateValue = tx.createdAt || tx.created_at || tx.transactionDate || tx.transaction_date || tx.date;
+                            // Đảm bảo date string có timezone đúng trước khi format (giống TransactionsPage)
+                            // Nếu rawDateValue là null/undefined, dùng tx.date (đã được normalize trong normalizeTransaction)
+                            const dateToFormat = rawDateValue || tx.date;
+                            const dateValue = dateToFormat ? ensureIsoDateWithTimezone(dateToFormat) : null;
+                            const dateTimeStr = dateValue ? formatVietnamDateTime(dateValue) : "";
                             const formatAmountOnly = (amount) => {
                               const numAmount = Number(amount) || 0;
                               return numAmount.toLocaleString("vi-VN", {
