@@ -81,12 +81,7 @@ const handleAxiosResponse = (axiosResponse) => {
  */
 export const createWallet = async (createData) => {
   try {
-    console.log("wallet.service: Calling POST /wallets/create với data:", createData);
     const response = await apiClient.post("/create", createData);
-    console.log("wallet.service: POST /wallets/create response:", {
-      status: response.status,
-      data: response.data
-    });
     return handleAxiosResponse(response);
   } catch (error) {
     console.error("wallet.service: POST /wallets/create error:", error);
@@ -127,12 +122,7 @@ export const createWallet = async (createData) => {
  */
 export const getMyWallets = async () => {
   try {
-    console.log("wallet.service: Calling GET /wallets...");
     const response = await apiClient.get("");
-    console.log("wallet.service: GET /wallets response:", {
-      status: response.status,
-      data: response.data
-    });
     return handleAxiosResponse(response);
   } catch (error) {
     console.error("wallet.service: GET /wallets error:", error);
@@ -526,12 +516,7 @@ export const previewMerge = async (targetWalletId, sourceWalletId, targetCurrenc
  */
 export const mergeWallets = async (targetWalletId, mergeData) => {
   try {
-    console.log("wallet.service: Calling POST /wallets/" + targetWalletId + "/merge với data:", mergeData);
     const response = await apiClient.post(`/${targetWalletId}/merge`, mergeData);
-    console.log("wallet.service: POST /wallets/" + targetWalletId + "/merge response:", {
-      status: response.status,
-      data: response.data
-    });
     return handleAxiosResponse(response);
   } catch (error) {
     if (error.response) {
@@ -690,12 +675,7 @@ export const transferMoney = async (transferData) => {
       note,
     };
     
-    console.log("wallet.service: Calling POST /wallets/transfer với data:", apiPayload);
     const response = await apiClient.post("/transfer", apiPayload);
-    console.log("wallet.service: POST /wallets/transfer response:", {
-      status: response.status,
-      data: response.data
-    });
     return handleAxiosResponse(response);
   } catch (error) {
     if (error.response) {
@@ -732,13 +712,6 @@ export const convertToGroupWallet = async (walletId, walletName) => {
     if (!walletName || walletName.trim() === "") {
       throw new Error("Tên ví không được để trống");
     }
-
-    console.log(
-      "wallet.service: convertToGroupWallet - walletId:",
-      walletId,
-      "walletName:",
-      walletName
-    );
 
     const response = await apiClient.put(`/${walletId}`, {
       walletName: walletName.trim(),
@@ -845,7 +818,6 @@ export const updateTransfer = async (transferId, note) => {
     if (isNaN(id)) {
       throw new Error(`Invalid transfer ID: ${transferId}`);
     }
-    console.log(`wallet.service: Calling PUT /wallets/transfers/${id}`);
     
     const response = await apiClient.put(`/transfers/${id}`, {
       note: note || null,
@@ -887,7 +859,6 @@ export const deleteTransfer = async (transferId) => {
     if (isNaN(id)) {
       throw new Error(`Invalid transfer ID: ${transferId}`);
     }
-    console.log(`wallet.service: Calling DELETE /wallets/transfers/${id}`);
     
     const response = await apiClient.delete(`/transfers/${id}`);
 

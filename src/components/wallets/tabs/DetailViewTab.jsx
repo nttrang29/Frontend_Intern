@@ -243,10 +243,6 @@ export default function DetailViewTab({
                       maximumFractionDigits: 0
                     });
                     
-                    // Debug: Log để kiểm tra email có trong transaction không
-                    if (tx.creatorEmail) {
-                      console.log("📧 Transaction has creatorEmail:", tx.creatorEmail, "tx:", tx);
-                    }
                     
                     return (
                       <li key={tx.id} className="wallets-detail__history-item">

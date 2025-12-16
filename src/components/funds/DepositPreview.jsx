@@ -2,13 +2,13 @@ import React from "react";
 import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDate } from "../../utils/dateFormat";
 import { calcEstimateDate } from "./utils/fundUtils";
+import { getMoneyValue } from "../../utils/formatMoneyInput";
 
 export default function DepositPreview({ depositAmount, fund, wallets, depositStatusInfo, todayManualDepositStatus }) {
-  if (!depositAmount || Number(depositAmount) <= 0) {
+  const amount = getMoneyValue(depositAmount);
+  if (!depositAmount || amount <= 0) {
     return null;
   }
-
-  const amount = Number(depositAmount);
   const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
   
   // Tính số tiền đã nạp hôm nay (nếu có)

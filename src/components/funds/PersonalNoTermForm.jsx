@@ -33,9 +33,22 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
   // Chỉ dùng VND
   const availableCurrencies = ["VND"];
   
-  // Filter wallets theo VND
+  // Filter wallets: chỉ VND, ví cá nhân, và chưa có thành viên
   const filteredWallets = useMemo(() => {
-    return wallets.filter(w => (w.currency || "VND") === "VND");
+    return wallets.filter(w => {
+      // Chỉ lấy ví VND
+      if ((w.currency || "VND") !== "VND") return false;
+      
+      // Chỉ lấy ví cá nhân (không phải ví nhóm)
+      if (w.isShared === true) return false;
+      
+      // Chỉ lấy ví chưa có thành viên (membersCount <= 1 và không có sharedEmails)
+      const membersCount = Number(w.membersCount || 0);
+      const sharedEmails = Array.isArray(w.sharedEmails) ? w.sharedEmails : [];
+      if (membersCount > 1 || sharedEmails.length > 0) return false;
+      
+      return true;
+    });
   }, [wallets]);
   
   // Lấy wallet đã chọn
@@ -195,6 +208,14 @@ export default function PersonalNoTermForm({ wallets, onSuccess }) {
 
       if (result.success) {
         showToast(t('funds.form.success.created'), "success");
+        
+        // Dispatch event để trigger reload wallets ở các component khác (bao gồm WalletsPage)
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("fundCreated", {
+            detail: { fundId: result.data?.id || result.data?.fundId }
+          }));
+        }
+        
         if (onSuccess) {
           await onSuccess();
         }

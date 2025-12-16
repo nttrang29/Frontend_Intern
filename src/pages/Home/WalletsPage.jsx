@@ -871,6 +871,30 @@ export default function WalletsPage() {
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [transactionsRefreshKey, setTransactionsRefreshKey] = useState(0);
+  const [walletDetailRefreshKey, setWalletDetailRefreshKey] = useState(0);
+
+  // Force re-render WalletDetail khi selectedWallet.isFundWallet thay đổi
+  const walletDetailKey = useMemo(() => {
+    if (!selectedWallet) return `wallet-none`;
+    // Key sẽ thay đổi khi isFundWallet thay đổi, force re-render WalletDetail
+    return `wallet-${selectedWallet.id}-${selectedWallet.isFundWallet ? 'fund' : 'normal'}-${walletDetailRefreshKey}`;
+  }, [selectedWallet?.id, selectedWallet?.isFundWallet, walletDetailRefreshKey]);
+  
+  // Tăng refreshKey khi selectedWallet.isFundWallet thay đổi để force re-render WalletDetail
+  const prevIsFundWalletRef = useRef(selectedWallet?.isFundWallet);
+  
+  useEffect(() => {
+    if (selectedWallet) {
+      const isFundWalletChanged = selectedWallet.isFundWallet !== prevIsFundWalletRef.current;
+      
+      if (isFundWalletChanged) {
+        setWalletDetailRefreshKey(prev => prev + 1);
+        prevIsFundWalletRef.current = selectedWallet.isFundWallet;
+      }
+    } else {
+      prevIsFundWalletRef.current = undefined;
+    }
+  }, [selectedWallet?.id, selectedWallet?.isFundWallet]);
   
   // Budget warning state
   const [budgetWarning, setBudgetWarning] = useState(null);
@@ -937,7 +961,6 @@ export default function WalletsPage() {
       let isEmailInLocalSet = false;
       if (!overrideWalletId && selectedWalletEmailSet.has(normalized)) {
         isEmailInLocalSet = true;
-        console.log("⚠️ Email found in local set, but will verify from server:", normalized);
       }
 
       // Fetch actual wallet members from server and ensure the email isn't already a member
@@ -971,7 +994,7 @@ export default function WalletsPage() {
           // Nếu email không có trong server nhưng có trong local set, có thể local set đã stale
           // Log để debug nhưng không block
           if (isEmailInLocalSet && !memberEmails.has(normalized)) {
-            console.log("ℹ️ Email was in local set but not in server, local set may be stale. Proceeding with share.");
+            // Email was in local set but not in server, local set may be stale. Proceeding with share.
           }
         }
       } catch (err) {
@@ -1342,7 +1365,6 @@ export default function WalletsPage() {
       const { walletId, removedEmail } = event.detail || {};
       if (!walletId || !removedEmail) return;
       
-      console.log("🔄 Updating localSharedMap after member removal:", { walletId, removedEmail });
       setLocalSharedMap((prev) => {
         const walletEmails = prev[walletId];
         if (!walletEmails || !Array.isArray(walletEmails)) return prev;
@@ -1353,7 +1375,6 @@ export default function WalletsPage() {
         );
         
         if (updatedEmails.length !== walletEmails.length) {
-          console.log("✅ Removed email from localSharedMap:", removedEmail);
           const next = { ...prev };
           if (updatedEmails.length > 0) {
             next[walletId] = updatedEmails;
@@ -1380,13 +1401,10 @@ export default function WalletsPage() {
     const handleWalletMemberLeft = async (event) => {
       const { walletIds, notifications } = event.detail || {};
       
-      console.log("🔄 walletMemberLeft event received:", { walletIds, notifications });
-      
       // Nếu có notification WALLET_MEMBER_REMOVED, user đã bị xóa khỏi ví
       // Cần reload wallets để xóa ví khỏi danh sách
       const removedNotif = notifications?.find(n => n.type === "WALLET_MEMBER_REMOVED");
       if (removedNotif) {
-        console.log("🔄 User removed from wallet, reloading wallets...");
         // Đợi một chút để đảm bảo backend đã xử lý xong
         setTimeout(async () => {
           try {
@@ -1404,7 +1422,6 @@ export default function WalletsPage() {
       
       // Nếu có walletIds, reload wallets để cập nhật số thành viên
       if (walletIds && Array.isArray(walletIds) && walletIds.length > 0) {
-        console.log("🔄 Member left wallet, reloading wallets...", walletIds);
         // Đợi một chút để đảm bảo backend đã xử lý xong
         setTimeout(async () => {
           try {
@@ -1416,16 +1433,59 @@ export default function WalletsPage() {
       }
     };
     
+    // Handler để reload wallets khi có fund mới được tạo
+    const handleFundCreated = async (event) => {
+      // Reload wallets để cập nhật isFundWallet cho source wallet và target wallet
+      if (loadWallets) {
+        try {
+          // Đợi một chút để đảm bảo backend đã commit transaction và cập nhật wallets trong database
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Reload lần đầu
+          await loadWallets();
+          
+          // Force update WalletDetail bằng cách tăng refreshKey sau khi reload
+          // Đợi một chút để wallets state được cập nhật trong React
+          setTimeout(() => {
+            setWalletDetailRefreshKey(prev => prev + 1);
+          }, 200);
+          
+          // Reload lại sau một chút để đảm bảo backend đã xử lý xong hoàn toàn
+          setTimeout(async () => {
+            await loadWallets();
+            
+            // Force update WalletDetail lần nữa
+            setTimeout(() => {
+              setWalletDetailRefreshKey(prev => prev + 1);
+            }, 200);
+          }, 2500);
+        } catch (e) {
+          console.error("Failed to reload wallets after fund created:", e);
+        }
+      }
+    };
+    
     window.addEventListener("walletMembersUpdated", handleWalletMembersUpdated);
     window.addEventListener("walletUpdated", handleWalletUpdated);
     window.addEventListener("walletMemberLeft", handleWalletMemberLeft);
+    window.addEventListener("fundCreated", handleFundCreated);
     
     return () => {
       window.removeEventListener("walletMembersUpdated", handleWalletMembersUpdated);
       window.removeEventListener("walletUpdated", handleWalletUpdated);
       window.removeEventListener("walletMemberLeft", handleWalletMemberLeft);
+      window.removeEventListener("fundCreated", handleFundCreated);
     };
   }, [loadWallets, selectedId, setSelectedId]);
+
+  // Reload wallets khi component mount để đảm bảo có dữ liệu mới nhất
+  useEffect(() => {
+    if (loadWallets) {
+      loadWallets().catch(err => {
+        console.error("Failed to load wallets on mount:", err);
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // Tổng số dư: we'll compute the total in VND (used by the total card toggle)
@@ -1679,10 +1739,18 @@ export default function WalletsPage() {
         isShared: false,
       };
 
+      // Validate tên ví trước khi tạo
+      if (!payload.name || !payload.name.trim()) {
+        showToast(t('wallets.error.name_required') || "Tên ví không được để trống", "error");
+        return;
+      }
+
       const created = await createWallet(payload);
 
       if (!created?.id) {
-        throw new Error(t('wallets.error.no_created_info'));
+        const errorMsg = t('wallets.error.no_created_info') || "Không thể tạo ví. Vui lòng thử lại.";
+        showToast(errorMsg, "error");
+        return;
       }
 
       let shareResult = { success: 0, failed: [] };
@@ -2394,16 +2462,6 @@ export default function WalletsPage() {
       
       const creatorEmail = resolveActorEmail(tx);
       
-      // Debug: Log để kiểm tra email có được extract không
-      if (creatorEmail) {
-        console.log("✅ Extracted creator email:", creatorEmail, "from tx:", {
-          creator: tx.creator,
-          creatorEmail: tx.creator?.email,
-          user: tx.user,
-          userEmail: tx.user?.email
-        });
-      }
-
     const walletInfo = tx.wallet || {};
     const fallbackWalletName =
       walletRef?.name || walletRef?.walletName || walletRef?.title || "";
@@ -2694,7 +2752,6 @@ export default function WalletsPage() {
 
     // Nếu balance thay đổi (có giao dịch mới), reload transactions
     if (prevBalance !== null && prevBalance !== currentBalance) {
-      console.log("🔄 Wallet balance changed from", prevBalance, "to", currentBalance, "- reloading transactions...");
       // Delay một chút để đảm bảo backend đã xử lý xong giao dịch
       setTimeout(() => {
         refreshTransactions();
@@ -2724,7 +2781,6 @@ export default function WalletsPage() {
     const handleWalletUpdated = (event) => {
       const { walletId } = event.detail || {};
       if (walletId && String(walletId) === String(selectedWallet.id)) {
-        console.log("🔄 Wallet updated event received, reloading transactions...");
         // Delay một chút để đảm bảo backend đã xử lý xong
         setTimeout(() => {
           refreshTransactions();
@@ -2857,6 +2913,7 @@ export default function WalletsPage() {
         />
 
         <WalletDetail
+          key={walletDetailKey}
           wallet={selectedWallet}
           walletTabType={activeTab}
           sharedFilter={sharedFilter}

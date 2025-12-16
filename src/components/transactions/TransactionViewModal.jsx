@@ -298,40 +298,95 @@ export default function TransactionViewModal({ open, tx, onClose }) {
           </div>
 
           <div className="tx-modal-body">
-            {/* Ẩn "Loại giao dịch" khi là fund transaction */}
-            {!tx.isFundTransaction && (
-              <div className="tx-detail-item">
-                <div className="tx-detail-label">Loại giao dịch</div>
-                <div>
-                  <span 
-                    className="badge rounded-pill fw-semibold"
-                    style={{
-                      backgroundColor: isTransfer 
-                        ? "rgba(14, 165, 233, 0.1)" 
-                        : tx.type === "income" 
-                        ? "rgba(22, 163, 74, 0.1)" 
-                        : "rgba(220, 38, 38, 0.1)",
-                      color: isTransfer 
-                        ? "#0ea5e9" 
-                        : tx.type === "income" 
-                        ? "#16a34a" 
-                        : "#dc2626",
-                      padding: "6px 12px",
-                      fontSize: "0.875rem"
-                    }}
-                  >
-                    {isTransfer
-                      ? "Chuyển tiền giữa các ví"
-                      : tx.type === "income"
-                      ? "Thu nhập"
-                      : "Chi tiêu"}
-                  </span>
-                </div>
+            {/* Hiển thị "Loại giao dịch" cho tất cả các loại transaction, kể cả fund transaction */}
+            <div className="tx-detail-item">
+              <div className="tx-detail-label">Loại giao dịch</div>
+              <div>
+                <span 
+                  className="badge rounded-pill fw-semibold"
+                  style={{
+                    backgroundColor: isTransfer 
+                      ? "rgba(14, 165, 233, 0.1)" 
+                      : tx.type === "income" 
+                      ? "rgba(22, 163, 74, 0.1)" 
+                      : "rgba(220, 38, 38, 0.1)",
+                    color: isTransfer 
+                      ? "#0ea5e9" 
+                      : tx.type === "income" 
+                      ? "#16a34a" 
+                      : "#dc2626",
+                    padding: "6px 12px",
+                    fontSize: "0.875rem"
+                  }}
+                >
+                  {isTransfer
+                    ? "Chuyển tiền giữa các ví"
+                    : tx.type === "income"
+                    ? "Thu nhập"
+                    : "Chi tiêu"}
+                </span>
               </div>
-            )}
+            </div>
 
             <div className="row g-3">
-              {isTransfer ? (
+              {tx.isFundTransaction ? (
+                <>
+                  <div className="col-12">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Quỹ</div>
+                      <div className="tx-detail-value">{tx.fundName || "-"}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Ví nguồn</div>
+                      <div className="tx-detail-value">{tx.sourceWallet || tx.walletName || "-"}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Ví quỹ</div>
+                      <div className="tx-detail-value">{tx.targetWallet || "-"}</div>
+                    </div>
+                  </div>
+                  <div className="col-12">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Số tiền</div>
+                      <div 
+                        className="tx-detail-value"
+                        style={{
+                          color: tx.type === "expense" ? "#dc2626" : "#16a34a",
+                          fontWeight: "600",
+                          fontSize: "1.1rem"
+                        }}
+                      >
+                        {tx.type === "expense" ? "-" : "+"}
+                        {formatMoney(tx.amount, tx.currency)}
+                      </div>
+                    </div>
+                  </div>
+                  {tx.transactionType && (
+                    <div className="col-12">
+                      <div className="tx-detail-item">
+                        <div className="tx-detail-label">Loại giao dịch quỹ</div>
+                        <div className="tx-detail-value">
+                          {tx.transactionType === "DEPOSIT" || tx.transactionType === "MANUAL_DEPOSIT" ? "Nạp tiền thủ công" :
+                           tx.transactionType === "AUTO_DEPOSIT" ? "Nạp tiền tự động" :
+                           tx.transactionType === "AUTO_DEPOSIT_RECOVERY" ? "Nạp bù tự động" :
+                           tx.transactionType === "WITHDRAW" ? "Rút tiền" :
+                           tx.transactionType === "SETTLE" ? "Tất toán quỹ" :
+                           tx.fundTransactionType === "DEPOSIT" || tx.fundTransactionType === "MANUAL_DEPOSIT" ? "Nạp tiền thủ công" :
+                           tx.fundTransactionType === "AUTO_DEPOSIT" ? "Nạp tiền tự động" :
+                           tx.fundTransactionType === "AUTO_DEPOSIT_RECOVERY" ? "Nạp bù tự động" :
+                           tx.fundTransactionType === "WITHDRAW" ? "Rút tiền" :
+                           tx.fundTransactionType === "SETTLE" ? "Tất toán quỹ" :
+                           tx.transactionType || tx.fundTransactionType || "-"}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : isTransfer ? (
                 <>
                   <div className="col-6">
                     <div className="tx-detail-item">
@@ -366,69 +421,6 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                           fontSize: "1.1rem"
                         }}
                       >
-                        {formatMoney(tx.amount, tx.currency)}
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : tx.isFundTransaction ? (
-                <>
-                  <div className="col-6">
-                    <div className="tx-detail-item">
-                      <div className="tx-detail-label">Quỹ</div>
-                      <div className="tx-detail-value">{tx.fundName || "-"}</div>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="tx-detail-item">
-                      <div className="tx-detail-label">Ví</div>
-                      <div className="tx-detail-value">{tx.walletName || "-"}</div>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="tx-detail-item">
-                      <div className="tx-detail-label">Thời hạn</div>
-                      <div className="tx-detail-value">
-                        {tx.fundHasDeadline ? (
-                          <span className="badge bg-warning-subtle text-warning" style={{ fontSize: "0.75rem", padding: "4px 8px" }}>
-                            Có thời hạn
-                          </span>
-                        ) : (
-                          <span className="badge bg-secondary-subtle text-secondary" style={{ fontSize: "0.75rem", padding: "4px 8px" }}>
-                            Không thời hạn
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="tx-detail-item">
-                      <div className="tx-detail-label">Trạng thái</div>
-                      <div className="tx-detail-value">
-                        {tx.fundTransactionStatus === "SUCCESS" ? (
-                          <span className="badge bg-success-subtle text-success" style={{ fontSize: "0.75rem", padding: "4px 8px" }}>
-                            Thành công
-                          </span>
-                        ) : (
-                          <span className="badge bg-danger-subtle text-danger" style={{ fontSize: "0.75rem", padding: "4px 8px" }}>
-                            Thất bại
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-12">
-                    <div className="tx-detail-item">
-                      <div className="tx-detail-label">Số tiền</div>
-                      <div 
-                        className="tx-detail-value"
-                        style={{
-                          color: (tx.fundTransactionStatus === "FAILED") ? "#6b7280" : (tx.type === "expense" ? "#dc2626" : "#16a34a"),
-                          fontWeight: "600",
-                          fontSize: "1.1rem"
-                        }}
-                      >
-                        {tx.type === "expense" ? "-" : "+"}
                         {formatMoney(tx.amount, tx.currency)}
                       </div>
                     </div>

@@ -16,6 +16,7 @@ import { formatMoney } from "../../utils/formatMoney";
 import { formatVietnamDate, formatVietnamTime } from "../../utils/dateFormat";
 import { getFundTransactions, getFundById } from "../../services/fund.service";
 import { parseAmount, parseAmountNonNegative } from "../../utils/parseAmount";
+import { getMoneyValue } from "../../utils/formatMoneyInput";
 import "../../styles/components/funds/FundDetail.css";
 import "../../styles/components/funds/FundForms.css";
 
@@ -1507,7 +1508,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       showToast("Quỹ đã đóng hoặc hoàn thành mục tiêu, không thể nạp thêm.", "error");
       return;
     }
-    const amount = parseAmountNonNegative(depositAmount, 0);
+    const amount = getMoneyValue(depositAmount);
     
     // Validation cơ bản
     if (!amount || amount <= 0) {

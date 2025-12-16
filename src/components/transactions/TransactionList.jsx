@@ -207,18 +207,14 @@ export default function TransactionList({
                   <>
                     <th style={{ width: "100px", whiteSpace: "nowrap" }}>Quỹ</th>
                     <th style={{ width: "120px", whiteSpace: "nowrap" }}>Ví</th>
-                    <th style={{ width: "120px", whiteSpace: "nowrap" }}>Thời hạn</th>
-                    <th style={{ width: "120px", whiteSpace: "nowrap" }}>Trạng thái</th>
                   </>
                 ) : (
                   <th style={{ whiteSpace: "nowrap" }}>{t("transactions.table.wallet") || "Ví"}</th>
                 )}
                 <th style={{ width: "140px", whiteSpace: "nowrap" }}>{t("transactions.table.time")}</th>
-                {activeTab !== "fund" && (
-                  <th style={{ width: "100px", whiteSpace: "nowrap" }}>{t("transactions.table.type")}</th>
-                )}
-                <th className={activeTab === "fund" ? "" : "tx-note-col"} style={activeTab === "fund" ? { minWidth: "200px", whiteSpace: "nowrap" } : { whiteSpace: "nowrap" }}>{t("transactions.table.category") || "Danh mục"}</th>
-                <th className="text-end" style={{ width: "150px", whiteSpace: "nowrap" }}>{t("transactions.table.amount")}</th>
+                <th style={{ width: "100px", whiteSpace: "nowrap" }}>{t("transactions.table.type")}</th>
+                <th className={activeTab === "fund" ? "" : "tx-note-col"} style={activeTab === "fund" ? { width: "140px", whiteSpace: "nowrap" } : { whiteSpace: "nowrap" }}>{t("transactions.table.category") || "Danh mục"}</th>
+                <th className="text-end" style={activeTab === "fund" ? { width: "200px", whiteSpace: "nowrap" } : { width: "150px", whiteSpace: "nowrap" }}>{t("transactions.table.amount")}</th>
                 {activeTab !== "fund" && (
                   <th className="text-center" style={{ width: "100px", whiteSpace: "nowrap" }}>{t("transactions.table.action")}</th>
                 )}
@@ -227,7 +223,7 @@ export default function TransactionList({
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={activeTab === "fund" ? 8 : 7} className="text-center text-muted py-4">
+                  <td colSpan={activeTab === "fund" ? 7 : 7} className="text-center text-muted py-4">
                     {t("transactions.table.empty")}
                   </td>
                 </tr>
@@ -252,71 +248,28 @@ export default function TransactionList({
                         <>
                           <td className="fw-medium" style={{ whiteSpace: "nowrap" }}>{tx.fundName || "-"}</td>
                           <td className="fw-medium" style={{ whiteSpace: "nowrap" }}>{tx.walletName || tx.sourceWallet || tx.targetWallet || "-"}</td>
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            {tx.isFundTransaction ? (
-                              <span className={`badge ${tx.fundHasDeadline ? "bg-warning-subtle text-warning" : "bg-secondary-subtle text-secondary"}`} 
-                                    style={{ 
-                                      fontSize: "0.75rem", 
-                                      padding: "4px 8px", 
-                                      borderRadius: "6px",
-                                      backgroundColor: tx.fundHasDeadline ? "#fef3c7" : "#e5e7eb",
-                                      color: tx.fundHasDeadline ? "#d97706" : "#6b7280"
-                                    }}>
-                                {tx.fundHasDeadline ? "Có thời hạn" : "Không thời hạn"}
-                              </span>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            {tx.isFundTransaction && tx.fundTransactionStatus ? (
-                              <span 
-                                className={`badge ${tx.fundTransactionStatus === "SUCCESS" ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger"}`}
-                                style={{ 
-                                  fontSize: "0.75rem", 
-                                  padding: "4px 8px", 
-                                  borderRadius: "6px",
-                                  backgroundColor: tx.fundTransactionStatus === "SUCCESS" ? "#d1fae5" : "#fee2e2",
-                                  color: tx.fundTransactionStatus === "SUCCESS" ? "#059669" : "#dc2626"
-                                }}
-                              >
-                                {tx.fundTransactionStatus === "SUCCESS" ? "Thành công" : "Thất bại"}
-                              </span>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
                         </>
                       ) : (
                         <td className="fw-medium" style={{ whiteSpace: "nowrap" }}>{tx.walletName || "-"}</td>
                       )}
                       <td className="fw-medium" style={{ whiteSpace: "nowrap" }}>{dateTimeStr}</td>
-                      {activeTab !== "fund" && (
-                        <td style={{ whiteSpace: "nowrap" }}>
-                          <span 
-                            className={`badge ${tx.type === "income" ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger"}`} 
-                            style={{ 
-                              fontSize: "0.75rem", 
-                              padding: "4px 8px", 
-                              borderRadius: "6px",
-                              backgroundColor: tx.type === "income" ? "#d1fae5" : "#fee2e2",
-                              color: tx.type === "income" ? "#059669" : "#dc2626",
-                              whiteSpace: "nowrap"
-                            }}
-                          >
-                            {tx.type === "income" ? t("transactions.type.income") : t("transactions.type.expense")}
-                          </span>
-                        </td>
-                      )}
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <span 
+                          className={`badge ${tx.type === "income" ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger"}`} 
+                          style={{ 
+                            fontSize: "0.75rem", 
+                            padding: "4px 8px", 
+                            borderRadius: "6px",
+                            backgroundColor: tx.type === "income" ? "#d1fae5" : "#fee2e2",
+                            color: tx.type === "income" ? "#059669" : "#dc2626",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {tx.type === "income" ? t("transactions.type.income") : t("transactions.type.expense")}
+                        </span>
+                      </td>
                       <td className={activeTab === "fund" ? "" : "tx-note-cell"} title={tx.category || "-"} style={{ whiteSpace: "nowrap" }}>
-                        <div className="d-flex align-items-center gap-2" style={{ whiteSpace: "nowrap" }}>
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.category || "-"}</span>
-                          {tx.isFundTransaction && (
-                            <span className="badge bg-info-subtle text-info" style={{ fontSize: "0.65rem", padding: "2px 6px", whiteSpace: "nowrap", flexShrink: 0 }}>
-                              Quỹ
-                            </span>
-                          )}
-                        </div>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.category || "-"}</span>
                       </td>
                       <td className="text-end" style={{ whiteSpace: "nowrap" }}>
                         <span 
