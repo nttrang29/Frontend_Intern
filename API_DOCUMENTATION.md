@@ -129,25 +129,7 @@ Authorization: Bearer <accessToken>
 
 ---
 
-### 6. Xác thực OTP
-**POST** `/auth/verify-otp`
 
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "Mã xác thực": "123456"
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Xác thực mã thành công"
-}
-```
-
----
 
 ### 7. Đặt lại mật khẩu
 **POST** `/auth/reset-password`
