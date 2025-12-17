@@ -151,6 +151,15 @@ Authorization: Bearer <accessToken>
 
 
 
+**Response:**
+```json
+{
+  "message": "Đổi mật khẩu thành công"
+}
+```
+
+---
+
 ### 8. Đăng nhập Google OAuth2
 **GET** `/auth/oauth2/authorization/google`
 
