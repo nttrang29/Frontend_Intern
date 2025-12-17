@@ -33,6 +33,7 @@ Authorization: Bearer <accessToken>
 ```
 
 **Lưu ý:**
+- Mật khẩu phải ≥8 ký tự, có chữ hoa, thường, số, ký tự đặc biệt
 
 
 ---
