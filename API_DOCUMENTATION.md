@@ -149,7 +149,18 @@ Authorization: Bearer <accessToken>
 
 ---
 
+### 7. Đặt lại mật khẩu
+**POST** `/auth/reset-password`
 
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "Mã xác thực": "123456",
+  "newPassword": "NewPassword123!",
+  "confirmPassword": "NewPassword123!"
+}
+```
 
 **Response:**
 ```json
