@@ -28,7 +28,7 @@ Authorization: Bearer <accessToken>
 **Response:**
 ```json
 {
-  "message": "Đăng ký thành công. Vui lòng kiểm tra email để xác minh tài khoản."
+  "message": "Đăng ký thành công. Vui lòng kiểm tra  để xác minh tài khoản."
 }
 ```
 
