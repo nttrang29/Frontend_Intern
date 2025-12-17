@@ -110,7 +110,24 @@ Authorization: Bearer <accessToken>
 
 ---
 
+### 5. Quên mật khẩu
+**POST** `/auth/forgot-password`
 
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Mã xác thực đã gửi đến email"
+}
+```
+
+---
 
 ### 6. Xác thực OTP
 **POST** `/auth/verify-otp`
