@@ -171,34 +171,6 @@ Authorization: Bearer <accessToken>
 
 ---
 
-### 8. Đăng nhập Google OAuth2
-**GET** `/auth/oauth2/authorization/google`
-
-Redirect đến Google login, sau đó redirect về:
-`http://localhost:3000/oauth/callback?token=<jwt_token>`
-
----
-
-## 👤 Profile APIs
-
-### 1. Lấy thông tin profile
-**GET** `/profile`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "user": {
-    "userId": 1,
-    "fullName": "Nguyễn Văn A",
-    "email": "user@example.com",
-    "provider": "local",
-    "avatar": "base64_or_url",
-    "enabled": true
-  }
-}
-```
 
 ---
 
