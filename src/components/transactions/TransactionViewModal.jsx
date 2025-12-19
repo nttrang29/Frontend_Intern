@@ -293,8 +293,13 @@ export default function TransactionViewModal({ open, tx, onClose }) {
 
       <div className="tx-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
         <div className="tx-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="tx-modal-header">
+          <div className="tx-modal-header d-flex justify-content-between align-items-center">
             <h5>Chi tiết Giao dịch</h5>
+            {tx.isEdited && (
+              <span className="badge bg-warning text-dark" style={{ fontSize: "0.8rem" }}>
+                Đã sửa
+              </span>
+            )}
           </div>
 
           <div className="tx-modal-body">

@@ -246,8 +246,8 @@ export default function TransactionList({
                       <td className="text-muted" style={{ whiteSpace: "nowrap" }}>
                         {serial}
                         {tx.isEdited && (
-                          <span className="badge bg-warning-subtle text-warning ms-1" style={{ fontSize: "0.7rem" }}>
-                            Đã sửa
+                          <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontWeight: "bold", fontStyle: "normal" }}>
+                            (đã sửa)
                           </span>
                         )}
                       </td>
@@ -350,8 +350,8 @@ export default function TransactionList({
                       <td className="text-muted" style={{ whiteSpace: "nowrap" }}>
                         {serial}
                         {tx.isEdited && (
-                          <span className="badge bg-warning-subtle text-warning ms-1" style={{ fontSize: "0.7rem" }}>
-                            Đã sửa
+                          <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontWeight: "bold", fontStyle: "normal" }}>
+                            (đã sửa)
                           </span>
                         )}
                       </td>

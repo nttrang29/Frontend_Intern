@@ -975,12 +975,20 @@ export default function TransactionsPage() {
         walletName = `${walletName} (đã xóa)`;
       }
 
+      // Đánh dấu giao dịch đã được chỉnh sửa (backend trả về isEdited)
+      const isEdited =
+        tx.isEdited === true ||
+        tx.edited === true ||
+        tx.is_updated === true ||
+        tx.isUpdated === true;
+
       const categoryName =
         tx.category?.categoryName ||
         tx.category?.name ||
         tx.categoryName ||
         tx.category ||
         "Unknown";
+
       const type = resolveTransactionDirection(tx);
 
       // Ưu tiên createdAt/created_at cho cột thời gian trong lịch sử giao dịch
@@ -1165,11 +1173,7 @@ export default function TransactionsPage() {
         // Lưu trạng thái viewer wallet để ẩn nút sửa/xóa (ngay cả khi không còn trong leftWalletIds)
         isViewerWallet: isViewerWallet,
         // Đánh dấu giao dịch đã được chỉnh sửa (backend trả về isEdited)
-        isEdited:
-          tx.isEdited === true ||
-          tx.edited === true ||
-          tx.is_updated === true ||
-          tx.isUpdated === true,
+        isEdited: isEdited,
       };
     },
     [walletsMap, leftWalletIds, walletsLoading, wallets]
