@@ -235,7 +235,8 @@ export default function TransactionList({
                   
                   // Kiểm tra xem transaction này có thể thực hiện hành động không
                   // Fund transactions không thể edit/delete
-                  const canPerformAction = !tx.isFundTransaction && !tx.isWalletDeleted && !tx.isLeftWallet && !tx.isViewerWallet;
+                  // Giao dịch đã xóa mềm (isDeleted) cũng không thể edit/delete
+                  const canPerformAction = !tx.isDeleted && !tx.isFundTransaction && !tx.isWalletDeleted && !tx.isLeftWallet && !tx.isViewerWallet;
 
                   return (
                     <tr 
@@ -245,7 +246,11 @@ export default function TransactionList({
                     >
                       <td className="text-muted" style={{ whiteSpace: "nowrap" }}>
                         {serial}
-                        {tx.isEdited && (
+                        {tx.isDeleted ? (
+                          <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontWeight: "bold", fontStyle: "normal" }}>
+                            (đã xoá)
+                          </span>
+                        ) : tx.isEdited && (
                           <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontWeight: "bold", fontStyle: "normal" }}>
                             (đã sửa)
                           </span>
@@ -339,7 +344,10 @@ export default function TransactionList({
                   const dateTimeStr = formatVietnamDateTime(d);
                   
                   // Kiểm tra xem transaction này có thể thực hiện hành động không
-                  const canPerformAction = !tx.isWalletDeleted && !tx.isLeftWallet && !tx.isViewerWallet;
+                  // Nếu một trong hai ví bị xóa, vẫn cho phép xem nhưng không cho sửa/xóa
+                  // Tuy nhiên, nếu ví bị xóa thì isWalletDeleted = true, nên canPerformAction = false
+                  // Điều này đúng với yêu cầu: "ẩn cột hành động đi thôi chứ vẫn hiện trong trang giao dịch"
+                  const canPerformAction = !tx.isDeleted && !tx.isWalletDeleted && !tx.isLeftWallet && !tx.isViewerWallet;
 
                   return (
                     <tr 
@@ -349,15 +357,29 @@ export default function TransactionList({
                     >
                       <td className="text-muted" style={{ whiteSpace: "nowrap" }}>
                         {serial}
-                        {tx.isEdited && (
+                        {(tx.isDeleted || tx.isWalletDeleted) ? (
+                          <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontWeight: "bold", fontStyle: "normal" }}>
+                            (đã xoá)
+                          </span>
+                        ) : tx.isEdited && (
                           <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontWeight: "bold", fontStyle: "normal" }}>
                             (đã sửa)
                           </span>
                         )}
                       </td>
                       <td className="fw-medium">{dateTimeStr}</td>
-                      <td className="fw-medium">{tx.sourceWallet}</td>
-                      <td className="fw-medium">{tx.targetWallet}</td>
+                      <td className="fw-medium">
+                        {tx.sourceWallet}
+                        {tx.isFromWalletDeleted && !tx.sourceWallet.includes("(đã xóa)") && (
+                          <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontStyle: "italic" }}>(đã xóa)</span>
+                        )}
+                      </td>
+                      <td className="fw-medium">
+                        {tx.targetWallet}
+                        {tx.isToWalletDeleted && !tx.targetWallet.includes("(đã xóa)") && (
+                          <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontStyle: "italic" }}>(đã xóa)</span>
+                        )}
+                      </td>
                       <td className="text-end" style={{ width: 230 }}>
                         <span 
                           className="tx-amount-transfer"

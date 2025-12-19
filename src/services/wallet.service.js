@@ -807,21 +807,34 @@ export const getWalletTransfers = async (walletId) => {
 };
 
 /**
- * ✏️ CẬP NHẬT GIAO DỊCH CHUYỂN TIỀN (chỉ ghi chú)
+ * ✏️ CẬP NHẬT GIAO DỊCH CHUYỂN TIỀN
  * @param {number} transferId - ID của giao dịch chuyển tiền
  * @param {string} note - Ghi chú mới
+ * @param {string|number} [amount] - Số tiền mới (optional)
+ * @param {string} [transferDate] - Ngày giao dịch mới (optional)
  * @returns {Promise<Object>} - { transfer: Object } hoặc { error: string }
  */
-export const updateTransfer = async (transferId, note) => {
+export const updateTransfer = async (transferId, note, amount, transferDate) => {
   try {
     const id = Number(transferId);
     if (isNaN(id)) {
       throw new Error(`Invalid transfer ID: ${transferId}`);
     }
     
-    const response = await apiClient.put(`/transfers/${id}`, {
-      note: note || null,
-    });
+    const payload = { note: note || null };
+    if (amount !== undefined && amount !== null && amount !== "") {
+      payload.amount = amount;
+    }
+    if (transferDate) {
+      // Ensure seconds are present for LocalDateTime
+      let formattedDate = transferDate;
+      if (formattedDate.length === 16) { // YYYY-MM-DDTHH:mm
+        formattedDate += ":00";
+      }
+      payload.transferDate = formattedDate;
+    }
+
+    const response = await apiClient.put(`/transfers/${id}`, payload);
 
     return handleAxiosResponse(response);
   } catch (error) {
@@ -1024,8 +1037,8 @@ export const walletAPI = {
     const result = await getWalletTransfersFn(walletId);
     return result.data || result;
   },
-  updateTransfer: async (transferId, note) => {
-    const result = await updateTransferFn(transferId, note);
+  updateTransfer: async (transferId, note, amount, transferDate) => {
+    const result = await updateTransferFn(transferId, note, amount, transferDate);
     return result.data || result;
   },
   deleteTransfer: async (transferId) => {
