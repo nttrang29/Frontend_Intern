@@ -249,10 +249,14 @@ export default function DetailViewTab({
                         <div className="wallets-detail__history-main">
                           <span className="wallets-detail__history-title">
                             {tx.title}
+                            {tx.isDeleted && <span className="text-muted ms-2" style={{ fontSize: '0.85em' }}>(đã xoá)</span>}
+                            {!tx.isDeleted && tx.isEdited && <span className="text-muted ms-2" style={{ fontSize: '0.85em' }}>(đã sửa)</span>}
                           </span>
                           <span
                             className={
-                              tx.amount >= 0
+                              tx.isDeleted 
+                                ? "wallets-detail__history-amount text-muted text-decoration-line-through"
+                                : tx.amount >= 0
                                 ? "wallets-detail__history-amount wallets-detail__history-amount--pos"
                                 : "wallets-detail__history-amount wallets-detail__history-amount--neg"
                             }

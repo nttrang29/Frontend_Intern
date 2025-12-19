@@ -982,6 +982,9 @@ export default function TransactionsPage() {
         tx.is_updated === true ||
         tx.isUpdated === true;
 
+      // Kiểm tra xem transaction có bị deleted không
+      const isDeleted = tx.isDeleted === true || tx.deleted === true;
+
       const categoryName =
         tx.category?.categoryName ||
         tx.category?.name ||
@@ -1174,6 +1177,8 @@ export default function TransactionsPage() {
         isViewerWallet: isViewerWallet,
         // Đánh dấu giao dịch đã được chỉnh sửa (backend trả về isEdited)
         isEdited: isEdited,
+        // Đánh dấu giao dịch đã bị xóa
+        isDeleted: isDeleted,
       };
     },
     [walletsMap, leftWalletIds, walletsLoading, wallets]
@@ -2043,7 +2048,9 @@ export default function TransactionsPage() {
               prevTx.attachment !== tx.attachment ||
               prevTx.isLeftWallet !== tx.isLeftWallet ||
               prevTx.isWalletDeleted !== tx.isWalletDeleted ||
-              prevTx.walletName !== tx.walletName
+              prevTx.walletName !== tx.walletName ||
+              prevTx.isDeleted !== tx.isDeleted ||
+              prevTx.isEdited !== tx.isEdited
             ); // walletName có thể thay đổi khi thêm "(đã rời ví)"
           });
           if (!hasChanged) {
@@ -2079,7 +2086,9 @@ export default function TransactionsPage() {
               prevTx.isLeftWallet !== tx.isLeftWallet ||
               prevTx.isWalletDeleted !== tx.isWalletDeleted ||
               prevTx.isViewerWallet !== tx.isViewerWallet ||
-              prevTx.walletName !== tx.walletName
+              prevTx.walletName !== tx.walletName ||
+              prevTx.isDeleted !== tx.isDeleted ||
+              prevTx.isEdited !== tx.isEdited
             ); // walletName có thể thay đổi khi thêm "(đã rời ví)"
           });
           if (!hasChanged) {
@@ -2116,7 +2125,9 @@ export default function TransactionsPage() {
               prevTx.isWalletDeleted !== tx.isWalletDeleted ||
               prevTx.isViewerWallet !== tx.isViewerWallet ||
               prevTx.sourceWallet !== tx.sourceWallet ||
-              prevTx.targetWallet !== tx.targetWallet
+              prevTx.targetWallet !== tx.targetWallet ||
+              prevTx.isDeleted !== tx.isDeleted ||
+              prevTx.isEdited !== tx.isEdited
             ); // sourceWallet/targetWallet có thể thay đổi khi thêm "(đã rời ví)"
           });
           if (!hasChanged) {
@@ -2380,6 +2391,8 @@ export default function TransactionsPage() {
               prevTx.attachment !== tx.attachment ||
               prevTx.isLeftWallet !== tx.isLeftWallet ||
               prevTx.isWalletDeleted !== tx.isWalletDeleted ||
+              prevTx.isDeleted !== tx.isDeleted ||
+              prevTx.isEdited !== tx.isEdited ||
               prevTx.isViewerWallet !== tx.isViewerWallet ||
               prevTx.walletName !== tx.walletName
             );
@@ -2412,6 +2425,8 @@ export default function TransactionsPage() {
             return (
               prevTx.amount !== tx.amount ||
               prevTx.date !== tx.date ||
+              prevTx.isDeleted !== tx.isDeleted ||
+              prevTx.isEdited !== tx.isEdited ||
               prevTx.category !== tx.category ||
               prevTx.attachment !== tx.attachment
             );
@@ -2450,6 +2465,8 @@ export default function TransactionsPage() {
               prevTx.amount !== tx.amount ||
               prevTx.date !== tx.date ||
               prevTx.isLeftWallet !== tx.isLeftWallet ||
+              prevTx.isDeleted !== tx.isDeleted ||
+              prevTx.isEdited !== tx.isEdited ||
               prevTx.isWalletDeleted !== tx.isWalletDeleted ||
               prevTx.isViewerWallet !== tx.isViewerWallet ||
               prevTx.sourceWallet !== tx.sourceWallet ||
@@ -3339,6 +3356,9 @@ export default function TransactionsPage() {
       // Xử lý xóa giao dịch thu nhập/chi tiêu
       // Gọi API xóa
       await transactionAPI.deleteTransaction(item.id);
+
+      // Force refresh bằng cách reset lastRefreshRef để đảm bảo refresh ngay lập tức
+      lastRefreshRef.current = { walletsIds: "", timestamp: 0 };
 
       // Reload wallets để cập nhật số dư
       await loadWallets();

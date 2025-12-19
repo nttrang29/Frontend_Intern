@@ -295,11 +295,18 @@ export default function TransactionViewModal({ open, tx, onClose }) {
         <div className="tx-modal" onClick={(e) => e.stopPropagation()}>
           <div className="tx-modal-header d-flex justify-content-between align-items-center">
             <h5>Chi tiết Giao dịch</h5>
-            {tx.isEdited && (
-              <span className="badge bg-warning text-dark" style={{ fontSize: "0.8rem" }}>
-                Đã sửa
-              </span>
-            )}
+            <div className="d-flex gap-2">
+              {tx.isDeleted && (
+                <span className="badge bg-danger text-white" style={{ fontSize: "0.8rem" }}>
+                  Đã xoá
+                </span>
+              )}
+              {!tx.isDeleted && tx.isEdited && (
+                <span className="badge bg-warning text-dark" style={{ fontSize: "0.8rem" }}>
+                  Đã sửa
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="tx-modal-body">
