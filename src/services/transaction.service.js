@@ -108,13 +108,14 @@ export const transactionAPI = {
   },
 
   /**
-   * Cập nhật giao dịch (chỉ được sửa category, note, imageUrl)
+   * Cập nhật giao dịch (category, note, imageUrl, amount)
    * @param {number} transactionId
    * @param {number} categoryId
+   * @param {number} amount
    * @param {string} note
    * @param {string} imageUrl
    */
-  updateTransaction: async (transactionId, categoryId, note, imageUrl) => {
+  updateTransaction: async (transactionId, categoryId, amount, note, imageUrl) => {
     // Đảm bảo transactionId là số nguyên
     const id = Number(transactionId);
     if (isNaN(id)) {
@@ -127,6 +128,7 @@ export const transactionAPI = {
       method: "PUT",
       body: JSON.stringify({
         categoryId: Number(categoryId),
+        amount: Number(amount),
         note: note || null,
         imageUrl: imageUrl || null,
       }),

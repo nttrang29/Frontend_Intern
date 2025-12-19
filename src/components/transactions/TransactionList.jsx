@@ -243,7 +243,14 @@ export default function TransactionList({
                       onClick={() => onView(tx)}
                       style={{ cursor: "pointer" }}
                     >
-                      <td className="text-muted">{serial}</td>
+                      <td className="text-muted" style={{ whiteSpace: "nowrap" }}>
+                        {serial}
+                        {tx.isEdited && (
+                          <span className="badge bg-warning-subtle text-warning ms-1" style={{ fontSize: "0.7rem" }}>
+                            Đã sửa
+                          </span>
+                        )}
+                      </td>
                       {activeTab === "fund" ? (
                         <>
                           <td className="fw-medium" style={{ whiteSpace: "nowrap" }}>{tx.fundName || "-"}</td>
@@ -340,7 +347,14 @@ export default function TransactionList({
                       onClick={() => onView(tx)}
                       style={{ cursor: "pointer" }}
                     >
-                      <td className="text-muted">{serial}</td>
+                      <td className="text-muted" style={{ whiteSpace: "nowrap" }}>
+                        {serial}
+                        {tx.isEdited && (
+                          <span className="badge bg-warning-subtle text-warning ms-1" style={{ fontSize: "0.7rem" }}>
+                            Đã sửa
+                          </span>
+                        )}
+                      </td>
                       <td className="fw-medium">{dateTimeStr}</td>
                       <td className="fw-medium">{tx.sourceWallet}</td>
                       <td className="fw-medium">{tx.targetWallet}</td>
