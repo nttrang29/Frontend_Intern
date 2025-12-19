@@ -964,11 +964,46 @@ export default function TransactionsPage() {
         "Unknown";
 
       // Kiểm tra xem wallet có bị deleted không
-      const isWalletDeleted =
+      let isWalletDeleted =
         tx.wallet?.deleted === true ||
         wallet?.deleted === true ||
         tx.wallet?.isDeleted === true ||
         wallet?.isDeleted === true;
+
+      // Lấy walletType để phân biệt PERSONAL và GROUP
+      // Ưu tiên lấy từ wallet trong walletsMap, sau đó từ tx.wallet
+      let walletType = "";
+      if (wallet) {
+        walletType = (wallet.walletType || wallet.type || "")
+          .toString()
+          .toUpperCase();
+      } else if (tx.wallet?.walletType) {
+        walletType = String(tx.wallet.walletType).toUpperCase();
+      }
+      const isPersonalWallet = walletType !== "GROUP";
+
+      // Nếu là ví cá nhân và không tìm thấy trong danh sách (và không phải đang loading), coi như đã xóa
+      // Logic này giúp phát hiện ví cá nhân đã bị xóa nhưng chưa được đánh dấu deleted trong transaction
+      const walletIdStr = walletId ? String(walletId) : null;
+      const walletExistsInList =
+        walletIdStr &&
+        wallets.some(
+          (w) =>
+            String(w.id || w.walletId) === walletIdStr &&
+            !w.deleted &&
+            !w.isDeleted
+        );
+
+      if (
+        !isWalletDeleted &&
+        isPersonalWallet &&
+        !wallet &&
+        walletId &&
+        !walletsLoading &&
+        !walletExistsInList
+      ) {
+        isWalletDeleted = true;
+      }
 
       // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
       if (isWalletDeleted) {
@@ -1100,15 +1135,6 @@ export default function TransactionsPage() {
       // 2. HOẶC wallets đã được load xong VÀ wallet không tìm thấy trong walletsMap VÀ không phải deleted
       // (Tránh false positive khi wallets chưa load xong sau khi F5)
       // Lưu ý: Kiểm tra cả wallets list để đảm bảo wallet thực sự không còn trong danh sách
-      const walletIdStr = walletId ? String(walletId) : null;
-      const walletExistsInList =
-        walletIdStr &&
-        wallets.some(
-          (w) =>
-            String(w.id || w.walletId) === walletIdStr &&
-            !w.deleted &&
-            !w.isDeleted
-        );
       const isLeftWallet =
         (walletIdStr && leftWalletIds.has(walletIdStr)) ||
         (!walletsLoading &&
@@ -1121,18 +1147,6 @@ export default function TransactionsPage() {
       // Nếu wallet không có trong walletsMap (đã rời ví), không thể kiểm tra role
       // Nếu wallet có trong walletsMap, kiểm tra role
       const isViewerWallet = wallet ? isViewerOnlyWallet(wallet) : false;
-
-      // Lấy walletType để phân biệt PERSONAL và GROUP
-      // Ưu tiên lấy từ wallet trong walletsMap, sau đó từ tx.wallet
-      let walletType = "";
-      if (wallet) {
-        walletType = (wallet.walletType || wallet.type || "")
-          .toString()
-          .toUpperCase();
-      } else if (tx.wallet?.walletType) {
-        walletType = String(tx.wallet.walletType).toUpperCase();
-      }
-      const isPersonalWallet = walletType !== "GROUP";
 
       // Thêm "(đã rời ví)" vào tên ví nếu user đã rời ví
       // Lưu ý:
@@ -1187,10 +1201,63 @@ export default function TransactionsPage() {
   const mapTransferToFrontend = useCallback(
     (transfer) => {
       if (!transfer) return null;
-      const fromWalletId = transfer.fromWallet?.walletId;
-      const toWalletId = transfer.toWallet?.walletId;
+      // Cải thiện việc lấy ID ví để đảm bảo không bị undefined
+      const fromWalletId =
+        transfer.fromWallet?.walletId ||
+        transfer.fromWallet?.id ||
+        transfer.fromWalletId ||
+        transfer.sourceWalletId;
+      const toWalletId =
+        transfer.toWallet?.walletId ||
+        transfer.toWallet?.id ||
+        transfer.toWalletId ||
+        transfer.targetWalletId;
+
       const fromWallet = fromWalletId ? walletsMap.get(fromWalletId) : null;
       const toWallet = toWalletId ? walletsMap.get(toWalletId) : null;
+
+      // Lấy walletType để phân biệt PERSONAL và GROUP cho cả sourceWallet và targetWallet
+      // Ưu tiên lấy từ wallet trong walletsMap, sau đó từ transfer.fromWallet/toWallet
+      let fromWalletType = "";
+      if (fromWallet) {
+        fromWalletType = (fromWallet.walletType || fromWallet.type || "")
+          .toString()
+          .toUpperCase();
+      } else if (transfer.fromWallet?.walletType) {
+        fromWalletType = String(transfer.fromWallet.walletType).toUpperCase();
+      }
+      const isFromPersonalWallet = fromWalletType !== "GROUP";
+
+      let toWalletType = "";
+      if (toWallet) {
+        toWalletType = (toWallet.walletType || toWallet.type || "")
+          .toString()
+          .toUpperCase();
+      } else if (transfer.toWallet?.walletType) {
+        toWalletType = String(transfer.toWallet.walletType).toUpperCase();
+      }
+      const isToPersonalWallet = toWalletType !== "GROUP";
+
+      // Kiểm tra xem wallet có tồn tại trong wallets list không
+      const fromWalletIdStr = fromWalletId ? String(fromWalletId) : null;
+      const toWalletIdStr = toWalletId ? String(toWalletId) : null;
+
+      const fromWalletExistsInList =
+        fromWalletIdStr &&
+        wallets.some(
+          (w) =>
+            String(w.id || w.walletId) === fromWalletIdStr &&
+            !w.deleted &&
+            !w.isDeleted
+        );
+      const toWalletExistsInList =
+        toWalletIdStr &&
+        wallets.some(
+          (w) =>
+            String(w.id || w.walletId) === toWalletIdStr &&
+            !w.deleted &&
+            !w.isDeleted
+        );
 
       let sourceWalletName =
         fromWallet?.walletName ||
@@ -1200,11 +1267,25 @@ export default function TransactionsPage() {
         "Unknown";
 
       // Kiểm tra xem fromWallet có bị deleted không
-      const isFromWalletDeleted =
+      let isFromWalletDeleted =
         transfer.fromWallet?.deleted === true ||
-        fromWallet?.deleted === true ||
         transfer.fromWallet?.isDeleted === true ||
+        transfer.fromWallet?.is_deleted === true ||
+        fromWallet?.deleted === true ||
         fromWallet?.isDeleted === true;
+
+      // Nếu là ví cá nhân và không tìm thấy trong danh sách (và không phải đang loading), coi như đã xóa
+      if (!isFromWalletDeleted && !walletsLoading && fromWalletId) {
+        // Nếu không tìm thấy trong danh sách active wallets, và không phải là "Left Wallet" (đã rời ví), thì coi như đã xóa
+        // Logic này áp dụng cho cả Personal và Group wallets
+        if (!fromWalletExistsInList) {
+          // Kiểm tra xem có phải là "Left Wallet" không
+          const isLeft = leftWalletIds.has(String(fromWalletId));
+          if (!isLeft) {
+            isFromWalletDeleted = true;
+          }
+        }
+      }
 
       // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
       if (isFromWalletDeleted) {
@@ -1219,11 +1300,25 @@ export default function TransactionsPage() {
         "Unknown";
 
       // Kiểm tra xem toWallet có bị deleted không
-      const isToWalletDeleted =
+      let isToWalletDeleted =
         transfer.toWallet?.deleted === true ||
-        toWallet?.deleted === true ||
         transfer.toWallet?.isDeleted === true ||
+        transfer.toWallet?.is_deleted === true ||
+        toWallet?.deleted === true ||
         toWallet?.isDeleted === true;
+
+      // Nếu là ví cá nhân và không tìm thấy trong danh sách (và không phải đang loading), coi như đã xóa
+      if (!isToWalletDeleted && !walletsLoading && toWalletId) {
+        // Nếu không tìm thấy trong danh sách active wallets, và không phải là "Left Wallet" (đã rời ví), thì coi như đã xóa
+        // Logic này áp dụng cho cả Personal và Group wallets
+        if (!toWalletExistsInList) {
+          // Kiểm tra xem có phải là "Left Wallet" không
+          const isLeft = leftWalletIds.has(String(toWalletId));
+          if (!isLeft) {
+            isToWalletDeleted = true;
+          }
+        }
+      }
 
       // Thêm "(đã xóa)" vào tên ví nếu wallet đã bị soft delete
       if (isToWalletDeleted) {
@@ -1334,27 +1429,6 @@ export default function TransactionsPage() {
       // CHỈ đánh dấu "đã rời ví" nếu:
       // 1. WalletId có trong leftWalletIds (đã bị kick/rời ví - từ notification) - luôn đúng
       // 2. HOẶC wallets đã được load xong VÀ wallet không tìm thấy trong walletsMap VÀ không phải deleted
-      const fromWalletIdStr = fromWalletId ? String(fromWalletId) : null;
-      const toWalletIdStr = toWalletId ? String(toWalletId) : null;
-
-      // Kiểm tra xem wallet có tồn tại trong wallets list không
-      const fromWalletExistsInList =
-        fromWalletIdStr &&
-        wallets.some(
-          (w) =>
-            String(w.id || w.walletId) === fromWalletIdStr &&
-            !w.deleted &&
-            !w.isDeleted
-        );
-      const toWalletExistsInList =
-        toWalletIdStr &&
-        wallets.some(
-          (w) =>
-            String(w.id || w.walletId) === toWalletIdStr &&
-            !w.deleted &&
-            !w.isDeleted
-        );
-
       const isFromWalletLeft =
         (fromWalletIdStr && leftWalletIds.has(fromWalletIdStr)) ||
         (!walletsLoading &&
@@ -1379,28 +1453,6 @@ export default function TransactionsPage() {
         : false;
       const isToWalletViewer = toWallet ? isViewerOnlyWallet(toWallet) : false;
       const isViewerWallet = isFromWalletViewer || isToWalletViewer;
-
-      // Lấy walletType để phân biệt PERSONAL và GROUP cho cả sourceWallet và targetWallet
-      // Ưu tiên lấy từ wallet trong walletsMap, sau đó từ transfer.fromWallet/toWallet
-      let fromWalletType = "";
-      if (fromWallet) {
-        fromWalletType = (fromWallet.walletType || fromWallet.type || "")
-          .toString()
-          .toUpperCase();
-      } else if (transfer.fromWallet?.walletType) {
-        fromWalletType = String(transfer.fromWallet.walletType).toUpperCase();
-      }
-      const isFromPersonalWallet = fromWalletType !== "GROUP";
-
-      let toWalletType = "";
-      if (toWallet) {
-        toWalletType = (toWallet.walletType || toWallet.type || "")
-          .toString()
-          .toUpperCase();
-      } else if (transfer.toWallet?.walletType) {
-        toWalletType = String(transfer.toWallet.walletType).toUpperCase();
-      }
-      const isToPersonalWallet = toWalletType !== "GROUP";
 
       // Thêm "(đã rời ví)" vào tên ví nếu user đã rời ví
       // Lưu ý:
@@ -1461,6 +1513,20 @@ export default function TransactionsPage() {
             .toString()
             .toUpperCase();
 
+      // Đánh dấu giao dịch đã được chỉnh sửa (backend trả về isEdited)
+      const isEdited =
+        transfer.isEdited === true ||
+        transfer.edited === true ||
+        transfer.is_updated === true ||
+        transfer.isUpdated === true;
+
+      // Kiểm tra xem transaction có bị deleted không
+      const isDeleted =
+        transfer.isDeleted === true ||
+        transfer.deleted === true ||
+        transfer.is_deleted === true ||
+        transfer.is_delete === true;
+
       return {
         id: transfer.transferId,
         code: `TR-${String(transfer.transferId).padStart(4, "0")}`,
@@ -1491,6 +1557,13 @@ export default function TransactionsPage() {
         isLeftWallet: isLeftWallet,
         // Lưu trạng thái viewer wallet để ẩn nút sửa/xóa (ngay cả khi không còn trong leftWalletIds)
         isViewerWallet: isViewerWallet,
+        // Đánh dấu giao dịch đã được chỉnh sửa
+        isEdited: isEdited,
+        // Đánh dấu giao dịch đã bị xóa
+        isDeleted: isDeleted,
+        // Lưu trạng thái deleted của từng wallet để xử lý hiển thị
+        isFromWalletDeleted: isFromWalletDeleted,
+        isToWalletDeleted: isToWalletDeleted,
       };
     },
     [walletsMap, leftWalletIds, walletsLoading, wallets]
@@ -2163,7 +2236,19 @@ export default function TransactionsPage() {
       const { fundTransactions: legacyFundTransactionsList, fundWalletIds: legacyFundWalletIds } = fundData;
       const legacy = await fetchLegacyHistory();
       const filteredLegacyExternal = legacy.external.filter(matchesCurrentUser);
-      const filteredLegacyInternal = legacy.internal.filter(matchesCurrentUser);
+      const filteredLegacyInternal = legacy.internal.filter((tx) => {
+        // Nếu transaction đã bị xóa, không cần check matchesCurrentUser
+        // Vì deleted transactions có thể thiếu thông tin user
+        if (
+          tx.isDeleted === true ||
+          tx.deleted === true ||
+          tx.is_deleted === true ||
+          tx.is_delete === true
+        ) {
+          return true;
+        }
+        return matchesCurrentUser(tx);
+      });
       // Map transactions và lưu raw transaction data để có thể lấy walletType sau này
       const mappedExternal = filteredLegacyExternal
         .map((tx) => {
@@ -3210,10 +3295,13 @@ export default function TransactionsPage() {
 
         const response = await walletAPI.updateTransfer(
           editing.id,
-          payload.note || ""
+          payload.note || "",
+          payload.amount,
+          payload.date
         );
 
         await refreshTransactionsData();
+        if (loadWallets) await loadWallets();
 
         setEditing(null);
         setToast({
@@ -3278,6 +3366,7 @@ export default function TransactionsPage() {
       // Force refresh bằng cách reset lastRefreshRef để đảm bảo refresh ngay lập tức
       lastRefreshRef.current = { walletsIds: "", timestamp: 0 };
       await refreshTransactionsData();
+      if (loadWallets) await loadWallets();
 
       setEditing(null);
       setToast({

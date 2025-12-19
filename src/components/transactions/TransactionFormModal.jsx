@@ -91,10 +91,28 @@ function SelectInput({
     // Refs để lưu giá trị được chọn từ SearchableSelectInput (không phụ thuộc vào form state)
     const selectedSourceWalletIdRef = useRef(null);
     const selectedTargetWalletIdRef = useRef(null);
-  // Lưu số tiền gốc giao dịch chi tiêu (để cộng vào số dư khả dụng khi edit)
-  const originalExpenseAmountRef = useRef(0);
-  // Lưu số tiền gốc giao dịch thu nhập (để tính lại số dư dự kiến khi edit)
-  const originalIncomeAmountRef = useRef(0);
+  // Tính toán số tiền gốc ngay khi render để tránh vấn đề timing của useEffect/useRef
+  const originalExpenseAmount = useMemo(() => {
+    if (mode === "edit" && initialData && initialData.type === "expense") {
+      return Number(initialData.amount || 0);
+    }
+    return 0;
+  }, [mode, initialData]);
+
+  const originalIncomeAmount = useMemo(() => {
+    if (mode === "edit" && initialData && initialData.type === "income") {
+      return Number(initialData.amount || 0);
+    }
+    return 0;
+  }, [mode, initialData]);
+
+  const originalTransferAmount = useMemo(() => {
+    if (mode === "edit" && initialData && (variant === "internal" || initialData.type === "transfer")) {
+      return Number(initialData.amount || 0);
+    }
+    return 0;
+  }, [mode, initialData, variant]);
+
     // State để trigger re-render khi ref thay đổi
     const [sourceWalletSelectionTrigger, setSourceWalletSelectionTrigger] = useState(0);
     const [targetWalletSelectionTrigger, setTargetWalletSelectionTrigger] = useState(0);
@@ -337,10 +355,6 @@ function SelectInput({
             attachment: initialData.attachment || "",
           });
           setAttachmentPreview(initialData.attachment || "");
-          // Lưu lại số tiền gốc cho giao dịch chi tiêu để cho phép sửa trong ngưỡng (số dư hiện tại + tiền gốc)
-        originalExpenseAmountRef.current = initialData.type === "expense" ? Number(initialData.amount || 0) : 0;
-        // Lưu lại số tiền gốc cho giao dịch thu nhập (để tính delta khi chỉnh sửa)
-        originalIncomeAmountRef.current = initialData.type === "income" ? Number(initialData.amount || 0) : 0;
         } else {
           // Mode create: luôn dùng thời gian hiện tại theo múi giờ Việt Nam
           // Tự động chọn ví mặc định nếu có
@@ -770,8 +784,12 @@ function SelectInput({
     // Kiểm tra số tiền có hợp lệ không (cho loại chi tiêu và chuyển tiền)
     const walletBalance = Number(selectedWallet?.balance || 0);
     const sourceWalletBalance = Number(sourceWallet?.balance || 0);
-    const originalExpenseAmount = originalExpenseAmountRef.current || 0;
-  const originalIncomeAmount = originalIncomeAmountRef.current || 0;
+    const targetWalletBalance = Number(targetWallet?.balance || 0);
+    // Sử dụng giá trị từ useMemo thay vì ref
+    // const originalExpenseAmount = originalExpenseAmountRef.current || 0;
+    // const originalIncomeAmount = originalIncomeAmountRef.current || 0;
+    // const originalTransferAmount = originalTransferAmountRef.current || 0;
+    
     const effectiveExpenseBalance = walletBalance + (form.type === "expense" ? originalExpenseAmount : 0);
   const remainingBalanceAfterEdit = form.type === "expense"
     ? effectiveExpenseBalance - amountNum
@@ -781,6 +799,14 @@ function SelectInput({
     (form.type === "income" && (mode !== "edit" || amountNum !== originalIncomeAmount))
   );
   const showBalanceWarning = showProjectedBalance && remainingBalanceAfterEdit < 0;
+
+  // Tính toán số dư dự kiến cho chuyển tiền
+  const transferDelta = amountNum - originalTransferAmount;
+  const projectedSourceBalance = sourceWalletBalance - transferDelta;
+  const projectedTargetBalance = targetWalletBalance + transferDelta;
+  // Hiển thị số dư dự kiến nếu là form chuyển tiền (variant internal hoặc type transfer) và số tiền thay đổi
+  const showTransferProjectedBalance = (variant === "internal" || form.type === "transfer") && sourceWallet && targetWallet && (mode !== "edit" || amountNum !== originalTransferAmount);
+  const showSourceBalanceWarning = showTransferProjectedBalance && projectedSourceBalance < 0;
     
     // Validation cho form giao dịch thông thường (chi tiêu)
     const isExpenseAmountValid = form.type === "expense" 
@@ -789,13 +815,15 @@ function SelectInput({
     const showExpenseAmountError = form.type === "expense" && form.amount && !isExpenseAmountValid;
     
     // Validation cho form chuyển tiền
-    const isTransferAmountValid = amountNum > 0 && amountNum <= sourceWalletBalance;
+    // Khi edit, cho phép nhập số tiền bất kỳ miễn là ví nguồn không bị âm sau khi tính toán lại
+    const isTransferAmountValid = mode === "edit" 
+      ? (amountNum > 0 && projectedSourceBalance >= 0)
+      : (amountNum > 0 && amountNum <= sourceWalletBalance);
     const showTransferAmountError = form.amount && !isTransferAmountValid;
     
     // Tổng hợp validation
-    // Khi edit transfer, không cần validate số tiền vì chỉ cho phép sửa ghi chú
     const isAmountValid = variant === "internal"
-      ? (mode === "edit" ? true : isTransferAmountValid)
+      ? isTransferAmountValid
       : isExpenseAmountValid;
     const showAmountError = variant === "internal" 
       ? showTransferAmountError 
@@ -1059,10 +1087,12 @@ function SelectInput({
       }
       
       if (variant === "internal") {
-        // Khi edit transfer, chỉ gửi note
+        // Khi edit transfer, gửi note, amount và date
         if (mode === "edit") {
           onSubmit?.({
             note: form.note || "",
+            amount: Number(form.amount || 0),
+            date: form.date,
           });
         } else {
           // Khi tạo mới, gửi đầy đủ thông tin
@@ -1502,10 +1532,25 @@ function SelectInput({
                           emptyMessage={!hasWallets ? (t("transactions.form.no_wallets") || "Không có ví khả dụng") : undefined}
                         />
                       </div>
-                      {sourceWallet && mode !== "edit" && (
-                        <div className="text-muted small mt-1">
-                          {t("wallets.inspector.current_balance_colon")} <strong>{formatMoney(sourceWallet.balance, sourceWallet.currency)}</strong>
-                        </div>
+                      {sourceWallet && (
+                        <>
+                          <div className="text-muted small mt-1">
+                            {t("wallets.inspector.current_balance_colon")} <strong>{formatMoney(sourceWallet.balance, sourceWallet.currency)}</strong>
+                          </div>
+                          {showTransferProjectedBalance && (
+                            <div className="form-text">
+                              {"Số dư dự kiến:"}{" "}
+                              <strong className={projectedSourceBalance < 0 ? "text-danger" : ""}>
+                                {formatMoney(Math.max(projectedSourceBalance, 0), sourceWallet.currency || "VND")}
+                              </strong>
+                            </div>
+                          )}
+                          {showSourceBalanceWarning && (
+                            <div className="text-danger small">
+                              {"Số dư ví gửi sẽ âm sau giao dịch này."}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
 
@@ -1539,10 +1584,20 @@ function SelectInput({
                           {t("transactions.form.need_two_wallets")}
                         </div>
                       )}
-                      {targetWallet && mode !== "edit" && (
-                        <div className="text-muted small mt-1">
-                          {t("wallets.inspector.current_balance_colon")} <strong>{formatMoney(targetWallet.balance, targetWallet.currency)}</strong>
-                        </div>
+                      {targetWallet && (
+                        <>
+                          <div className="text-muted small mt-1">
+                            {t("wallets.inspector.current_balance_colon")} <strong>{formatMoney(targetWallet.balance, targetWallet.currency)}</strong>
+                          </div>
+                          {showTransferProjectedBalance && (
+                            <div className="form-text">
+                              {"Số dư dự kiến:"}{" "}
+                              <strong>
+                                {formatMoney(Math.max(projectedTargetBalance, 0), targetWallet.currency || "VND")}
+                              </strong>
+                            </div>
+                          )}
+                        </>
                       )}
                       </div>
 
@@ -1561,9 +1616,6 @@ function SelectInput({
                           required
                           inputMode="numeric"
                           placeholder={sourceWallet ? `${t("wallets.inspector.transfer_amount_placeholder")} ${sourceWallet.currency || ""}` : ""}
-                          disabled={mode === "edit"}
-                          readOnly={mode === "edit"}
-                          style={mode === "edit" ? { backgroundColor: "#f8f9fa", cursor: "not-allowed" } : {}}
                         />
                         <span className="input-group-text">VND</span>
                       </div>
@@ -1582,9 +1634,7 @@ function SelectInput({
                         name="date"
                         className="form-control"
                         value={form.date}
-                        readOnly
-                        disabled={mode === "edit"}
-                        style={{ backgroundColor: "#f8f9fa", cursor: "not-allowed" }}
+                        onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
                         required
                       />
                       {mode !== "edit" && (
@@ -1614,7 +1664,7 @@ function SelectInput({
               <button 
                 type="submit" 
                 className="btn btn-primary"
-                disabled={!isAmountValid || showBalanceWarning}
+                disabled={!isAmountValid || showBalanceWarning || showSourceBalanceWarning}
               >
                   {t("transactions.btn.save")}
                 </button>
