@@ -1164,6 +1164,12 @@ export default function TransactionsPage() {
         isLeftWallet: isLeftWallet,
         // Lưu trạng thái viewer wallet để ẩn nút sửa/xóa (ngay cả khi không còn trong leftWalletIds)
         isViewerWallet: isViewerWallet,
+        // Đánh dấu giao dịch đã được chỉnh sửa (backend trả về isEdited)
+        isEdited:
+          tx.isEdited === true ||
+          tx.edited === true ||
+          tx.is_updated === true ||
+          tx.isUpdated === true,
       };
     },
     [walletsMap, leftWalletIds, walletsLoading, wallets]
@@ -3243,6 +3249,7 @@ export default function TransactionsPage() {
       const response = await transactionAPI.updateTransaction(
         editing.id,
         categoryId,
+        payload.amount, // số tiền mới
         payload.note || "",
         payload.attachment || null
       );
