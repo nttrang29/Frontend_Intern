@@ -1,6 +1,6 @@
 import React from "react";
 import { formatMoney } from "../../utils/formatMoney";
-import { formatVietnamDate } from "../../utils/dateFormat";
+import { formatVietnamDate, getVietnamDateTime } from "../../utils/dateFormat";
 import { calcEstimateDate } from "./utils/fundUtils";
 import { getMoneyValue } from "../../utils/formatMoneyInput";
 
@@ -275,12 +275,12 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
             };
 
             // Tính từ ngày hiện tại (sau khi nạp)
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const todayStr = getVietnamDateTime().split('T')[0];
+            const today = new Date(todayStr);
 
             // Ngày hoàn thành dự kiến ban đầu (nếu tiếp tục nạp theo amountPerPeriod)
             originalEndDate = calcEstimateDate(
-              today.toISOString().slice(0, 10),
+              todayStr,
               freqMap[fund.frequency] || 'month',
               originalPeriodsLeft
             );
@@ -288,7 +288,7 @@ export default function DepositPreview({ depositAmount, fund, wallets, depositSt
             // Ngày hoàn thành mới (sau khi nạp amount này, còn lại bao nhiêu kỳ với amountPerPeriod)
             if (periodsLeft > 0) {
               newEndDate = calcEstimateDate(
-                today.toISOString().slice(0, 10),
+                todayStr,
                 freqMap[fund.frequency] || 'month',
                 periodsLeft
               );

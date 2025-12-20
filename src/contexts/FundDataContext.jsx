@@ -110,9 +110,10 @@ export function FundDataProvider({ children }) {
 
   /**
    * Load tất cả quỹ từ API
+   * @param {boolean} silent - Nếu true, không set loading state (dùng cho background update)
    */
-  const loadFunds = async () => {
-    setLoading(true);
+  const loadFunds = async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     
     try {
@@ -134,7 +135,7 @@ export function FundDataProvider({ children }) {
       setError(err.message || "Đã xảy ra lỗi khi tải quỹ");
       setFunds([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useFundData } from "../../contexts/FundDataContext";
 import { useToast } from "../common/Toast/ToastContext";
 import { calcEstimateDate } from "./utils/fundUtils";
-import { formatVietnamDate } from "../../utils/dateFormat";
+import { formatVietnamDate, getVietnamDateTime } from "../../utils/dateFormat";
 import { formatMoney } from "../../utils/formatMoney";
 import { formatMoneyInput, parseMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 import ReminderBlock from "./ReminderBlock";
@@ -59,13 +59,13 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
   const [freq, setFreq] = useState("MONTHLY");
   const [periodAmount, setPeriodAmount] = useState("");
   // Default start date = today (ISO format yyyy-MM-dd) so input[type=date] shows today's date
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(getVietnamDateTime().split('T')[0]);
   const [startDateError, setStartDateError] = useState("");
   const [calculatedEndDate, setCalculatedEndDate] = useState("");
   const [estimateText, setEstimateText] = useState("");
   
   // Ngày hôm nay (ISO yyyy-MM-dd) - tính động mỗi lần render để đảm bảo luôn là ngày hiện tại
-  const getToday = () => new Date().toISOString().split('T')[0];
+  const getToday = () => getVietnamDateTime().split('T')[0];
   
   // Handler để validate startDate
   const handleStartDateChange = (e) => {
@@ -144,7 +144,7 @@ export default function PersonalTermForm({ wallets, onSuccess }) {
       return;
     }
 
-    const base = startDate || new Date().toISOString().slice(0, 10);
+    const base = startDate || getVietnamDateTime().split('T')[0];
     const freqMap = {
       DAILY: "day",
       WEEKLY: "week",

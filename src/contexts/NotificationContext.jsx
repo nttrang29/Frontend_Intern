@@ -196,6 +196,23 @@ export function NotificationProvider({ children }) {
           }));
         }
       }
+
+      // Dispatch event cho FUND_AUTO_DEPOSIT notifications
+      // Chỉ dispatch cho các notification MỚI (chưa có trong lần fetch trước)
+      const prevNotificationIds = new Set(prevNotifications.map(n => n.id));
+      
+      const newFundAutoDepositNotifications = notifs.filter(n => 
+        (n.type === "fund_auto_deposit" || n.type === "FUND_AUTO_DEPOSIT_SUCCESS") &&
+        !prevNotificationIds.has(n.id)
+      );
+
+      if (newFundAutoDepositNotifications.length > 0) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("fundAutoDepositNotification", {
+            detail: { notifications: newFundAutoDepositNotifications }
+          }));
+        }
+      }
       
       // Dispatch event cho ROLE_CHANGED notifications (chưa đọc)
       const roleChangedNotifications = notifs.filter(n => 
