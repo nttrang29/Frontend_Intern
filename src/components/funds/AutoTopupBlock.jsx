@@ -1,5 +1,6 @@
 // src/components/funds/AutoTopupBlock.jsx
 import React, { useEffect, useState, useRef } from "react";
+import { getMoneyValue, formatMoneyInput } from "../../utils/formatMoneyInput";
 import "../../styles/components/funds/FundForms.css";
 
 // Map week day string to number (1-7) - MOVE RA NGOÀI để tránh re-create mỗi lần render
@@ -76,7 +77,7 @@ export default function AutoTopupBlock({
     }
 
     // Nếu có periodAmount (số tiền gửi mỗi kỳ), sử dụng giá trị đó làm số tiền tự nạp.
-    const computedAmount = periodAmount ? Number(periodAmount) : null;
+    const computedAmount = periodAmount ? getMoneyValue(periodAmount) : null;
 
     const autoTopupData = {
       autoDepositType: freq,
@@ -309,10 +310,9 @@ export default function AutoTopupBlock({
           <div className="funds-field">
             <label>Số tiền tự nạp mỗi lần</label>
             <input 
-              type="number"
-              min={0}
-              placeholder={periodAmount ? String(periodAmount) : "Sẽ lấy theo Số tiền gửi mỗi kỳ"}
-              value={periodAmount ? String(periodAmount) : ""}
+              type="text"
+              placeholder={periodAmount ? formatMoneyInput(periodAmount) : "Sẽ lấy theo Số tiền gửi mỗi kỳ"}
+              value={periodAmount ? formatMoneyInput(periodAmount) : ""}
               disabled
             />
             <div className="funds-hint">

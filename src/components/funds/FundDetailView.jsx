@@ -1072,6 +1072,37 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
     loadHistory();
   }, [loadHistory]);
 
+  // Listen for auto deposit notifications to reload data
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleAutoDepositNotification = (event) => {
+      const notifications = event.detail?.notifications || [];
+      // Check if any notification is related to this fund
+      const relatedNotification = notifications.find(n => 
+        String(n.fundId || n.referenceId) === String(fund.id)
+      );
+
+      if (relatedNotification) {
+        console.log("Received auto deposit notification for current fund, reloading...");
+        loadHistory();
+        if (onUpdateFund) {
+          onUpdateFund();
+        }
+        // Reload wallets to update balance
+        if (loadWallets) {
+          loadWallets();
+        }
+      }
+    };
+
+    window.addEventListener("fundAutoDepositNotification", handleAutoDepositNotification);
+    return () => {
+      window.removeEventListener("fundAutoDepositNotification", handleAutoDepositNotification);
+    };
+  }, [fund.id, loadHistory, onUpdateFund, loadWallets]);
+
+
 
   // Growth chart data for no-term funds (cumulative growth) - tính cả nạp và rút
   const growthChartData = useMemo(() => {

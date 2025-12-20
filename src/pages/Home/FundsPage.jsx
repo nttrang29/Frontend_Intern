@@ -1,6 +1,6 @@
 // src/pages/Home/FundsPage.jsx
 import React, { useMemo, useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useWalletData } from "../../contexts/WalletDataContext";
 import { useFundData } from "../../contexts/FundDataContext";
@@ -18,9 +18,26 @@ import FundDetailView from "../../components/funds/FundDetailView";
 
 export default function FundsPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { wallets, loadWallets } = useWalletData();
   const { funds, loading, loadFunds, getFundById } = useFundData();
   const { t } = useLanguage();
+
+  // View mode
+  const [viewMode, setViewMode] = useState("overview"); // overview | detail | create
+  const [personalTab, setPersonalTab] = useState("term");
+  const [activeFund, setActiveFund] = useState(null);
+  const [defaultTab, setDefaultTab] = useState("info");
+
+  // Tìm kiếm + sắp xếp
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortMode, setSortMode] = useState("name"); // name | currentDesc | progressDesc
+
+  const handleSelectFund = (fund, defaultTab = "info") => {
+    setActiveFund(fund);
+    setViewMode("detail");
+    setDefaultTab(defaultTab);
+  };
 
   // CHỈ VÍ CÁ NHÂN (vì đã bỏ quỹ nhóm)
   const personalWallets = useMemo(
@@ -33,17 +50,39 @@ export default function FundsPage() {
     loadFunds();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Listen for auto deposit notifications to reload funds list
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleAutoDepositNotification = (event) => {
+      // Only reload if NOT in detail view (FundDetailView handles it if active)
+      // Actually, we should reload the list anyway to keep it fresh, but silently
+      if (viewMode !== 'detail') {
+        console.log("FundsPage: Received auto deposit notification, reloading funds...");
+        loadFunds(true); // Silent reload
+      }
+    };
+
+    window.addEventListener("fundAutoDepositNotification", handleAutoDepositNotification);
+    return () => {
+      window.removeEventListener("fundAutoDepositNotification", handleAutoDepositNotification);
+    };
+  }, [loadFunds, viewMode]);
+
   // Xử lý navigate từ notification
   useEffect(() => {
     if (location.state?.openFundId && location.state?.defaultTab) {
       const fundToOpen = funds.find(f => f.id === location.state.openFundId);
       if (fundToOpen) {
-        handleSelectFund(fundToOpen, location.state.defaultTab);
-        // Clear state
-        window.history.replaceState({}, document.title);
+        // Only select if not already selected or view mode is different
+        if (activeFund?.id !== fundToOpen.id || viewMode !== 'detail') {
+            handleSelectFund(fundToOpen, location.state.defaultTab);
+        }
+        // Clear state using navigate to prevent re-triggering on re-renders
+        navigate(location.pathname, { replace: true, state: {} });
       }
     }
-  }, [location.state, funds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.state, funds, navigate, location.pathname, activeFund, viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Chỉ lọc quỹ cá nhân
   // Ẩn quỹ đã tất toán (CLOSED) khỏi danh sách
@@ -74,26 +113,9 @@ export default function FundsPage() {
     return filtered;
   }, [funds]);
 
-  // View mode
-  const [viewMode, setViewMode] = useState("overview"); // overview | detail | create
-  const [personalTab, setPersonalTab] = useState("term");
-  const [activeFund, setActiveFund] = useState(null);
-
-  // Tìm kiếm + sắp xếp
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortMode, setSortMode] = useState("name"); // name | currentDesc | progressDesc
-
-  const handleSelectFund = (fund, defaultTab = "info") => {
-    setActiveFund(fund);
-    setViewMode("detail");
-    setDefaultTab(defaultTab);
-  };
-
-  const [defaultTab, setDefaultTab] = useState("info");
-
   const handleUpdateFund = async () => {
-    // Reload funds list từ API
-    await loadFunds();
+    // Reload funds list từ API (silent)
+    await loadFunds(true);
     
     // Lấy lại fund detail mới nhất
     if (activeFund?.id) {
