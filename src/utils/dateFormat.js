@@ -81,8 +81,18 @@ export function convertToVietnamDateTime(dateInput) {
 export function formatVietnamDate(date) {
   if (!date) return "";
   
-  // Nếu là string, extract ngày trực tiếp từ string (không parse và convert)
+  // Nếu là string, kiểm tra xem có phải là UTC (Z) không
   if (typeof date === "string") {
+    // Nếu là UTC (kết thúc bằng Z), cần convert sang GMT+7
+    if (date.toUpperCase().endsWith("Z")) {
+      const d = new Date(date);
+      if (Number.isNaN(d.getTime())) return "";
+      
+      // Convert sang GMT+7
+      return formatBySetting(d, getDateFormatSetting(), { timeZone: "Asia/Ho_Chi_Minh" });
+    }
+
+    // Nếu đã là GMT+7 (+07:00) hoặc không có timezone (coi như local), extract ngày trực tiếp
     // Extract ngày trực tiếp từ string format: "2025-12-12T00:40:07" hoặc "2025-12-12T00:40:07+07:00"
     const dateMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (dateMatch) {
@@ -100,22 +110,11 @@ export function formatVietnamDate(date) {
           return `${day}/${month}/${year}`;
       }
     }
-    // Fallback: parse như local time
+    
+    // Fallback: parse và convert sang GMT+7
     const d = new Date(date);
     if (Number.isNaN(d.getTime())) return "";
-    const day = d.getDate().toString().padStart(2, "0");
-    const month = (d.getMonth() + 1).toString().padStart(2, "0");
-    const year = d.getFullYear();
-    const formatKey = getDateFormatSetting();
-    switch (formatKey) {
-      case "MM/dd/yyyy":
-        return `${month}/${day}/${year}`;
-      case "yyyy-MM-dd":
-        return `${year}-${month}-${day}`;
-      case "dd/MM/yyyy":
-      default:
-        return `${day}/${month}/${year}`;
-    }
+    return formatBySetting(d, getDateFormatSetting(), { timeZone: "Asia/Ho_Chi_Minh" });
   } else {
     // Nếu là Date object, convert sang GMT+7
     return formatBySetting(date, getDateFormatSetting(), { timeZone: "Asia/Ho_Chi_Minh" });
