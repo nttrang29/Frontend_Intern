@@ -114,39 +114,122 @@ const isFundCompleted = (fund) => {
   return currentValue >= targetValue;
 };
 
+const EXPENSE_TOKENS = [
+  "EXPENSE",
+  "CHI",
+  "OUTFLOW",
+  "DEBIT",
+  "SPEND",
+  "PAYMENT",
+  "WITHDRAW",
+];
+
+const INCOME_TOKENS = [
+  "INCOME",
+  "THU",
+  "INFLOW",
+  "CREDIT",
+  "TOPUP",
+  "DEPOSIT",
+  "RECEIVE",
+  "SALARY",
+  "EARN",
+];
+
+const normalizeDirectionToken = (value) => {
+  if (value === undefined || value === null) return "";
+  return String(value).trim().toUpperCase();
+};
+
+const matchesToken = (value, candidates) => {
+  if (!value) return false;
+  return candidates.some((token) => value.includes(token));
+};
+
+const resolveTransactionDirection = (tx) => {
+  if (!tx) return "expense";
+  if (tx.isExpense === true || tx.isDebit === true) return "expense";
+  if (tx.isIncome === true || tx.isCredit === true) return "income";
+
+  const directionCandidates = [
+    tx.transactionType,
+    tx.transactionType?.type,
+    tx.transactionType?.typeName,
+    tx.transactionType?.typeKey,
+    tx.transactionType?.code,
+    tx.transactionType?.direction,
+    tx.transactionType?.categoryType,
+    tx.transactionTypeName,
+    tx.transactionTypeLabel,
+    tx.type,
+    tx.typeName,
+    tx.typeCode,
+    tx.transactionKind,
+    tx.transactionFlow,
+    tx.direction,
+    tx.flow,
+    tx.category?.type,
+    tx.category?.categoryType,
+    tx.category?.transactionType,
+    tx.category?.typeName,
+    tx.categoryType,
+    tx.transactionCategory?.type,
+    tx.transactionCategory?.direction,
+  ];
+
+  for (const candidate of directionCandidates) {
+    const normalized = normalizeDirectionToken(candidate);
+    if (!normalized) continue;
+    if (matchesToken(normalized, EXPENSE_TOKENS)) return "expense";
+    if (matchesToken(normalized, INCOME_TOKENS)) return "income";
+  }
+
+  const amount = Number(tx.amount ?? tx.transactionAmount);
+  if (!Number.isNaN(amount) && amount !== 0) {
+    return amount < 0 ? "expense" : "income";
+  }
+  
+  return "expense";
+};
+
 const normalizeTransaction = (raw) => {
   if (!raw) return null;
   const walletId = raw.wallet?.walletId || raw.walletId || raw.walletID;
   if (!walletId) return null;
 
   const amount = Math.abs(Number(raw.amount) || 0);
-  const typeName = (raw.transactionType?.typeName || raw.type || "").toLowerCase();
   
-  // Phân loại chính xác:
-  // Thu nhập: thu nhập, nạp ví
-  // Chi tiêu: chi tiêu, rút ví
-  let type = "expense"; // Mặc định là chi tiêu
-  if (typeName.includes("thu") || typeName.includes("income")) {
-    type = "income"; // Thu nhập = Thu nhập
-  } else if (typeName.includes("nạp") || typeName.includes("deposit")) {
-    type = "income"; // Nạp ví = Thu nhập
-  } else if (typeName.includes("chi") || typeName.includes("expense")) {
-    type = "expense"; // Chi tiêu = Chi tiêu
-  } else if (typeName.includes("rút") || typeName.includes("withdraw")) {
-    type = "expense"; // Rút ví = Chi tiêu
+  // Sử dụng logic resolveTransactionDirection giống TransactionsPage để xác định type chính xác
+  const type = resolveTransactionDirection(raw);
+  
+  // Helper để xử lý timezone: transactionDate là UTC (thêm Z), createdAt là Local (thêm +07:00)
+  const normalizeDateField = (dateValue, isUtc = false) => {
+    if (!dateValue) return null;
+    let str = typeof dateValue === 'string' ? dateValue : dateValue.toISOString();
+    
+    let value = str.trim();
+    if (value.includes(" ")) value = value.replace(" ", "T");
+    if (!/T\d{2}:\d{2}/.test(value)) return value;
+    if (!/T\d{2}:\d{2}:\d{2}/.test(value)) value = value.replace(/T(\d{2}:\d{2})(?!:)/, "T$1:00");
+    
+    const hasTimezone = /(Z|z|[+\-]\d{2}:?\d{2})$/.test(value);
+    if (!hasTimezone) {
+        value = isUtc ? `${value}Z` : `${value}+07:00`;
+    }
+    return value;
+  };
+
+  // Xác định date chính cho transaction
+  // Ưu tiên transactionDate (UTC)
+  let dateString = null;
+  if (raw.transactionDate || raw.transaction_date) {
+      dateString = normalizeDateField(raw.transactionDate || raw.transaction_date, true);
+  } else {
+      // Fallback sang createdAt (Local)
+      dateString = normalizeDateField(raw.createdAt || raw.created_at || raw.date, false);
   }
   
-  // Lưu date string gốc để formatVietnamDateTime có thể xử lý đúng timezone
-  const dateSource = raw.createdAt || raw.created_at || raw.transactionDate || raw.transaction_date || raw.date;
-  // Lưu date string thay vì Date object để tránh vấn đề timezone khi hiển thị
-  const dateString = dateSource ? (typeof dateSource === 'string' ? dateSource : dateSource.toISOString()) : null;
   if (!dateString) return null;
-
-  // Normalize tất cả các date fields để đảm bảo khi hiển thị dùng field nào cũng đúng
-  const normalizeDateField = (dateValue) => {
-    if (!dateValue) return null;
-    return typeof dateValue === 'string' ? dateValue : dateValue.toISOString();
-  };
 
   return {
     id: raw.transactionId || raw.id,
@@ -154,13 +237,14 @@ const normalizeTransaction = (raw) => {
     amount,
     type,
     date: dateString, // Lưu string để formatVietnamDateTime xử lý đúng
-    createdAt: normalizeDateField(raw.createdAt || raw.created_at),
-    transactionDate: normalizeDateField(raw.transactionDate || raw.transaction_date),
+    createdAt: normalizeDateField(raw.createdAt || raw.created_at, false),
+    transactionDate: normalizeDateField(raw.transactionDate || raw.transaction_date, true),
     note: raw.note || raw.description || "",
     currency: raw.wallet?.currencyCode || raw.currencyCode || raw.currency || "VND",
     createdBy: raw.createdBy || raw.userId || raw.user?.userId || raw.user?.id || raw.creator?.userId || raw.creator?.userId,
     createdByEmail: raw.createdByEmail || raw.userEmail || raw.user?.email || raw.creator?.email,
     transactionTypeName: raw.transactionType?.typeName || raw.transactionType || raw.type || "",
+    isDeleted: raw.isDeleted === true || raw.deleted === true,
   };
 };
 
@@ -183,6 +267,9 @@ const sumInRange = (list, start, end, selectedWalletId) => {
     if (Number.isNaN(txDate.getTime())) return;
     if (txDate < start || txDate > end) return;
     
+    // Bỏ qua giao dịch đã xóa
+    if (tx.isDeleted) return;
+
     // Bỏ qua transfer và merge - không tính vào thu nhập/chi tiêu
     // Vì chuyển tiền giữa các ví không làm thay đổi tổng tài sản
     if (tx.type === "transfer" || tx.type === "merge") {
@@ -206,18 +293,9 @@ const sumInRange = (list, start, end, selectedWalletId) => {
     // Xử lý transaction thông thường
     // Thu nhập: thu nhập, nạp ví
     // Chi tiêu: chi tiêu, rút ví
-    const typeName = (tx.transactionTypeName || tx.typeName || tx.type || "").toLowerCase();
     
-    // Thu nhập: thu nhập, nạp ví
-    if (typeName.includes("thu") || typeName.includes("income") || typeName === "income") {
-      totals.income += tx.amount;
-    } 
-    // Chi tiêu: chi tiêu, rút ví
-    else if (typeName.includes("chi") || typeName.includes("expense") || typeName.includes("withdraw") || typeName === "expense") {
-      totals.expense += tx.amount;
-    } 
-    // Fallback: dựa vào type field
-    else if (tx.type === "income") {
+    // Sử dụng tx.type đã được normalize chính xác
+    if (tx.type === "income") {
       totals.income += tx.amount;
     } else if (tx.type === "expense") {
       totals.expense += tx.amount;
@@ -921,13 +999,15 @@ export default function ReportsPage() {
               .map((transfer) => {
                 const amount = parseFloat(transfer.amount || 0);
                 // Lưu date string thay vì Date object để formatVietnamDateTime xử lý đúng timezone
-                const dateSource = transfer.createdAt || transfer.created_at || transfer.transferDate || transfer.transfer_date || new Date().toISOString();
-                const dateString = typeof dateSource === 'string' ? dateSource : dateSource.toISOString();
+                // Ưu tiên transferDate vì createdAt có thể là UTC (server time) gây lệch giờ
+                const dateSource = transfer.transferDate || transfer.transfer_date || transfer.createdAt || transfer.created_at || new Date().toISOString();
+                const dateString = ensureIsoDateWithTimezone(typeof dateSource === 'string' ? dateSource : dateSource.toISOString());
 
                 // Normalize tất cả các date fields để đảm bảo khi hiển thị dùng field nào cũng đúng
                 const normalizeDateField = (dateValue) => {
                   if (!dateValue) return null;
-                  return typeof dateValue === 'string' ? dateValue : dateValue.toISOString();
+                  const str = typeof dateValue === 'string' ? dateValue : dateValue.toISOString();
+                  return ensureIsoDateWithTimezone(str);
                 };
 
                 // Kiểm tra xem có phải merge transaction không (dựa vào note hoặc type)
@@ -951,6 +1031,7 @@ export default function ReportsPage() {
                   currency: transfer.currencyCode || "VND",
                   createdBy: transfer.createdBy || transfer.userId || transfer.user?.userId || transfer.user?.id || transfer.creator?.userId,
                   createdByEmail: transfer.createdByEmail || transfer.userEmail || transfer.user?.email || transfer.creator?.email,
+                  isDeleted: transfer.isDeleted === true || transfer.deleted === true,
                 };
               })
               .filter(Boolean);
@@ -1321,6 +1402,7 @@ export default function ReportsPage() {
     
     walletTransactions.forEach((tx) => {
       if (tx.type !== "transfer") return;
+      if (tx.isDeleted) return; // Bỏ qua transfer đã xóa
       if (!tx.date) return;
       const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
       if (Number.isNaN(txDate.getTime())) return;
@@ -2868,11 +2950,10 @@ export default function ReportsPage() {
                         <thead>
                           <tr>
                             <th style={{ width: "60px" }}>{t("transactions.table.no")}</th>
-                            <th>{t("transactions.table.time")}</th>
-                            <th>{t("transactions.table.type")}</th>
+                            <th style={{ width: "70px" }}>{t("transactions.table.time")}</th>
+                            <th style={{ width: "100px" }}>{t("transactions.table.type")}</th>
                             <th>{t("transactions.table.note")}</th>
-                            <th className="text-end">{t("transactions.table.amount")}</th>
-                            <th>{t("transactions.table.currency")}</th>
+                            <th className="text-end" style={{ width: "70px" }}>{t("transactions.table.amount")}</th>
                             {selectedWallet?.isShared && (
                               <th>{t("transactions.table.member") || "Thành viên"}</th>
                             )}
@@ -2881,8 +2962,8 @@ export default function ReportsPage() {
                         <tbody>
                           {paginatedTransactions.map((tx, index) => {
                             // Sử dụng formatVietnamDateTime để đảm bảo thời gian hiển thị đúng như trang Giao dịch
-                            // Ưu tiên createdAt/transactionDate nếu có, nhưng fallback về date (đã được normalize)
-                            const rawDateValue = tx.createdAt || tx.created_at || tx.transactionDate || tx.transaction_date || tx.date;
+                            // Ưu tiên transactionDate vì createdAt có thể là UTC (server time) gây lệch giờ
+                            const rawDateValue = tx.transactionDate || tx.transaction_date || tx.createdAt || tx.created_at || tx.date;
                             // Đảm bảo date string có timezone đúng trước khi format (giống TransactionsPage)
                             // Nếu rawDateValue là null/undefined, dùng tx.date (đã được normalize trong normalizeTransaction)
                             const dateToFormat = rawDateValue || tx.date;
@@ -2916,7 +2997,14 @@ export default function ReportsPage() {
 
                             return (
                               <tr key={tx.id}>
-                                <td className="text-muted">{(currentPage - 1) * PAGE_SIZE + index + 1}</td>
+                                <td className="text-muted">
+                                  {(currentPage - 1) * PAGE_SIZE + index + 1}
+                                  {tx.isDeleted && (
+                                    <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontWeight: "bold", fontStyle: "normal" }}>
+                                      (đã xoá)
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="fw-medium">{dateTimeStr}</td>
                                 <td>
                                   {tx.type === "transfer" ? (
@@ -2993,11 +3081,6 @@ export default function ReportsPage() {
                                       {tx.type === "expense" ? "-" : "+"}{formatAmountOnly(tx.amount)}
                                     </span>
                                   )}
-                                </td>
-                                <td>
-                                  <span className="badge bg-light text-dark" style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "6px", fontWeight: "500" }}>
-                                    {tx.currency || "VND"}
-                                  </span>
                                 </td>
                                 {selectedWallet?.isShared && (
                                   <td>
