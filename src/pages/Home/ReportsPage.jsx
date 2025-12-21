@@ -245,6 +245,7 @@ const normalizeTransaction = (raw) => {
     createdByEmail: raw.createdByEmail || raw.userEmail || raw.user?.email || raw.creator?.email,
     transactionTypeName: raw.transactionType?.typeName || raw.transactionType || raw.type || "",
     isDeleted: raw.isDeleted === true || raw.deleted === true,
+    isEdited: raw.isEdited === true || raw.edited === true || raw.is_updated === true || raw.isUpdated === true,
   };
 };
 
@@ -1032,6 +1033,7 @@ export default function ReportsPage() {
                   createdBy: transfer.createdBy || transfer.userId || transfer.user?.userId || transfer.user?.id || transfer.creator?.userId,
                   createdByEmail: transfer.createdByEmail || transfer.userEmail || transfer.user?.email || transfer.creator?.email,
                   isDeleted: transfer.isDeleted === true || transfer.deleted === true,
+                  isEdited: transfer.isEdited === true || transfer.edited === true || transfer.is_updated === true || transfer.isUpdated === true,
                 };
               })
               .filter(Boolean);
@@ -1094,6 +1096,7 @@ export default function ReportsPage() {
                   fundTransactionType: txType,
                   sourceWalletId: sourceWalletId ? Number(sourceWalletId) : null,
                   targetWalletId: targetWalletId ? Number(targetWalletId) : null,
+                  isEdited: tx.isEdited === true || tx.edited === true || tx.is_updated === true || tx.isUpdated === true,
                 };
               }).filter(Boolean);
             } catch (error) {
@@ -1146,14 +1149,9 @@ export default function ReportsPage() {
       const isPersonal = !wallet.isShared && !(wallet.walletRole || wallet.sharedRole || wallet.role);
       if (isPersonal) return true;
       
-      // Ví nhóm: chỉ hiển thị nếu user là OWNER hoặc MEMBER (không hiển thị nếu là VIEWER)
+      // Ví nhóm: hiển thị tất cả các role bao gồm cả VIEWER
       if (wallet.isShared || wallet.walletRole || wallet.sharedRole || wallet.role) {
-        const role = (wallet.walletRole || wallet.sharedRole || wallet.role || "").toUpperCase();
-        // Loại bỏ VIEWER và VIEW
-        if (role === "VIEWER" || role === "VIEW") {
-          return false;
-        }
-        // Hiển thị OWNER, MEMBER, ADMIN, MASTER, USE, USER
+        // Hiển thị OWNER, MEMBER, ADMIN, MASTER, USE, USER, VIEWER
         return true;
       }
       
@@ -1170,13 +1168,6 @@ export default function ReportsPage() {
 
   const selectedWallet = useMemo(() => {
     const wallet = wallets.find((wallet) => wallet.id === selectedWalletId);
-    // Nếu ví được chọn là VIEWER, không cho phép xem báo cáo
-    if (wallet) {
-      const role = (wallet.walletRole || wallet.sharedRole || wallet.role || "").toUpperCase();
-      if (role === "VIEWER" || role === "VIEW") {
-        return null; // Không cho phép xem báo cáo ví VIEWER
-      }
-    }
     return wallet;
   }, [wallets, selectedWalletId]);
   
@@ -2999,9 +2990,13 @@ export default function ReportsPage() {
                               <tr key={tx.id}>
                                 <td className="text-muted">
                                   {(currentPage - 1) * PAGE_SIZE + index + 1}
-                                  {tx.isDeleted && (
+                                  {tx.isDeleted ? (
                                     <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontWeight: "bold", fontStyle: "normal" }}>
                                       (đã xoá)
+                                    </span>
+                                  ) : tx.isEdited && (
+                                    <span className="text-muted ms-1" style={{ fontSize: "0.75rem", fontWeight: "bold", fontStyle: "normal" }}>
+                                      (đã sửa)
                                     </span>
                                   )}
                                 </td>
