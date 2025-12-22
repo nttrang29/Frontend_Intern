@@ -17,7 +17,7 @@ import { normalizeUserProfile } from "../../utils/userProfile";
 
 // 🔥 CLIENT_ID phải TRÙNG với BE (spring.security.oauth2.client.registration.google.client-id)
 const GOOGLE_CLIENT_ID =
-  "418846497154-r9s0e5pgls2ucrnulgjeuk3v3uja1a6u.apps.googleusercontent.com";
+  "732865653498-c0cq6l47brhqo7vg3tic4j47jnvluh4e.apps.googleusercontent.com";
 
 const decodeJwtPayload = (token) => {
   if (!token) return null;
