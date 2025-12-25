@@ -66,13 +66,14 @@ export default function AutoTopupBlock({
   }, [autoStartAt, baseStartDate, autoTime]);
 
   useEffect(() => {
-    if (!onDataChange) {
+    // Sử dụng ref để gọi callback mới nhất mà không gây re-run effect
+    if (!onDataChangeRef.current) {
       return;
     }
 
     const effectiveOn = hideToggle ? true : autoTopupOn;
     if (!effectiveOn) {
-      onDataChange(null);
+      onDataChangeRef.current(null);
       return;
     }
 
@@ -93,8 +94,8 @@ export default function AutoTopupBlock({
       autoTopupData.autoDepositDayOfMonth = autoMonthDay ? Number(autoMonthDay) : null;
     }
 
-    onDataChange(autoTopupData);
-  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, autoStartAt, periodAmount, onDataChange, hideToggle]);
+    onDataChangeRef.current(autoTopupData);
+  }, [autoTopupOn, freq, autoTime, autoWeekDay, autoMonthDay, autoStartAt, periodAmount, hideToggle]);
 
   const freqLabel = {
     DAILY: "Theo ngày",

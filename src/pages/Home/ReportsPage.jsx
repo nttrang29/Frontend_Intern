@@ -1186,6 +1186,10 @@ export default function ReportsPage() {
     );
     // Fund transactions: chỉ lấy những giao dịch liên quan đến ví này
     const walletFundTxs = fundTransactions.filter((ftx) => {
+      // Loại bỏ các giao dịch nạp quỹ (type="expense") vì đã có WalletTransfer tương ứng
+      // Chỉ giữ lại giao dịch rút quỹ (type="income") vì backend không tạo WalletTransfer cho rút quỹ
+      if (ftx.type === "expense") return false;
+
       // Fund withdraw về ví này (targetWalletId === walletId) hoặc fund deposit từ ví này (sourceWalletId === walletId)
       return ftx.walletId === walletId || 
              ftx.sourceWalletId === walletId || 

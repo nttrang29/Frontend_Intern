@@ -40,10 +40,16 @@ export default function ReminderBlock({
   const [followWeekDay, setFollowWeekDay] = useState(getInitialWeekDay);
   const [followMonthDay, setFollowMonthDay] = useState(getInitialMonthDay);
   
+  // Dùng useRef để lưu onDataChange - tránh re-create function mỗi lần render gây infinite loop
+  const onDataChangeRef = React.useRef(onDataChange);
+  useEffect(() => {
+    onDataChangeRef.current = onDataChange;
+  }, [onDataChange]);
+
   // Export data when anything changes
   useEffect(() => {
     const effectiveOn = hideToggle ? true : reminderOn;
-    if (!effectiveOn || !onDataChange) return;
+    if (!effectiveOn || !onDataChangeRef.current) return;
     
     const reminderData = {};
     
@@ -57,8 +63,8 @@ export default function ReminderBlock({
       reminderData.reminderDayOfMonth = followMonthDay;
     }
     
-    onDataChange(reminderData);
-  }, [reminderOn, freq, followTime, followWeekDay, followMonthDay, onDataChange, hideToggle]);
+    onDataChangeRef.current(reminderData);
+  }, [reminderOn, freq, followTime, followWeekDay, followMonthDay, hideToggle]);
 
   const freqLabel =
     {
