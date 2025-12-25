@@ -16,6 +16,8 @@ import { useCategoryData } from "../../contexts/CategoryDataContext";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { transactionAPI } from "../../services/transaction.service";
 import { walletAPI } from "../../services/wallet.service";
+import { getFundTransactions } from "../../services/fund.service";
+import { useFundData } from "../../contexts/FundDataContext";
 import Toast from "../../components/common/Toast/Toast";
 import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -136,6 +138,22 @@ const normalizeOwnerName = (wallet) =>
   wallet.ownerFullName ||
   wallet.ownerDisplayName ||
   "Người chia sẻ";
+
+const isDepositType = (type) => {
+  const normalized = (type || "").toUpperCase();
+  return (
+    normalized === "DEPOSIT" ||
+    normalized === "MANUAL_DEPOSIT" ||
+    normalized === "AUTO_DEPOSIT" ||
+    normalized === "AUTO_DEPOSIT_RECOVERY" ||
+    normalized === "ADJUSTMENT"
+  );
+};
+
+const isWithdrawType = (type) => {
+  const normalized = (type || "").toUpperCase();
+  return normalized === "WITHDRAW" || normalized === "AUTO_WITHDRAW";
+};
 
 // Helper functions for budget warning evaluation
 const normalizeBudgetCategoryKey = (value) => {
@@ -558,6 +576,7 @@ export default function WalletsPage() {
     loadWallets,
     setDefaultWallet,
   } = useWalletData();
+  const { funds = [] } = useFundData();
   const location = useLocation();
 
   const [currentUserId, setCurrentUserId] = useState(() => getLocalUserId());
@@ -2615,11 +2634,58 @@ export default function WalletsPage() {
       transfer.toWallet?.walletName ||
       transfer.targetWalletName ||
       "Ví đích";
-    const title = isFromWallet
+    
+    // Detect fund transactions
+    const noteLower = (transfer.note || "").toLowerCase();
+    // Broaden check for fund withdraw
+    const isFundWithdraw = noteLower.includes("rút tiền từ quỹ") || 
+                           noteLower.includes("fund withdraw") || 
+                           noteLower.includes("rút quỹ");
+    
+    const isFundDeposit = noteLower.includes("nạp vào quỹ") || 
+                          noteLower.includes("fund deposit") || 
+                          noteLower.includes("nạp quỹ");
+
+    let title = isFromWallet
       ? `Chuyển đến ${targetName}`
       : `Nhận từ ${sourceName}`;
+    
+    let displayAmount = isFromWallet ? -Math.abs(amount) : Math.abs(amount);
 
-    const displayAmount = isFromWallet ? -Math.abs(amount) : Math.abs(amount);
+    // Helper to extract fund name from note
+    const extractFundName = (note, defaultName) => {
+      if (!note) return defaultName;
+      const parts = note.split(":");
+      if (parts.length > 1) {
+        const name = parts[1].trim();
+        if (name) return name + " - Ví Quỹ";
+      }
+      // If no colon, try to use the default name but append " - Ví Quỹ" if not present
+      if (defaultName && !defaultName.toLowerCase().includes("quỹ") && !defaultName.toLowerCase().includes("fund")) {
+        return defaultName + " - Ví Quỹ";
+      }
+      return defaultName;
+    };
+
+    if (isFundWithdraw) {
+      if (!isFromWallet) {
+        // Incoming (User Wallet) - Correct case for withdrawal
+        const fundName = extractFundName(transfer.note, sourceName);
+        title = `Nhận từ ${fundName}`;
+      } else {
+        // Outgoing (Fund Wallet)
+        title = `Rút về ${targetName}`;
+      }
+    } else if (isFundDeposit) {
+      if (isFromWallet) {
+        // Outgoing (User Wallet) - Correct case for deposit
+        const fundName = extractFundName(transfer.note, targetName);
+        title = `Chuyển đến ${fundName}`;
+      } else {
+        // Incoming (Fund Wallet)
+        title = `Nạp từ ${sourceName}`;
+      }
+    }
 
     // Ưu tiên createdAt/created_at cho cột thời gian trong lịch sử giao dịch giữa các ví
     const rawDateValue =
@@ -2785,7 +2851,139 @@ export default function WalletsPage() {
           .filter((transfer) => transferTouchesWallet(transfer, walletId, walletAltId))
           .map((transfer) => mapTransferForWallet(transfer, walletId, walletAltId));
 
-        const allTransactions = [...externalTxs, ...transfers].sort((a, b) => {
+        // Fetch Fund Transactions
+        let fundTransactions = [];
+        try {
+          const relatedFunds = (funds || []).filter(fund => {
+             const sId = fund.sourceWalletId || fund.sourceWallet?.walletId || fund.sourceWallet?.id;
+             const tId = fund.targetWalletId || fund.walletId || fund.targetWallet?.walletId || fund.targetWallet?.id;
+             return String(sId) === String(walletId) || String(tId) === String(walletId);
+          });
+
+          const fundTxPromises = relatedFunds.map(async (fund) => {
+             const fundId = fund.fundId || fund.id;
+             if (!fundId) return [];
+             
+             try {
+                const result = await getFundTransactions(fundId, 50); // Limit 50 per fund
+                let transactions = [];
+                if (result?.response?.ok && result?.data) {
+                  transactions = Array.isArray(result.data) 
+                    ? result.data 
+                    : result.data?.transactions || [];
+                }
+
+                return transactions.map(tx => {
+                  const amount = Math.abs(Number(tx.amount || 0));
+                  const dateValue = tx.createdAt || tx.transactionDate || tx.date || new Date().toISOString();
+                  
+                  const txType = (tx.type || "").toUpperCase();
+                  const isDeposit = isDepositType(txType);
+                  const isWithdraw = isWithdrawType(txType);
+                  
+                  const type = (isWithdraw || isDeposit) ? "transfer" : null;
+                  if (!type) return null;
+                  
+                  const sourceWalletId = tx.sourceWalletId || 
+                                       fund.sourceWalletId || 
+                                       tx.sourceWallet?.walletId || 
+                                       tx.sourceWallet?.id ||
+                                       tx.fromWalletId ||
+                                       null;
+                  
+                  const targetWalletId = fund.targetWalletId || fund.walletId || tx.targetWalletId;
+                  
+                  const fundNameDisplay = fund.fundName || fund.name ? `${fund.fundName || fund.name} - Ví Quỹ` : "Ví Quỹ";
+
+                  // Determine if this transaction is relevant to the CURRENT selected wallet
+                  // sourceWalletId = User's Wallet (usually)
+                  // targetWalletId = Fund's Wallet (usually)
+                  
+                  let isRelevant = false;
+                  let title = "";
+                  let displayAmount = 0;
+                  let note = tx.description || tx.note || "";
+
+                  if (String(sourceWalletId) === String(walletId)) {
+                      // Viewing User Wallet (Source Wallet of the Fund)
+                      isRelevant = true;
+                      if (isWithdraw) {
+                          // Fund -> User (Receive)
+                          title = `Nhận từ ${fundNameDisplay}`;
+                          displayAmount = amount; // Green (+)
+                          if (!note) note = `Rút từ quỹ ${fund.fundName || fund.name}`;
+                      } else {
+                          // User -> Fund (Send)
+                          title = `Chuyển đến ${fundNameDisplay}`;
+                          displayAmount = -amount; // Red (-)
+                          if (!note) note = `Nạp vào quỹ ${fund.fundName || fund.name}`;
+                      }
+                  } else if (String(targetWalletId) === String(walletId)) {
+                      // Viewing Fund Wallet (Target Wallet of the Fund)
+                      isRelevant = true;
+                      if (isWithdraw) {
+                          // Fund -> User (Send)
+                          title = `Chuyển đến ${tx.sourceWalletName || "Ví của bạn"}`;
+                          displayAmount = -amount; // Red (-)
+                          if (!note) note = `Rút từ quỹ ${fund.fundName || fund.name}`;
+                      } else {
+                          // User -> Fund (Receive)
+                          title = `Nhận từ ${tx.sourceWalletName || "Ví của bạn"}`;
+                          displayAmount = amount; // Green (+)
+                          if (!note) note = `Nạp vào quỹ ${fund.fundName || fund.name}`;
+                      }
+                  }
+
+                  if (!isRelevant) return null;
+
+                  const sourceName = isWithdraw ? fundNameDisplay : (tx.sourceWalletName || "Ví của bạn");
+                  const targetName = isWithdraw ? (tx.targetWalletName || "Ví của bạn") : fundNameDisplay;
+
+                  return {
+                    id: `fund-${fundId}-${tx.transactionId || tx.id}`,
+                    title: title,
+                    amount: displayAmount,
+                    timeLabel: formatTimeLabel(dateValue) || formatVietnamDateTime(new Date()),
+                    categoryName: "Chuyển tiền giữa các ví",
+                    currency: "VND",
+                    date: dateValue,
+                    creatorName: tx.createdBy || "System",
+                    creatorEmail: "",
+                    isDeleted: false,
+                    isEdited: false,
+                    note: note,
+                    sourceWallet: sourceName,
+                    targetWallet: targetName,
+                    type: "transfer",
+                    
+                    isFundTransaction: true,
+                    fundId: fundId
+                  };
+                }).filter(Boolean);
+             } catch (e) {
+                console.warn(`Error fetching tx for fund ${fundId}`, e);
+                return [];
+             }
+          });
+
+          const fundTxArrays = await Promise.all(fundTxPromises);
+          fundTransactions = fundTxArrays.flat();
+
+        } catch (err) {
+          console.warn("Error fetching fund transactions", err);
+        }
+
+        // Filter out transfers that are already covered by fundTransactions
+        const uniqueTransfers = transfers.filter(t => {
+           const isDuplicate = fundTransactions.some(ft => {
+              const timeDiff = Math.abs(new Date(ft.date).getTime() - new Date(t.date).getTime());
+              // Allow 1 minute difference and check amount
+              return timeDiff < 60000 && Math.abs(Math.abs(ft.amount) - Math.abs(t.amount)) < 1;
+           });
+           return !isDuplicate;
+        });
+
+        const allTransactions = [...externalTxs, ...uniqueTransfers, ...fundTransactions].sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
           return dateB - dateA;
@@ -2807,6 +3005,7 @@ export default function WalletsPage() {
     mapTransactionForWallet,
     mapTransferForWallet,
     currentUserId, // reload when switching account
+    funds,
   ]);
 
   const refreshTransactions = () => {

@@ -1,6 +1,7 @@
 import React from "react";
 import { formatMoney } from "../../../utils/formatMoney";
 import { parseAmount, parseAmountNonNegative } from "../../../utils/parseAmount";
+import { formatMoneyInput, getMoneyValue } from "../../../utils/formatMoneyInput";
 import "../../../styles/components/funds/FundWithdrawTab.css";
 
 export default function FundWithdrawTab({
@@ -20,7 +21,14 @@ export default function FundWithdrawTab({
   // Cho phép rút tiền nếu: quỹ không thời hạn HOẶC quỹ có thời hạn đã hoàn thành
   const canWithdraw = !fund.hasTerm || isCompleted;
   const sourceWallet = wallets.find(w => w.id === fund.sourceWalletId);
-  const withdrawAmountValue = partialWithdrawAmount ? parseAmountNonNegative(partialWithdrawAmount, 0) : fund.current;
+  
+  // Parse amount safely handling formatted strings (e.g. "1.000.000")
+  const getNumericAmount = (val) => {
+    if (!val) return 0;
+    return getMoneyValue(val);
+  };
+
+  const withdrawAmountValue = partialWithdrawAmount ? getNumericAmount(partialWithdrawAmount) : fund.current;
   const newWalletBalance = sourceWallet ? sourceWallet.balance + withdrawAmountValue : 0;
   const isFullWithdraw = !partialWithdrawAmount || withdrawAmountValue >= fund.current;
 
@@ -183,36 +191,15 @@ export default function FundWithdrawTab({
                 <div className="fund-withdraw-card__label">Số tiền sẽ rút</div>
                 <div className="fund-withdraw-form__amount-input-group">
                   <input
-                    type="number"
+                    type="text"
                     className="fund-withdraw-form__amount-input"
                     placeholder="Nhập số tiền..."
                     value={partialWithdrawAmount}
                     onChange={(e) => {
-                      // Chỉ cho phép số và dấu chấm
-                      const value = e.target.value.replace(/[^0-9.]/g, '');
-                      setPartialWithdrawAmount(value);
-                    }}
-                    onWheel={(e) => {
-                      // Chặn cuộn chuột để thay đổi số tiền
-                      e.target.blur();
-                    }}
-                    onKeyDown={(e) => {
-                      // Chặn các phím không phải số, dấu chấm, backspace, delete, arrow keys
-                      if (!/[0-9.]/.test(e.key) && 
-                          !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab', 'Enter'].includes(e.key) &&
-                          !(e.ctrlKey || e.metaKey) && // Cho phép Ctrl+C, Ctrl+V, etc.
-                          !(e.key === 'a' && (e.ctrlKey || e.metaKey)) && // Cho phép Ctrl+A
-                          !(e.key === 'c' && (e.ctrlKey || e.metaKey)) &&
-                          !(e.key === 'v' && (e.ctrlKey || e.metaKey)) &&
-                          !(e.key === 'x' && (e.ctrlKey || e.metaKey))) {
-                        e.preventDefault();
-                      }
+                      const formatted = formatMoneyInput(e.target.value);
+                      setPartialWithdrawAmount(formatted);
                     }}
                     inputMode="decimal"
-                    pattern="[0-9]*"
-                    min="0.01"
-                    max={fund.current}
-                    step="0.01"
                     disabled={saving}
                   />
                   <div className="fund-withdraw-form__amount-hint">
@@ -221,12 +208,12 @@ export default function FundWithdrawTab({
                     </span>
                   </div>
                 </div>
-                {partialWithdrawAmount && parseAmountNonNegative(partialWithdrawAmount, 0) > 0 && (
+                {partialWithdrawAmount && getNumericAmount(partialWithdrawAmount) > 0 && (
                   <div className="fund-withdraw-card__amount-display">
-                    {formatMoney(parseAmountNonNegative(partialWithdrawAmount, 0), fund.currency)}
-                    {parseAmountNonNegative(partialWithdrawAmount, 0) < fund.current && (
+                    {formatMoney(getNumericAmount(partialWithdrawAmount), fund.currency)}
+                    {getNumericAmount(partialWithdrawAmount) < fund.current && (
                       <span className="fund-withdraw-card__amount-remaining">
-                        (Còn lại: {formatMoney(fund.current - parseAmountNonNegative(partialWithdrawAmount, 0), fund.currency)})
+                        (Còn lại: {formatMoney(fund.current - getNumericAmount(partialWithdrawAmount), fund.currency)})
                       </span>
                     )}
                   </div>
@@ -300,7 +287,7 @@ export default function FundWithdrawTab({
                 <button 
                   type="submit" 
                   className="btn btn-primary fund-withdraw-actions__submit" 
-                  disabled={saving || !partialWithdrawAmount || (parseAmountNonNegative(partialWithdrawAmount, 0) <= 0 || parseAmountNonNegative(partialWithdrawAmount, 0) > fund.current)}
+                  disabled={saving || !partialWithdrawAmount || (getNumericAmount(partialWithdrawAmount) <= 0 || getNumericAmount(partialWithdrawAmount) > fund.current)}
                 >
                   <i className="bi bi-wallet2 me-1"></i>
                   {saving ? "Đang xử lý..." : "Rút tiền"}

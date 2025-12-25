@@ -1656,8 +1656,8 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, defaultTab 
       amount = fund.current;
     } else {
       // Quỹ không thời hạn: lấy số tiền từ input
-      const withdrawValue = partialWithdrawAmount.trim() || String(fund.current);
-      amount = parseAmountNonNegative(withdrawValue, 0);
+      const withdrawValue = partialWithdrawAmount ? getMoneyValue(partialWithdrawAmount) : fund.current;
+      amount = Number(withdrawValue);
     }
     
     // Validation cho quỹ không thời hạn: có thể rút bất kỳ số tiền nào nhưng không được quá số dư quỹ

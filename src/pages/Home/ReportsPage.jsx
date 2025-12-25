@@ -1017,6 +1017,16 @@ export default function ReportsPage() {
                                transfer.isMerge === true ||
                                transfer.merge === true;
 
+                // Filter out fund related transfers to avoid duplication with FundTransactions
+                // Fund transfers usually have notes like "Nạp vào quỹ: ..." or "Rút tiền từ quỹ: ..."
+                const noteLower = (transfer.note || "").toLowerCase();
+                const isFundTransfer = noteLower.includes("nạp vào quỹ") || 
+                                      noteLower.includes("rút tiền từ quỹ") ||
+                                      noteLower.includes("fund deposit") ||
+                                      noteLower.includes("fund withdraw");
+                
+                if (isFundTransfer) return null;
+
                 return {
                   id: `transfer-${transfer.transferId}`,
                   fromWalletId: transfer.fromWallet?.walletId || transfer.fromWalletId,
@@ -1068,7 +1078,8 @@ export default function ReportsPage() {
                 
                 // Fund deposit (nạp quỹ) = Chi tiêu (tiền từ ví vào quỹ)
                 // Fund withdraw (rút quỹ) = Thu nhập (tiền từ quỹ về ví)
-                const type = isWithdraw ? "income" : isDeposit ? "expense" : null;
+                // Thay đổi: Hiển thị như chuyển tiền (transfer) thay vì thu/chi
+                const type = (isWithdraw || isDeposit) ? "transfer" : null;
                 if (!type) return null;
                 
                 // Lấy sourceWalletId (ví nguồn) cho fund transactions
@@ -1082,6 +1093,8 @@ export default function ReportsPage() {
                 // Lấy targetWalletId (ví quỹ) cho fund transactions
                 const targetWalletId = fund.targetWalletId || fund.walletId || tx.targetWalletId;
                 
+                const fundNameDisplay = fund.fundName || fund.name ? `${fund.fundName || fund.name} - Ví Quỹ` : "Ví Quỹ";
+
                 return {
                   id: `fund-${fundId}-${tx.transactionId || tx.id}`,
                   walletId: isWithdraw ? (targetWalletId ? Number(targetWalletId) : null) : (sourceWalletId ? Number(sourceWalletId) : null),
@@ -1096,6 +1109,11 @@ export default function ReportsPage() {
                   fundTransactionType: txType,
                   sourceWalletId: sourceWalletId ? Number(sourceWalletId) : null,
                   targetWalletId: targetWalletId ? Number(targetWalletId) : null,
+                  // Set fields for transfer rendering
+                  fromWalletId: isWithdraw ? (targetWalletId ? Number(targetWalletId) : null) : (sourceWalletId ? Number(sourceWalletId) : null),
+                  toWalletId: isWithdraw ? (sourceWalletId ? Number(sourceWalletId) : null) : (targetWalletId ? Number(targetWalletId) : null),
+                  sourceWallet: isWithdraw ? fundNameDisplay : null,
+                  targetWallet: isDeposit ? fundNameDisplay : null,
                   isEdited: tx.isEdited === true || tx.edited === true || tx.is_updated === true || tx.isUpdated === true,
                 };
               }).filter(Boolean);
