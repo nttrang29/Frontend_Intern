@@ -2,10 +2,10 @@ import React, { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import "../../styles/admin/AdminReviewsPage.css";
 
-import { useFeedbackData } from "../../home/store/FeedbackDataContext";
-import { useNotifications } from "../../home/store/NotificationContext";
+import { useFeedbackData } from "../../contexts/FeedbackDataContext";
+import { useNotifications } from "../../contexts/NotificationContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
-import { useLanguage } from "../../home/store/LanguageContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 function RatingStars({ value }) {
   return (
@@ -21,10 +21,10 @@ function RatingStars({ value }) {
 }
 
 export default function AdminReviewsPage() {
-  const { t } = useLanguage();
   const { reviews, addAdminReply } = useFeedbackData();
   const { pushNotification } = useNotifications();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const location = useLocation();
 
   const focusReviewId = location.state?.focusReviewId || null;
@@ -108,7 +108,6 @@ export default function AdminReviewsPage() {
   const handleChangeDraft = (id, value) => {
     setReplyDrafts((drafts) => ({ ...drafts, [id]: value }));
   };
-
   const handleSubmitReply = (id) => {
     const content = (replyDrafts[id] || "").trim();
     if (!content) return;
@@ -167,17 +166,13 @@ export default function AdminReviewsPage() {
       <div className="dashboard-page__header-box">
         <div className="dashboard-page__header">
           <div>
-            <h2 className="dashboard-page__title">
-              {t("admin.reviews.title")}
-            </h2>
-            <p className="feedback-summary-subtitle">
-              {t("admin.reviews.subtitle")}
-            </p>
+            <h2 className="dashboard-page__title">{t("admin.reviews.title")}</h2>
+            <p className="feedback-summary-subtitle">{t("admin.reviews.subtitle")}</p>
           </div>
 
           <div className="d-flex flex-column align-items-end">
             <div className="fw-semibold">
-              {t("admin.reviews.average")}{" "}
+              {t("admin.reviews.average")} {" "}
               <span className="text-warning">
                 {summary.avgRating} / 5 <i className="bi bi-star-fill" />
               </span>

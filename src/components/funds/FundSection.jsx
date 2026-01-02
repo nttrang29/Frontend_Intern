@@ -1,6 +1,7 @@
 // src/components/funds/FundSection.jsx
 import React from "react";
 import FundCard from "./FundCard";
+import "../../styles/components/funds/FundSection.css";
 
 export default function FundSection({ title, subtitle, items, onSelectFund }) {
   if (!items || items.length === 0) return null;

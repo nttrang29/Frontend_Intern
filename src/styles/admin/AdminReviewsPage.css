@@ -13,13 +13,12 @@
 
 /* Hộp tiêu đề */
 .dashboard-page__header-box {
+  background: #ffffff;
+  border-radius: 20px;
   padding: 16px 20px;
   margin-bottom: 20px;
-  border-radius: 24px;
-  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
-  border: none;
-  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
-  color: #ffffff;
+  box-shadow: 0 18px 45px rgba(0, 28, 68, 0.28);
+  border: 1px solid #e5e7eb;
 }
 
 .dashboard-page__header {
@@ -32,22 +31,14 @@
 .dashboard-page__title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #ffffff;
+  color: #111827;
   margin: 0;
 }
 
 .dashboard-page__subtitle {
   margin: 4px 0 0;
   font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* Ensure right-side stats in header contrast on gradient */
-.dashboard-page__header .fw-semibold {
-  color: #ffffff;
-}
-.dashboard-page__header .text-muted {
-  color: rgba(255,255,255,0.88) !important;
+  color: #6b7280;
 }
 
 /* ============================
@@ -202,12 +193,4 @@
   .dashboard-page .list-group-item.d-flex {
     padding: 10px 12px;
   }
-}
-
-/* Strong header overrides: ensure right-side stats are readable on the gradient */
-.dashboard-page__header .fw-semibold {
-  color: #ffffff !important;
-}
-.dashboard-page__header .text-muted {
-  color: rgba(255, 255, 255, 0.9) !important;
 }

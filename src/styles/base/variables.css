@@ -1,0 +1,182 @@
+/**
+ * Design System - CSS Variables
+ * Tập trung tất cả design tokens cho toàn bộ ứng dụng
+ */
+
+/* =========================================================
+   RESET & BASE
+   ========================================================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, #root {
+  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* =========================================================
+   COLORS - Primary Palette
+   ========================================================= */
+:root {
+  /* Primary Brand Color */
+  --color-primary: #2d99ae;
+  --color-primary-dark: #227b8a;
+  --color-primary-light: #58d3f7;
+  --color-primary-soft: rgba(45, 153, 174, 0.08);
+  --color-primary-strong: rgba(45, 153, 174, 0.16);
+  
+  /* Text Colors */
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-text-light: #9ca3af;
+  --color-text-inverse: #ffffff;
+  
+  /* Background Colors */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f9fafb;
+  --color-bg-tertiary: #f3f4f6;
+  --color-bg-overlay: rgba(15, 23, 42, 0.45);
+  
+  /* Border Colors */
+  --color-border: #e5e7eb;
+  --color-border-light: #e3e3e3;
+  --color-border-dark: #d0d7de;
+  
+  /* Status Colors */
+  --color-success: #15803d;
+  --color-success-bg: rgba(21, 128, 61, 0.1);
+  --color-error: #b91c1c;
+  --color-error-bg: rgba(185, 28, 28, 0.1);
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.1);
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(59, 130, 246, 0.1);
+  
+  /* =========================================================
+     SPACING
+     ========================================================= */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  --spacing-3xl: 48px;
+  
+  /* =========================================================
+     TYPOGRAPHY
+     ========================================================= */
+  --font-family-base: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+  
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  
+  /* =========================================================
+     BORDER RADIUS
+     ========================================================= */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 18px;
+  --radius-full: 999px;
+  --radius-round: 50%;
+  
+  /* =========================================================
+     SHADOWS
+     ========================================================= */
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 18px rgba(15, 23, 42, 0.08);
+  --shadow-xl: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --shadow-2xl: 0 15px 45px rgba(15, 23, 42, 0.25);
+  
+  /* =========================================================
+     TRANSITIONS
+     ========================================================= */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.18s ease-out;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.36s cubic-bezier(0.22, 0.61, 0.36, 1);
+  
+  /* =========================================================
+     Z-INDEX LAYERS
+     ========================================================= */
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 600;
+  --z-modal-backdrop: 1050;
+  --z-modal: 2147483647;
+  --z-toast: 350;
+}
+
+/* =========================================================
+   DARK MODE
+   ========================================================= */
+.dark,
+.dark body,
+.dark #root {
+  /* Primary Brand Color - giữ nguyên */
+  --color-primary: #2d99ae;
+  --color-primary-dark: #227b8a;
+  --color-primary-light: #58d3f7;
+  --color-primary-soft: rgba(45, 153, 174, 0.2);
+  --color-primary-strong: rgba(45, 153, 174, 0.3);
+  
+  /* Text Colors - đảo ngược: đen → trắng */
+  --color-text: #ffffff;
+  --color-text-muted: #d1d5db;
+  --color-text-light: #9ca3af;
+  --color-text-inverse: #000000;
+  
+  /* Background Colors - đảo ngược: trắng → đen */
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #1a1a1a;
+  --color-bg-tertiary: #2d2d2d;
+  --color-bg-overlay: rgba(0, 0, 0, 0.8);
+  
+  /* Border Colors */
+  --color-border: #404040;
+  --color-border-light: #4d4d4d;
+  --color-border-dark: #5a5a5a;
+  
+  /* Status Colors - giữ nguyên nhưng điều chỉnh độ sáng */
+  --color-success: #34d399;
+  --color-success-bg: rgba(52, 211, 153, 0.15);
+  --color-error: #f87171;
+  --color-error-bg: rgba(248, 113, 113, 0.15);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(251, 191, 36, 0.15);
+  --color-info: #60a5fa;
+  --color-info-bg: rgba(96, 165, 250, 0.15);
+  
+  /* Shadows - tối hơn */
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 18px rgba(0, 0, 0, 0.7);
+  --shadow-xl: 0 10px 30px rgba(0, 0, 0, 0.8);
+  --shadow-2xl: 0 15px 45px rgba(0, 0, 0, 0.9);
+}
+

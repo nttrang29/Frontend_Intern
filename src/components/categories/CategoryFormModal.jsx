@@ -1,5 +1,21 @@
 import React, { useEffect, useState } from "react";
+import { useLanguage } from "../../contexts/LanguageContext";
 import Modal from "../common/Modal/Modal";
+
+// Danh sách 40 icon đẹp cho category
+const CATEGORY_ICONS = [
+  "bi-cash-coin", "bi-wallet2", "bi-credit-card", "bi-piggy-bank",
+  "bi-graph-up-arrow", "bi-graph-down-arrow", "bi-cart", "bi-bag",
+  "bi-cup-hot", "bi-egg-fried", "bi-basket", "bi-shop",
+  "bi-house", "bi-building", "bi-car-front", "bi-bus-front",
+  "bi-airplane", "bi-train-front", "bi-bicycle", "bi-fuel-pump",
+  "bi-hospital", "bi-heart-pulse", "bi-capsule", "bi-clipboard-pulse",
+  "bi-book", "bi-mortarboard", "bi-laptop", "bi-phone",
+  "bi-tv", "bi-camera", "bi-headphones", "bi-controller",
+  "bi-gift", "bi-balloon", "bi-flower1", "bi-tree",
+  "bi-droplet", "bi-lightning", "bi-wifi", "bi-gear",
+  "bi-star", "bi-heart", "bi-trophy", "bi-award"
+];
 
 export default function CategoryFormModal({
   open,
@@ -8,102 +24,388 @@ export default function CategoryFormModal({
   typeLabel = "chi phí",
   onSubmit,
   onClose,
+  isAdmin,
+  activeTab = "expense", // "expense" | "income" | "system"
+  selectedType, // "expense" | "income" - chỉ dùng khi activeTab === "system"
+  onTypeChange, // callback khi chọn type ở tab system
 }) {
-  // initialValue can be a string (name) or object { name, description }
-  const [name, setName] = useState(
-    initialValue && typeof initialValue === "object"
-      ? initialValue.name
-      : initialValue
-  );
-  const [description, setDescription] = useState(
-    initialValue && typeof initialValue === "object"
-      ? initialValue.description || ""
-      : ""
-  );
+  const { t } = useLanguage();
+  // initialValue: string (name) hoặc object { name, description, isSystem, icon }
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState("bi-tags");
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (open) {
-      setName(
-        initialValue && typeof initialValue === "object"
-          ? initialValue.name || ""
-          : initialValue || ""
-      );
-      setDescription(
-        initialValue && typeof initialValue === "object"
-          ? initialValue.description || ""
-          : ""
-      );
-      setError("");
-    }
-  }, [open, initialValue]);
+  // trạng thái "danh mục hệ thống"
+  const [isSystemState, setIsSystemState] = useState(false);
+  
+  // Khi ở tab system, luôn set isSystem = true
+  const isSystemTab = activeTab === "system";
 
+  // Khi mở modal → fill form
+  useEffect(() => {
+    if (!open) return;
+
+    if (initialValue && typeof initialValue === "object") {
+      setName(initialValue.name || "");
+      setDescription(initialValue.description || "");
+      setSelectedIcon(initialValue.icon || "bi-tags");
+      setIsSystemState(isSystemTab || !!initialValue.isSystem);
+    } else {
+      setName(typeof initialValue === "string" ? initialValue : "");
+      setDescription("");
+      setSelectedIcon("bi-tags");
+      setIsSystemState(isSystemTab);
+    }
+    setShowIconPicker(false);
+    setError("");
+  }, [open, initialValue, isSystemTab]);
+
+  // submit
   const handleSubmit = (e) => {
     e.preventDefault();
     const trimmed = (name || "").trim();
+
     if (!trimmed) {
-      setError("Vui lòng nhập tên danh mục");
+      setError(t("categories.error.name_required"));
       return;
     }
     if (trimmed.length > 40) {
-      setError("Tên danh mục tối đa 40 ký tự");
+      setError(t("categories.error.name_length"));
       return;
     }
-    onSubmit && onSubmit({ name: trimmed, description: (description || "").trim() });
+
+    // Nếu ở tab system, luôn set isSystem = true
+    const finalIsSystem = isSystemTab ? true : (isAdmin ? isSystemState : false);
+    
+    onSubmit &&
+      onSubmit({
+        name: trimmed,
+        description: (description || "").trim(),
+        icon: selectedIcon,
+        isSystem: finalIsSystem,
+        // Thêm transactionType nếu ở tab system
+        transactionType: isSystemTab && selectedType ? selectedType : null,
+      });
   };
 
   if (!open) return null;
 
-  const title =
-    mode === "edit"
-      ? `Sửa danh mục ${typeLabel}`
-      : `Thêm danh mục ${typeLabel}`;
+  const title = isSystemTab
+    ? mode === "edit"
+      ? t("categories.form.title_edit_system")
+      : t("categories.form.title_create_system")
+    : mode === "edit"
+    ? t("categories.form.title_edit", { type: typeLabel })
+    : t("categories.form.title_create", { type: typeLabel });
 
   return (
-    <Modal open={open} onClose={onClose} width={420}>
-      <div className="category-modal">
-        <h5 className="category-modal__title mb-3">{title}</h5>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">
-              Tên danh mục <span className="text-danger">*</span>
-            </label>
-            <input
-              type="text"
-              className={`form-control ${error ? "is-invalid" : ""}`}
-              placeholder="Nhập tên danh mục..."
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (error) setError("");
-              }}
-              maxLength={40}
+    <Modal open={open} onClose={onClose} width={460}>
+      <>
+        {/* CSS riêng cho modal danh mục + làm mờ nền */}
+        <style>{`
+          @keyframes catModalFadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+
+          /* NỀN MỜ – giống modal Thêm hạn mức */
+          .modal__backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2100; /* Keep below confirmation modal (z-index 2200) so warnings can overlay */
+          }
+
+          /* Hộp trắng bên trong */
+          .modal__wrapper {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 35px rgba(15, 23, 42, 0.28);
+            animation: catModalFadeIn .18s ease-out;
+          }
+
+          .category-modal__icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 999px;
+            background: rgba(45, 153, 174, 0.08);
+            font-size: 1.1rem;
+          }
+
+          .category-modal .form-label {
+            font-size: 0.9rem;
+          }
+
+          .category-modal .form-control {
+            border-radius: 10px;
+          }
+
+          .category-modal .btn.btn-light {
+            border-radius: 999px;
+            padding-inline: 16px;
+          }
+
+          .category-modal .btn.btn-primary {
+            border-radius: 999px;
+            padding-inline: 18px;
+          }
+
+          .category-icon-picker {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+            max-height: 280px;
+            overflow-y: auto;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f9fafb;
+          }
+
+          .category-icon-item {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 1.2rem;
+            color: #2d99ae;
+          }
+
+          .category-icon-item:hover {
+            border-color: #2d99ae;
+            background: rgba(45, 153, 174, 0.1);
+            transform: scale(1.1);
+          }
+
+          .category-icon-item.selected {
+            border-color: #2d99ae;
+            background: rgba(45, 153, 174, 0.15);
+            box-shadow: 0 2px 8px rgba(45, 153, 174, 0.2);
+          }
+
+          .category-icon-preview {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: rgba(45, 153, 174, 0.1);
+            font-size: 1.5rem;
+            color: #2d99ae;
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+
+          .category-icon-preview:hover {
+            background: rgba(45, 153, 174, 0.2);
+            transform: scale(1.05);
+          }
+        `}</style>
+
+        <div className="category-modal">
+          {/* HEADER giống transaction modal */}
+          <div
+            className="modal-header border-0 pb-0"
+            style={{ padding: "16px 22px 8px" }}
+          >
+            <div className="d-flex align-items-center gap-2">
+              
+              <div>
+                <h5 className="modal-title fw-semibold mb-0">{title}</h5>
+                <div className="text-muted small">
+                  {t("categories.form.subtitle")}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn-close"
+              onClick={onClose}
+              aria-label="Đóng"
             />
-            {error && <div className="invalid-feedback">{error}</div>}
           </div>
 
-          <div className="mb-3">
-            <label className="form-label">Mô tả (tùy chọn)</label>
-            <textarea
-              className="form-control"
-              placeholder="Mô tả ngắn cho danh mục..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              maxLength={120}
-              rows={3}
-            />
-          </div>
+          <form onSubmit={handleSubmit}>
+            {/* BODY */}
+            <div className="modal-body" style={{ padding: "12px 22px 8px" }}>
+              {/* Icon Picker */}
+              <div className="mb-3">
+                <label className="form-label fw-semibold">
+                  {t("categories.form.icon_label")} <span className="text-muted small">({t("common.optional")})</span>
+                </label>
+                <div className="d-flex align-items-center gap-3">
+                  <div 
+                    className="category-icon-preview"
+                    onClick={() => setShowIconPicker(!showIconPicker)}
+                    title={t("categories.form.choose_icon")}
+                  >
+                    <i className={`bi ${selectedIcon}`} />
+                  </div>
+                  <div className="flex-grow-1">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => setShowIconPicker(!showIconPicker)}
+                    >
+                      {showIconPicker ? t("categories.form.hide_icon") : t("categories.form.choose_icon")}
+                    </button>
+                  </div>
+                </div>
+                {showIconPicker && (
+                  <div className="mt-2">
+                    <div className="category-icon-picker">
+                      {CATEGORY_ICONS.map((icon) => (
+                        <div
+                          key={icon}
+                          className={`category-icon-item ${
+                            selectedIcon === icon ? "selected" : ""
+                          }`}
+                          onClick={() => {
+                            setSelectedIcon(icon);
+                            setShowIconPicker(false);
+                          }}
+                          title={icon.replace("bi-", "")}
+                        >
+                          <i className={`bi ${icon}`} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
-          <div className="d-flex justify-content-end gap-2 mt-3">
-            <button type="button" className="btn btn-light" onClick={onClose}>
-              Hủy
-            </button>
-            <button type="submit" className="btn btn-primary">
-              {mode === "edit" ? "Lưu thay đổi" : "Thêm mới"}
-            </button>
-          </div>
-        </form>
-      </div>
+              {/* Chọn loại danh mục khi ở tab system */}
+              {isSystemTab && mode === "create" && (
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">
+                    {t("categories.form.type_label")} <span className="text-danger">*</span>
+                  </label>
+                  <select
+                    className="form-select"
+                    value={selectedType || "expense"}
+                    onChange={(e) => onTypeChange && onTypeChange(e.target.value)}
+                    required
+                  >
+                    <option value="expense">{t("categories.form.type_expense")}</option>
+                    <option value="income">{t("categories.form.type_income")}</option>
+                  </select>
+                  <div className="form-text text-muted small">
+                    {t("categories.form.type_hint")}
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-3">
+                <label className="form-label fw-semibold">
+                  {t("categories.form.name_label")} <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  className={`form-control ${error ? "is-invalid" : ""}`}
+                  placeholder={t("categories.form.name_placeholder")}
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (error) setError("");
+                  }}
+                  maxLength={40}
+                  autoFocus
+                />
+                {error && <div className="invalid-feedback">{error}</div>}
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label fw-semibold">
+                  {t("categories.form.desc_label")}
+                </label>
+                <textarea
+                  className="form-control"
+                  placeholder={t("categories.form.desc_placeholder")}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={120}
+                  rows={3}
+                />
+                <div className="form-text text-muted small">
+                  {t("categories.form.desc_hint")}
+                </div>
+              </div>
+
+              {/* Checkbox danh mục hệ thống – chỉ Admin thấy, không ở tab system, và chỉ khi tạo mới */}
+              {isAdmin && !isSystemTab && mode === "create" && (
+                <>
+                  <div className="mb-1 form-check">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      id="isSystemCheck"
+                      checked={isSystemState}
+                      onChange={(e) => setIsSystemState(e.target.checked)}
+                      style={{ cursor: "pointer" }}
+                    />
+                    <label
+                      className="form-check-label user-select-none"
+                      htmlFor="isSystemCheck"
+                      style={{ cursor: "pointer" }}
+                    >
+                      {t("categories.form.set_as_system")}
+                    </label>
+                  </div>
+
+                  <div className="form-text text-muted small">
+                    {isSystemState ? (
+                      <>
+                        <i className="bi bi-globe-asia-australia me-1" />
+                        {t("categories.form.system_hint_active")}
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-person me-1" />
+                        {t("categories.form.system_hint_inactive")}
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* FOOTER giống transaction modal */}
+            <div
+              className="modal-footer border-0 pt-0"
+              style={{ padding: "8px 22px 16px" }}
+            >
+              <button
+                type="button"
+                className="btn btn-light"
+                onClick={onClose}
+              >
+                {t("common.cancel")}
+              </button>
+              <button type="submit" className="btn btn-primary">
+                {mode === "edit" ? t("common.save_changes") : t("categories.btn.create")}
+              </button>
+            </div>
+          </form>
+        </div>
+      </>
     </Modal>
   );
 }

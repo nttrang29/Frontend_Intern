@@ -1,0 +1,1351 @@
+/**
+ * Dark Mode Global Styles
+ * Áp dụng cho tất cả components khi có class .dark
+ */
+
+/* =========================================================
+   BOOTSTRAP OVERRIDES
+   ========================================================= */
+.dark .card {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .card-header {
+  background-color: var(--color-bg-tertiary) !important;
+  border-bottom-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .card-body {
+  background-color: var(--color-bg-secondary) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .card-footer {
+  background-color: var(--color-bg-tertiary) !important;
+  border-top-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* Form Controls */
+.dark .form-control,
+.dark .form-select,
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark textarea,
+.dark select {
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* File Input */
+.dark input[type="file"] {
+  background-color: #1a1a1a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dark input[type="file"]::file-selector-button {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin-right: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.dark input[type="file"]::file-selector-button:hover {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.dark .form-control:focus,
+.dark .form-select:focus,
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-text) !important;
+  box-shadow: 0 0 0 0.25rem rgba(45, 153, 174, 0.25) !important;
+}
+
+.dark .form-control::placeholder,
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--color-text-muted) !important;
+  opacity: 0.7;
+}
+
+/* Buttons */
+.dark .btn-primary {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+.dark .btn-primary:hover {
+  background-color: var(--color-primary-dark) !important;
+  border-color: var(--color-primary-dark) !important;
+}
+
+.dark .btn-outline-primary {
+  border-color: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+  background-color: transparent !important;
+}
+
+.dark .btn-outline-primary:hover {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+.dark .btn-secondary,
+.dark .btn-light {
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .btn-secondary:hover,
+.dark .btn-light:hover {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border-light) !important;
+}
+
+.dark .btn-danger {
+  background-color: var(--color-error) !important;
+  border-color: var(--color-error) !important;
+  color: #ffffff !important;
+}
+
+.dark .btn-success {
+  background-color: var(--color-success) !important;
+  border-color: var(--color-success) !important;
+  color: #ffffff !important;
+}
+
+/* Badges */
+.dark .badge {
+  color: #ffffff !important;
+}
+
+.dark .badge.bg-light {
+  background-color: var(--color-bg-tertiary) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .badge.bg-soft-danger {
+  background-color: var(--color-error-bg) !important;
+  color: var(--color-error) !important;
+}
+
+.dark .badge.bg-soft-success {
+  background-color: var(--color-success-bg) !important;
+  color: var(--color-success) !important;
+}
+
+.dark .badge.bg-soft-info {
+  background-color: var(--color-info-bg) !important;
+  color: var(--color-info) !important;
+}
+
+.dark .badge.bg-soft-warning {
+  background-color: var(--color-warning-bg) !important;
+  color: var(--color-warning) !important;
+}
+
+/* Tables */
+.dark .table {
+  color: var(--color-text) !important;
+}
+
+.dark .table thead th {
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .table tbody td {
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .table tbody tr:hover {
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+/* Dropdowns */
+.dark .dropdown-menu {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.dark .dropdown-item {
+  color: var(--color-text) !important;
+}
+
+.dark .dropdown-item:hover,
+.dark .dropdown-item:focus {
+  background-color: var(--color-bg-tertiary) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .dropdown-divider {
+  border-color: var(--color-border) !important;
+}
+
+/* Modals */
+.dark .modal-content {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .modal-header {
+  background-color: var(--color-bg-tertiary) !important;
+  border-bottom-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .modal-footer {
+  background-color: var(--color-bg-tertiary) !important;
+  border-top-color: var(--color-border) !important;
+}
+
+.dark .modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.dark .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Nav & Tabs */
+.dark .nav-link {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .nav-link:hover,
+.dark .nav-link.active {
+  color: var(--color-primary) !important;
+}
+
+.dark .nav-tabs {
+  border-bottom-color: var(--color-border) !important;
+}
+
+.dark .nav-tabs .nav-link.active {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) var(--color-border) var(--color-bg-secondary) !important;
+  color: var(--color-text) !important;
+}
+
+/* Text Colors */
+.dark .text-muted {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .text-dark {
+  color: var(--color-text) !important;
+}
+
+.dark .text-light {
+  color: var(--color-text-muted) !important;
+}
+
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  color: var(--color-text) !important;
+}
+
+.dark p, .dark span, .dark div, .dark label {
+  color: var(--color-text) !important;
+}
+
+/* Force text colors */
+.dark * {
+  color: inherit;
+}
+
+.dark .text-black,
+.dark .text-dark {
+  color: #ffffff !important;
+}
+
+.dark .bg-white {
+  background-color: #000000 !important;
+}
+
+.dark .bg-light {
+  background-color: var(--color-bg-secondary) !important;
+}
+
+/* Links */
+.dark a {
+  color: var(--color-primary) !important;
+}
+
+.dark a:hover {
+  color: var(--color-primary-light) !important;
+}
+
+/* Borders & Dividers */
+.dark .border,
+.dark .border-top,
+.dark .border-bottom,
+.dark .border-start,
+.dark .border-end {
+  border-color: var(--color-border) !important;
+}
+
+.dark hr {
+  border-color: var(--color-border) !important;
+  opacity: 0.5;
+}
+
+/* Shadows - giảm độ sáng trong dark mode */
+.dark .shadow-sm {
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.dark .shadow {
+  box-shadow: var(--shadow-md) !important;
+}
+
+.dark .shadow-lg {
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Scrollbar */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-bg-tertiary);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-light);
+}
+
+/* Input Groups */
+.dark .input-group-text {
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* Alerts */
+.dark .alert {
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .alert-success {
+  background-color: var(--color-success-bg) !important;
+  border-color: var(--color-success) !important;
+  color: var(--color-success) !important;
+}
+
+.dark .alert-danger {
+  background-color: var(--color-error-bg) !important;
+  border-color: var(--color-error) !important;
+  color: var(--color-error) !important;
+}
+
+.dark .alert-warning {
+  background-color: var(--color-warning-bg) !important;
+  border-color: var(--color-warning) !important;
+  color: var(--color-warning) !important;
+}
+
+.dark .alert-info {
+  background-color: var(--color-info-bg) !important;
+  border-color: var(--color-info) !important;
+  color: var(--color-info) !important;
+}
+
+/* List Groups */
+.dark .list-group-item {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .list-group-item.active {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+/* Pagination */
+.dark .page-link {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .page-link:hover {
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border-light) !important;
+  color: var(--color-primary) !important;
+}
+
+.dark .page-item.active .page-link {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+/* Tooltips & Popovers */
+.dark .tooltip .tooltip-inner {
+  background-color: var(--color-bg-tertiary) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.dark .popover {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .popover-header {
+  background-color: var(--color-bg-tertiary) !important;
+  border-bottom-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* Progress Bars */
+.dark .progress {
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+.dark .progress-bar {
+  background-color: var(--color-primary) !important;
+}
+
+/* Custom Components - Cards với shadow */
+.dark .category-card,
+.dark .wallet-card,
+.dark .fund-card,
+.dark .budget-card {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.dark .category-card:hover,
+.dark .wallet-card:hover,
+.dark .fund-card:hover,
+.dark .budget-card:hover {
+  box-shadow: var(--shadow-lg) !important;
+  transform: translateY(-2px);
+  transition: all 0.2s ease;
+}
+
+/* Headers với nền đen trong dark mode */
+.dark .wallet-header,
+.dark .funds-header-unique,
+.dark .category-header-funds,
+.dark .feedback-summary-card {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+/* Text trong headers phải màu trắng */
+.dark .wallet-header *,
+.dark .funds-header-unique *,
+.dark .category-header-funds *,
+.dark .feedback-summary-card * {
+  color: #ffffff !important;
+}
+
+/* Tabs trong headers */
+.dark .wallet-header .funds-tabs,
+.dark .category-header-funds .funds-tabs {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .wallet-header .funds-tab,
+.dark .category-header-funds .funds-tab {
+  color: #ffffff !important;
+}
+
+.dark .wallet-header .funds-tab--active,
+.dark .category-header-funds .funds-tab--active {
+  background: #ffffff !important;
+  color: #2d99ae !important;
+}
+
+/* Search Inputs - Đồng bộ tất cả search inputs với màu trắng đen */
+.dark .form-control[type="search"],
+.dark input[type="search"],
+.dark .search-input,
+.dark .category-search-select .form-control,
+.dark .wallets-list-panel__search input,
+.dark .funds-toolbar__search input,
+.dark .tx-search-input-wrapper input,
+.dark .global-search-input,
+.dark .tb__search--pill input,
+.dark .filter-search .form-control,
+.dark .budget-search-input {
+  background-color: #1a1a1a !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.dark .form-control[type="search"]::placeholder,
+.dark input[type="search"]::placeholder,
+.dark .search-input::placeholder,
+.dark .category-search-select .form-control::placeholder,
+.dark .wallets-list-panel__search input::placeholder,
+.dark .funds-toolbar__search input::placeholder,
+.dark .tx-search-input-wrapper input::placeholder,
+.dark .global-search-input::placeholder,
+.dark .tb__search--pill input::placeholder,
+.dark .filter-search .form-control::placeholder,
+.dark .budget-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Search buttons - Đồng bộ tất cả search buttons với màu trắng đen */
+.dark .search-btn,
+.dark .tb__search-btn,
+.dark .category-search-submit,
+.dark .funds-clear-search,
+.dark .category-search-clear-btn,
+.dark .tx-search-clear-btn {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #1a1a1a !important;
+}
+
+.dark .search-btn:hover,
+.dark .tb__search-btn:hover,
+.dark .category-search-submit:hover {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #1a1a1a !important;
+}
+
+.dark .funds-clear-search:hover,
+.dark .category-search-clear-btn:hover,
+.dark .tx-search-clear-btn:hover {
+  color: #dc2626 !important;
+  background: transparent !important;
+}
+
+/* Search containers/wrappers */
+.dark .tb__search--pill,
+.dark .global-search-box,
+.dark .funds-toolbar__search,
+.dark .category-search-select,
+.dark .wallets-list-panel__search,
+.dark .tx-search-input-wrapper {
+  background: #1a1a1a !important;
+  border-color: #ffffff !important;
+}
+
+.dark .tb__search--pill:focus-within,
+.dark .global-search-box:focus-within,
+.dark .funds-toolbar__search:focus-within,
+.dark .category-search-select:focus-within {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Select Dropdowns */
+.dark select.form-select,
+.dark select.form-control {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23f9fafb' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") !important;
+}
+
+/* Checkboxes & Radio Buttons */
+.dark input[type="checkbox"],
+.dark input[type="radio"] {
+  accent-color: var(--color-primary) !important;
+}
+
+/* Code Blocks */
+.dark code,
+.dark pre {
+  background-color: var(--color-bg-tertiary) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Blockquotes */
+.dark blockquote {
+  border-left-color: var(--color-primary) !important;
+  color: var(--color-text-muted) !important;
+}
+
+/* =========================================================
+   PAGE-SPECIFIC DARK MODE OVERRIDES
+   ========================================================= */
+
+/* Dashboard Page */
+.dark .dashboard-page__title {
+  color: #ffffff !important;
+}
+
+.dark .dashboard-page__subtitle {
+  color: #d1d5db !important;
+}
+
+.dark .dashboard-page__period {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark .db-btn {
+  color: var(--color-text) !important;
+}
+
+.dark .db-btn--active {
+  background: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+/* Categories Page */
+.dark .category-page,
+.dark .cat-page {
+  background: var(--color-bg-primary) !important;
+}
+
+.dark .cat-table-card {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark .category-card {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .category-card-title {
+  background: rgba(45, 153, 174, 0.2) !important;
+  color: var(--color-primary-light) !important;
+}
+
+.dark .category-card-desc {
+  color: var(--color-text-muted) !important;
+}
+
+/* Funds Page */
+.dark .funds-page {
+  color: var(--color-text) !important;
+}
+
+.dark .funds-header {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark .funds-fieldset {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .funds-fieldset__legend {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .funds-field label {
+  color: var(--color-text) !important;
+}
+
+/* Wallets Page */
+.dark .wallets-page {
+  background: var(--color-bg-primary) !important;
+}
+
+.dark .wallet-card {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* Transactions Page */
+.dark .transactions-page {
+  background: var(--color-bg-primary) !important;
+}
+
+.dark .transaction-item {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* Budgets Page */
+.dark .budgets-page,
+.dark .budget-page {
+  background: var(--color-bg-primary) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-card {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-card-title {
+  color: #ffffff !important;
+}
+
+.dark .budget-card-meta label {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .budget-card-meta p {
+  color: #ffffff !important;
+}
+
+.dark .budget-empty-state {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-empty-state h3 {
+  color: #ffffff !important;
+}
+
+.dark .budget-empty-state p {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .budget-metric-card {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-metric-label {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .budget-metric-value {
+  color: #ffffff !important;
+}
+
+.dark .budget-status-tab {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-status-tab.active {
+  background: rgba(45, 153, 174, 0.2) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+}
+
+.dark .budget-status-tab .badge-count {
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-status-tab.active .badge-count {
+  background: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+.dark .budget-card-icon {
+  background: rgba(45, 153, 174, 0.2) !important;
+  color: var(--color-primary-light) !important;
+}
+
+.dark .budget-note {
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-note i {
+  color: var(--color-primary) !important;
+}
+
+.dark .budget-card-quick-actions button {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-card-quick-actions button:hover {
+  border-color: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+}
+
+.dark .budget-detail-header .eyebrow-text {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .budget-detail-grid label {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .budget-detail-grid p {
+  color: #ffffff !important;
+}
+
+.dark .budget-detail-note {
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-detail-info li {
+  border-bottom-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-detail-chart-ring {
+  border-color: rgba(45, 153, 174, 0.2) !important;
+  border-top-color: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+}
+
+.dark .budget-detail-chart-ring small {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .budget-form-close {
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+/* Budget form inputs */
+.dark .budget-form input,
+.dark .budget-form select,
+.dark .budget-form textarea {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: #ffffff !important;
+}
+
+.dark .budget-form input::placeholder,
+.dark .budget-form textarea::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .budget-form label {
+  color: var(--color-text) !important;
+}
+
+/* Budget search and filter */
+.dark .budget-search-input,
+.dark .budget-filter-input {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: #ffffff !important;
+}
+
+.dark .budget-search-input::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+/* Budget warning banner */
+.dark .budget-warning-banner {
+  background: rgba(251, 191, 36, 0.15) !important;
+  border-color: var(--color-warning) !important;
+  color: var(--color-warning) !important;
+}
+
+.dark .budget-warning-title {
+  color: var(--color-warning) !important;
+}
+
+/* Progress bar */
+.dark .progress {
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+/* Sidebar transaction mini */
+.dark .budget-side-column .card {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .budget-transaction-mini th {
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark .budget-transaction-mini td {
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Reports Page */
+.dark .reports-page {
+  background: var(--color-bg-primary) !important;
+}
+
+.dark .report-card {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* Settings Page */
+.dark .settings-page {
+  background: var(--color-bg-primary) !important;
+}
+
+.dark .settings-title {
+  color: #ffffff !important;
+}
+
+.dark .settings-subtitle {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .settings-profile-header {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark .settings-profile-name {
+  color: #ffffff !important;
+}
+
+.dark .settings-profile-email {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .settings-detail__body {
+  background: var(--color-bg-secondary) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .settings-detail__desc {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .settings-theme-card {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .settings-theme-card__content h5 {
+  color: #ffffff !important;
+}
+
+.dark .settings-theme-card__content p {
+  color: var(--color-text-muted) !important;
+}
+
+/* Feedback Page */
+.dark .feedback-page {
+  background: var(--color-bg-primary) !important;
+}
+
+.dark .feedback-form-card {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .feedback-form-title {
+  color: #ffffff !important;
+}
+
+.dark .feedback-form-subtitle {
+  color: var(--color-text-muted) !important;
+}
+
+/* Sidebar */
+.dark .home__sidebar .nav-link {
+  color: var(--text) !important;
+}
+
+.dark .home__sidebar .nav-link:hover {
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-primary) !important;
+}
+
+.dark .home__sidebar .nav-link.active {
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-primary) !important;
+}
+
+/* Topbar Search */
+.dark .tb__search-input {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: #ffffff !important;
+}
+
+.dark .tb__search-input::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+/* All hardcoded white backgrounds */
+.dark [style*="background: #fff"],
+.dark [style*="background: #ffffff"],
+.dark [style*="background-color: #fff"],
+.dark [style*="background-color: #ffffff"],
+.dark [style*="background: white"],
+.dark [style*="background-color: white"] {
+  background: var(--color-bg-secondary) !important;
+  background-color: var(--color-bg-secondary) !important;
+}
+
+/* All hardcoded black text */
+.dark [style*="color: #000"],
+.dark [style*="color: #000000"],
+.dark [style*="color: #111"],
+.dark [style*="color: #111827"],
+.dark [style*="color: #333"],
+.dark [style*="color: black"] {
+  color: #ffffff !important;
+}
+
+/* All hardcoded light backgrounds */
+.dark [style*="background: #f"],
+.dark [style*="background-color: #f"] {
+  background: var(--color-bg-secondary) !important;
+  background-color: var(--color-bg-secondary) !important;
+}
+
+/* Force all text to be white in dark mode */
+.dark body,
+.dark #root,
+.dark .container,
+.dark .container-fluid {
+  background-color: var(--color-bg-primary) !important;
+  color: var(--color-text) !important;
+}
+
+/* Override all page wrappers */
+.dark .tx-page,
+.dark .tx-page-inner,
+.dark .dashboard-page,
+.dark .wallets-page,
+.dark .funds-page,
+.dark .category-page,
+.dark .cat-page,
+.dark .transactions-page,
+.dark .budgets-page,
+.dark .reports-page,
+.dark .settings-page,
+.dark .feedback-page {
+  background: var(--color-bg-primary) !important;
+  color: var(--color-text) !important;
+}
+
+/* =========================================================
+   WALLETS PAGE SPECIFIC DARK MODE
+   ========================================================= */
+
+/* Stats boxes */
+.dark .wallets-stat {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .wallets-stat__label {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .wallets-stat__value {
+  color: #ffffff !important;
+}
+
+/* List panel */
+.dark .wallets-list-panel {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark .wallets-list-panel__search input {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: #ffffff !important;
+}
+
+.dark .wallets-list-panel__search input::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .wallets-list-panel__sort select {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: #ffffff !important;
+}
+
+/* List items */
+.dark .wallets-list-item {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .wallets-list-item:hover {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.dark .wallets-list-item--active {
+  background: rgba(45, 153, 174, 0.2) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.dark .wallets-list-item__name {
+  color: #ffffff !important;
+}
+
+.dark .wallets-list-item__balance {
+  color: #ffffff !important;
+}
+
+.dark .wallets-list-item__desc {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .wallets-list-item__type {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* Detail view cards */
+.dark .wallets-detail-view__card {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .wallets-detail-view__card-header {
+  color: #ffffff !important;
+}
+
+.dark .wallets-detail-view__counter {
+  color: var(--color-text-muted) !important;
+}
+
+/* Merge panels */
+.dark .wallet-merge__box {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .wallet-merge__summary-card {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .wallet-merge__summary-title {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .wallet-merge__summary-name {
+  color: #ffffff !important;
+}
+
+.dark .wallet-merge__right-wrapper {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark .wallet-merge__right-header h4,
+.dark .wallet-merge__summary-wrapper-header h4 {
+  color: #ffffff !important;
+}
+
+.dark .wallet-merge__right-header span,
+.dark .wallet-merge__summary-wrapper-header span {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .wallet-merge__summary-wrapper {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark .wallet-merge__direction-btn {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .wallet-merge__search input {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: #ffffff !important;
+}
+
+.dark .wallet-merge__hint,
+.dark .wallet-merge__empty,
+.dark .wallet-merge__direction-note {
+  color: var(--color-text-muted) !important;
+}
+
+/* Page titles */
+.dark .wallets-page__title {
+  color: #ffffff !important;
+}
+
+.dark .wallets-page__subtitle {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .wallets-page {
+  color: #ffffff !important;
+}
+
+/* Empty states */
+.dark .wallets-list__empty {
+  color: var(--color-text-muted) !important;
+}
+
+/* Tabs */
+.dark .wallets-list-panel__tab {
+  color: var(--color-text) !important;
+}
+
+.dark .wallets-list-panel__tab--active {
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-primary) !important;
+}
+
+/* Detail panel */
+.dark .wallets-detail-panel {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* All hardcoded white backgrounds in wallets */
+.dark .wallets-list-panel,
+.dark .wallets-detail-panel,
+.dark .wallets-detail-view,
+.dark .wallet-merge__panel {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* =========================================================
+   GLOBAL FORCE DARK MODE - CATCH ALL
+   ========================================================= */
+
+/* Force all divs, sections, articles to use dark background if they have light background */
+.dark div:not([class*="gradient"]):not([class*="header"]):not([class*="wallet-header"]):not([class*="funds-header"]):not([class*="category-header"]):not([class*="feedback-summary"]),
+.dark section,
+.dark article {
+  background-color: inherit;
+}
+
+/* Override any remaining white/light backgrounds */
+.dark [style*="background: #f"],
+.dark [style*="background-color: #f"],
+.dark [style*="background: #fff"],
+.dark [style*="background-color: #fff"],
+.dark [style*="background: white"],
+.dark [style*="background-color: white"] {
+  background: var(--color-bg-secondary) !important;
+  background-color: var(--color-bg-secondary) !important;
+}
+
+/* Override any remaining black/dark text */
+.dark [style*="color: #000"],
+.dark [style*="color: #111"],
+.dark [style*="color: #333"],
+.dark [style*="color: #555"],
+.dark [style*="color: #666"],
+.dark [style*="color: black"],
+.dark [style*="color: #0f172a"] {
+  color: #ffffff !important;
+}
+
+/* Override light gray text to muted white */
+.dark [style*="color: #777"],
+.dark [style*="color: #888"],
+.dark [style*="color: #999"] {
+  color: var(--color-text-muted) !important;
+}
+
+/* Override light borders */
+.dark [style*="border.*#e"],
+.dark [style*="border.*#d"],
+.dark [style*="border.*#f"] {
+  border-color: var(--color-border) !important;
+}
+
+/* Force all text elements to be white unless specified */
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6,
+.dark p, .dark span, .dark div, .dark label, .dark li, .dark td, .dark th {
+  color: inherit;
+}
+
+/* Ensure all inputs and selects are dark */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark select,
+.dark textarea {
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: #ffffff !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--color-text-muted) !important;
+  opacity: 0.7;
+}
+
+/* Ensure all panels and containers are dark */
+.dark .panel,
+.dark .container-fluid:not(.auth-page),
+.dark .row > div {
+  background-color: inherit;
+}
+
+/* Override Bootstrap's bg-light, bg-white utilities */
+.dark .bg-light,
+.dark .bg-white {
+  background-color: var(--color-bg-secondary) !important;
+}
+
+.dark .text-dark,
+.dark .text-black {
+  color: #ffffff !important;
+}
+
+.dark .text-muted {
+  color: var(--color-text-muted) !important;
+}
+
+/* Ensure cards and boxes are dark */
+.dark .box,
+.dark .wrapper,
+.dark .content,
+.dark .main-content {
+  background-color: var(--color-bg-secondary) !important;
+  color: var(--color-text) !important;
+}
+

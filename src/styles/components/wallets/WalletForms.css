@@ -1,0 +1,165 @@
+/**
+ * Wallet Forms Styles
+ * Styles for wallet forms (create, edit, topup, withdraw, transfer)
+ */
+
+/* =============================
+   FORM BASE
+   ============================= */
+.wallet-form {
+  margin-top: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.wallet-form__row {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.wallet-form__row label {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.wallet-form__full {
+  flex: 1 1 100%;
+}
+
+.wallet-form input[type="text"],
+.wallet-form input[type="number"],
+.wallet-form input[type="email"],
+.wallet-form select,
+.wallet-form textarea {
+  width: 100%;
+  margin-top: 3px;
+  padding: 6px var(--spacing-sm);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-light);
+  font-size: var(--font-size-base);
+  outline: none;
+  background: var(--color-bg-primary);
+  transition: var(--transition-fast);
+}
+
+.wallet-form textarea {
+  resize: vertical;
+}
+
+.wallet-form input:focus,
+.wallet-form select:focus,
+.wallet-form textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.wallet-form__char-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+/* =============================
+   CHECKBOX
+   ============================= */
+.wallet-form__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.wallet-form__checkbox input {
+  width: auto;
+}
+
+/* =============================
+   SHARE ROW
+   ============================= */
+.wallet-form__share-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.wallet-form__share-row input {
+  flex: 1;
+}
+
+/* =============================
+   FOOTER & ACTIONS
+   ============================= */
+.wallet-form__footer {
+  margin-top: var(--spacing-xs);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wallet-form__footer--right {
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+}
+
+.wallet-form__actions {
+  display: inline-flex;
+  gap: var(--spacing-sm);
+}
+
+/* =============================
+   BUTTONS
+   ============================= */
+.wallets-btn {
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  padding: 6px var(--spacing-md);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.wallets-btn--primary {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary);
+}
+
+.wallets-btn--primary:hover {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  transform: translateY(-0.5px);
+}
+
+.wallets-btn--ghost {
+  background: var(--color-bg-primary);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.wallets-btn--ghost:hover {
+  background: #e5f4f8;
+}
+
+.wallets-btn--danger {
+  background: #dc3545;
+  color: #ffffff;
+  border-color: #dc3545;
+}
+
+.wallets-btn--danger:hover {
+  background: #c82333;
+  border-color: #bd2130;
+  transform: translateY(-0.5px);
+}
+
+.wallets-btn--danger:disabled {
+  background: #dc3545;
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+

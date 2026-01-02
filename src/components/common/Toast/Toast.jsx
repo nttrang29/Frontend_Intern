@@ -1,18 +1,19 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+const DEFAULT_TOPBAR = ".home__topbar, .home-topbar, header.home__topbar";
+const DEFAULT_ANCHOR = ".home__main, main.home__main";
 
 export default function Toast({
   open,
   message,
-  type = "success", // "success" | "error"
+  type = "success",
   duration = 2500,
   onClose,
-  // Topbar: đổi selector nếu topbar của bạn khác class
-  topbarSelector = ".home__topbar, .home-topbar, header.home__topbar",
-  // Khu vực nội dung để canh mép phải
-  anchorSelector = ".home__main, main.home__main",
-  offset = { top: 10, right: 16 },
+  offset = { top: 20, right: 24 },
+  topbarSelector = DEFAULT_TOPBAR,
+  anchorSelector = DEFAULT_ANCHOR,
 }) {
-  const [pos, setPos] = useState({ top: 0, right: 16 });
+  const [pos, setPos] = useState({ top: offset.top, right: offset.right });
   const timerRef = useRef(null);
 
   // Auto close
@@ -23,44 +24,44 @@ export default function Toast({
     return () => clearTimeout(timerRef.current);
   }, [open, duration, onClose]);
 
-  // TÍNH VỊ TRÍ: top = bottom của TOPBAR + offset.top
-  // right = khoảng trống từ mép phải viewport tới mép phải .home__main + offset.right
+  const recalcPosition = useCallback(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
+    let nextTop = offset.top;
+    if (topbarSelector) {
+      const topbarEl = document.querySelector(topbarSelector);
+      if (topbarEl) {
+        const rect = topbarEl.getBoundingClientRect();
+        nextTop = rect.bottom + offset.top;
+      }
+    }
+
+    let nextRight = offset.right;
+    if (anchorSelector) {
+      const anchorEl = document.querySelector(anchorSelector);
+      if (anchorEl) {
+        const rect = anchorEl.getBoundingClientRect();
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+        nextRight = Math.max(viewportWidth - rect.right, offset.right);
+      }
+    }
+
+    setPos({ top: nextTop, right: nextRight });
+  }, [anchorSelector, offset.right, offset.top, topbarSelector]);
+
   useLayoutEffect(() => {
-    if (!open) return;
+    if (!open || typeof window === "undefined") return;
+    recalcPosition();
 
-    const calc = () => {
-      const topbar = document.querySelector(topbarSelector);
-      const anchor = document.querySelector(anchorSelector) || document.body;
-
-      const topbarRect = topbar?.getBoundingClientRect();
-      const anchorRect = anchor.getBoundingClientRect();
-
-      const top = (topbarRect ? topbarRect.bottom : 0) + offset.top;
-      const right =
-        Math.max(window.innerWidth - (anchorRect.left + anchorRect.width), 0) +
-        offset.right;
-
-      setPos({ top, right });
-    };
-
-    calc();
-    const ro = new ResizeObserver(calc);
-    topbarSelector && document.querySelectorAll(topbarSelector).forEach(el => ro.observe(el));
-    const onScroll = () => calc();
-    const onResize = () => calc();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize);
-
-    const mo = new MutationObserver(calc);
-    mo.observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["class", "style"] });
-
+    window.addEventListener("resize", recalcPosition);
+    window.addEventListener("scroll", recalcPosition, true);
     return () => {
-      ro.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
-      mo.disconnect();
+      window.removeEventListener("resize", recalcPosition);
+      window.removeEventListener("scroll", recalcPosition, true);
     };
-  }, [open, topbarSelector, anchorSelector, offset.top, offset.right]);
+  }, [open, recalcPosition]);
 
   if (!open) return null;
 

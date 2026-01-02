@@ -273,43 +273,69 @@ export default function ForgotPasswordPage() {
   /* ================================
           STEP 3 — Đổi mật khẩu
   ================================ */
-  const handleChangePassword = async () => {
-    if (!form.newPassword || !form.confirmPassword)
-      return setError("Vui lòng nhập mật khẩu!");
+  /* ================================
+      STEP 3 — Đổi mật khẩu
+================================ */
+const handleChangePassword = async () => {
+  const password = form.newPassword.trim();
+  const confirm = form.confirmPassword.trim();
 
-    if (form.newPassword !== form.confirmPassword)
-      return setError("Mật khẩu nhập lại không khớp!");
+  // Validate rỗng
+  if (!password || !confirm) {
+    return setError("Vui lòng nhập mật khẩu!");
+  }
 
-    try {
-      setLoading(true);
-      setError("");
-      setSuccessMsg("");
+  // Validate độ dài
+  if (password.length < 8) {
+    return setError("Mật khẩu phải có ít nhất 8 ký tự!");
+  }
 
-      const res = await resetPassword({
-        resetToken,
-        newPassword: form.newPassword,
-      });
+  // Validate chữ hoa – chữ thường – số – ký tự đặc biệt
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'",.<>\/?~]).{8,}$/;
 
-      if (!res.response?.ok) {
-        const apiMsg =
-          res.data?.message ||
-          res.data?.error ||
-          "Đổi mật khẩu thất bại!";
-        setError(apiMsg);
-        return;
-      }
+  if (!passwordRegex.test(password)) {
+    return setError(
+      "Mật khẩu phải gồm chữ hoa, chữ thường, số và ký tự đặc biệt!"
+    );
+  }
 
-      setShowSuccess(true);
-    } catch (err) {
+  // Validate match
+  if (password !== confirm) {
+    return setError("Mật khẩu nhập lại không khớp!");
+  }
+
+  try {
+    setLoading(true);
+    setError("");
+    setSuccessMsg("");
+
+    const res = await resetPassword({
+      resetToken,
+      newPassword: password,
+    });
+
+    if (!res.response?.ok) {
       const apiMsg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
+        res.data?.message ||
+        res.data?.error ||
         "Đổi mật khẩu thất bại!";
       setError(apiMsg);
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    setShowSuccess(true);
+  } catch (err) {
+    const apiMsg =
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      "Đổi mật khẩu thất bại!";
+    setError(apiMsg);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // ✅ mở modal xác nhận
   const handleOpenCancelModal = () => {
@@ -325,261 +351,258 @@ export default function ForgotPasswordPage() {
   /* ================================
             RENDER UI
   ================================ */
-  return (
-    <AuthLayout>
-      <form className="auth-form">
-        <h3 className="text-center mb-4">Quên mật khẩu</h3>
+return (
+  <AuthLayout>
+    <form className="auth-form">
 
-        {/* STEP 1 */}
-        {step === 1 && (
-          <>
-            <div className="mb-2 input-group">
-              <span className="input-group-text">
-                <i className="bi bi-envelope-fill"></i>
-              </span>
-              <input
-                type="email"
-                className="form-control"
-                name="email"
-                placeholder="Nhập email"
-                value={form.email}
-                onChange={onChange}
-                disabled={loading}
-              />
+      <h3 className="text-center mb-4">Quên mật khẩu</h3>
+
+      {/* STEP 1 — NHẬP EMAIL */}
+      {step === 1 && (
+        <>
+          <div className="mb-3 input-group">
+            <span className="input-group-text">
+              <i className="bi bi-envelope-fill"></i>
+            </span>
+            <input
+              type="email"
+              name="email"
+              className="form-control"
+              placeholder="Nhập email"
+              value={form.email}
+              onChange={onChange}
+              disabled={loading}
+            />
+          </div>
+
+          {error && <div className="auth-error">{error}</div>}
+          {successMsg && <div className="auth-success">{successMsg}</div>}
+
+          <div className="d-grid mt-3 mb-2">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSendEmail}
+              disabled={loading}
+            >
+              {loading ? "Đang gửi..." : "Gửi mã xác minh"}
+            </button>
+          </div>
+
+          <div className="text-center mt-3">
+            <Link to="/login" className="auth-link">
+              ← Quay lại đăng nhập
+            </Link>
+          </div>
+        </>
+      )}
+
+      {/* STEP 2 — NHẬP OTP */}
+      {step === 2 && (
+        <>
+          <div className="otp-card mb-3">
+
+            <div className="otp-card__icon-wrap">
+              <i className="bi bi-shield-lock-fill"></i>
             </div>
 
-            {error && <div className="auth-error">{error}</div>}
-            {successMsg && <div className="auth-success">{successMsg}</div>}
+            <h5 className="otp-card__title">Xác minh mã OTP</h5>
+            <p className="otp-card__subtitle">
+              Nhập mã gồm <strong>6 số</strong> được gửi tới <strong>{form.email}</strong>.
+            </p>
 
-            <div className="d-grid mt-3">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleSendEmail}
-                disabled={loading}
-              >
-                {loading ? "Đang gửi..." : "Gửi mã xác minh"}
-              </button>
-            </div>
-
-            <div className="text-center mt-3">
-              <Link to="/login" className="auth-link">
-                ← Quay lại đăng nhập
-              </Link>
-            </div>
-          </>
-        )}
-
-        {/* STEP 2 — Card OTP giống Register */}
-        {step === 2 && (
-          <>
-            <div className="otp-card mb-3">
-              <div className="otp-card__icon-wrap">
-                <i className="bi bi-shield-lock-fill"></i>
-              </div>
-              <h5 className="otp-card__title">Xác minh mã quên mật khẩu</h5>
-              <p className="otp-card__subtitle">
-                Nhập mã gồm <strong>6 số</strong> được gửi tới{" "}
-                <strong>{form.email}</strong> để tiếp tục đặt lại mật khẩu.
-              </p>
-
-              <div className="otp-card__badge-wrapper">
-                {otpCountdown > 0 ? (
-                  <span className="otp-card__badge is-active">
-                    Mã sẽ hết hạn sau <b>{otpCountdown}s</b>
-                  </span>
-                ) : (
-                  <span className="otp-card__badge is-expired">
-                    Mã OTP đã hết hạn — hãy bấm <b>"Gửi lại mã"</b> bên dưới.
-                  </span>
-                )}
-              </div>
-
-              {/* successMsg chỉ hiển thị khi OTP còn hạn */}
-              {successMsg && otpCountdown > 0 && (
-                <div className="auth-success mt-2">{successMsg}</div>
-              )}
-
-              {/* Chỉ hiển thị ô OTP + nút xác nhận khi CHƯA hết hạn */}
-              {!isOtpExpired && (
-                <>
-                  {error && <div className="auth-error mt-2">{error}</div>}
-
-                  <div className="otp-inputs otp-card__inputs mb-2">
-                    {otp.map((v, idx) => (
-                      <input
-                        key={idx}
-                        ref={(el) => (otpRefs.current[idx] = el)}
-                        type="text"
-                        className="otp-box"
-                        value={v}
-                        maxLength={1}
-                        onChange={(e) => handleOtpChange(idx, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(e, idx)}
-                        onPaste={(e) => handleOtpPaste(e, idx)}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="d-grid mt-2 mb-2">
-                    <button
-                      type="button"
-                      className="btn btn-success"
-                      disabled={loading || isOtpExpired}
-                      onClick={handleVerifyCode}
-                    >
-                      Tiếp tục
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {/* Nếu đã hết hạn thì chỉ để badge + nút resend ở footer */}
-              {isOtpExpired && error && (
-                <div className="auth-error mt-2">{error}</div>
+            <div className="otp-card__badge-wrapper">
+              {otpCountdown > 0 ? (
+                <span className="otp-card__badge is-active">
+                  Mã sẽ hết hạn sau <b>: {otpCountdown}s</b>
+                </span>
+              ) : (
+                <span className="otp-card__badge is-expired">
+                  Mã OTP đã hết hạn — vui lòng gửi lại mã
+                </span>
               )}
             </div>
 
-            <div className="otp-card__footer d-flex justify-content-between">
-              <button
-                type="button"
-                className="btn btn-link p-0 auth-link"
-                onClick={() => {
-                  setStep(1);
-                  setOtp(Array(6).fill(""));
-                  setOtpCountdown(0);
-                  setError("");
-                  setSuccessMsg("");
-                }}
-              >
-                <i className="bi bi-arrow-left-short"></i> Nhập lại email
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-link p-0 auth-link"
-                onClick={handleResendCode}
-                disabled={isResendDisabled}
-              >
-                <i className="bi bi-arrow-repeat"></i> Gửi lại mã
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* STEP 3 */}
-        {step === 3 && (
-          <>
-            <div className="mb-2 input-group">
-              <span className="input-group-text">
-                <i className="bi bi-lock-fill"></i>
-              </span>
-              <input
-                type={showNewPassword ? "text" : "password"}
-                className="form-control"
-                name="newPassword"
-                placeholder="Mật khẩu mới"
-                value={form.newPassword}
-                onChange={onChange}
-                disabled={loading}
-              />
-              <button
-                type="button"
-                className="btn btn-outline-secondary"
-                onClick={() => setShowNewPassword((prev) => !prev)}
-              >
-                <i
-                  className={
-                    showNewPassword ? "bi bi-eye-slash" : "bi bi-eye"
-                  }
-                ></i>
-              </button>
-            </div>
-
-            {form.newPassword && (
-              <div
-                className="form-text mb-1"
-                style={{ color: passwordStrength.color, marginLeft: 2 }}
-              >
-                Mật khẩu {passwordStrength.label}
-              </div>
+            {/* successMsg chỉ khi OTP còn hạn */}
+            {successMsg && otpCountdown > 0 && (
+              <div className="auth-success mt-2">{successMsg}</div>
             )}
-            <div className="form-text mb-3" style={{ marginLeft: 2 }}>
-              Mật khẩu ≥ 8 ký tự, phải có chữ hoa, thường, số và ký tự đặc biệt.
+
+            {!isOtpExpired && (
+              <>
+                {error && <div className="auth-error mt-2">{error}</div>}
+
+                <div className="otp-inputs mb-3">
+                  {otp.map((v, idx) => (
+                    <input
+                      key={idx}
+                      ref={(el) => (otpRefs.current[idx] = el)}
+                      type="text"
+                      className="otp-box"
+                      value={v}
+                      maxLength={1}
+                      onChange={(e) => handleOtpChange(idx, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(e, idx)}
+                      onPaste={(e) => handleOtpPaste(e, idx)}
+                    />
+                  ))}
+                </div>
+
+                <div className="d-grid mt-2 mb-2">
+                  <button
+                    type="button"
+                    className="btn btn-success"
+                    disabled={loading}
+                    onClick={handleVerifyCode}
+                  >
+                    Tiếp tục
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Nếu OTP hết hạn */}
+            {isOtpExpired && error && (
+              <div className="auth-error mt-2">{error}</div>
+            )}
+          </div>
+
+          <div className="otp-card__footer d-flex justify-content-between">
+            <button
+              type="button"
+              className="btn btn-link p-0 auth-link"
+              onClick={() => {
+                setStep(1);
+                setOtp(Array(6).fill(""));
+                setOtpCountdown(0);
+                setError("");
+                setSuccessMsg("");
+              }}
+            >
+              <i className="bi bi-arrow-left-short"></i> Nhập lại email
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-link p-0 auth-link"
+              onClick={handleResendCode}
+              disabled={isResendDisabled}
+            >
+              <i className="bi bi-arrow-repeat"></i> Gửi lại mã
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* STEP 3 — ĐẶT MẬT KHẨU MỚI */}
+      {step === 3 && (
+        <>
+          {/* new password */}
+          <div className="mb-2 input-group">
+            <span className="input-group-text">
+              <i className="bi bi-lock-fill"></i>
+            </span>
+            <input
+              type={showNewPassword ? "text" : "password"}
+              name="newPassword"
+              className="form-control"
+              placeholder="Mật khẩu mới"
+              value={form.newPassword}
+              onChange={onChange}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              className="btn btn-outline-secondary"
+              onClick={() => setShowNewPassword((v) => !v)}
+            >
+              <i className={showNewPassword ? "bi bi-eye-slash" : "bi bi-eye"}></i>
+            </button>
+          </div>
+
+          {/* strength */}
+          {form.newPassword && (
+            <div className="form-text mb-1" style={{ color: passwordStrength.color }}>
+              Mật khẩu {passwordStrength.label}
             </div>
+          )}
 
-            <div className="mb-3 input-group">
-              <span className="input-group-text">
-                <i className="bi bi-shield-lock"></i>
-              </span>
-              <input
-                type={showConfirm ? "text" : "password"}
-                className="form-control"
-                name="confirmPassword"
-                placeholder="Nhập lại mật khẩu"
-                value={form.confirmPassword}
-                onChange={onChange}
-                disabled={loading}
-              />
-              <button
-                type="button"
-                className="btn btn-outline-secondary"
-                onClick={() => setShowConfirm((prev) => !prev)}
-              >
-                <i
-                  className={showConfirm ? "bi bi-eye-slash" : "bi bi-eye"}
-                ></i>
-              </button>
-            </div>
+          <div className="form-text mb-3">
+            Mật khẩu ≥ 8 ký tự, gồm chữ hoa, thường, số & ký tự đặc biệt.
+          </div>
 
-            {error && <div className="auth-error">{error}</div>}
+          {/* confirm password */}
+          <div className="mb-3 input-group">
+            <span className="input-group-text">
+              <i className="bi bi-shield-lock"></i>
+            </span>
+            <input
+              type={showConfirm ? "text" : "password"}
+              name="confirmPassword"
+              className="form-control"
+              placeholder="Nhập lại mật khẩu"
+              value={form.confirmPassword}
+              onChange={onChange}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              className="btn btn-outline-secondary"
+              onClick={() => setShowConfirm((v) => !v)}
+            >
+              <i className={showConfirm ? "bi bi-eye-slash" : "bi bi-eye"}></i>
+            </button>
+          </div>
 
-            <div className="d-grid mt-3 mb-2">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleChangePassword}
-                disabled={loading}
-              >
-                {loading ? "Đang đổi..." : "Đổi mật khẩu"}
-              </button>
-            </div>
+          {error && <div className="auth-error">{error}</div>}
 
-            <div className="d-grid">
-              <button
-                type="button"
-                className="btn btn-outline-secondary"
-                onClick={handleOpenCancelModal} // ✅ mở modal
-                disabled={loading}
-              >
-                Hủy đặt lại mật khẩu
-              </button>
-            </div>
-          </>
-        )}
-      </form>
+          <div className="d-grid mt-3 mb-2">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleChangePassword}
+              disabled={loading}
+            >
+              {loading ? "Đang đổi..." : "Đổi mật khẩu"}
+            </button>
+          </div>
 
-      {/* Modal đổi mật khẩu thành công */}
-      <LoginSuccessModal
-        open={showSuccess}
-        onClose={() => setShowSuccess(false)}
-        seconds={3}
-        title="Đổi mật khẩu"
-        message="Đổi mật khẩu thành công! Bạn sẽ quay lại Đăng nhập."
-        redirectUrl="/login"
-      />
+          <div className="d-grid">
+            <button
+              type="button"
+              className="btn btn-outline-secondary"
+              onClick={handleOpenCancelModal}
+              disabled={loading}
+            >
+              Hủy đặt lại mật khẩu
+            </button>
+          </div>
+        </>
+      )}
+    </form>
 
-      {/* ✅ ConfirmModal dùng chung */}
-      <ConfirmModal
-        open={openCancelModal}
-        title="Hủy đặt lại mật khẩu"
-        message="Bạn có chắc muốn hủy đặt lại mật khẩu và quay lại Đăng nhập?"
-        okText="Hủy & quay lại"
-        cancelText="Tiếp tục đổi mật khẩu"
-        danger={true}
-        onOk={handleConfirmCancelReset}
-        onClose={() => setOpenCancelModal(false)}
-      />
-    </AuthLayout>
-  );
+    {/* Success modal */}
+    <LoginSuccessModal
+      open={showSuccess}
+      onClose={() => setShowSuccess(false)}
+      seconds={3}
+      title="Đổi mật khẩu"
+      message="Đổi mật khẩu thành công! Bạn sẽ quay lại Đăng nhập."
+      redirectUrl="/login"
+    />
+
+    {/* Cancel confirm modal */}
+    <ConfirmModal
+      open={openCancelModal}
+      title="Hủy đặt lại mật khẩu"
+      message="Bạn có chắc muốn hủy đặt lại mật khẩu và quay lại Đăng nhập?"
+      okText="Hủy & quay lại"
+      cancelText="Tiếp tục đổi mật khẩu"
+      danger={true}
+      onOk={handleConfirmCancelReset}
+      onClose={() => setOpenCancelModal(false)}
+    />
+  </AuthLayout>
+);
+
 }

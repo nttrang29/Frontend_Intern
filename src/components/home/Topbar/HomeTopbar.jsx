@@ -1,12 +1,15 @@
-import "../../../styles/home/Topbar.css";
+import "../../../styles/pages/Topbar.css";
 import NotificationBell from "./NotificationBell";
 import UserMenu from "./UserMenu";
 import GlobalSearch from "../../common/GlobalSearch";
 import { useEffect, useState } from "react";
+import { useLanguage } from "../../../contexts/LanguageContext";
+import { normalizeUserProfile } from "../../../utils/userProfile";
 
 export default function HomeTopbar() {
   const [userName, setUserName] = useState("Người dùng");
   const [userAvatar, setUserAvatar] = useState("https://www.gravatar.com/avatar/?d=mp&s=40");
+  const { t } = useLanguage();
 
   useEffect(() => {
     // 1. Tạo một hàm riêng để load/reload user từ localStorage
@@ -16,12 +19,16 @@ export default function HomeTopbar() {
         const raw = localStorage.getItem("user");
         if (!raw) return;
         
-        const u = JSON.parse(raw) || {};
-        const newFullName = u.fullName || u.username || u.email || "Người dùng";
-        
-        // 2. Đọc 'u.avatar' (đã bao gồm ảnh Google hoặc ảnh Base64)
+        const normalizedUser = normalizeUserProfile(JSON.parse(raw) || {});
+        const newFullName =
+          normalizedUser?.fullName ||
+          normalizedUser?.username ||
+          normalizedUser?.email ||
+          "Người dùng";
+
+        // 2. Đọc avatar với fallback đã normalize
         const newAvatar =
-          u.avatar || // 👈 Đọc avatar đã thống nhất
+          normalizedUser?.avatar ||
           "https://www.gravatar.com/avatar/?d=mp&s=40"; // Ảnh dự phòng
         
         // Cập nhật state để trigger re-render
@@ -51,7 +58,7 @@ export default function HomeTopbar() {
     <header className="tb__wrap" role="banner">
       {/* Trái: chào người dùng */}
       <div className="tb__left">
-        <div className="tb__welcome">Xin chào, {userName}!</div>
+        <div className="tb__welcome">{t("topbar.welcome").replace("{name}", userName)}</div>
       </div>
 
       {/* Phải: Global Search + actions */}

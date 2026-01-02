@@ -2,6 +2,7 @@
 import { useLocation } from "react-router-dom";
 import "../../styles/Header.css";
 import GlobalSearch from "./GlobalSearch";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function Header() {
   const location = useLocation();
@@ -9,6 +10,7 @@ export default function Header() {
                      location.pathname.startsWith("/register") || 
                      location.pathname.startsWith("/forgot-password") ||
                      location.pathname.startsWith("/oauth");
+  const { t } = useLanguage();
 
   return (
     <header className="app-header d-flex justify-content-between align-items-center p-3">
@@ -27,12 +29,8 @@ export default function Header() {
         </video>
 
         <div className="app-header__brand-text ms-3">
-          <strong className="app-header__title">
-            Hệ thống quản lý chi tiêu cá nhân
-          </strong>
-          <p className="app-header__subtitle mb-0">
-            Chào mừng bạn đến với hệ thống
-          </p>
+          <strong className="app-header__title">{t("sidebar.brand.title")}</strong>
+          <p className="app-header__subtitle mb-0">{t("sidebar.brand.subtitle")}</p>
         </div>
       </div>
 

@@ -10,6 +10,7 @@ const API_BASE_URL = "http://localhost:8080";
 // Tạo axios instance với cấu hình mặc định
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 60000, // 60 giây timeout
   headers: {
     "Content-Type": "application/json",
   },
@@ -29,6 +30,26 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Interceptor để xử lý response errors (bao gồm timeout)
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Xử lý timeout errors
+    if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
+      console.warn("Request timeout:", error.config?.url);
+      return Promise.reject({
+        ...error,
+        response: {
+          status: 408,
+          statusText: "Request Timeout",
+          data: { error: "Yêu cầu quá thời gian chờ. Vui lòng thử lại." },
+        },
+      });
+    }
+    return Promise.reject(error);
+  }
+);
+
 /**
  * Helper function để xử lý response từ axios
  * @param {Object} axiosResponse - Response object từ axios
@@ -42,6 +63,29 @@ const handleAxiosResponse = (axiosResponse) => {
       status: axiosResponse.status,
       statusText: axiosResponse.statusText,
     },
+  };
+};
+
+const buildAxiosErrorResponse = (error, defaultMessage = "Đã xảy ra lỗi") => {
+  if (error?.response) {
+    return {
+      data: error.response.data || { error: defaultMessage },
+      response: {
+        ok: false,
+        status: error.response.status,
+        statusText: error.response.statusText,
+      },
+    };
+  }
+  if (error?.request) {
+    return {
+      response: { ok: false, status: 0 },
+      data: { error: defaultMessage },
+    };
+  }
+  return {
+    response: { ok: false, status: 0 },
+    data: { error: error?.message || defaultMessage },
   };
 };
 
@@ -324,6 +368,36 @@ export const refreshToken = async ({ refreshToken }) => {
         data: { error: error.message || "Đã xảy ra lỗi không xác định." },
       };
     }
+  }
+};
+
+/**
+ * 🚪 Đăng xuất khỏi tất cả thiết bị (trừ thiết bị hiện tại)
+ */
+export const logoutAllDevices = async () => {
+  const execute = async (path) => {
+    const response = await apiClient.post(path);
+    return handleAxiosResponse(response);
+  };
+
+  try {
+    return await execute("/auth/logout-all-devices");
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      try {
+        return await execute("/auth/logout-all");
+      } catch (fallbackError) {
+        return buildAxiosErrorResponse(
+          fallbackError,
+          "Không thể đăng xuất khỏi các thiết bị khác."
+        );
+      }
+    }
+
+    return buildAxiosErrorResponse(
+      error,
+      "Không thể đăng xuất khỏi các thiết bị khác."
+    );
   }
 };
 

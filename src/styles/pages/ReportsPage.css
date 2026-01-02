@@ -1,0 +1,2532 @@
+.reports-layout--funds {
+  grid-template-columns: 460px 1fr;
+}
+
+.reports-layout--funds.fund-detail-only,
+.reports-layout--funds.fund-overview-only {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 1300px) {
+  .reports-layout--funds.fund-detail-only,
+  .reports-layout--funds.fund-overview-only {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1300px) {
+  .reports-layout--funds {
+    grid-template-columns: 400px 1fr;
+  }
+}
+
+@media (max-width: 992px) {
+  .reports-layout--funds {
+    grid-template-columns: 1fr;
+  }
+}
+
+.funds-panel-card .card-body,
+.funds-detail-card .card-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.fund-detail-only .funds-detail-card {
+  grid-column: 1 / -1;
+}
+
+.fund-detail-only .fund-detail-header {
+  padding: 24px 28px;
+}
+
+.fund-detail-only .fund-progress-donut {
+  width: 170px;
+  height: 170px;
+}
+
+.fund-detail-only .fund-goal-stats {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.fund-detail-only .fund-goal-stat {
+  padding: 18px;
+}
+
+.fund-detail-only .fund-goal-stat strong {
+  font-size: 1.35rem;
+}
+
+.fund-detail-only .fund-pace-card {
+  padding: 18px;
+}
+
+.fund-detail-only .fund-pace-track {
+  height: 12px;
+}
+
+.funds-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.funds-panel-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 20px 0 12px;
+}
+
+.funds-metric {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+}
+
+.funds-metric-label {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.funds-metric-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.funds-panel-progress {
+  margin-bottom: 12px;
+}
+
+.funds-panel-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.funds-panel-progress-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-bg-tertiary);
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.funds-panel-progress-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(39, 142, 189, 0.95), rgba(19, 196, 182, 0.95));
+}
+
+.funds-completion-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  margin-bottom: 16px;
+}
+
+.funds-completion-btn {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.funds-completion-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.funds-completion-count {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-bg-tertiary);
+  color: inherit;
+}
+
+.funds-completion-btn.active .funds-completion-count {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.funds-search-row {
+  margin-bottom: 14px;
+}
+
+.funds-search {
+  position: relative;
+}
+
+.funds-search i {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+}
+
+.funds-search input {
+  border-radius: 999px;
+  padding-left: 38px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.funds-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.funds-filter-btn {
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  padding: 6px 14px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.funds-filter-btn.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  box-shadow: var(--shadow-md);
+}
+
+.funds-filter-count {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-bg-tertiary);
+}
+
+.funds-filter-btn.active .funds-filter-count {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.funds-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  padding-right: 4px;
+  max-height: 560px;
+  padding: 4px 0;
+}
+
+.funds-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.funds-list::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.funds-list-item {
+  border: 1.5px solid rgba(226, 232, 240, 0.6);
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 18px 20px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  animation: fundListItemFadeIn 0.5s ease-out backwards;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--color-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  width: 100%;
+}
+
+.funds-list-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #0d6efd, #00c2ff);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 16px 16px 0 0;
+}
+
+.funds-list-item:hover::before {
+  opacity: 1;
+}
+
+.funds-list-item:nth-child(1) { animation-delay: 0.05s; }
+.funds-list-item:nth-child(2) { animation-delay: 0.1s; }
+.funds-list-item:nth-child(3) { animation-delay: 0.15s; }
+.funds-list-item:nth-child(4) { animation-delay: 0.2s; }
+.funds-list-item:nth-child(5) { animation-delay: 0.25s; }
+.funds-list-item:nth-child(n+6) { animation-delay: 0.3s; }
+
+@keyframes fundListItemFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.funds-list-item:hover {
+  border-color: rgba(13, 110, 253, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+}
+
+.funds-list-item.active {
+  border-color: #0d6efd;
+  border-width: 2px;
+  box-shadow: 0 4px 16px rgba(13, 110, 253, 0.2), 0 2px 8px rgba(13, 110, 253, 0.1);
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.04), rgba(0, 194, 255, 0.02));
+  transform: translateY(0);
+  animation: fundListItemActive 0.3s ease-out;
+}
+
+.funds-list-item.active::before {
+  opacity: 1;
+  background: linear-gradient(90deg, #0d6efd, #00c2ff);
+}
+
+@keyframes fundListItemActive {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.02);
+  }
+}
+
+.funds-list-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+.funds-list-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+  transition: color 0.2s ease;
+  line-height: 1.5;
+}
+
+.funds-list-item:hover .funds-list-name {
+  color: #0d6efd;
+}
+
+.funds-list-item.active .funds-list-name {
+  color: #0d6efd;
+}
+
+.funds-list-tags,
+.fund-detail-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.fund-tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #f8fafc;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  color: #64748b;
+  transition: all 0.2s ease;
+  box-shadow: none;
+}
+
+.fund-tag:hover {
+  background: #f1f5f9;
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.fund-tag--term {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(251, 191, 36, 0.08));
+  color: #92400e;
+}
+
+.fund-tag--success {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.08));
+  color: #15803d;
+}
+
+.fund-tag--muted {
+  color: #64748b;
+  background: rgba(241, 245, 249, 0.8);
+  border-color: rgba(226, 232, 240, 0.6);
+}
+
+
+.funds-progress-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(241, 245, 249, 0.8);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+  position: relative;
+}
+
+.funds-progress-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #0b63f6, #00c2ff);
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(11, 99, 246, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.funds-progress-bar span::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: progressShine 2s infinite;
+}
+
+@keyframes progressShine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.funds-progress-values {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  margin-top: 8px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.funds-progress-values span:first-child {
+  color: #0d6efd;
+  font-weight: 600;
+}
+
+.funds-progress-values span:last-child {
+  color: #94a3b8;
+}
+
+.funds-list-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+.funds-list-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Funds list title */
+h6[style*="fontWeight: 600"] {
+  color: #1e293b;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+/* Pagination */
+.funds-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 20px 0 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.funds-pagination-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.funds-pagination-btn:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
+}
+
+.funds-pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.funds-pagination-info {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 100px;
+  text-align: center;
+}
+
+.fund-detail-header {
+  margin-bottom: 24px;
+  padding: 24px 28px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.06) 0%, rgba(0, 194, 255, 0.04) 100%);
+  border: 1px solid rgba(13, 110, 253, 0.12);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  transition: all 0.3s ease;
+}
+
+.fund-detail-header:hover {
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+  border-color: rgba(13, 110, 253, 0.18);
+}
+
+.fund-detail-header h4 {
+  margin-bottom: 8px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.fund-detail-header p.text-muted {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fund-detail-header .btn {
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: rgba(255, 255, 255, 0.9);
+  color: #475569;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.fund-detail-header .btn:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(13, 110, 253, 0.3);
+  color: #0d6efd;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(13, 110, 253, 0.15);
+}
+
+.fund-detail-goal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.fund-progress-widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.fund-progress-donut {
+  width: 140px;
+  height: 140px;
+  filter: drop-shadow(0 10px 30px rgba(15, 23, 42, 0.12));
+}
+
+.fund-donut-track,
+.fund-donut-progress {
+  stroke-width: 10;
+}
+
+.fund-donut-track {
+  stroke: rgba(148, 163, 184, 0.3);
+}
+
+.fund-donut-progress {
+  stroke: #0b63f6;
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+.reports-page.dark-mode .fund-donut-progress {
+  stroke: #38bdf8;
+}
+
+.fund-donut-text {
+  font-size: 1.15rem;
+  font-weight: 700;
+  fill: #0b63f6;
+}
+
+.fund-progress-caption {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.fund-goal-stats {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.fund-goal-stat {
+  position: relative;
+  padding: 16px;
+  border-radius: 16px;
+  border: 0;
+  background: var(--fund-stat-bg, var(--color-bg-tertiary));
+  color: var(--fund-stat-text, var(--color-text));
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  isolation: isolate;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fundStatFadeIn 0.6s ease-out backwards;
+  transform: translateY(0);
+}
+
+.fund-goal-stat:nth-child(1) { animation-delay: 0.1s; }
+.fund-goal-stat:nth-child(2) { animation-delay: 0.2s; }
+.fund-goal-stat:nth-child(3) { animation-delay: 0.3s; }
+.fund-goal-stat:nth-child(4) { animation-delay: 0.4s; }
+
+.fund-goal-stat:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+}
+
+@keyframes fundStatFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fund-goal-stat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 120% -20%, rgba(255, 255, 255, 0.9), transparent 55%);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.fund-goal-stat p {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fund-stat-label, var(--color-text-muted));
+}
+
+.fund-goal-stat strong {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: inherit;
+}
+
+.fund-goal-stat small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: rgba(15, 23, 42, 0.65);
+}
+
+.fund-goal-stat--current {
+  --fund-stat-bg: linear-gradient(135deg, #e8f0ff, #f7fbff);
+  --fund-stat-text: #0b63f6;
+  --fund-stat-label: rgba(11, 99, 246, 0.75);
+}
+
+.fund-goal-stat--target {
+  --fund-stat-bg: linear-gradient(135deg, #f6edff, #fdf8ff);
+  --fund-stat-text: #7c3aed;
+  --fund-stat-label: rgba(124, 58, 237, 0.75);
+}
+
+.fund-goal-stat--shortage {
+  --fund-stat-bg: linear-gradient(135deg, #fff1ec, #fff7f4);
+  --fund-stat-text: #b45309;
+  --fund-stat-label: rgba(180, 83, 9, 0.75);
+}
+
+.fund-goal-stat--daily {
+  --fund-stat-bg: linear-gradient(135deg, #e5fff9, #f1fffd);
+  --fund-stat-text: #047857;
+  --fund-stat-label: rgba(4, 120, 87, 0.7);
+}
+
+.fund-goal-stat--period {
+  --fund-stat-bg: linear-gradient(135deg, #eef3ff, #f7f9ff);
+  --fund-stat-text: #1d4ed8;
+  --fund-stat-label: rgba(29, 78, 216, 0.7);
+}
+
+.fund-pace-card {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 16px;
+  background: var(--color-bg-tertiary);
+  margin-bottom: 18px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fundPaceCardFadeIn 0.6s ease-out 0.2s backwards;
+}
+
+.fund-pace-card:hover {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+  border-color: rgba(13, 110, 253, 0.2);
+}
+
+@keyframes fundPaceCardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.fund-pace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.fund-pace-status {
+  font-weight: 700;
+  margin: 0;
+}
+
+.fund-pace-status--ahead { color: #16a34a; }
+.fund-pace-status--on_track { color: #0d9488; }
+.fund-pace-status--behind { color: #d97706; }
+.fund-pace-status--critical { color: #dc2626; }
+.fund-pace-status--unknown { color: var(--color-text-muted); }
+.fund-pace-status--on_track_settled { color: #0d9488; }
+.fund-pace-status--behind_settled { color: #d97706; }
+
+.fund-pace-days {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.fund-pace-track {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--color-bg-secondary);
+  overflow: hidden;
+}
+
+.fund-pace-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.fund-pace-marker--actual {
+  background: linear-gradient(90deg, #0b63f6, #00c2ff);
+}
+
+.fund-pace-marker--expected {
+  background: rgba(255, 255, 255, 0.35);
+  border-right: 1px dashed rgba(0, 0, 0, 0.2);
+}
+
+.fund-pace-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 0.78rem;
+  margin-top: 10px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-flex;
+  margin-right: 4px;
+}
+
+.legend-dot--actual { background: #0b63f6; }
+.legend-dot--expected { background: rgba(255, 255, 255, 0.8); border: 1px solid var(--color-border); }
+
+.fund-detail-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.fund-detail-meta-grid p {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.fund-history-card {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 18px;
+  background: var(--color-bg-tertiary);
+}
+
+.fund-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fund-history-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.fund-history-subtitle {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.fund-history-pill {
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.fund-history-state {
+  border: 1px dashed var(--color-border);
+  border-radius: 14px;
+  padding: 18px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+}
+
+.fund-history-state--error {
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #b91c1c;
+  background: rgba(254, 226, 226, 0.3);
+}
+
+.fund-history-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fund-history-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+}
+
+.fund-history-line {
+  position: relative;
+  width: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.fund-history-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-top: 6px;
+  position: relative;
+  box-shadow: 0 0 0 4px rgba(11, 99, 246, 0.12);
+}
+
+.fund-history-dot::after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  background: var(--color-border);
+  top: 12px;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.fund-history-item:last-child .fund-history-dot::after {
+  display: none;
+}
+
+.fund-history-dot--in,
+.fund-history-dot--deposit {
+  background: linear-gradient(180deg, #0d6efd, #00c2ff);
+  box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.2);
+}
+
+.fund-history-dot--out,
+.fund-history-dot--withdraw {
+  background: linear-gradient(180deg, #ef4444, #dc2626);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
+}
+
+.fund-history-dot--settle {
+  background: linear-gradient(180deg, #f59e0b, #d97706);
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+}
+
+.fund-history-item-content {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--color-bg-secondary);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.fund-history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.fund-history-type {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.fund-history-amount {
+  font-weight: 700;
+  color: #0d6efd;
+}
+
+.fund-history-amount--deposit {
+  color: #0d6efd;
+}
+
+.fund-history-amount--withdraw {
+  color: #ef4444;
+}
+
+.fund-history-amount--settle {
+  color: #f59e0b;
+}
+
+.fund-history-amount--in {
+  color: #0d6efd;
+}
+
+.fund-history-amount--out {
+  color: #ef4444;
+}
+
+.fund-history-amount.is-negative {
+  color: #ef4444;
+}
+
+.fund-history-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.fund-history-status {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+
+.fund-history-status--success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #0f766e;
+}
+
+.fund-history-status--failed {
+  background: rgba(248, 113, 113, 0.15);
+  color: #b91c1c;
+}
+
+.fund-history-note {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.fund-warning-panel {
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  padding: 14px;
+  background: var(--color-bg-secondary);
+}
+
+.fund-warning-header {
+  font-weight: 600;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fund-warning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fund-warning-card {
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+}
+
+.fund-warning-card--danger {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.fund-warning-card--warning {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.fund-warning-card--info {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.fund-warning-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.fund-warning-message {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.funds-detail-empty {
+  padding: 32px;
+  border: 1px dashed var(--color-border);
+  border-radius: 16px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .funds-panel-head {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fund-detail-goal {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .funds-panel-card .card-body,
+  .funds-detail-card .card-body {
+    padding: 20px 18px;
+  }
+}
+/* ===== Reports Page Layout ===== */
+.reports-page {
+  padding: 18px 24px 32px;
+  animation: pageFadeIn 0.5s ease-out;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text);
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Make page fluid with centered inner wrapper like Wallets/Transactions */
+.tx-page {
+  padding-top: 24px;
+  padding-bottom: 32px;
+  background: transparent;
+}
+
+.tx-page-inner {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.reports-page .card {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+}
+
+/* Wallet-style header (copied from WalletsPage.css) */
+.wallet-header {
+  background: linear-gradient(90deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 60%, rgb(10, 181, 192) 100%);
+  border-radius: 18px;
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 22px rgba(15, 23, 42, 0.08);
+  margin-bottom: 22px;
+}
+
+.wallet-header-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.wallet-header-icon {
+  width: 54px;
+  height: 54px;
+  background: rgba(45, 153, 174, 0.15);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wallet-header-icon i {
+  font-size: 1.9rem;
+  color: #ffffff;
+  animation: iconPulse 2s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+
+.wallet-header:hover .wallet-header-icon i {
+  animation: iconRotate 0.8s ease-out;
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes iconRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wallet-header-title {
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #ffffff;
+}
+
+.wallet-header-subtitle {
+  font-size: 0.95rem;
+  color: #ffffff;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.wallet-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.reports-tab-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+.reports-tab-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+.reports-tab-btn i {
+  font-size: 1rem;
+}
+.reports-tab-btn:hover {
+  background: var(--color-bg-tertiary);
+}
+.reports-tab-btn.active {
+  background: var(--color-bg-secondary);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+@media (max-width: 768px) {
+  .reports-tab-toggle {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .reports-tab-btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
+.wallet-header-btn {
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-bg-secondary);
+  box-shadow: 0 4px 10px rgba(45, 153, 174, 0.15);
+  transition: background-color 0.18s ease-out,
+    color 0.18s ease-out,
+    box-shadow 0.18s ease-out,
+    transform 0.18s ease-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.wallet-header-btn:hover {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(45, 153, 174, 0.25);
+}
+
+.wallet-header-btn i {
+  font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+  .wallet-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .wallet-header-left { gap: 12px; }
+  .wallet-header-right { width: 100%; justify-content: flex-end; }
+}
+
+.reports-header-pill {
+  background: var(--color-bg-tertiary);
+  border-radius: 999px;
+  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.reports-layout {
+  display: grid;
+  grid-template-columns: 520px 1fr;
+  gap: 24px;
+}
+.reports-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+@media (max-width: 1400px) {
+  .reports-layout {
+    grid-template-columns: 460px 1fr;
+  }
+}
+
+@media (max-width: 1200px) {
+  .reports-layout {
+    grid-template-columns: 400px 1fr;
+  }
+}
+
+@media (max-width: 992px) {
+  .reports-page {
+    padding: 16px 18px 24px;
+  }
+
+  .reports-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .wallet-header {
+    padding: 20px 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .reports-page {
+    padding: 12px 16px 20px;
+  }
+
+  .wallet-header {
+    padding: 16px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .wallet-header-left {
+    width: 100%;
+  }
+
+  .wallet-header-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .reports-wallet-card {
+    margin-bottom: 16px;
+  }
+
+  .reports-chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .reports-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .reports-summary-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 576px) {
+  .reports-page {
+    padding: 10px 12px 16px;
+  }
+
+  .wallet-header {
+    padding: 14px 16px;
+  }
+
+  .wallet-header-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .wallet-header-icon i {
+    font-size: 1.7rem;
+  }
+
+  .wallet-header-title {
+    font-size: 1.3rem;
+  }
+
+  .wallet-header-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .reports-wallet-item {
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .reports-chart-header-card {
+    padding: 16px 18px;
+  }
+}
+
+/* ===== Wallet List Panel ===== */
+.reports-wallet-card .card-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.reports-wallet-card .badge.text-bg-light {
+  background: var(--color-bg-secondary) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.reports-wallet-search {
+  position: relative;
+}
+
+.reports-wallet-search i {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+}
+
+.reports-wallet-search input {
+  border-radius: 999px;
+  padding-left: 38px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.reports-wallet-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.reports-wallet-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.reports-wallet-list::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.reports-wallet-item {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-bg-secondary);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: all 0.2s ease;
+  text-align: left;
+  animation: cardFadeIn 0.6s ease-out backwards;
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.reports-wallet-item:nth-child(1) { animation-delay: 0.1s; }
+.reports-wallet-item:nth-child(2) { animation-delay: 0.15s; }
+.reports-wallet-item:nth-child(3) { animation-delay: 0.2s; }
+.reports-wallet-item:nth-child(4) { animation-delay: 0.25s; }
+.reports-wallet-item:nth-child(5) { animation-delay: 0.3s; }
+.reports-wallet-item:nth-child(6) { animation-delay: 0.35s; }
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reports-wallet-item:hover {
+  border-color: var(--color-primary-light);
+  background: var(--color-bg-tertiary);
+}
+
+.reports-wallet-item.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: inset 0 0 0 1px var(--color-primary-strong);
+}
+
+.wallet-name {
+  font-weight: 600;
+}
+
+.wallet-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wallet-balance {
+  min-width: 130px;
+}
+
+/* ===== Chart Card ===== */
+.reports-chart-card .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.reports-chart-header-card {
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  padding: 20px 24px;
+  background: var(--color-bg-secondary);
+  animation: cardFadeIn 0.6s ease-out backwards;
+  animation-delay: 0.2s;
+}
+
+.reports-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  width: 100%;
+}
+
+.reports-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Keep action buttons on a single line */
+.reports-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+@media (max-width: 1200px) {
+  .reports-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reports-section-card .card-body {
+  display: flex;
+  flex-direction: column;
+}
+.reports-single-card {
+  max-width: 1240px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.reports-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.reports-section-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.reports-section-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.reports-section-progress {
+  margin-bottom: 12px;
+}
+
+.reports-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.reports-section-progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-bg-tertiary);
+  overflow: hidden;
+}
+
+.reports-section-progress-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #0b63f6, #00c2ff);
+  border-radius: 999px;
+}
+
+.reports-status-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.reports-status-chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.reports-status-chip.success {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.reports-status-chip.warning {
+  background: #fef9c3;
+  border-color: #fef08a;
+  color: #b45309;
+}
+
+.reports-status-chip.danger {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.reports-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reports-mini-row {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+.reports-mini-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.reports-mini-title p {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.reports-mini-subtitle {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.reports-status-badge {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+.reports-status-badge.status-ok {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.reports-status-badge.status-warning {
+  background: #fef9c3;
+  color: #b45309;
+}
+
+.reports-status-badge.status-exceeded {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.reports-mini-progress {
+  margin-top: 10px;
+}
+
+.reports-mini-progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-bg-tertiary);
+  overflow: hidden;
+}
+
+.reports-mini-progress-bar .progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #0b63f6;
+}
+
+.reports-mini-progress-bar .progress-fill.status-warning {
+  background: #fbbf24;
+}
+
+.reports-mini-progress-bar .progress-fill.status-exceeded {
+  background: #ef4444;
+}
+
+.reports-mini-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--color-text);
+  margin-top: 6px;
+}
+
+.reports-mini-meta {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+  .reports-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.reports-header-actions button {
+  white-space: nowrap;
+}
+
+.reports-summary-row {
+  display: flex;
+  flex-direction: row;
+  gap: 18px;
+  flex-wrap: nowrap;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  align-items: flex-start;
+}
+
+.reports-summary-row > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.summary-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.reports-range-toggle {
+  background: var(--color-bg-secondary);
+  border-radius: 999px;
+  padding: 4px;
+  display: inline-flex;
+  gap: 2px;
+  box-shadow: var(--shadow-md);
+}
+
+.reports-range-btn {
+  border-radius: 999px;
+  min-width: 70px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  padding: 8px 18px;
+  transition: all 0.2s ease;
+}
+
+.reports-range-btn.active {
+  background: linear-gradient(135deg, #0f7dbf, #0b9ab0);
+  color: var(--color-text-inverse);
+  box-shadow: inset 0 -2px 4px rgba(255, 255, 255, 0.25);
+}
+
+.reports-history-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-md);
+}
+
+.reports-history-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.reports-history-btn:not(:disabled):hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-bg-tertiary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.reports-history-btn.active {
+  background: linear-gradient(135deg, #0f7dbf, #0b9ab0);
+  border-color: transparent;
+  color: var(--color-text-inverse);
+  box-shadow: inset 0 -2px 4px rgba(255, 255, 255, 0.25);
+}
+
+.reports-history-btn.active:not(:disabled):hover {
+  background: linear-gradient(135deg, #0e6fa8, #0a8a9a);
+  color: var(--color-text-inverse) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15, 125, 191, 0.25);
+}
+
+.reports-chart-area {
+  min-height: 520px;
+}
+
+.reports-history-area {
+  min-height: 520px;
+}
+
+.reports-history-list {
+  overflow-x: auto;
+}
+
+.reports-history-list table {
+  margin-bottom: 0;
+}
+
+.reports-history-list .tx-note-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 16px;
+}
+
+.reports-history-list table {
+  table-layout: fixed;
+}
+
+.reports-history-list table th,
+.reports-history-list table td {
+  padding: 10px 8px;
+  vertical-align: middle;
+}
+
+.reports-history-list table th:nth-child(1) { width: 60px; }
+.reports-history-list table th:nth-child(2) { width: 140px; }
+.reports-history-list table th:nth-child(3) { width: 100px; }
+.reports-history-list table th:nth-child(4) { width: 150px; }
+.reports-history-list table th:nth-child(5) { width: 120px; }
+.reports-history-list table th:nth-child(6) { width: 80px; }
+.reports-history-list table th:nth-child(7) { width: 180px; }
+
+.reports-chart-viewport {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.reports-chart-axis {
+  width: 90px;
+  padding: 44px 12px 20px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.axis-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.axis-value {
+  width: 40px;
+  text-align: right;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.axis-guide {
+  flex: 1;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.4);
+}
+
+.reports-chart-grid {
+  flex: 1;
+  display: grid;
+  align-items: end;
+  gap: 14px;
+  min-height: 380px;
+  padding: 44px 20px 32px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-bg-secondary);
+  overflow-x: auto;
+}
+
+.reports-chart-grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+.reports-chart-grid::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.reports-chart-column {
+  text-align: center;
+  position: relative;
+}
+
+.reports-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  height: 340px;
+}
+
+.reports-chart-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 24px;
+  height: 100%;
+}
+
+.reports-chart-bar {
+  width: 100%;
+  border-radius: 10px 10px 0 0;
+  background: #0b63f6;
+  transition: height 0.25s ease;
+  min-height: 4px;
+}
+
+.reports-chart-tooltip {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 80px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.reports-chart-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: 18px;
+  background: var(--color-bg-tertiary);
+}
+
+@media (max-width: 768px) {
+  .reports-page {
+    padding: 16px;
+  }
+
+  .reports-chart-grid {
+    overflow-x: auto;
+  }
+
+  .reports-chart-axis {
+    width: 80px;
+    padding: 0 4px 12px 0;
+  }
+
+  .reports-chart-column {
+    min-width: 70px;
+  }
+
+  .reports-summary-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Pagination */
+.reports-pagination-wrapper {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.reports-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.reports-pagination .tx-pagination {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.reports-pagination .tx-pagination .page-arrow,
+.reports-pagination .tx-pagination .page-number {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--color-text);
+}
+
+.reports-pagination .tx-pagination .page-arrow:hover:not(:disabled),
+.reports-pagination .tx-pagination .page-number:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-light);
+}
+
+.reports-pagination .tx-pagination .page-arrow:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reports-pagination .tx-pagination .page-number.active {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary);
+}
+
+.reports-pagination .tx-pagination .page-ellipsis {
+  padding: 0 4px;
+  color: var(--color-text-muted);
+}
+
+/* Export PDF Button */
+.reports-export-pdf-wrapper {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: center;
+}
+
+.reports-export-pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s;
+  background: linear-gradient(135deg, #0e6fa8, #0a8a9a);
+  border: none;
+  color: var(--color-text-inverse);
+  box-shadow: 0 4px 12px rgba(11, 99, 246, 0.2);
+}
+
+.reports-export-pdf-btn:hover {
+  background: linear-gradient(135deg, #0a5a8a, #087a8a);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(11, 99, 246, 0.3);
+  color: var(--color-text-inverse);
+}
+
+.reports-export-pdf-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(11, 99, 246, 0.2);
+}
+
+.reports-export-pdf-btn i {
+  font-size: 1.1rem;
+}
+
+/* Budget Reports Styles */
+.budget-reports-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Budget Overview Cards */
+.budget-overview-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.budget-overview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.budget-overview-card--blue {
+  border-left: 4px solid #0b63f6;
+}
+
+.budget-overview-card--primary {
+  border-left: 4px solid #0d6efd;
+}
+
+.budget-overview-card--green {
+  border-left: 4px solid #10b981;
+}
+
+.budget-overview-card--yellow {
+  border-left: 4px solid #f59e0b;
+}
+
+.budget-overview-card--red {
+  border-left: 4px solid #ef4444;
+}
+
+.budget-overview-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.budget-overview-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: #1e293b;
+}
+
+/* Budget Status Donut Chart */
+.budget-status-donut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.budget-status-donut-empty {
+  text-align: center;
+  padding: 2rem;
+}
+
+.budget-status-donut-svg {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+}
+
+.budget-status-donut-total {
+  fill: #1e293b;
+}
+
+.budget-status-donut-label {
+  fill: #64748b;
+}
+
+.budget-status-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.budget-status-donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.budget-status-donut-legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.budget-status-donut-legend-label {
+  flex: 1;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.budget-status-donut-legend-value {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Top Dangerous Budgets */
+.budget-dangerous-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.budget-dangerous-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s;
+}
+
+.budget-dangerous-item:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateX(4px);
+}
+
+.budget-dangerous-rank {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.budget-dangerous-info {
+  flex: 1;
+}
+
+.budget-dangerous-name {
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.budget-dangerous-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.budget-dangerous-percent {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.budget-dangerous-exceeded,
+.budget-dangerous-remaining {
+  font-weight: 500;
+}
+
+/* Time Comparison */
+.budget-time-comparison-card {
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+}
+
+/* Budget Detail List */
+.budget-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.budget-detail-list--scrollable {
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.budget-detail-list--scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.budget-detail-list--scrollable::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.budget-detail-list--scrollable::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.budget-detail-list--scrollable::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.budget-detail-item {
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  transition: all 0.2s;
+}
+
+.budget-detail-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
+}
+
+.budget-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.budget-detail-info {
+  flex: 1;
+}
+
+.budget-detail-category {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.budget-detail-wallet,
+.budget-detail-time {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+}
+
+.budget-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.budget-status-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.budget-status-badge--ok {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.budget-status-badge--warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.budget-status-badge--exceeded {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.budget-detail-progress {
+  margin-top: 1rem;
+}
+
+.budget-detail-progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.budget-detail-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.budget-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.budget-detail-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.budget-detail-stat-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.budget-detail-stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Budget Suggestions */
+.budget-suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.budget-suggestion-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+  font-size: 0.875rem;
+  color: #1e40af;
+}
+
+/* Override biểu đồ cho ReportsPage - chỉ áp dụng cho trang báo cáo */
+.reports-layout--funds .fund-growth-chart {
+  padding: 12px 8px;
+  min-height: 360px;
+}
+
+.reports-layout--funds .fund-growth-svg {
+  height: 360px;
+}

@@ -1,20 +1,22 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/GlobalSearch.css";
+import { useLanguage } from "../../contexts/LanguageContext";
 
+// Menu items reference; labels are resolved at runtime via translation keys
 const MENU_ITEMS = [
-  { id: "dashboard", label: "Tổng quan", path: "/home", icon: "bi-speedometer2" },
-  { id: "wallets", label: "Ví", path: "/home/wallets", icon: "bi-wallet2" },
-  { id: "budgets", label: "Ngân sách", path: "/home/budgets", icon: "bi-graph-up-arrow" },
-  { id: "transactions", label: "Giao dịch", path: "/home/transactions", icon: "bi-cash-stack" },
-  { id: "categories", label: "Danh mục", path: "/home/categories", icon: "bi-tag" },
-  { id: "reports", label: "Báo cáo", path: "/home/reports", icon: "bi-graph-up" },
-  { id: "budgets-edit", label: "Chỉnh sửa ngân sách", path: "/home/budgets", icon: "bi-pencil" },
-  { id: "add-transaction", label: "Thêm giao dịch", path: "/home/transactions", icon: "bi-plus-lg" },
-  { id: "add-category", label: "Thêm danh mục", path: "/home/categories", icon: "bi-plus-lg" },
-  { id: "add-wallet", label: "Thêm ví", path: "/home/wallets", icon: "bi-plus-lg" },
-  { id: "settings", label: "Cài đặt", path: "/home/settings", icon: "bi-gear" },
-  { id: "profile", label: "Hồ sơ", path: "/home/profile", icon: "bi-person-circle" },
+  { id: "dashboard", labelKey: "sidebar.overview", path: "/home", icon: "bi-speedometer2" },
+  { id: "wallets", labelKey: "sidebar.wallets", path: "/home/wallets", icon: "bi-wallet2" },
+  { id: "budgets", labelKey: "sidebar.budgets", path: "/home/budgets", icon: "bi-graph-up-arrow" },
+  { id: "transactions", labelKey: "sidebar.transactions", path: "/home/transactions", icon: "bi-cash-stack" },
+  { id: "categories", labelKey: "sidebar.categories", path: "/home/categories", icon: "bi-tag" },
+  { id: "reports", labelKey: "sidebar.reports", path: "/home/reports", icon: "bi-graph-up" },
+  { id: "budgets-edit", labelKey: null, label: "Chỉnh sửa ngân sách", path: "/home/budgets", icon: "bi-pencil" },
+  { id: "add-transaction", labelKey: null, label: "Thêm giao dịch", path: "/home/transactions", icon: "bi-plus-lg" },
+  { id: "add-category", labelKey: null, label: "Thêm danh mục", path: "/home/categories", icon: "bi-plus-lg" },
+  { id: "add-wallet", labelKey: null, label: "Thêm ví", path: "/home/wallets", icon: "bi-plus-lg" },
+  { id: "settings", labelKey: "settings.title", path: "/home/settings", icon: "bi-gear" },
+  { id: "profile", labelKey: "topbar.account", path: "/home/profile", icon: "bi-person-circle" },
 ];
 
 export default function GlobalSearch() {
@@ -24,6 +26,7 @@ export default function GlobalSearch() {
   const navigate = useNavigate();
   const searchBoxRef = useRef(null);
   const resultsRef = useRef(null);
+  const { t } = useLanguage();
 
   // Tìm kiếm khi gõ
   const handleSearch = (e) => {
@@ -36,8 +39,14 @@ export default function GlobalSearch() {
       return;
     }
 
+    // Định nghĩa nhãn đã dịch để so khớp
+    const localized = MENU_ITEMS.map((it) => ({
+      ...it,
+      label: it.labelKey ? t(it.labelKey) : it.label || it.id,
+    }));
+
     // Lọc các mục khớp với text tìm kiếm
-    const filtered = MENU_ITEMS.filter(
+    const filtered = localized.filter(
       (item) =>
         item.label.toLowerCase().includes(text) ||
         item.id.toLowerCase().includes(text)
@@ -92,7 +101,7 @@ export default function GlobalSearch() {
         <input
           type="text"
           className="global-search-input"
-          placeholder="Tìm kiếm chức năng..."
+          placeholder={t("topbar.search_placeholder")}
           value={searchText}
           onChange={handleSearch}
           onKeyDown={handleKeyDown}
@@ -119,7 +128,7 @@ export default function GlobalSearch() {
       {/* Thông báo không tìm thấy */}
       {isOpen && searchText.trim().length > 0 && results.length === 0 && (
         <div className="global-search-empty">
-          <p className="mb-0">Không tìm thấy chức năng "{searchText}"</p>
+          <p className="mb-0">{t("topbar.search_no_result").replace("{text}", searchText)}</p>
         </div>
       )}
     </div>

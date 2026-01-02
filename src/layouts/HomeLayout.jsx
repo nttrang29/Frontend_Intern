@@ -1,7 +1,9 @@
 import { Outlet } from "react-router-dom";
 import HomeSidebar from "../components/home/Sidebar/HomeSidebar";
 import HomeTopbar from "../components/home/Topbar/HomeTopbar";
-import "../styles/home/HomeLayout.css";
+import ChatWidget from "../components/common/ChatWidget/ChatWidget";
+import RoleChangedModal from "../components/common/RoleChangedModal";
+import "../styles/pages/HomeLayout.css";
 
 export default function HomeLayout() {
   return (
@@ -13,7 +15,7 @@ export default function HomeLayout() {
       <div className="home-page__overlay" />
 
       {/* Sidebar cố định */}
-      <aside className="home__sidebar">
+      <aside className="home__sidebar" id="home-sidebar">
         <HomeSidebar />
       </aside>
 
@@ -35,6 +37,12 @@ export default function HomeLayout() {
           </div>
         </main>
       </div>
+
+      {/* Chat Widget */}
+      <ChatWidget />
+      
+      {/* Role Changed Modal - hiển thị khi admin thay đổi role */}
+      <RoleChangedModal />
     </div>
   );
 }

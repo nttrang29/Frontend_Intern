@@ -1,0 +1,651 @@
+/* =========================================================
+   EXCHANGE RATE WIDGET
+   ========================================================= */
+.exchange-rate-widget {
+  background: var(--color-bg-secondary);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.exchange-rate-widget::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #2d99ae 0%, #0c5776 50%, #2d99ae 100%);
+  background-size: 200% 100%;
+  animation: gradientShift 3s ease infinite;
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.exchange-rate-widget:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.exchange-rate-widget__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.exchange-rate-widget__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exchange-rate-widget__title {
+  display: flex;
+  align-items: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.exchange-rate-widget__title i {
+  color: var(--color-primary);
+  font-size: 1.3rem;
+}
+
+.exchange-rate-widget__refresh {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exchange-rate-widget__refresh:hover:not(:disabled) {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+  transform: rotate(180deg);
+}
+
+.exchange-rate-widget__refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.exchange-rate-widget__refresh--spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.exchange-rate-widget__chart-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exchange-rate-widget__chart-btn:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.exchange-rate-widget__chart-btn i {
+  font-size: 1.1rem;
+}
+
+/* Chart Section */
+.exchange-rate-widget__chart {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+  animation: chartSlideDown 0.3s ease-out;
+}
+
+@keyframes chartSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.exchange-rate-widget__chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.exchange-rate-widget__chart-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.exchange-rate-widget__chart-period {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-bg-tertiary);
+}
+
+.exchange-rate-widget__chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.exchange-rate-widget__chart-empty i {
+  font-size: 3rem;
+  color: var(--color-primary);
+  opacity: 0.5;
+}
+
+.exchange-rate-widget__chart-empty p {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.exchange-rate-widget__chart-empty small {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.exchange-rate-widget__chart-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.exchange-rate-widget__chart-svg {
+  width: 100%;
+  height: 200px;
+  background: var(--color-bg-tertiary);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.exchange-rate-widget__chart-area {
+  stroke: none;
+}
+
+.exchange-rate-widget__chart-line {
+  stroke: var(--color-primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 4px rgba(45, 153, 174, 0.3));
+}
+
+.exchange-rate-widget__chart-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  padding: 0 12px;
+}
+
+.exchange-rate-widget__chart-label {
+  flex: 1;
+  text-align: center;
+}
+
+.exchange-rate-widget__chart-values {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--color-bg-tertiary);
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.exchange-rate-widget__chart-min,
+.exchange-rate-widget__chart-max {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.exchange-rate-widget__chart-min {
+  color: var(--color-error);
+}
+
+.exchange-rate-widget__chart-max {
+  color: var(--color-success);
+}
+
+/* Dark Mode */
+.dark .exchange-rate-widget__chart-btn {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.dark .exchange-rate-widget__chart-btn:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.dark .exchange-rate-widget__chart-svg {
+  background: var(--color-bg-tertiary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .exchange-rate-widget__chart-svg {
+    height: 150px;
+  }
+
+  .exchange-rate-widget__chart-labels {
+    font-size: 0.7rem;
+  }
+
+  .exchange-rate-widget__chart-values {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
+.exchange-rate-widget__main {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.exchange-rate-widget__rate-item {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--color-bg-tertiary);
+  transition: all 0.3s ease;
+}
+
+.exchange-rate-widget__rate-item:hover {
+  background: rgba(45, 153, 174, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(45, 153, 174, 0.15);
+}
+
+.exchange-rate-widget__currency {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.exchange-rate-widget__currency-code {
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: rgba(45, 153, 174, 0.1);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.exchange-rate-widget__currency i {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.exchange-rate-widget__rate-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+}
+
+.exchange-rate-widget__rate-number {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.exchange-rate-widget__rate-unit {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.exchange-rate-widget__change {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.exchange-rate-widget__change-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.exchange-rate-widget__change-indicator.positive {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.exchange-rate-widget__change-indicator.negative {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.exchange-rate-widget__change-percent {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.exchange-rate-widget__update-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.exchange-rate-widget__update-time i {
+  font-size: 0.85rem;
+}
+
+.exchange-rate-widget__loading,
+.exchange-rate-widget__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 12px;
+  color: var(--color-text-muted);
+}
+
+.exchange-rate-widget__spinner {
+  font-size: 2rem;
+  color: var(--color-primary);
+  animation: spin 1s linear infinite;
+}
+
+.exchange-rate-widget__error {
+  color: var(--color-error);
+}
+
+.exchange-rate-widget__error i {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+/* Dark Mode */
+.dark .exchange-rate-widget {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border);
+}
+
+.dark .exchange-rate-widget__title {
+  color: #ffffff;
+}
+
+.dark .exchange-rate-widget__rate-number {
+  color: #ffffff;
+}
+
+.dark .exchange-rate-widget__rate-item {
+  background: var(--color-bg-tertiary);
+}
+
+.dark .exchange-rate-widget__rate-item:hover {
+  background: rgba(45, 153, 174, 0.2);
+}
+
+/* Custom Source Settings Modal */
+.exchange-rate-widget__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.exchange-rate-widget__modal {
+  background: var(--color-bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.exchange-rate-widget__modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+
+.exchange-rate-widget__modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.exchange-rate-widget__modal-close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.exchange-rate-widget__modal-close:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.exchange-rate-widget__modal-body {
+  padding: 20px;
+}
+
+.exchange-rate-widget__modal-hint {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.exchange-rate-widget__modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.exchange-rate-widget__modal-input:focus {
+  outline: none;
+  border-color: #2d99ae;
+  box-shadow: 0 0 0 3px rgba(45, 153, 174, 0.1);
+  background: var(--color-bg-primary);
+}
+
+.exchange-rate-widget__modal-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.exchange-rate-widget__modal-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.exchange-rate-widget__modal-btn {
+  flex: 1;
+  min-width: 100px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.exchange-rate-widget__modal-btn--save {
+  background: #2d99ae;
+  color: white;
+}
+
+.exchange-rate-widget__modal-btn--save:hover {
+  background: #0c5776;
+  transform: translateY(-1px);
+}
+
+.exchange-rate-widget__modal-btn--clear {
+  background: #f5a623;
+  color: white;
+}
+
+.exchange-rate-widget__modal-btn--clear:hover {
+  background: #e68a00;
+  transform: translateY(-1px);
+}
+
+.exchange-rate-widget__modal-btn--cancel {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.exchange-rate-widget__modal-btn--cancel:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.exchange-rate-widget__settings-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exchange-rate-widget__settings-btn:hover {
+  background: var(--color-bg-secondary);
+  color: #2d99ae;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .exchange-rate-widget__main {
+    grid-template-columns: 1fr;
+  }
+
+  .exchange-rate-widget__change {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .exchange-rate-widget__modal {
+    width: 95%;
+  }
+
+  .exchange-rate-widget__modal-actions {
+    flex-direction: column;
+  }
+
+  .exchange-rate-widget__modal-btn {
+    width: 100%;
+  }
+}
+

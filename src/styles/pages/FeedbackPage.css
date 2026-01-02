@@ -1,0 +1,523 @@
+/* src/styles/home/feedback.css */
+
+/* ==========================
+   PAGE WRAPPER
+   ========================== */
+
+/* Page wrapper - đồng bộ với các trang khác */
+.tx-page {
+  padding-top: 24px;
+  padding-bottom: 32px;
+  background: transparent;
+}
+
+.tx-page-inner {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.feedback-page {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #111827; /* chữ đen */
+  animation: pageFadeIn 0.5s ease-out;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================
+   SUMMARY CARD
+   ========================== */
+.feedback-summary-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e5e7eb;
+  animation: cardFadeIn 0.6s ease-out backwards;
+  animation-delay: 0.1s;
+}
+
+.feedback-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.feedback-summary-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0;
+  color: #111827;
+}
+
+.feedback-summary-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+  color: #6b7280;
+}
+
+.feedback-summary-body {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.feedback-summary-left {
+  flex: 0 0 220px;
+  border-right: 1px dashed #e5e7eb;
+  padding-right: 20px;
+}
+
+.feedback-summary-score {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.feedback-summary-score-number {
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #2d99ae;
+}
+
+.feedback-summary-score-max {
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+.feedback-summary-stars {
+  margin-top: 4px;
+}
+
+.fb-star.fb-star--summary {
+  font-size: 1.4rem;
+}
+
+.feedback-summary-text {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.feedback-summary-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.feedback-summary-meta-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 18px;
+}
+
+.feedback-summary-meta-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.meta-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* ==========================
+   BUTTON
+   ========================== */
+.feedback-primary-btn {
+  background: #2d99ae;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 10px 20px rgba(45, 153, 174, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.feedback-primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(45, 153, 174, 0.45);
+  background: #257f91;
+}
+
+/* ==========================
+   FORM WRAPPER
+   ========================== */
+.feedback-form-wrapper {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+  margin-bottom: 16px;
+}
+
+.feedback-form-wrapper.feedback-form--visible {
+  max-height: 600px; /* đủ lớn cho form */
+}
+
+/* ==========================
+   FORM CARD
+   ========================== */
+.feedback-form-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 18px 20px 16px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e5e7eb;
+  animation: cardFadeIn 0.6s ease-out backwards;
+  animation-delay: 0.2s;
+}
+
+.feedback-form-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.feedback-form-subtitle {
+  margin: 4px 0 12px;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fb-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fb-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.fb-input,
+.fb-textarea {
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fb-input:focus,
+.fb-textarea:focus {
+  border-color: #2d99ae;
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.35);
+}
+
+.fb-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.fb-form-actions {
+  margin-top: 4px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ==========================
+   STARS (FORM + ITEM)
+   ========================== */
+.fb-rating-stars {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.fb-star-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  background: #e5e7eb;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, transform 0.1s ease,
+    box-shadow 0.15s ease;
+}
+
+.fb-star-btn--filled {
+  background: #2d99ae;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(45, 153, 174, 0.5);
+}
+
+.fb-star-btn:hover {
+  transform: translateY(-1px);
+}
+
+.fb-star {
+  color: #d1d5db;
+  transition: color 0.15s ease;
+}
+
+.fb-star--filled {
+  color: #f59e0b; /* vàng sao */
+}
+
+.fb-star--small {
+  font-size: 1rem;
+}
+
+/* ==========================
+   LIST & ITEM
+   ========================== */
+.feedback-list-wrapper {
+  margin-top: 4px;
+}
+
+.feedback-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feedback-item {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px 16px 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+}
+
+.feedback-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.feedback-item-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.feedback-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: #2d99ae;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.feedback-username {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.feedback-date {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.feedback-item-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.feedback-item-rating-number {
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+/* Nội dung comment */
+.feedback-comment {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+/* ==========================
+   ADMIN REPLY
+   ========================== */
+.feedback-admin-reply {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px dashed #2d99ae;
+  background: rgba(45, 153, 174, 0.04);
+}
+
+.feedback-admin-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2d99ae;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.feedback-admin-message {
+  font-size: 0.88rem;
+  color: #111827;
+  margin: 2px 0 4px;
+}
+
+.feedback-admin-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* ==========================
+   EMPTY STATE
+   ========================== */
+.feedback-empty {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 18px 20px;
+  border: 1px dashed #d1d5db;
+  font-size: 0.9rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* ==========================
+   RESPONSIVE
+   ========================== */
+@media (max-width: 992px) {
+  .feedback-page {
+    padding: 16px 18px 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .feedback-page {
+    padding: 12px 16px 20px;
+  }
+
+  .feedback-summary-card {
+    padding: 16px 18px;
+  }
+
+  .feedback-summary-body {
+    flex-direction: column;
+  }
+
+  .feedback-summary-left {
+    border-right: none;
+    border-bottom: 1px dashed #e5e7eb;
+    padding-right: 0;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+  }
+
+  .feedback-summary-right {
+    padding-left: 0;
+    padding-top: 12px;
+  }
+
+  .feedback-form-card {
+    padding: 16px 18px;
+  }
+
+  .fb-form-group {
+    margin-bottom: 14px;
+  }
+}
+
+@media (max-width: 576px) {
+  .feedback-page {
+    padding: 10px 12px 16px;
+  }
+
+  .feedback-summary-card {
+    padding: 14px 16px;
+  }
+
+  .feedback-summary-title {
+    font-size: 1.2rem;
+  }
+
+  .feedback-summary-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .feedback-form-card {
+    padding: 14px 16px;
+  }
+
+  .feedback-form-title {
+    font-size: 1rem;
+  }
+
+  .fb-form-group label {
+    font-size: 0.9rem;
+  }
+
+  .fb-form-group input,
+  .fb-form-group textarea,
+  .fb-form-group select {
+    font-size: 0.9rem;
+    padding: 8px 10px;
+  }
+
+  .feedback-summary-meta-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

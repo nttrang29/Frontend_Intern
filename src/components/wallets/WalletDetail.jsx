@@ -1,7 +1,27 @@
-import React, { useState, useEffect, useMemo } from "react";
-import ConfirmModal from "../common/Modal/ConfirmModal";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useCurrency } from "../../hooks/useCurrency";
 import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
-import { walletAPI } from "../../services/api-client";
+import { walletAPI } from "../../services/wallet.service";
+import { useLanguage } from "../../contexts/LanguageContext";
+import Toast from "../common/Toast/Toast";
+import { logActivity } from "../../utils/activityLogger";
+import { useWalletData } from "../../contexts/WalletDataContext";
+import { useNotifications } from "../../contexts/NotificationContext";
+import { useFundData } from "../../contexts/FundDataContext";
+import DetailViewTab from "./tabs/DetailViewTab";
+import ManageMembersTab from "./tabs/ManageMembersTab";
+import TopupTab from "./tabs/TopupTab";
+import WithdrawTab from "./tabs/WithdrawTab";
+import TransferTab from "./tabs/TransferTab";
+import EditTab from "./tabs/EditTab";
+import MergeTab from "./tabs/MergeTab";
+import ConvertTab from "./tabs/ConvertTab";
+import "../../styles/components/wallets/WalletDetail.css";
+import "../../styles/components/wallets/WalletForms.css";
+import "../../styles/components/wallets/WalletMerge.css";
+import "../../styles/components/wallets/WalletTransfer.css";
+
+const NOTE_MAX_LENGTH = 60;
 
 export default function WalletDetail(props) {
   const {
@@ -13,7 +33,6 @@ export default function WalletDetail(props) {
     canInviteMembers = false,
     onQuickShareEmail,
     quickShareLoading = false,
-    currencies,
     incomeCategories,
     expenseCategories,
     showCreate,
@@ -46,11 +65,6 @@ export default function WalletDetail(props) {
     // edit
     editForm,
     onEditFieldChange,
-    editShareEmail,
-    setEditShareEmail,
-    onAddEditShareEmail,
-    onRemoveEditShareEmail,
-    shareWalletLoading,
     onSubmitEdit,
 
     // merge
@@ -91,140 +105,1514 @@ export default function WalletDetail(props) {
     onDeleteWallet,
   } = props;
 
+  const walletContext = useWalletData();
+  const { loadWallets } = walletContext || {};
+  const { loadNotifications, notifications: allNotifications } = useNotifications() || {};
+  const { funds = [] } = useFundData() || {};
+
+  // Sử dụng ref để lưu reference mới nhất, tránh stale closure
+  const loadWalletsRef = useRef(loadWallets);
+  const walletContextRef = useRef(walletContext);
+  
+  useEffect(() => {
+    loadWalletsRef.current = loadWallets;
+    walletContextRef.current = walletContext;
+  }, [loadWallets, walletContext]);
+
   // Extract loadingTransactions với default value
   const isLoadingTransactions = loadingTransactions || false;
+
+  // Kiểm tra xem wallet có phải là ví quỹ không (dùng field isFundWallet từ backend)
+  const isFundWallet = useMemo(() => {
+    if (!wallet) return false;
+    // Ưu tiên kiểm tra field isFundWallet từ backend (đã được lưu trong database)
+    if (wallet.isFundWallet === true) return true;
+    
+    // Fallback: Kiểm tra qua danh sách funds (cho tương thích với dữ liệu cũ)
+    if (!funds || funds.length === 0) return false;
+    const walletIdStr = String(wallet.id);
+    return funds.some(f => {
+      const targetWalletId = f.targetWalletId || 
+                             f.walletId || 
+                             f.targetWallet?.walletId || 
+                             f.targetWallet?.id ||
+                             (f.targetWallet && (f.targetWallet.id || f.targetWallet.walletId));
+      return targetWalletId && String(targetWalletId) === walletIdStr;
+    });
+  }, [wallet?.id, wallet?.isFundWallet, funds]);
 
   const sharedEmails = useMemo(() => {
     const base = Array.isArray(wallet?.sharedEmails)
       ? wallet.sharedEmails
       : [];
-    if (!sharedEmailsOverride || !sharedEmailsOverride.length) {
-      return base;
-    }
-    const merged = new Set(
-      base.filter((email) => typeof email === "string" && email.trim())
-    );
-    sharedEmailsOverride.forEach((email) => {
-      if (typeof email === "string" && email.trim()) {
-        merged.add(email.trim());
-      }
-    });
-    return Array.from(merged);
+    return sharedEmailsOverride !== undefined ? sharedEmailsOverride : base;
   }, [wallet?.sharedEmails, sharedEmailsOverride]);
-  const balance = Number(wallet?.balance ?? wallet?.current ?? 0) || 0;
 
-  const [sharedMembers, setSharedMembers] = useState([]);
-  const [sharedMembersLoading, setSharedMembersLoading] = useState(false);
-  const [sharedMembersError, setSharedMembersError] = useState("");
-  const [removingMemberId, setRemovingMemberId] = useState(null);
+  const { t } = useLanguage();
+  const { formatCurrency } = useCurrency();
 
-  const isSharedTab = walletTabType === "shared";
-  const canManageSharedMembers = isSharedTab && sharedFilter === "sharedByMe";
-  const allowSharedMembersFetch = isSharedTab || forceLoadSharedMembers;
-  const isSharedWithMeMode = isSharedTab && sharedFilter === "sharedWithMe";
+  const balance = useMemo(() => {
+    return Number(wallet?.balance ?? wallet?.current ?? 0) || 0;
+  }, [wallet]);
+
+  // ======= SHARED WITH ME MODE =======
+  const isSharedWithMeMode = walletTabType === "sharedWithMe";
   const safeSharedWithMeOwners = Array.isArray(sharedWithMeOwners)
     ? sharedWithMeOwners
     : [];
   const selectedSharedOwnerGroup = useMemo(() => {
-    if (!safeSharedWithMeOwners.length) return null;
-    if (selectedSharedOwnerId) {
-      return (
-        safeSharedWithMeOwners.find(
-          (owner) => owner.id === selectedSharedOwnerId
-        ) || null
-      );
-    }
-    return safeSharedWithMeOwners[0];
-  }, [safeSharedWithMeOwners, selectedSharedOwnerId]);
+    if (!selectedSharedOwnerId || !safeSharedWithMeOwners.length) return null;
+    return (
+      safeSharedWithMeOwners.find(
+        (g) => String(g.id || g.userId) === String(selectedSharedOwnerId)
+      ) || null
+    );
+  }, [selectedSharedOwnerId, safeSharedWithMeOwners]);
 
-  // Format số dư để hiển thị (giống với WalletList.jsx)
-  const formatBalance = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    if (currency === "USD") {
-      // USD: hiển thị tối đa 8 chữ số thập phân để chính xác
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
-        });
-        return `$${formatted}`;
+  // ======= SHARED MEMBERS MANAGEMENT =======
+  const [sharedMembers, setSharedMembers] = useState([]);
+  const [sharedMembersLoading, setSharedMembersLoading] = useState(false);
+  const [sharedMembersError, setSharedMembersError] = useState("");
+  const [removingMemberId, setRemovingMemberId] = useState(null);
+  const [updatingMemberId, setUpdatingMemberId] = useState(null);
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
+
+  const canManageSharedMembers = useMemo(() => {
+    if (!wallet) return false;
+    // Ví nhóm luôn có danh sách thành viên
+    if (wallet.isShared) return true;
+    // Ví cá nhân có thể có sharedEmails hoặc membersCount
+    if (Array.isArray(wallet.sharedEmails) && wallet.sharedEmails.length > 0) return true;
+    if (Number(wallet.membersCount || 0) > 1) return true;
+    return false;
+  }, [wallet]);
+  
+
+  // Robustly extract role from different possible API shapes
+  const getRoleFromWallet = (w) => {
+    if (!w) return "";
+    const candidates = [
+      w.walletRole,
+      w.sharedRole,
+      w.role,
+      w.accessRole,
+      w.currentUserRole,
+      w.myRole,
+      w.currentRole,
+      w.roleName,
+      w.membershipRole,
+      w.userRole,
+    ];
+    for (const c of candidates) {
+      if (!c && c !== 0) continue;
+      if (typeof c === "string") return c.toUpperCase();
+      if (typeof c === "number") return String(c).toUpperCase();
+      if (typeof c === "object") {
+        // Try common nested props
+        if (typeof c.role === "string") return c.role.toUpperCase();
+        if (typeof c.name === "string") return c.name.toUpperCase();
+        if (typeof c.value === "string") return c.value.toUpperCase();
       }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-      return `$${formatted}`;
     }
-    if (currency === "VND") {
-      return `${numAmount.toLocaleString("vi-VN")} VND`;
-    }
-    // Các currency khác: hiển thị tối đa 8 chữ số thập phân
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-    }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    return "";
   };
 
-  // Nếu ví đã là ví nhóm mà tab đang là "convert" -> tự về "view"
-  useEffect(() => {
-    if (wallet?.isShared && activeDetailTab === "convert") {
-      setActiveDetailTab("view");
-    }
-  }, [wallet?.isShared, activeDetailTab, setActiveDetailTab]);
+  const userRole = getRoleFromWallet(wallet);
+  const isOwnerRole = !!userRole && ["OWNER", "MASTER", "ADMIN"].includes(userRole);
+  const isMemberRole = !!userRole && ["MEMBER", "USER", "USE"].includes(userRole);
+  const isViewerRole = !!userRole && ["VIEW", "VIEWER"].includes(userRole);
 
-  useEffect(() => {
-    let ignore = false;
-    if (!wallet?.id || !allowSharedMembersFetch) {
-      setSharedMembers([]);
-      setSharedMembersError("");
-      setSharedMembersLoading(false);
-      return () => {};
-    }
+  
 
-    const fetchMembers = async () => {
-      setSharedMembersLoading(true);
-      setSharedMembersError("");
+  // NOTE: backend now provides current user's role on wallet responses.
+  // Removed temporary debug flag and the extra `checkAccess` fallback call.
+  const effectiveRole = userRole;
+  const effectiveIsOwner = !!effectiveRole && ["OWNER", "MASTER", "ADMIN"].includes(effectiveRole);
+  const effectiveIsMember = !!effectiveRole && ["MEMBER", "USER", "USE"].includes(effectiveRole);
+  const effectiveIsViewer = !!effectiveRole && ["VIEW", "VIEWER"].includes(effectiveRole);
+
+  const displayIsDefault = useMemo(() => {
+    if (!wallet) return false;
+    if (wallet.isShared) return false;
+    return !!wallet.isDefault && effectiveIsOwner;
+  }, [wallet?.id, wallet?.isDefault, wallet?.isShared, effectiveIsOwner]);
+
+  // Effective flags for managing/inviting members: only owners can manage/invite
+  const effectiveCanManageSharedMembers = effectiveIsOwner ? canManageSharedMembers : false;
+  const effectiveCanInviteMembers = effectiveIsOwner ? canInviteMembers : false;
+
+  // Normalize member shape from various API formats so UI can reliably read `.role`, `.email`, `.userId` etc.
+  const normalizeMember = (m) => {
+    if (!m || typeof m !== 'object') return m;
+    const email = m.email || m.userEmail || (m.user && m.user.email) || m.memberEmail || null;
+    const userId = m.userId ?? m.memberUserId ?? m.memberId ?? (m.user && (m.user.userId || m.user.id)) ?? null;
+    // Determine role from many possible fields
+    const rawRole = m.role || m.membershipRole || m.sharedRole || m.walletRole || m.roleName || (m.membership && m.membership.role) || "";
+    const role = rawRole ? String(rawRole).toUpperCase() : "MEMBER";
+    const fullName = m.fullName || m.name || (m.user && (m.user.fullName || m.user.name)) || null;
+    return {
+      ...m,
+      email,
+      userId,
+      memberId: m.memberId ?? m.memberUserId ?? m.userId ?? m.memberId ?? null,
+      role,
+      fullName,
+    };
+  };
+
+  const normalizeMembersList = (list) => {
+    if (!Array.isArray(list)) return [];
+    return list.map(normalizeMember);
+  };
+
+  // If this wallet is opened and the current user is only a viewer,
+  // force the detail tab and keep only the detail view available.
+  useEffect(() => {
+    if (!wallet) return;
+    if (effectiveIsViewer) {
+      setActiveDetailTab?.("view");
+    }
+  }, [wallet?.id, effectiveIsViewer, setActiveDetailTab]);
+
+  // Listen for merge events so we can update shared members immediately
+  useEffect(() => {
+    const onWalletMerged = (e) => {
       try {
-        const data = await walletAPI.getWalletMembers(wallet.id);
-        if (ignore) return;
-        const members = Array.isArray(data?.members) ? data.members : [];
-        setSharedMembers(members);
+        const detail = e?.detail || {};
+        if (!wallet || !detail) return;
+        if (String(detail.targetId) !== String(wallet.id)) return;
+        const members = detail.finalMembers;
+        if (Array.isArray(members)) {
+          setSharedMembers(normalizeMembersList(members));
+          setSharedMembersLoading(false);
+          setSharedMembersError("");
+        }
+      } catch (err) {
+        console.debug("onWalletMerged handler error", err);
+      }
+    };
+    window.addEventListener("walletMerged", onWalletMerged);
+    return () => {
+      window.removeEventListener("walletMerged", onWalletMerged);
+    };
+  }, [wallet]);
+
+  // Ref để track wallet.id đang được load, tránh race condition
+  const loadingWalletIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!wallet || !forceLoadSharedMembers) return;
+    if (!canManageSharedMembers) {
+      setSharedMembers([]);
+      setSharedMembersLoading(false);
+      loadingWalletIdRef.current = null;
+      return;
+    }
+
+    // Clear members ngay khi wallet.id thay đổi để tránh hiển thị data cũ
+    setSharedMembers([]);
+    setSharedMembersLoading(true);
+    setSharedMembersError("");
+    
+    // Lưu wallet.id hiện tại vào ref
+    const currentWalletId = wallet.id;
+    loadingWalletIdRef.current = currentWalletId;
+
+    const loadSharedMembers = async () => {
+      try {
+        const resp = await walletAPI.getWalletMembers(currentWalletId);
+        
+        // QUAN TRỌNG: Chỉ set state nếu wallet.id vẫn khớp với wallet đang được load
+        // Tránh race condition khi user chuyển ví nhanh
+        if (loadingWalletIdRef.current !== currentWalletId) {
+          return; // Wallet đã thay đổi, bỏ qua kết quả này
+        }
+        
+        let list = [];
+        if (!resp) list = [];
+        else if (Array.isArray(resp)) list = resp;
+        else if (Array.isArray(resp.data)) list = resp.data;
+        else if (Array.isArray(resp.members)) list = resp.members;
+        else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+        else list = [];
+        setSharedMembers(normalizeMembersList(list));
+        setSharedMembersError("");
       } catch (error) {
-        if (ignore) return;
-        setSharedMembers([]);
-        setSharedMembersError(error.message || "Không thể tải danh sách chia sẻ.");
+        // Chỉ set error nếu wallet vẫn là wallet đang được load
+        if (loadingWalletIdRef.current === currentWalletId) {
+          setSharedMembersError(
+            error.message || "Không thể tải danh sách thành viên."
+          );
+          setSharedMembers([]);
+        }
       } finally {
-        if (!ignore) {
+        // Chỉ set loading false nếu wallet vẫn là wallet đang được load
+        if (loadingWalletIdRef.current === currentWalletId) {
           setSharedMembersLoading(false);
         }
       }
     };
 
-    fetchMembers();
-
+    loadSharedMembers();
+    
+    // Cleanup: reset ref nếu wallet thay đổi trước khi request hoàn thành
     return () => {
-      ignore = true;
+      if (loadingWalletIdRef.current === currentWalletId) {
+        loadingWalletIdRef.current = null;
+      }
     };
-  }, [wallet?.id, allowSharedMembersFetch]);
+  }, [wallet?.id, forceLoadSharedMembers, canManageSharedMembers]);
 
-  const handleRemoveSharedMember = async (member) => {
-    if (!canManageSharedMembers || !wallet?.id || !member) return;
-    const targetId = member.userId ?? member.memberUserId ?? member.memberId;
-    if (!targetId) return;
-    const displayName = member.fullName || member.email || "thành viên";
-    const confirmMessage = `Bạn chắc chắn muốn xóa ${displayName} khỏi ví?`;
-    if (typeof window !== "undefined" && !window.confirm(confirmMessage)) {
+  // Lắng nghe event khi có thành viên rời khỏi ví để reload members
+  useEffect(() => {
+    if (typeof window === "undefined" || !wallet?.id) return;
+    
+    const currentWalletId = String(wallet.id);
+    
+    const handleMemberLeft = async (event) => {
+      const { walletIds, notifications } = event.detail || {};
+      
+      // Nếu có notification WALLET_MEMBER_REMOVED, user đã bị xóa khỏi ví
+      // Cần reload wallets để xóa ví khỏi danh sách
+      const removedNotif = notifications?.find(n => n.type === "WALLET_MEMBER_REMOVED");
+      if (removedNotif) {
+        const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+        if (reloadWallets && typeof reloadWallets === "function") {
+          try {
+            await reloadWallets();
+            // Clear wallet selection nếu có
+            if (typeof onChangeSelectedWallet === "function") {
+              onChangeSelectedWallet(null);
+            }
+          } catch (e) {
+            console.error("Failed to reload wallets after being removed:", e);
+          }
+        }
+        return; // Không cần reload members vì user đã không còn trong ví
+      }
+      
+      // Nếu ví hiện tại có trong danh sách ví có thành viên rời, reload members và wallets
+      if (currentWalletId && walletIds && Array.isArray(walletIds) && walletIds.length > 0) {
+        const isMatch = walletIds.some(id => String(id) === currentWalletId);
+        
+        if (isMatch) {
+          // Reload wallets trước để cập nhật số thành viên
+          // Sử dụng ref để tránh stale closure
+          const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+          if (reloadWallets && typeof reloadWallets === "function") {
+            try {
+              await reloadWallets();
+              // Đợi một chút để wallet prop được cập nhật từ context
+              await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (e) {
+              console.error("Failed to reload wallets after member left:", e);
+            }
+          }
+        
+          // Reload members để cập nhật danh sách - QUAN TRỌNG cho chủ ví khi có thành viên rời
+          // Sử dụng currentWalletId thay vì wallet.id để tránh stale closure
+          try {
+            setSharedMembersLoading(true);
+            setSharedMembersError(""); // Clear error
+            // Đợi đủ lâu để đảm bảo backend đã xử lý xong việc xóa member
+            await new Promise(resolve => setTimeout(resolve, 600));
+            const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+            let list = [];
+            if (!resp) list = [];
+            else if (Array.isArray(resp)) list = resp;
+            else if (Array.isArray(resp.data)) list = resp.data;
+            else if (Array.isArray(resp.members)) list = resp.members;
+            else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+            const normalized = normalizeMembersList(list);
+            // Force update state để đảm bảo UI được cập nhật
+            setSharedMembers(normalized);
+            
+            // Dispatch event để trigger reload wallets nếu cần
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+                detail: { walletId: Number(currentWalletId), memberCount: normalized.length }
+              }));
+            }
+          } catch (error) {
+            console.error("Failed to reload members after member left:", error);
+            setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+          } finally {
+            setSharedMembersLoading(false);
+          }
+        }
+      }
+    };
+    
+    window.addEventListener("walletMemberLeft", handleMemberLeft);
+    return () => {
+      window.removeEventListener("walletMemberLeft", handleMemberLeft);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet?.id]); // Chỉ phụ thuộc vào wallet.id để listener ổn định
+
+  // QUAN TRỌNG: Listener riêng cho WALLET_ROLE_UPDATED để đảm bảo reload members ngay lập tức
+  useEffect(() => {
+    if (typeof window === "undefined" || !wallet?.id) return;
+    
+    const currentWalletId = String(wallet.id);
+    
+    const handleRoleUpdated = async (event) => {
+      const { walletId, notifications } = event.detail || {};
+      
+      // Kiểm tra xem có phải wallet hiện tại không
+      if (!walletId || String(walletId) !== currentWalletId) return;
+      
+      // Reload members ngay lập tức để cập nhật role
+      try {
+        setSharedMembersLoading(true);
+        setSharedMembersError("");
+        
+        // Đợi một chút để đảm bảo backend đã xử lý xong
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+        let list = [];
+        if (!resp) list = [];
+        else if (Array.isArray(resp)) list = resp;
+        else if (Array.isArray(resp.data)) list = resp.data;
+        else if (Array.isArray(resp.members)) list = resp.members;
+        else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+        
+        const normalized = normalizeMembersList(list);
+        
+        // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
+        setSharedMembers(normalized);
+        
+        // Dispatch event để trigger reload wallets nếu cần
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+            detail: { walletId: Number(currentWalletId), memberCount: normalized.length }
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to reload members after WALLET_ROLE_UPDATED event:", error);
+        setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+      } finally {
+        setSharedMembersLoading(false);
+      }
+    };
+    
+    window.addEventListener("walletRoleUpdated", handleRoleUpdated);
+    return () => {
+      window.removeEventListener("walletRoleUpdated", handleRoleUpdated);
+    };
+  }, [wallet?.id]);
+
+  // Lắng nghe event walletNotificationReceived để force reload khi có notification mới
+  useEffect(() => {
+    if (typeof window === "undefined" || !wallet?.id) return;
+    
+    const currentWalletId = String(wallet.id);
+    
+    const handleNotificationReceived = async (event) => {
+      const { notifications } = event.detail || {};
+      if (!notifications || !Array.isArray(notifications)) {
+        return;
+      }
+      
+      // QUAN TRỌNG: Xử lý WALLET_ROLE_UPDATED để reload members và wallets khi role thay đổi
+      // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào trong ví, không chỉ user hiện tại
+      const roleUpdatedNotifs = notifications.filter(n => {
+        if (n.type !== "WALLET_ROLE_UPDATED") return false;
+        const notifWalletId = n.referenceId || n.walletId || n.reference_id;
+        return notifWalletId && String(notifWalletId) === currentWalletId;
+      });
+      
+      if (roleUpdatedNotifs.length > 0) {
+        
+        // QUAN TRỌNG: Reload members ngay lập tức, không đợi event khác
+        try {
+          setSharedMembersLoading(true);
+          setSharedMembersError("");
+          
+          // Đợi một chút để đảm bảo backend đã xử lý xong
+          await new Promise(resolve => setTimeout(resolve, 800));
+          
+          const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+          let list = [];
+          if (!resp) list = [];
+          else if (Array.isArray(resp)) list = resp;
+          else if (Array.isArray(resp.data)) list = resp.data;
+          else if (Array.isArray(resp.members)) list = resp.members;
+          else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+          
+          const normalized = normalizeMembersList(list);
+          
+          // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
+          setSharedMembers(normalized);
+        } catch (error) {
+          console.error("Failed to reload members after WALLET_ROLE_UPDATED in handleNotificationReceived:", error);
+          setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+        } finally {
+          setSharedMembersLoading(false);
+        }
+        
+        // Dispatch event riêng để listener ở trên xử lý (backup)
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("walletRoleUpdated", {
+            detail: { 
+              walletId: Number(currentWalletId),
+              notifications: roleUpdatedNotifs
+            }
+          }));
+        }
+        
+        // Cũng reload wallets để đảm bảo wallet prop được cập nhật
+        const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+        if (reloadWallets && typeof reloadWallets === "function") {
+          try {
+            await reloadWallets();
+          } catch (e) {
+            console.error("Failed to reload wallets after role update:", e);
+          }
+        }
+      }
+      
+      // QUAN TRỌNG: Xử lý WALLET_INVITED để reload members và wallets khi có thành viên mới được thêm vào
+      // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào trong ví, không chỉ người được mời
+      const invitedNotifs = notifications.filter(n => {
+        if (n.type !== "WALLET_INVITED") return false;
+        const notifWalletId = n.referenceId || n.walletId || n.reference_id;
+        return notifWalletId && String(notifWalletId) === currentWalletId;
+      });
+      
+      if (invitedNotifs.length > 0) {
+        
+        // Reload wallets trước để cập nhật membersCount
+        const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+        if (reloadWallets && typeof reloadWallets === "function") {
+          try {
+            await reloadWallets();
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (e) {
+            console.error("Failed to reload wallets after WALLET_INVITED:", e);
+          }
+        }
+        
+        // Reload members để cập nhật danh sách thành viên
+        try {
+          setSharedMembersLoading(true);
+          setSharedMembersError("");
+          // Đợi một chút để đảm bảo backend đã xử lý xong
+          await new Promise(resolve => setTimeout(resolve, 800));
+          const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+          let list = [];
+          if (!resp) list = [];
+          else if (Array.isArray(resp)) list = resp;
+          else if (Array.isArray(resp.data)) list = resp.data;
+          else if (Array.isArray(resp.members)) list = resp.members;
+          else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+          const normalized = normalizeMembersList(list);
+          // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
+          setSharedMembers(normalized);
+          
+          // Dispatch event để trigger reload wallets nếu cần
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+              detail: { walletId: Number(currentWalletId), memberCount: normalized.length }
+            }));
+          }
+        } catch (error) {
+          console.error("Failed to reload members after WALLET_INVITED:", error);
+          setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+        } finally {
+          setSharedMembersLoading(false);
+        }
+      }
+      
+      // Kiểm tra xem có notification WALLET_MEMBER_LEFT hoặc WALLET_MEMBER_REMOVED cho wallet hiện tại không
+      const memberLeftNotifs = notifications.filter(n => {
+        if (n.type !== "WALLET_MEMBER_LEFT" && n.type !== "WALLET_MEMBER_REMOVED") return false;
+        const notifWalletId = n.referenceId || n.walletId || n.reference_id;
+        return notifWalletId && String(notifWalletId) === currentWalletId;
+      });
+      
+      // Nếu có notification WALLET_MEMBER_REMOVED, user đã bị xóa khỏi ví
+      // Cần reload wallets để xóa ví khỏi danh sách và clear selection
+      const removedNotif = memberLeftNotifs.find(n => n.type === "WALLET_MEMBER_REMOVED");
+      if (removedNotif) {
+        const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+        if (reloadWallets && typeof reloadWallets === "function") {
+          try {
+            await reloadWallets();
+            // Clear wallet selection nếu có
+            if (typeof onChangeSelectedWallet === "function") {
+              onChangeSelectedWallet(null);
+            }
+          } catch (e) {
+            console.error("❌ Failed to reload wallets after being removed:", e);
+          }
+        }
+        return; // Không cần reload members vì user đã không còn trong ví
+      }
+      
+      if (memberLeftNotifs.length > 0) {
+        
+        // Force reload wallets và members
+        // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào rời đi hoặc bị xóa, không chỉ user hiện tại
+        const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+        if (reloadWallets && typeof reloadWallets === "function") {
+          try {
+            await reloadWallets();
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (e) {
+            console.error("Failed to reload wallets after notification:", e);
+          }
+        }
+        
+        // Reload members - QUAN TRỌNG: Luôn reload để cập nhật danh sách cho chủ ví
+        // QUAN TRỌNG: Reload ngay lập tức khi có thành viên rời đi hoặc bị xóa
+        try {
+          setSharedMembersLoading(true);
+          setSharedMembersError(""); // Clear error
+          // Đợi đủ lâu để đảm bảo backend đã xử lý xong việc xóa member
+          await new Promise(resolve => setTimeout(resolve, 800));
+          const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+          let list = [];
+          if (!resp) list = [];
+          else if (Array.isArray(resp)) list = resp;
+          else if (Array.isArray(resp.data)) list = resp.data;
+          else if (Array.isArray(resp.members)) list = resp.members;
+          else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+          const normalized = normalizeMembersList(list);
+          // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
+          setSharedMembers(normalized);
+          
+          // Dispatch event để trigger reload wallets nếu cần
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+              detail: { walletId: Number(currentWalletId), memberCount: normalized.length }
+            }));
+          }
+        } catch (error) {
+          console.error("Failed to reload members after WALLET_MEMBER_LEFT notification:", error);
+          setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+        } finally {
+          setSharedMembersLoading(false);
+        }
+      }
+    };
+    
+    window.addEventListener("walletNotificationReceived", handleNotificationReceived);
+    return () => {
+      window.removeEventListener("walletNotificationReceived", handleNotificationReceived);
+    };
+  }, [wallet?.id]);
+
+  // Kiểm tra và reload khi component mount hoặc notifications thay đổi nếu có notification WALLET_MEMBER_LEFT hoặc WALLET_ROLE_UPDATED cho wallet hiện tại
+  // QUAN TRỌNG: Reload members ngay khi có notification, không quan tâm đến việc đã đọc hay chưa
+  const processedNotificationIdsRef = useRef(new Set());
+  const lastProcessedNotificationTimeRef = useRef(new Map()); // Track thời gian xử lý để tránh reload quá nhiều lần
+  
+  useEffect(() => {
+    if (!wallet?.id || !allNotifications || !Array.isArray(allNotifications)) return;
+    
+    const currentWalletId = String(wallet.id);
+    
+    // QUAN TRỌNG: Xử lý WALLET_ROLE_UPDATED để reload members và wallets khi role thay đổi
+    // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào trong ví, không chỉ user hiện tại
+    const roleUpdatedNotifs = allNotifications.filter(n => {
+      if (n.type !== "WALLET_ROLE_UPDATED") return false;
+      const notifWalletId = n.referenceId || n.walletId || n.reference_id;
+      return notifWalletId && String(notifWalletId) === currentWalletId;
+    });
+    
+    if (roleUpdatedNotifs.length > 0) {
+      const now = Date.now();
+      // QUAN TRỌNG: Luôn reload nếu có notification WALLET_ROLE_UPDATED mới (chưa xử lý)
+      // Không quan tâm đến việc đã đọc hay chưa, miễn là notification mới
+      const notificationsToProcess = roleUpdatedNotifs.filter(n => {
+        const lastProcessedTime = lastProcessedNotificationTimeRef.current.get(n.id);
+        // Nếu đã xử lý trong vòng 5 giây gần đây, bỏ qua (tránh reload quá nhiều lần) - TĂNG từ 2 lên 5
+        if (lastProcessedTime && (now - lastProcessedTime) < 5000) {
+          return false;
+        }
+        
+        // LUÔN reload nếu chưa đọc
+        if (!n.read) {
+          return true;
+        }
+        
+        // Nếu đã đọc, vẫn reload nếu được tạo trong 30 phút gần đây (tăng từ 20 lên 30)
+        if (n.createdAt) {
+          const created = new Date(n.createdAt);
+          const diffMs = now - created.getTime();
+          const diffMins = diffMs / 60000;
+          return diffMins < 30; // Trong vòng 30 phút
+        }
+        
+        // Nếu không có createdAt, vẫn reload nếu chưa đọc
+        return !n.read;
+      });
+      
+      if (notificationsToProcess.length > 0) {
+        
+        // Đánh dấu đã xử lý với timestamp
+        notificationsToProcess.forEach(n => {
+          processedNotificationIdsRef.current.add(n.id);
+          lastProcessedNotificationTimeRef.current.set(n.id, now);
+        });
+        
+        // Force reload members và wallets - QUAN TRỌNG để cập nhật role của BẤT KỲ thành viên nào
+        const reloadMembers = async () => {
+          try {
+            setSharedMembersLoading(true);
+            setSharedMembersError("");
+            
+            // Đợi một chút để đảm bảo backend đã xử lý xong
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+            let list = [];
+            if (!resp) list = [];
+            else if (Array.isArray(resp)) list = resp;
+            else if (Array.isArray(resp.data)) list = resp.data;
+            else if (Array.isArray(resp.members)) list = resp.members;
+            else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+            
+            const normalized = normalizeMembersList(list);
+            
+            // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
+            setSharedMembers(normalized);
+            
+            // Reload wallets để cập nhật role
+            const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+            if (reloadWallets && typeof reloadWallets === "function") {
+              try {
+                await reloadWallets();
+              } catch (e) {
+                console.error("Failed to reload wallets after role update:", e);
+              }
+            }
+            
+            // Dispatch event để trigger reload ở các component khác
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+                detail: { walletId: Number(currentWalletId), memberCount: normalized.length }
+              }));
+              
+              window.dispatchEvent(new CustomEvent("walletUpdated", {
+                detail: { walletId: Number(currentWalletId), action: "roleUpdated" }
+              }));
+            }
+          } catch (error) {
+            console.error("Failed to force reload members after WALLET_ROLE_UPDATED notification:", error);
+            setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+          } finally {
+            setSharedMembersLoading(false);
+          }
+        };
+        
+        // Reload ngay lập tức
+        reloadMembers();
+      }
+    }
+    
+    const memberLeftNotifs = allNotifications.filter(n => {
+      const isMemberLeftType = n.type === "WALLET_MEMBER_LEFT" || n.type === "WALLET_MEMBER_REMOVED";
+      if (!isMemberLeftType) return false;
+      
+      const notifWalletId = n.referenceId || n.walletId || n.reference_id;
+      return notifWalletId && String(notifWalletId) === currentWalletId;
+    });
+    
+      if (memberLeftNotifs.length > 0) {
+        // QUAN TRỌNG: Reload nếu có notification WALLET_MEMBER_LEFT hoặc WALLET_MEMBER_REMOVED (dù đã đọc hay chưa)
+        // QUAN TRỌNG: Reload cho BẤT KỲ thành viên nào rời đi hoặc bị xóa, không chỉ user hiện tại
+        // Chỉ bỏ qua nếu đã xử lý trong vòng 2 giây gần đây (để tránh reload quá nhiều lần)
+        const now = Date.now();
+        const notificationsToProcess = memberLeftNotifs.filter(n => {
+          const lastProcessedTime = lastProcessedNotificationTimeRef.current.get(n.id);
+          // Nếu đã xử lý trong vòng 5 giây gần đây, bỏ qua - TĂNG từ 2 lên 5 để tránh reload quá nhiều lần
+          if (lastProcessedTime && (now - lastProcessedTime) < 5000) {
+            return false;
+          }
+          
+          // LUÔN reload nếu chưa đọc
+          if (!n.read) {
+            return true;
+          }
+          
+          // Nếu đã đọc, vẫn reload nếu được tạo trong 30 phút gần đây (tăng từ 20 lên 30)
+          if (n.createdAt) {
+            const created = new Date(n.createdAt);
+            const diffMs = now - created.getTime();
+            const diffMins = diffMs / 60000;
+            return diffMins < 30; // Trong vòng 30 phút
+          }
+          
+          // Nếu không có createdAt, vẫn reload nếu chưa đọc
+          return !n.read;
+        });
+      
+      if (notificationsToProcess.length > 0) {
+        // Đánh dấu đã xử lý với timestamp
+        notificationsToProcess.forEach(n => {
+          processedNotificationIdsRef.current.add(n.id);
+          lastProcessedNotificationTimeRef.current.set(n.id, now);
+        });
+        
+        // Force reload members trực tiếp - QUAN TRỌNG cho chủ ví
+        const reloadMembers = async () => {
+          try {
+            setSharedMembersLoading(true);
+            setSharedMembersError("");
+            
+            // Đợi một chút để đảm bảo backend đã xử lý xong
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            const resp = await walletAPI.getWalletMembers(Number(currentWalletId));
+            let list = [];
+            if (!resp) list = [];
+            else if (Array.isArray(resp)) list = resp;
+            else if (Array.isArray(resp.data)) list = resp.data;
+            else if (Array.isArray(resp.members)) list = resp.members;
+            else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+            
+            const normalized = normalizeMembersList(list);
+            
+            // QUAN TRỌNG: Force update state
+            setSharedMembers(normalized);
+            
+            // Reload wallets để cập nhật membersCount
+            const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+            if (reloadWallets && typeof reloadWallets === "function") {
+              try {
+                await reloadWallets();
+              } catch (e) {
+                console.error("Failed to reload wallets:", e);
+              }
+            }
+            
+            // Dispatch event để trigger reload ở các component khác
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+                detail: { walletId: Number(currentWalletId), memberCount: normalized.length }
+              }));
+            }
+          } catch (error) {
+            console.error("Failed to force reload members after WALLET_MEMBER_LEFT notification:", error);
+            setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+          } finally {
+            setSharedMembersLoading(false);
+          }
+        };
+        
+        // Reload ngay lập tức
+        reloadMembers();
+        
+        // Cũng dispatch event để đảm bảo các component khác cũng reload
+        if (typeof window !== "undefined") {
+          const walletIds = [currentWalletId];
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("walletMemberLeft", {
+              detail: { 
+                notifications: notificationsToProcess,
+                walletIds: walletIds
+              }
+            }));
+          }, 100);
+        }
+      }
+    }
+  }, [wallet?.id, allNotifications]);
+
+  // TẮT polling - chỉ reload notifications khi có event hoặc thay đổi thực sự
+  // NotificationContext đã có polling riêng, không cần polling thêm ở đây
+  // useEffect(() => {
+  //   if (!wallet?.id || !loadNotifications) return;
+  //   
+  //   // Kiểm tra xem có accessToken không (đảm bảo user đã đăng nhập)
+  //   const checkToken = () => {
+  //     const token = localStorage.getItem("accessToken");
+  //     return Boolean(token);
+  //   };
+  //   
+  //   // Polling mỗi 5 giây để phát hiện notification mới nhanh hơn
+  //   // Chỉ khi có wallet đang mở (để tránh quá tải)
+  //   const interval = setInterval(() => {
+  //     // Chỉ poll nếu có token (user đã đăng nhập)
+  //     if (!checkToken()) {
+  //       return;
+  //     }
+  //     
+  //     if (typeof loadNotifications === "function") {
+  //       loadNotifications().catch(err => {
+  //         console.debug("Failed to poll notifications:", err);
+  //       });
+  //     }
+  //   }, 5000); // 5 giây
+  //   
+  //   return () => clearInterval(interval);
+  // }, [wallet?.id, loadNotifications]);
+
+  // QUAN TRỌNG: Polling để tự động reload members khi đang xem tab "Quản lý người dùng"
+  // Đây là giải pháp cuối cùng để đảm bảo UI được cập nhật khi thành viên rời ví
+  // TẮT polling để tránh reload liên tục - dựa vào notifications và membersCount thay đổi thay vì polling
+  // useEffect(() => {
+  //   if (!wallet?.id || activeDetailTab !== "members") return;
+  //   
+  //   // Polling mỗi 3 giây để reload members khi đang xem tab quản lý người dùng
+  //   const interval = setInterval(async () => {
+  //     try {
+  //       setSharedMembersLoading(true);
+  //       
+  //       const resp = await walletAPI.getWalletMembers(wallet.id);
+  //       let list = [];
+  //       if (!resp) list = [];
+  //       else if (Array.isArray(resp)) list = resp;
+  //       else if (Array.isArray(resp.data)) list = resp.data;
+  //       else if (Array.isArray(resp.members)) list = resp.members;
+  //       else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+  //       
+  //       const normalized = normalizeMembersList(list);
+  //       
+  //       // Force update state
+  //       setSharedMembers(normalized);
+  //       
+  //       // Reload wallets để cập nhật membersCount
+  //       const reloadWallets = loadWalletsRef.current || (walletContextRef.current && walletContextRef.current.loadWallets);
+  //       if (reloadWallets && typeof reloadWallets === "function") {
+  //         try {
+  //           await reloadWallets();
+  //         } catch (e) {
+  //           console.debug("Failed to reload wallets in polling:", e);
+  //         }
+  //       }
+  //     } catch (error) {
+  //       console.error("Failed to reload members:", error);
+  //     } finally {
+  //       setSharedMembersLoading(false);
+  //     }
+  //   }, 3000); // 3 giây
+  //   
+  //   return () => {
+  //     clearInterval(interval);
+  //   };
+  // }, [wallet?.id, activeDetailTab]);
+
+  // Reload members khi membersCount thay đổi (khi có thành viên rời hoặc thêm vào)
+  // QUAN TRỌNG: Đây là cách chính để reload khi thành viên rời ví, không phụ thuộc vào notification
+  // Sử dụng useRef để track membersCount cũ và chỉ reload khi thực sự thay đổi
+  const prevMembersCountRef = useRef(null);
+  const lastMembersCountReloadTimeRef = useRef(null);
+  
+  useEffect(() => {
+    if (!wallet?.id) {
+      prevMembersCountRef.current = null;
       return;
     }
+    
+    const currentMembersCount = Number(wallet.membersCount || 0);
+    const prevMembersCount = prevMembersCountRef.current;
+    
+    // Chỉ reload nếu membersCount thực sự thay đổi
+    if (prevMembersCount !== null && prevMembersCount === currentMembersCount) {
+      return; // Không thay đổi, không cần reload
+    }
+    
+    // Cập nhật ref
+    prevMembersCountRef.current = currentMembersCount;
+    
+    // Chỉ reload nếu membersCount thay đổi (không phải lần đầu mount)
+    if (prevMembersCount === null) {
+      // Lần đầu mount, không reload (đã có useEffect khác xử lý)
+      return;
+    }
+    
+    // QUAN TRỌNG: Phát hiện khi membersCount TĂNG (có thành viên mới được thêm vào)
+    const membersCountIncreased = currentMembersCount > prevMembersCount;
+    
+    // QUAN TRỌNG: Với ví cá nhân, vẫn cần reload khi membersCount thay đổi
+    // (ví dụ: từ 2 thành viên xuống 1 thành viên khi có người rời, hoặc từ 2 lên 3 khi có người mới)
+    // Chỉ clear danh sách nếu membersCount = 0 hoặc không có shared info
+    const hasSharedEmails = Array.isArray(wallet.sharedEmails) && wallet.sharedEmails.length > 0;
+    const hasMultipleMembers = currentMembersCount > 1;
+    const isSharedFlag = !!wallet.isShared;
+    const hasShared = isSharedFlag || hasSharedEmails || hasMultipleMembers;
+    
+    // Nếu không có shared members và membersCount = 0, clear danh sách
+    if (!hasShared && currentMembersCount === 0) {
+      setSharedMembers([]);
+      return;
+    }
+    
+    // Tránh reload quá nhiều lần trong thời gian ngắn (debounce) - TĂNG thời gian để tránh loop
+    const now = Date.now();
+    if (lastMembersCountReloadTimeRef.current && (now - lastMembersCountReloadTimeRef.current) < 5000) {
+      // Tăng từ 2 giây lên 5 giây để tránh reload quá nhiều lần
+      return;
+    }
+    
+    // QUAN TRỌNG: Nếu membersCount tăng (có thành viên mới), reload ngay lập tức với delay ngắn hơn
+    const delay = membersCountIncreased ? 500 : 800;
+    
+    // Debounce để tránh reload quá nhiều lần - TĂNG delay để tránh loop
+    const timeoutId = setTimeout(async () => {
+      try {
+        lastMembersCountReloadTimeRef.current = Date.now();
+        setSharedMembersLoading(true);
+        setSharedMembersError(""); // Clear error
+        
+        // Đợi một chút để đảm bảo backend đã xử lý xong
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        const resp = await walletAPI.getWalletMembers(wallet.id);
+        let list = [];
+        if (!resp) list = [];
+        else if (Array.isArray(resp)) list = resp;
+        else if (Array.isArray(resp.data)) list = resp.data;
+        else if (Array.isArray(resp.members)) list = resp.members;
+        else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+        const normalized = normalizeMembersList(list);
+        
+        // QUAN TRỌNG: Force update state để đảm bảo UI được cập nhật
+        setSharedMembers(normalized);
+      } catch (error) {
+        console.error("Failed to reload members after membersCount change:", error);
+        setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+        // Nếu không có quyền xem members, clear danh sách
+        setSharedMembers([]);
+      } finally {
+        setSharedMembersLoading(false);
+      }
+    }, 1000); // Tăng từ 300ms lên 1000ms để tránh reload quá nhanh
+    
+    return () => clearTimeout(timeoutId);
+  }, [wallet?.id, wallet?.membersCount]);
+
+  // Ensure sharedMembers state is consistent when wallet changes.
+  // If the newly selected wallet has no shared info, clear previous members to avoid stale UI.
+  // Cũng reload members khi wallet prop thay đổi (đặc biệt là membersCount hoặc role)
+  const prevWalletIdRef = useRef(null);
+  const prevMembersCountRef2 = useRef(null);
+  const prevWalletRoleRef = useRef(null);
+  
+  useEffect(() => {
+    if (!wallet) {
+      setSharedMembers([]);
+      setSharedMembersError("");
+      setSharedMembersLoading(false);
+      prevWalletIdRef.current = null;
+      prevMembersCountRef2.current = null;
+      prevWalletRoleRef.current = null;
+      return;
+    }
+
+    const currentWalletId = wallet.id;
+    const currentMembersCount = Number(wallet.membersCount || 0);
+    const currentWalletRole = getRoleFromWallet(wallet);
+    const prevWalletId = prevWalletIdRef.current;
+    const prevMembersCount = prevMembersCountRef2.current;
+    const prevWalletRole = prevWalletRoleRef.current;
+    
+    // QUAN TRỌNG: Nếu wallet thay đổi, clear members ngay để tránh hiển thị data cũ
+    // Đặc biệt quan trọng với ví nhóm vì hasShared luôn là true
+    if (prevWalletId !== null && prevWalletId !== currentWalletId) {
+      setSharedMembers([]);
+      setSharedMembersError("");
+      // Không set loading false ở đây vì useEffect chính sẽ handle loading
+    }
+    
+    // Nếu wallet thay đổi, reset refs
+    if (prevWalletId !== currentWalletId) {
+      prevWalletIdRef.current = currentWalletId;
+      prevMembersCountRef2.current = currentMembersCount;
+      prevWalletRoleRef.current = currentWalletRole;
+    }
+
+    // QUAN TRỌNG: Nếu role thay đổi (ví dụ: từ MEMBER xuống VIEWER), reload members để cập nhật role trong danh sách
+    // Đây là trường hợp quan trọng khi user bị downgrade quyền
+    if (prevWalletRole !== null && prevWalletRole !== currentWalletRole && prevWalletId === currentWalletId) {
+      prevWalletRoleRef.current = currentWalletRole;
+      
+      // Reload members từ server để cập nhật role
+      const reloadMembers = async () => {
+        try {
+          setSharedMembersLoading(true);
+          setSharedMembersError("");
+          // Đợi một chút để đảm bảo backend đã xử lý xong
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const resp = await walletAPI.getWalletMembers(wallet.id);
+          let list = [];
+          if (!resp) list = [];
+          else if (Array.isArray(resp)) list = resp;
+          else if (Array.isArray(resp.data)) list = resp.data;
+          else if (Array.isArray(resp.members)) list = resp.members;
+          else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+          const normalized = normalizeMembersList(list);
+          setSharedMembers(normalized);
+          
+          // Dispatch event để trigger reload wallets nếu cần
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+              detail: { walletId: wallet.id, memberCount: normalized.length }
+            }));
+          }
+        } catch (error) {
+          console.error("Failed to reload members after wallet role change:", error);
+          setSharedMembersError(error.message || "Không thể tải danh sách thành viên.");
+        } finally {
+          setSharedMembersLoading(false);
+        }
+      };
+      
+      reloadMembers();
+      return;
+    }
+
+    // QUAN TRỌNG: Không reload members ở đây khi membersCount thay đổi
+    // Vì đã có useEffect riêng ở trên (dòng 967) xử lý membersCount thay đổi
+    // Tránh reload trùng lặp gây ra loop
+    // Chỉ cập nhật ref để track
+    if (prevMembersCount !== null && prevMembersCount !== currentMembersCount && prevWalletId === currentWalletId) {
+      prevMembersCountRef2.current = currentMembersCount;
+      // Không reload ở đây, để useEffect ở trên xử lý
+    }
+
+    const hasSharedEmails = Array.isArray(wallet.sharedEmails) && wallet.sharedEmails.length > 0;
+    const hasMultipleMembers = currentMembersCount > 1;
+    const isSharedFlag = !!wallet.isShared;
+
+    const hasShared = isSharedFlag || hasSharedEmails || hasMultipleMembers;
+
+    if (!hasShared) {
+      // No shared info on this wallet — clear members
+      setSharedMembers([]);
+      setSharedMembersError("");
+      setSharedMembersLoading(false);
+      return;
+    }
+
+    // If wallet contains only sharedEmails (from create form) but we didn't load detailed members,
+    // derive a simple members array from the emails so the UI shows the expected shared list.
+    // QUAN TRỌNG: Chỉ derive nếu wallet không phải là ví nhóm (vì ví nhóm sẽ load từ API)
+    // Và chỉ khi đây là ví cá nhân mới được tạo (có sharedEmails nhưng chưa có members từ API)
+    if (hasSharedEmails && prevWalletId !== currentWalletId && !isSharedFlag) {
+      // Chỉ derive cho ví cá nhân, ví nhóm sẽ được load từ API trong useEffect chính (dòng 282)
+      const derived = (wallet.sharedEmails || []).map((email, idx) => ({
+        memberId: `email-${idx}`,
+        userId: null,
+        email,
+        name: email,
+        role: "VIEW",
+      }));
+      setSharedMembers(normalizeMembersList(derived));
+      setSharedMembersError("");
+      setSharedMembersLoading(false);
+    }
+  }, [wallet?.id, wallet?.membersCount, wallet?.walletRole, wallet?.sharedRole, wallet?.role]);
+
+  // If the `sharedEmails` prop (possibly overridden by parent via `sharedEmailsOverride`) changes,
+  // derive simple member entries so the UI shows newly-added emails immediately without waiting
+  // for a full server-side members load. This keeps the inspector responsive after quick-shares.
+  // We always derive from `sharedEmails` so the UI can show optimistic results; a later
+  // server members fetch will replace the list with authoritative data.
+  useEffect(() => {
+    if (!wallet) return;
+    const hasSharedEmails = Array.isArray(sharedEmails) && sharedEmails.length > 0;
+    if (!hasSharedEmails) return;
+
+    const currentWalletId = wallet.id;
+
+    const derived = (sharedEmails || []).map((email, idx) => ({
+      memberId: `email-override-${idx}`,
+      userId: null,
+      email,
+      name: email,
+      role: wallet && !wallet.isShared ? "VIEW" : "MEMBER",
+    }));
+
+    // Show optimistic derived members immediately
+    const derivedNormalized = normalizeMembersList(derived);
+    
+    // Chỉ set optimistic members nếu wallet vẫn là wallet hiện tại
+    if (wallet?.id === currentWalletId) {
+      setSharedMembers(derivedNormalized);
+      setSharedMembersError("");
+      setSharedMembersLoading(false);
+    }
+
+    // In background, fetch authoritative server members and merge them with derived ones.
+    // Server entries take precedence (especially if they include a userId),
+    // but keep derived entries for emails not yet present on server so optimistic UI stays useful.
+    (async () => {
+      try {
+        // Chỉ set loading nếu wallet vẫn là wallet hiện tại
+        if (wallet?.id === currentWalletId) {
+          setSharedMembersLoading(true);
+        }
+        
+        const resp = await walletAPI.getWalletMembers(currentWalletId);
+        
+        // QUAN TRỌNG: Chỉ set state nếu wallet.id vẫn khớp với wallet đang được xử lý
+        // Tránh race condition khi user chuyển ví nhanh
+        if (wallet?.id !== currentWalletId || loadingWalletIdRef.current !== currentWalletId) {
+          return; // Wallet đã thay đổi, bỏ qua kết quả này
+        }
+        
+        let list = [];
+        if (!resp) list = [];
+        else if (Array.isArray(resp)) list = resp;
+        else if (Array.isArray(resp.data)) list = resp.data;
+        else if (Array.isArray(resp.members)) list = resp.members;
+        else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+        else list = [];
+
+        const serverNormalized = normalizeMembersList(list || []);
+
+        const keyFor = (m) => {
+          if (!m) return null;
+          if (m.email) return String(m.email).toLowerCase();
+          if (m.userId) return `uid:${String(m.userId)}`;
+          if (m.memberId) return `mid:${String(m.memberId)}`;
+          return null;
+        };
+
+        const mergedMap = new Map();
+        // Add server entries first (authoritative)
+        serverNormalized.forEach((m) => {
+          const k = keyFor(m) || `server-${Math.random()}`;
+          mergedMap.set(k, m);
+        });
+        // Add derived entries if they don't conflict with server keys
+        derivedNormalized.forEach((m) => {
+          const k = keyFor(m);
+          if (!k) {
+            const fillKey = `derived-${Math.random()}`;
+            mergedMap.set(fillKey, m);
+          } else if (!mergedMap.has(k)) {
+            mergedMap.set(k, m);
+          }
+        });
+
+        const merged = Array.from(mergedMap.values());
+        setSharedMembers(normalizeMembersList(merged));
+        setSharedMembersError("");
+      } catch (err) {
+        // Chỉ set error nếu wallet vẫn là wallet hiện tại
+        if (wallet?.id === currentWalletId && loadingWalletIdRef.current === currentWalletId) {
+          // Keep optimistic derived list on error, but record error for troubleshooting
+          setSharedMembersError(err?.message || "Không thể tải danh sách thành viên.");
+        }
+      } finally {
+        // Chỉ set loading false nếu wallet vẫn là wallet hiện tại
+        if (wallet?.id === currentWalletId) {
+          setSharedMembersLoading(false);
+        }
+      }
+    })();
+  }, [sharedEmails, wallet]);
+
+  const handleRemoveSharedMember = async (member) => {
+    if (!wallet || !member) return;
+    const targetId = member.userId ?? member.memberUserId ?? member.memberId;
+    if (!targetId) return;
+
+     const removedLabel =
+      member.fullName ||
+      member.name ||
+      member.email ||
+      `${t("wallets.members.unknown") || "Thành viên"} #${targetId}`;
+    const walletLabel = wallet.name || `#${wallet.id}`;
+
+    setRemovingMemberId(targetId);
     try {
-      setRemovingMemberId(targetId);
-      await walletAPI.removeMember(wallet.id, targetId);
+      if (walletAPI.removeMember) {
+        await walletAPI.removeMember(wallet.id, targetId);
+      }
+      // Optimistically update UI ngay lập tức
       setSharedMembers((prev) =>
         prev.filter((m) => (m.userId ?? m.memberUserId ?? m.memberId) !== targetId)
       );
+      setSharedMembersError("");
+
+      const successKey = "wallets.toast.member_removed_success";
+      const successTemplate = t(successKey, { member: removedLabel, wallet: walletLabel });
+      const successMessage =
+        successTemplate && successTemplate !== successKey
+          ? successTemplate
+          : `Đã xóa ${removedLabel} khỏi ${walletLabel}.`;
+      setToast({ open: true, message: successMessage, type: "success" });
+
+      // Reload wallets trước để cập nhật membersCount
+      if (typeof loadWallets === "function") {
+        try {
+          await loadWallets();
+          // Đợi một chút để wallet prop được cập nhật từ context
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (reloadErr) {
+          console.error("❌ loadWallets failed after member removal", reloadErr);
+        }
+      }
+
+      // Reload members từ server để đảm bảo dữ liệu chính xác
+      try {
+        setSharedMembersLoading(true);
+        // Đợi một chút để đảm bảo backend đã xử lý xong
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const resp = await walletAPI.getWalletMembers(wallet.id);
+        let list = [];
+        if (!resp) list = [];
+        else if (Array.isArray(resp)) list = resp;
+        else if (Array.isArray(resp.data)) list = resp.data;
+        else if (Array.isArray(resp.members)) list = resp.members;
+        else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+        const normalized = normalizeMembersList(list);
+        // Force update state
+        setSharedMembers(normalized);
+      } catch (fetchErr) {
+        console.error("❌ Failed to reload members after removal", fetchErr);
+        // Nếu reload fail, vẫn giữ optimistic update
+      } finally {
+        setSharedMembersLoading(false);
+      }
+
+      // Dispatch event để trigger reload ở các component khác
+      if (typeof window !== "undefined" && wallet?.id) {
+        const removedEmail = member.email || member.userEmail || member.memberEmail;
+        window.dispatchEvent(new CustomEvent("walletMemberLeft", {
+          detail: { 
+            walletIds: [String(wallet.id)],
+            notifications: [{
+              type: "WALLET_MEMBER_LEFT",
+              walletId: wallet.id,
+              referenceId: wallet.id
+            }],
+            removedEmail: removedEmail // Thêm email bị xóa để WalletsPage có thể cập nhật localSharedMap
+          }
+        }));
+        
+        // Cũng dispatch walletMembersUpdated để đảm bảo
+        window.dispatchEvent(new CustomEvent("walletMembersUpdated", {
+          detail: { walletId: wallet.id, removedEmail: removedEmail }
+        }));
+        
+        // Dispatch walletUpdated để WalletsPage reload và cập nhật UI (bao gồm WalletList)
+        window.dispatchEvent(new CustomEvent("walletUpdated", {
+          detail: { walletId: wallet.id, removedEmail: removedEmail }
+        }));
+      }
+
+      try {
+        logActivity({
+          type: "wallet.remove_member",
+          message: `Đã xóa ${removedLabel} khỏi ví ${walletLabel}`,
+          data: { walletId: wallet.id, walletName: wallet.name, member },
+        });
+      } catch (e) {}
     } catch (error) {
       setSharedMembersError(error.message || "Không thể xóa thành viên khỏi ví.");
+      setToast({
+        open: true,
+        message: error.message || t("wallets.error.remove_member_failed") || "Không thể xóa thành viên",
+        type: "error",
+      });
     } finally {
       setRemovingMemberId(null);
+    }
+  };
+
+  const handleLeaveWallet = async () => {
+    if (!wallet) return { success: false };
+    const walletLabel = wallet.name || `#${wallet.id}`;
+    const walletId = wallet.id;
+
+    try {
+      const response = await walletAPI.leaveWallet(walletId);
+      
+      // Kiểm tra response có thành công không
+      // Response có thể là { data: {...}, response: { ok: true } } hoặc { error: "..." }
+      if (response && response.response && !response.response.ok) {
+        const errorMsg = response.data?.error || response.data?.message || "Không thể rời khỏi ví.";
+        throw new Error(errorMsg);
+      }
+      if (response && response.error) {
+        throw new Error(response.error);
+      }
+
+      // Clear selection trước để đóng detail panel ngay lập tức
+      if (typeof onChangeSelectedWallet === "function") {
+        onChangeSelectedWallet(null);
+      }
+
+      setToast({
+        open: true,
+        message: `Bạn đã rời khỏi ví "${walletLabel}".`,
+        type: "success",
+      });
+
+      // Reload danh sách ví để cập nhật UI
+      if (typeof loadWallets === "function") {
+        try {
+          // Đợi một chút để đảm bảo backend đã xử lý xong
+          await new Promise(resolve => setTimeout(resolve, 300));
+          await loadWallets();
+        } catch (reloadErr) {
+          console.error("loadWallets failed after leaving wallet", reloadErr);
+          // Vẫn hiển thị thông báo thành công dù reload fail
+        }
+      }
+
+      // Force reload từ WalletDataContext nếu có
+      if (walletContext && typeof walletContext.loadWallets === "function") {
+        try {
+          await walletContext.loadWallets();
+        } catch (e) {
+          console.debug("WalletContext loadWallets failed", e);
+        }
+      }
+
+      // Dispatch event để trigger reload wallets và members ngay lập tức
+      // Không cần đợi notification polling (30s)
+      // Đợi một chút để đảm bảo backend đã xử lý xong việc xóa member
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (typeof window !== "undefined" && walletId) {
+        // Dispatch event ngay để chủ ví có thể reload members
+        window.dispatchEvent(new CustomEvent("walletMemberLeft", {
+          detail: { 
+            walletIds: [String(walletId)],
+            notifications: [{
+              type: "WALLET_MEMBER_LEFT",
+              walletId: walletId,
+              referenceId: walletId
+            }]
+          }
+        }));
+        
+        // Cũng dispatch walletUpdated để đảm bảo
+        window.dispatchEvent(new CustomEvent("walletUpdated", {
+          detail: { walletId: walletId }
+        }));
+      }
+
+      // Refresh notifications để hiển thị thông báo mới ngay lập tức (cho chủ ví)
+      if (loadNotifications && typeof loadNotifications === "function") {
+        try {
+          // Đợi một chút để backend đã tạo notification xong
+          await new Promise(resolve => setTimeout(resolve, 300));
+          await loadNotifications();
+        } catch (e) {
+          console.debug("loadNotifications failed after leaving wallet", e);
+        }
+      }
+
+      try {
+        logActivity({
+          type: "wallet.leave",
+          message: `Đã rời khỏi ví ${walletLabel}`,
+          data: { walletId: wallet.id, walletName: wallet.name },
+        });
+      } catch (e) {}
+
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.message || error?.data?.error || t("wallets.error.leave_failed") || "Không thể rời khỏi ví.";
+      setToast({
+        open: true,
+        message: errorMessage,
+        type: "error",
+      });
+      return { success: false, message: errorMessage };
+    }
+  };
+
+  const handleUpdateMemberRole = async (member, newRole) => {
+    if (!wallet || !member) return { success: false };
+    // Do not allow changing roles for personal wallets here — owner can only manage group wallets.
+    if (!wallet.isShared) {
+      const key = "wallets.error.cannot_change_role_personal";
+      const translated = t(key);
+      const message = translated && translated !== key ? translated : "Không thể thay đổi quyền trên ví cá nhân. Thành viên mặc định là Viewer.";
+      setToast({ open: true, message, type: "error" });
+      return { success: false, message };
+    }
+    const memberId = member.userId ?? member.memberUserId ?? member.memberId;
+    if (!memberId) return { success: false };
+    setUpdatingMemberId(memberId);
+    try {
+      if (walletAPI.updateMemberRole) {
+        await walletAPI.updateMemberRole(wallet.id, memberId, newRole);
+      }
+      // reload members after change
+      const resp = await walletAPI.getWalletMembers(wallet.id);
+      let list = [];
+      if (!resp) list = [];
+      else if (Array.isArray(resp)) list = resp;
+      else if (Array.isArray(resp.data)) list = resp.data;
+      else if (Array.isArray(resp.members)) list = resp.members;
+      else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+      setSharedMembers(normalizeMembersList(list));
+      
+      // Force reload từ WalletDataContext trước (quan trọng để cập nhật role)
+      if (walletContext && typeof walletContext.loadWallets === "function") {
+        try {
+          // Đợi một chút để đảm bảo backend đã xử lý xong
+          await new Promise(resolve => setTimeout(resolve, 500));
+          // Force reload để đảm bảo role mới được cập nhật
+          await walletContext.loadWallets();
+        } catch (e) {
+          console.error("WalletContext loadWallets failed after updating role", e);
+        }
+      }
+      
+      // Reload wallets từ prop nếu có (cho WalletsPage)
+      if (typeof loadWallets === "function") {
+        try {
+          // Đợi thêm một chút để WalletDataContext đã reload xong
+          await new Promise(resolve => setTimeout(resolve, 200));
+          await loadWallets();
+        } catch (reloadErr) {
+          console.error("loadWallets failed after updating role", reloadErr);
+        }
+      }
+      
+      // Refresh notifications để người được nâng quyền nhận thông báo ngay
+      if (loadNotifications && typeof loadNotifications === "function") {
+        try {
+          // Đợi một chút để backend đã tạo notification xong
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await loadNotifications();
+        } catch (e) {
+          console.debug("loadNotifications failed after updating role", e);
+        }
+      }
+      
+      // Dispatch event để trigger reload wallets ở các component khác
+      // Dispatch sau khi đã reload để đảm bảo data mới nhất
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("walletUpdated", {
+            detail: { walletId: wallet.id, action: "roleUpdated" }
+          }));
+        }, 100);
+      }
+      
+      // Ensure translation fallback: if t() returns the key string, use Vietnamese fallback
+      const successKey = "wallets.toast.role_update_success";
+      const translated = t(successKey);
+      const successMsg = translated && translated !== successKey ? translated : "Phân quyền thành công.";
+      setToast({ open: true, message: successMsg, type: "success" });
+      return { success: true };
+    } catch (error) {
+      // Log full error for debugging (includes error.data from api-client)
+      // eslint-disable-next-line no-console
+      console.error("updateMemberRole error:", error, error?.data);
+
+      setSharedMembersError(error.message || "Không thể cập nhật quyền thành viên");
+      const statusMsg = error.status ? ` (code ${error.status})` : "";
+      const serverMsg = error?.data?.message || error?.data?.error || "";
+      const userMsg = serverMsg || error.message || "Không thể cập nhật quyền thành viên.";
+      setToast({ open: true, message: `${userMsg}${statusMsg}`, type: "error" });
+      return { success: false, message: error.message };
+    } finally {
+      setUpdatingMemberId(null);
     }
   };
 
@@ -234,8 +1622,8 @@ export default function WalletDetail(props) {
       <div className="wallets-detail-panel">
         <div className="wallets-section wallets-section--inline">
           <div className="wallets-section__header">
-            <h3>Tạo ví cá nhân</h3>
-            <span>Nhập thông tin để tạo ví</span>
+            <h3>{t("wallets.create_new")}</h3>
+            <span>{t("wallets.create_desc") || "Nhập thông tin để tạo ví"}</span>
           </div>
           <form
             className="wallet-form"
@@ -255,34 +1643,32 @@ export default function WalletDetail(props) {
                   placeholder="Ví tiền mặt, Ví ngân hàng..."
                 />
               </label>
-              <label>
-                Tiền tệ
-                <select
-                  value={createForm.currency}
-                  onChange={(e) =>
-                    onCreateFieldChange("currency", e.target.value)
-                  }
-                >
-                  {currencies.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </label>
+
             </div>
 
             <div className="wallet-form__row">
               <label className="wallet-form__full">
                 Ghi chú
-                <textarea
-                  rows={2}
+                <input
+                  type="text"
                   value={createForm.note}
                   onChange={(e) =>
                     onCreateFieldChange("note", e.target.value)
                   }
-                  placeholder="Mục đích sử dụng ví này..."
+                  placeholder="Thêm ghi chú cho ví"
+                  maxLength={NOTE_MAX_LENGTH}
                 />
+                <span className="wallet-form__char-hint">
+                  {(createForm.note || "").length}/{NOTE_MAX_LENGTH} ký tự
+                </span>
+              </label>
+            </div>
+
+            {/* Currency fixed to VND */}
+            <div className="wallet-form__row">
+              <label>
+                Đơn vị tiền tệ
+                <input type="text" value="VND" disabled className="form-control" />
               </label>
             </div>
 
@@ -380,10 +1766,8 @@ export default function WalletDetail(props) {
       return (
         <div className="wallets-detail-panel wallets-detail-panel--shared-with-me">
           <div className="wallets-shared-detail__header">
-            <h2>Ví được chia sẻ cho bạn</h2>
-            <p>
-              Chọn một người chia sẻ ở danh sách bên trái để xem các ví mà họ đã cấp quyền sử dụng.
-            </p>
+            <h2>{t("wallets.tab.shared")}</h2>
+            <p>{t("wallets.inspector.select_hint")}</p>
           </div>
 
           {!hasOwners ? (
@@ -445,7 +1829,7 @@ export default function WalletDetail(props) {
                           )}
                         </div>
                         <span className="wallets-shared-owner-wallet__balance">
-                          {formatBalance(balance, sharedWallet.currency || "VND")}
+                          {formatCurrency(sharedWallet.balance, sharedWallet.currency)}
                         </span>
                       </div>
                       {sharedWallet.note && (
@@ -499,27 +1883,27 @@ export default function WalletDetail(props) {
           {isGroupTab ? (
             <>
               <h2 className="wallets-detail-empty__title">
-                Chưa có ví nhóm nào
+                {t("wallets.tab.group")}
               </h2>
               <p className="wallets-detail-empty__text">
-                Bạn chưa có ví nhóm trong mục này.
-              </p>
-              <p className="wallets-detail-empty__hint">
-                Hãy tạo ví nhóm mới để bắt đầu quản lý chi tiêu chung với mọi
-                người.
+                {(() => {
+                  const key = "wallets.empty.group_desc";
+                  const translated = t(key);
+                  return translated === key ? "Bạn chưa có ví nhóm trong mục này." : translated;
+                })()}
               </p>
             </>
           ) : (
             <>
               <h2 className="wallets-detail-empty__title">
-                Chưa có ví nào được chọn
+                {t("wallets.inspector.no_wallet_selected")}
               </h2>
               <p className="wallets-detail-empty__text">
-                Vui lòng chọn một ví ở danh sách bên trái để xem chi tiết.
+                {t("wallets.inspector.select_hint")}
               </p>
               <p className="wallets-detail-empty__hint">
-                Hoặc dùng nút <strong>“Tạo ví cá nhân”</strong> ở góc trên bên
-                phải để tạo ví mới.
+                {t("wallets.create_hint") ||
+                  "Hoặc dùng nút \"Tạo ví cá nhân\" ở góc trên bên phải để tạo ví mới."}
               </p>
             </>
           )}
@@ -531,119 +1915,159 @@ export default function WalletDetail(props) {
   // ======= DETAIL PANEL =======
   return (
     <div className="wallets-detail-panel">
+      <Toast
+        open={toast.open}
+        message={toast.message}
+        type={toast.type}
+        offset={{ top: 20, right: 24 }}
+        topbarSelector={null}
+        anchorSelector={null}
+        onClose={() => setToast((s) => ({ ...s, open: false }))}
+      />
       {/* HEADER */}
       <div className="wallets-detail__header">
-        <div>
+          <div>
           <h2 className="wallets-detail__name">
-            {wallet.name || "Chưa đặt tên"}
+            {wallet.name || t("wallets.unnamed") || "Chưa đặt tên"}
           </h2>
           <div className="wallets-detail__tags">
             <span className="wallet-tag">
-              {wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
+              {wallet.isShared ? t("wallets.group_wallet") : t("wallets.personal_wallet")}
             </span>
-            {!wallet.isShared && wallet.isDefault && (
+            {displayIsDefault && (
               <span className="wallet-tag wallet-tag--outline">
-                Ví mặc định
+                {t("wallets.card.default")}
               </span>
             )}
           </div>
         </div>
         <div className="wallets-detail__balance">
-          <div className="wallets-detail__balance-label">Số dư</div>
+          <div className="wallets-detail__balance-label">{t("wallets.card.balance")}</div>
           <div className="wallets-detail__balance-value">
-            {formatBalance(balance, wallet.currency || "VND")}
+            {formatCurrency(balance, wallet?.currency)}
           </div>
         </div>
       </div>
 
+      {/* If viewing as a readonly viewer, show a notice and hide management actions */}
+      {effectiveIsViewer && (
+        <div className="wallets-detail__viewer-notice">
+          Bạn đang xem với quyền Viewer,một số hành động sẽ không thể thực hiện.hãy liên hệ chủ ví nếu muốn có thêm quyền thao tác ví này
+        </div>
+      )}
+
+      {/* debug block removed */}
+
       {/* TABS */}
       <div className="wallets-detail__tabs">
-        <button
-          className={
-            activeDetailTab === "view"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("view")}
-        >
-          Xem chi tiết
-        </button>
-        <button
-          className={
-            activeDetailTab === "topup"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("topup")}
-        >
-          Nạp ví
-        </button>
-        <button
-          className={
-            activeDetailTab === "withdraw"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("withdraw")}
-        >
-          Rút ví
-        </button>
-        <button
-          className={
-            activeDetailTab === "transfer"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("transfer")}
-        >
-          Chuyển tiền
-        </button>
-        <button
-          className={
-            activeDetailTab === "edit"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("edit")}
-        >
-          Sửa ví
-        </button>
-        <button
-          className={
-            activeDetailTab === "merge"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("merge")}
-        >
-          Gộp ví
-        </button>
-
-        {/* Chỉ hiển thị tab chuyển thành ví nhóm cho ví cá nhân */}
-        {!wallet.isShared && walletTabType === "personal" && (
+        {/* If the user is a viewer for this wallet, only show the details tab */}
+        {effectiveIsViewer ? (
           <button
             className={
-              activeDetailTab === "convert"
+              activeDetailTab === "view"
                 ? "wallets-detail-tab wallets-detail-tab--active"
                 : "wallets-detail-tab"
             }
-            onClick={() => setActiveDetailTab("convert")}
+            onClick={() => setActiveDetailTab("view")}
           >
-            Chuyển thành ví nhóm
+            {t("wallets.inspector.tab.details")}
           </button>
-        )}
+        ) : (
+          <>
+            <button
+              className={
+                activeDetailTab === "view"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("view")}
+            >
+              {t("wallets.inspector.tab.details")}
+            </button>
+            <button
+              className={
+                activeDetailTab === "topup"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("topup")}
+            >
+              {t("wallets.inspector.tab.topup") || "Nạp ví"}
+            </button>
+            <button
+              className={
+                activeDetailTab === "withdraw"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("withdraw")}
+            >
+              {t("wallets.inspector.tab.withdraw")}
+            </button>
+            <button
+              className={
+                activeDetailTab === "transfer"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("transfer")}
+            >
+              {t("wallets.inspector.tab.transfer")}
+            </button>
+            {effectiveIsOwner && (
+              <button
+                className={
+                  activeDetailTab === "edit"
+                    ? "wallets-detail-tab wallets-detail-tab--active"
+                    : "wallets-detail-tab"
+                }
+                onClick={() => setActiveDetailTab("edit")}
+              >
+                {t("wallets.inspector.tab.edit") || "Sửa ví"}
+              </button>
+            )}
+            {/* Ẩn tab gộp ví nếu là ví quỹ */}
+            {!wallet.isShared && !effectiveIsMember && !isFundWallet && (
+              <button
+                className={
+                  activeDetailTab === "merge"
+                    ? "wallets-detail-tab wallets-detail-tab--active"
+                    : "wallets-detail-tab"
+                }
+                onClick={() => setActiveDetailTab("merge")}
+              >
+                {t("wallets.inspector.tab.merge")}
+              </button>
+            )}
 
-        {canManageSharedMembers && (
-          <button
-            className={
-              activeDetailTab === "manageMembers"
-                ? "wallets-detail-tab wallets-detail-tab--active"
-                : "wallets-detail-tab"
-            }
-            onClick={() => setActiveDetailTab("manageMembers")}
-          >
-            Quản lý người dùng
-          </button>
+            {/* Chỉ hiển thị tab chuyển thành ví nhóm cho ví cá nhân, ẩn nếu là ví quỹ */}
+            {!wallet.isShared && walletTabType === "personal" && !isFundWallet && (
+              <button
+                className={
+                  activeDetailTab === "convert"
+                    ? "wallets-detail-tab wallets-detail-tab--active"
+                    : "wallets-detail-tab"
+                }
+                onClick={() => setActiveDetailTab("convert")}
+              >
+                Chuyển thành ví nhóm
+              </button>
+            )}
+
+            {/* Ẩn tab quản lý người dùng nếu là ví quỹ */}
+            {effectiveIsOwner && !isFundWallet && (
+              <button
+                className={
+                  activeDetailTab === "manageMembers"
+                    ? "wallets-detail-tab wallets-detail-tab--active"
+                    : "wallets-detail-tab"
+                }
+                onClick={() => setActiveDetailTab("manageMembers")}
+              >
+                Quản lý người dùng
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -655,19 +2079,21 @@ export default function WalletDetail(props) {
           sharedMembers={sharedMembers}
           sharedMembersLoading={sharedMembersLoading}
           sharedMembersError={sharedMembersError}
-          canManageSharedMembers={canManageSharedMembers}
-          canInviteMembers={canInviteMembers}
-          removingMemberId={removingMemberId}
-          onRemoveSharedMember={handleRemoveSharedMember}
+          canManageSharedMembers={effectiveCanManageSharedMembers}
+          canInviteMembers={effectiveCanInviteMembers}
           onQuickShareEmail={onQuickShareEmail}
           quickShareLoading={quickShareLoading}
           sharedFilter={sharedFilter}
           demoTransactions={demoTransactions}
           isLoadingTransactions={isLoadingTransactions}
+          effectiveIsOwner={effectiveIsOwner}
+          effectiveIsMember={effectiveIsMember}
+          effectiveIsViewer={effectiveIsViewer}
+          onLeaveWallet={handleLeaveWallet}
         />
       )}
 
-      {activeDetailTab === "manageMembers" && canManageSharedMembers && (
+      {activeDetailTab === "manageMembers" && effectiveIsOwner && (
         <ManageMembersTab
           wallet={wallet}
           sharedMembers={sharedMembers}
@@ -675,6 +2101,12 @@ export default function WalletDetail(props) {
           sharedMembersError={sharedMembersError}
           onRemoveSharedMember={handleRemoveSharedMember}
           removingMemberId={removingMemberId}
+          updatingMemberId={updatingMemberId}
+          onUpdateMemberRole={handleUpdateMemberRole}
+          onQuickShareEmail={onQuickShareEmail}
+          quickShareLoading={quickShareLoading}
+          effectiveIsOwner={effectiveIsOwner}
+          onLeaveWallet={handleLeaveWallet}
         />
       )}
 
@@ -720,22 +2152,17 @@ export default function WalletDetail(props) {
         />
       )}
 
-      {activeDetailTab === "edit" && (
+            {activeDetailTab === "edit" && effectiveIsOwner && (
         <EditTab
           wallet={wallet}
-          currencies={currencies}
           editForm={editForm}
           onEditFieldChange={onEditFieldChange}
-          editShareEmail={editShareEmail}
-          setEditShareEmail={setEditShareEmail}
-          onAddEditShareEmail={onAddEditShareEmail}
-          onRemoveEditShareEmail={onRemoveEditShareEmail}
           onSubmitEdit={onSubmitEdit}
           onDeleteWallet={onDeleteWallet}
         />
       )}
 
-      {activeDetailTab === "merge" && (
+      {activeDetailTab === "merge" && !wallet.isShared && !effectiveIsMember && !effectiveIsViewer && (
         <MergeTab
           wallet={wallet}
           allWallets={allWallets}
@@ -757,2465 +2184,3 @@ export default function WalletDetail(props) {
     </div>
   );
 }
-
-/* ====== HELPER FUNCTIONS ====== */
-
-// Helper function để tính tỷ giá (dùng chung cho tất cả components)
-function getRate(from, to) {
-  if (!from || !to || from === to) return 1;
-  
-  // Tỷ giá cố định (theo ExchangeRateServiceImpl)
-  // rates[currency] = tỷ giá 1 VND = ? currency
-  const ratesToVND = {
-    VND: 1,
-    USD: 0.000041, // 1 VND = 0.000041 USD
-    EUR: 0.000038,
-    JPY: 0.0063,
-    GBP: 0.000032,
-    CNY: 0.00030,
-  };
-  
-  // Tỷ giá ngược lại: 1 currency = ? VND (để tránh phép chia)
-  const ratesFromVND = {
-    VND: 1,
-    USD: 24390.243902439024, // 1 USD = 24390.243902439024 VND (1/0.000041)
-    EUR: 26315.78947368421, // 1 EUR = 26315.78947368421 VND (1/0.000038)
-    JPY: 158.73015873015873, // 1 JPY = 158.73015873015873 VND (1/0.0063)
-    GBP: 31250, // 1 GBP = 31250 VND (1/0.000032)
-    CNY: 3333.3333333333335, // 1 CNY = 3333.3333333333335 VND (1/0.00030)
-  };
-  
-  if (!ratesToVND[from] || !ratesToVND[to]) return 1;
-  
-  // Nếu from là VND, tỷ giá đơn giản là ratesToVND[to]
-  if (from === "VND") {
-    return ratesToVND[to];
-  }
-  // Nếu to là VND, tỷ giá là ratesFromVND[from] (tránh phép chia)
-  if (to === "VND") {
-    return ratesFromVND[from];
-  }
-  // Tính tỷ giá: from → VND → to
-  // 1 from = ratesFromVND[from] VND
-  // ratesFromVND[from] VND = ratesFromVND[from] * ratesToVND[to] to
-  // VD: USD → EUR: 1 USD = 24390.243902439024 VND = 24390.243902439024 * 0.000038 EUR
-  // Tỷ giá from → to = ratesFromVND[from] * ratesToVND[to]
-  const rate = ratesFromVND[from] * ratesToVND[to];
-  // Sử dụng toFixed(8) rồi parseFloat để giảm sai số tích lũy
-  return parseFloat(rate.toFixed(8));
-}
-
-// Format số dư sau khi chuyển đổi với độ chính xác cao (8 chữ số thập phân)
-function formatConvertedBalance(amount = 0, currency = "VND") {
-  const numAmount = Number(amount) || 0;
-  if (currency === "VND") {
-    // VND: hiển thị với 8 chữ số thập phân để khớp với tỷ giá (không làm tròn về số nguyên)
-    // Kiểm tra xem có phần thập phân không
-    const hasDecimal = numAmount % 1 !== 0;
-    if (hasDecimal) {
-      const formatted = numAmount.toLocaleString("vi-VN", { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 8 
-      });
-      return `${formatted} VND`;
-    }
-    // Nếu là số nguyên, hiển thị bình thường
-    return `${numAmount.toLocaleString("vi-VN")} VND`;
-  }
-  if (currency === "USD") {
-    // USD: hiển thị với 8 chữ số thập phân để khớp với tỷ giá
-    const formatted = numAmount.toLocaleString("en-US", { 
-      minimumFractionDigits: 0, 
-      maximumFractionDigits: 8 
-    });
-    return `$${formatted}`;
-  }
-  // Các currency khác
-  const formatted = numAmount.toLocaleString("vi-VN", { 
-    minimumFractionDigits: 0, 
-    maximumFractionDigits: 8 
-  });
-  return `${formatted} ${currency}`;
-}
-
-// Format tỷ giá với độ chính xác cao
-function formatExchangeRate(rate = 0, toCurrency = "VND") {
-  const numRate = Number(rate) || 0;
-  if (toCurrency === "USD") {
-    return numRate.toLocaleString("en-US", { 
-      minimumFractionDigits: 0, 
-      maximumFractionDigits: 8 
-    });
-  }
-  return numRate.toLocaleString("vi-VN", { 
-    minimumFractionDigits: 0, 
-    maximumFractionDigits: 8 
-  });
-}
-
-/* ====== SUB TABS COMPONENTS ====== */
-
-function DetailViewTab({
-  wallet,
-  sharedEmails,
-  sharedMembers = [],
-  sharedMembersLoading = false,
-  sharedMembersError = "",
-  canManageSharedMembers = false,
-  canInviteMembers = false,
-  removingMemberId = null,
-  onRemoveSharedMember,
-  onQuickShareEmail,
-  quickShareLoading = false,
-  sharedFilter,
-  demoTransactions,
-  isLoadingTransactions = false,
-}) {
-  const [showQuickShareForm, setShowQuickShareForm] = useState(false);
-  const [quickShareEmail, setQuickShareEmail] = useState("");
-  const [quickShareMessage, setQuickShareMessage] = useState("");
-
-  const toggleQuickShareForm = () => {
-    setShowQuickShareForm((prev) => !prev);
-    setQuickShareMessage("");
-    if (!showQuickShareForm) {
-      setQuickShareEmail("");
-    }
-  };
-
-  const handleQuickShareSubmit = async (event) => {
-    event?.preventDefault?.();
-    if (!onQuickShareEmail) return;
-    setQuickShareMessage("");
-    const result = await onQuickShareEmail(quickShareEmail);
-    if (result?.success) {
-      setQuickShareEmail("");
-      setShowQuickShareForm(false);
-      setQuickShareMessage("");
-    } else if (result?.message) {
-      setQuickShareMessage(result.message);
-    }
-  };
-
-  const fallbackEmails = Array.isArray(sharedEmails) ? sharedEmails : [];
-  const displayMembers = sharedMembers.length
-    ? sharedMembers
-    : fallbackEmails.map((email) => ({ email }));
-
-  const emptyShareMessage = canManageSharedMembers
-    ? "Bạn chưa chia sẻ ví này cho ai."
-    : sharedFilter === "sharedWithMe"
-    ? "Ví này đang được người khác chia sẻ cho bạn."
-    : "Chưa có thành viên nào được chia sẻ.";
-
-  const renderShareSection = () => {
-    if (sharedMembersLoading) {
-      return (
-        <p className="wallets-detail__share-empty">Đang tải danh sách chia sẻ...</p>
-      );
-    }
-    if (sharedMembersError) {
-      return (
-        <p className="wallets-detail__share-error">{sharedMembersError}</p>
-      );
-    }
-    if (!displayMembers.length) {
-      return (
-        <p className="wallets-detail__share-empty">{emptyShareMessage}</p>
-      );
-    }
-
-    return (
-      <div className="wallet-share-list">
-        {displayMembers.map((member) => {
-          const key = member.memberId || member.userId || member.email || member.fullName;
-          const name = member.fullName || member.name || member.email || "Không rõ tên";
-          const detail = member.email && member.email !== name
-            ? member.email
-            : member.role && member.role !== "OWNER"
-              ? member.role
-              : "";
-          const memberId = member.userId ?? member.memberUserId ?? member.memberId;
-          const allowRemove =
-            canManageSharedMembers &&
-            memberId &&
-            (member.role || "").toUpperCase() !== "OWNER";
-          const pillClass = allowRemove
-            ? "wallet-share-pill"
-            : "wallet-share-pill wallet-share-pill--readonly";
-          const isRemoving = removingMemberId === memberId;
-          return (
-            <span key={key || name} className={pillClass}>
-              <span className="wallet-share-pill__info">
-                {name}
-                {detail && <small>{detail}</small>}
-              </span>
-              {allowRemove && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveSharedMember?.(member)}
-                  disabled={isRemoving}
-                  aria-label={`Xóa ${name}`}
-                >
-                  {isRemoving ? "…" : "×"}
-                </button>
-              )}
-            </span>
-          );
-        })}
-      </div>
-    );
-  };
-
-  return (
-    <div className="wallets-section wallets-section--view">
-      <div className="wallets-section__header">
-        <h3>Chi tiết ví</h3>
-        <span>Thông tin cơ bản, chia sẻ và lịch sử giao dịch.</span>
-      </div>
-
-      <div className="wallets-detail-view">
-        <div className="wallets-detail-view__col">
-          <div className="wallets-detail-view__card">
-            <div className="wallets-detail-view__card-header">
-              <span>Thông tin &amp; chia sẻ</span>
-            </div>
-
-            <div className="wallet-detail-grid">
-              <div className="wallet-detail-item">
-                <span className="wallet-detail-item__label">Loại ví</span>
-                <span className="wallet-detail-item__value">
-                  {wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
-                </span>
-              </div>
-              <div className="wallet-detail-item">
-                <span className="wallet-detail-item__label">Tiền tệ</span>
-                <span className="wallet-detail-item__value">
-                  {wallet.currency || "VND"}
-                </span>
-              </div>
-              <div className="wallet-detail-item">
-                <span className="wallet-detail-item__label">Ngày tạo</span>
-                <span className="wallet-detail-item__value">
-                  {wallet.createdAt
-                    ? new Date(wallet.createdAt).toLocaleDateString("vi-VN")
-                    : "—"}
-                </span>
-              </div>
-              <div className="wallet-detail-item wallet-detail-item--full">
-                <span className="wallet-detail-item__label">Ghi chú</span>
-                <span className="wallet-detail-item__value">
-                  {wallet.note || "Chưa có ghi chú."}
-                </span>
-              </div>
-            </div>
-
-            <div className="wallets-detail__share">
-              <div className="wallets-detail__share-header">
-                <h4>Chia sẻ ví</h4>
-                {canInviteMembers && (
-                  <button
-                    type="button"
-                    className="wallet-share-add-btn"
-                    onClick={toggleQuickShareForm}
-                  >
-                    {showQuickShareForm ? "-" : "+"}
-                  </button>
-                )}
-              </div>
-              {canInviteMembers && showQuickShareForm && (
-                <form className="wallet-share-quick-form" onSubmit={handleQuickShareSubmit}>
-                  <input
-                    type="email"
-                    value={quickShareEmail}
-                    onChange={(e) => setQuickShareEmail(e.target.value)}
-                    placeholder="example@gmail.com"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!quickShareEmail.trim() || quickShareLoading}
-                  >
-                    {quickShareLoading ? "Đang chia sẻ..." : "Chia sẻ"}
-                  </button>
-                </form>
-              )}
-              {quickShareMessage && (
-                <p className="wallet-share-quick-message">{quickShareMessage}</p>
-              )}
-              {renderShareSection()}
-            </div>
-          </div>
-        </div>
-
-        <div className="wallets-detail-view__col wallets-detail-view__col--history">
-          <div className="wallets-detail-view__card">
-            <div className="wallets-detail-view__card-header">
-              <span>Lịch sử giao dịch</span>
-              <span className="wallets-detail-view__counter">
-                {isLoadingTransactions ? "Đang tải..." : `${demoTransactions.length} giao dịch`}
-              </span>
-            </div>
-
-            <div className="wallets-detail__history-summary">
-              <div className="wallet-detail-item wallet-detail-item--inline">
-                <span className="wallet-detail-item__label">
-                  Số giao dịch
-                </span>
-                <span className="wallet-detail-item__value">
-                  {isLoadingTransactions ? "..." : demoTransactions.length}
-                </span>
-              </div>
-            </div>
-
-            <div className="wallets-detail__history">
-              {isLoadingTransactions ? (
-                <p className="wallets-detail__history-empty">
-                  Đang tải lịch sử giao dịch...
-                </p>
-              ) : demoTransactions.length === 0 ? (
-                <p className="wallets-detail__history-empty">
-                  Chưa có giao dịch cho ví này.
-                </p>
-              ) : (
-                <ul className="wallets-detail__history-list">
-                  {demoTransactions.map((tx) => {
-                    const txCurrency = tx.currency || wallet?.currency || "VND";
-                    const absAmount = Math.abs(tx.amount);
-                    
-                    // Format số tiền theo currency
-                    let formattedAmount = "";
-                    if (txCurrency === "USD") {
-                      formattedAmount = absAmount.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 8
-                      });
-                    } else {
-                      formattedAmount = absAmount.toLocaleString("vi-VN");
-                    }
-                    
-                    return (
-                      <li key={tx.id} className="wallets-detail__history-item">
-                        <div className="wallets-detail__history-main">
-                          <span className="wallets-detail__history-title">
-                            {tx.title}
-                          </span>
-                          <span
-                            className={
-                              tx.amount >= 0
-                                ? "wallets-detail__history-amount wallets-detail__history-amount--pos"
-                                : "wallets-detail__history-amount wallets-detail__history-amount--neg"
-                            }
-                          >
-                            {tx.amount >= 0 ? "+" : "-"}
-                            {txCurrency === "USD" ? `$${formattedAmount}` : `${formattedAmount} ${txCurrency}`}
-                          </span>
-                        </div>
-
-                        <div className="wallets-detail__history-meta">
-                          <span className="wallets-detail__history-category">
-                            {tx.categoryName || "Danh mục khác"}
-                          </span>
-                          <span>{tx.timeLabel}</span>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ManageMembersTab({
-  wallet,
-  sharedMembers = [],
-  sharedMembersLoading = false,
-  sharedMembersError = "",
-  onRemoveSharedMember,
-  removingMemberId,
-}) {
-  const ownerBadge = (role = "") => {
-    const upper = role.toUpperCase();
-    if (upper === "OWNER" || upper === "MASTER" || upper === "ADMIN") {
-      return "Chủ ví";
-    }
-    if (upper === "USE" || upper === "USER") return "Được sử dụng";
-    if (upper === "VIEW" || upper === "VIEWER") return "Chỉ xem";
-    return role;
-  };
-
-  const safeMembers = Array.isArray(sharedMembers) ? sharedMembers : [];
-
-  return (
-    <div className="wallets-section wallets-section--manage">
-      <div className="wallets-section__header">
-        <h3>Quản lý người dùng</h3>
-        <span>Kiểm soát danh sách người được chia sẻ ví "{wallet?.name}".</span>
-      </div>
-
-      <div className="wallets-manage-list">
-        {sharedMembersLoading && (
-          <div className="wallets-manage__state">Đang tải danh sách...</div>
-        )}
-        {!sharedMembersLoading && sharedMembersError && (
-          <div className="wallets-manage__state wallets-manage__state--error">
-            {sharedMembersError}
-          </div>
-        )}
-        {!sharedMembersLoading && !sharedMembersError && safeMembers.length === 0 && (
-          <div className="wallets-manage__state">
-            Chưa có người dùng nào được chia sẻ.
-          </div>
-        )}
-
-        {!sharedMembersLoading && !sharedMembersError && safeMembers.length > 0 && (
-          <ul>
-            {safeMembers.map((member) => {
-              const memberId = member.userId ?? member.memberUserId ?? member.memberId;
-              const role = member.role || "";
-              const isOwner = ["OWNER", "MASTER", "ADMIN"].includes(role.toUpperCase());
-              return (
-                <li key={memberId || member.email || role}>
-                  <div>
-                    <div className="wallets-manage__name">{member.fullName || member.name || member.email}</div>
-                    <div className="wallets-manage__meta">
-                      {member.email && <span>{member.email}</span>}
-                      {role && <span>{ownerBadge(role)}</span>}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveSharedMember?.(member)}
-                    disabled={isOwner || removingMemberId === memberId}
-                  >
-                    {removingMemberId === memberId ? "Đang xóa..." : "Xóa"}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TopupTab({
-  wallet,
-  incomeCategories = [],
-  topupAmount,
-  setTopupAmount,
-  topupNote,
-  setTopupNote,
-  topupCategoryId,
-  setTopupCategoryId,
-  onSubmitTopup,
-}) {
-  // Format số tiền
-  const formatMoney = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    if (currency === "USD") {
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
-        });
-        return `$${formatted}`;
-      }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-      return `$${formatted}`;
-    }
-    if (currency === "VND") {
-      return `${numAmount.toLocaleString("vi-VN")} VND`;
-    }
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-    }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-  };
-
-  const currentBalance = Number(wallet?.balance || 0);
-  const walletCurrency = wallet?.currency || "VND";
-
-  return (
-    <div className="wallets-section">
-      <div className="wallets-section__header">
-        <h3>Nạp tiền vào ví</h3>
-        <span>Nạp thêm số dư cho ví hiện tại.</span>
-      </div>
-      <form className="wallet-form" onSubmit={onSubmitTopup} autoComplete="off">
-        <div className="wallet-form__row">
-          <label>
-            Danh mục <span style={{ color: "#ef4444" }}>*</span>
-            <select
-              value={topupCategoryId}
-              onChange={(e) => setTopupCategoryId(e.target.value)}
-              required
-            >
-              <option value="">Chọn danh mục</option>
-              {incomeCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Số tiền nạp
-            <input
-              type="text"
-              value={formatMoneyInput(topupAmount)}
-              onChange={(e) => {
-                const parsed = getMoneyValue(e.target.value);
-                setTopupAmount(parsed ? String(parsed) : "");
-              }}
-              placeholder="Nhập số tiền..."
-              inputMode="numeric"
-            />
-            <div style={{ 
-              fontSize: "0.875rem", 
-              color: "#6b7280",
-              marginTop: "4px"
-            }}>
-              Số dư hiện tại:{" "}
-              <strong style={{ color: "#111827" }}>
-                {formatMoney(currentBalance, walletCurrency)}
-              </strong>
-            </div>
-          </label>
-        </div>
-
-        <div className="wallet-form__row">
-          <label className="wallet-form__full">
-            Ghi chú
-            <textarea
-              rows={2}
-              value={topupNote}
-              onChange={(e) => setTopupNote(e.target.value)}
-              placeholder="Nhập ghi chú (tùy chọn)"
-            />
-          </label>
-        </div>
-
-        {/* Hiển thị lỗi nếu số tiền hoặc danh mục không hợp lệ */}
-        {topupAmount && (
-          <div className="wallet-form__row">
-            {!topupCategoryId && (
-              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
-                Vui lòng chọn danh mục.
-              </div>
-            )}
-            {topupCategoryId && (!topupAmount || Number(topupAmount) <= 0) && (
-              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
-                Số tiền không hợp lệ.
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="wallet-form__footer wallet-form__footer--right">
-          <button
-            type="submit"
-            className="wallets-btn wallets-btn--primary"
-            disabled={!topupAmount || !topupCategoryId || Number(topupAmount) <= 0}
-          >
-            <span style={{ marginRight: "6px" }}>✔</span>
-            Xác nhận nạp
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-function WithdrawTab({
-  wallet,
-  expenseCategories = [],
-  withdrawAmount,
-  setWithdrawAmount,
-  withdrawNote,
-  setWithdrawNote,
-  withdrawCategoryId,
-  setWithdrawCategoryId,
-  onSubmitWithdraw,
-}) {
-  // Format số tiền
-  const formatMoney = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    if (currency === "USD") {
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
-        });
-        return `$${formatted}`;
-      }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-      return `$${formatted}`;
-    }
-    if (currency === "VND") {
-      return `${numAmount.toLocaleString("vi-VN")} VND`;
-    }
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-    }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-  };
-
-  const currentBalance = Number(wallet?.balance || 0);
-  const walletCurrency = wallet?.currency || "VND";
-
-  return (
-    <div className="wallets-section">
-      <div className="wallets-section__header">
-        <h3>Rút tiền từ ví</h3>
-        <span>Rút tiền và chọn danh mục phù hợp.</span>
-      </div>
-      <form
-        className="wallet-form"
-        onSubmit={onSubmitWithdraw}
-        autoComplete="off"
-      >
-        <div className="wallet-form__row">
-          <label>
-            Danh mục <span style={{ color: "#ef4444" }}>*</span>
-            <select
-              value={withdrawCategoryId}
-              onChange={(e) => setWithdrawCategoryId(e.target.value)}
-              required
-            >
-              <option value="">Chọn danh mục</option>
-              {expenseCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Số tiền rút
-            <input
-              type="text"
-              value={formatMoneyInput(withdrawAmount)}
-              onChange={(e) => {
-                const parsed = getMoneyValue(e.target.value);
-                setWithdrawAmount(parsed ? String(parsed) : "");
-              }}
-              placeholder="Nhập số tiền..."
-              inputMode="numeric"
-            />
-            <div style={{ 
-              fontSize: "0.875rem", 
-              color: "#6b7280",
-              marginTop: "4px"
-            }}>
-              Số dư hiện tại:{" "}
-              <strong style={{ color: "#111827" }}>
-                {formatMoney(currentBalance, walletCurrency)}
-              </strong>
-            </div>
-          </label>
-        </div>
-
-        <div className="wallet-form__row">
-          <label className="wallet-form__full">
-            Ghi chú
-            <textarea
-              rows={2}
-              value={withdrawNote}
-              onChange={(e) => setWithdrawNote(e.target.value)}
-              placeholder="Nhập ghi chú (tùy chọn)"
-            />
-          </label>
-        </div>
-
-        {/* Hiển thị lỗi nếu số tiền không hợp lệ */}
-        {withdrawAmount && (
-          <div className="wallet-form__row">
-            {!withdrawCategoryId && (
-              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
-                Vui lòng chọn danh mục.
-              </div>
-            )}
-            {withdrawCategoryId && Number(withdrawAmount) > currentBalance && (
-              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
-                Số tiền không hợp lệ hoặc vượt quá số dư.
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="wallet-form__footer wallet-form__footer--right">
-          <button
-            type="submit"
-            className="wallets-btn wallets-btn--primary"
-            disabled={!withdrawAmount || !withdrawCategoryId || Number(withdrawAmount) > currentBalance}
-          >
-            <span style={{ marginRight: "6px" }}>✔</span>
-            Xác nhận rút
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-/* ========= TRANSFER TAB ========= */
-function TransferTab({
-  wallet,
-  allWallets,
-  transferTargetId,
-  setTransferTargetId,
-  transferAmount,
-  setTransferAmount,
-  transferNote,
-  setTransferNote,
-  onSubmitTransfer,
-}) {
-  // Sử dụng hàm getRate đã được định nghĩa ở top level
-
-  // Format số tiền (cho hiển thị thông thường)
-  const formatMoney = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    if (currency === "USD") {
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
-        });
-        return `$${formatted}`;
-      }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-      return `$${formatted}`;
-    }
-    if (currency === "VND") {
-      return `${numAmount.toLocaleString("vi-VN")} VND`;
-    }
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-    }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-  };
-
-  // Format số tiền chuyển đổi với độ chính xác cao (giống tỷ giá - 6 chữ số thập phân)
-  const formatConvertedAmount = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    if (currency === "VND") {
-      // VND: hiển thị với 6 chữ số thập phân để khớp với tỷ giá
-      const formatted = numAmount.toLocaleString("vi-VN", { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 6 
-      });
-      return `${formatted} VND`;
-    }
-    if (currency === "USD") {
-      const formatted = numAmount.toLocaleString("en-US", { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 8 
-      });
-      return `$${formatted}`;
-    }
-    // Các currency khác
-    const formatted = numAmount.toLocaleString("vi-VN", { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 6 
-    });
-    return `${formatted} ${currency}`;
-  };
-
-  const sourceCurrency = wallet.currency || "VND";
-  const sourceBalance = Number(wallet?.balance || 0);
-  const targetWallet =
-    allWallets.find((w) => String(w.id) === String(transferTargetId)) || null;
-  const targetCurrency = targetWallet?.currency || null;
-
-  const currencyMismatch =
-    !!targetWallet && !!targetCurrency && targetCurrency !== sourceCurrency;
-
-  // Tính tỷ giá và số tiền chuyển đổi
-  const exchangeRate = useMemo(() => {
-    if (!currencyMismatch || !targetCurrency) return 1;
-    return getRate(sourceCurrency, targetCurrency);
-  }, [currencyMismatch, sourceCurrency, targetCurrency]);
-
-  const transferAmountNum = Number(transferAmount || 0);
-  const convertedAmount = useMemo(() => {
-    if (!currencyMismatch || !transferAmountNum) return 0;
-    // Không làm tròn để giữ đúng giá như tỷ giá (giữ 6 chữ số thập phân)
-    const converted = transferAmountNum * exchangeRate;
-    return converted;
-  }, [transferAmountNum, exchangeRate, currencyMismatch, targetCurrency]);
-
-  return (
-    <div className="wallets-section">
-      <div className="wallets-section__header">
-        <h3>Chuyển tiền giữa các ví</h3>
-        <span>
-          Chuyển tiền từ ví hiện tại sang ví khác. Nếu khác loại tiền tệ, hệ
-          thống sẽ tự động quy đổi theo tỷ giá.
-        </span>
-      </div>
-      <form
-        className="wallet-form"
-        onSubmit={onSubmitTransfer}
-        autoComplete="off"
-      >
-        <div className="wallet-form__row">
-          <label>
-            Ví nguồn
-            <input
-              type="text"
-              value={`${wallet.name || "Ví hiện tại"} (${sourceCurrency})`}
-              disabled
-            />
-            <div style={{ 
-              fontSize: "0.875rem", 
-              color: "#6b7280",
-              marginTop: "4px"
-            }}>
-              Số dư ví nguồn:{" "}
-              <strong style={{ color: "#111827" }}>
-                {formatMoney(sourceBalance, sourceCurrency)}
-              </strong>
-            </div>
-          </label>
-          <label>
-            Ví đích
-            <select
-              value={transferTargetId}
-              onChange={(e) => setTransferTargetId(e.target.value)}
-            >
-              <option value="">-- Chọn ví đích --</option>
-              {allWallets
-                .filter((w) => w.id !== wallet.id)
-                .map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name || "Chưa đặt tên"}{" "}
-                    {w.isShared ? "(Nhóm)" : "(Cá nhân)"} ·{" "}
-                    {w.currency || "VND"}
-                  </option>
-                ))}
-            </select>
-            {targetWallet && (
-              <div style={{ 
-                fontSize: "0.875rem", 
-                color: "#6b7280",
-                marginTop: "4px"
-              }}>
-                Số dư ví đích:{" "}
-                <strong style={{ color: "#111827" }}>
-                  {formatMoney(Number(targetWallet?.balance || 0), targetCurrency || "VND")}
-                </strong>
-              </div>
-            )}
-          </label>
-        </div>
-        <div className="wallet-form__row">
-          <label>
-            Số tiền chuyển (theo {sourceCurrency})
-            <input
-              type="text"
-              value={formatMoneyInput(transferAmount)}
-              onChange={(e) => {
-                const parsed = getMoneyValue(e.target.value);
-                setTransferAmount(parsed ? String(parsed) : "");
-              }}
-              placeholder={`Nhập số tiền bằng ${sourceCurrency}`}
-              inputMode="numeric"
-            />
-            {currencyMismatch && transferAmountNum > 0 && (
-              <>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#6b7280",
-                  marginTop: "4px"
-                }}>
-                  Tiền chuyển đổi:{" "}
-                  <strong style={{ color: "#059669" }}>
-                    {formatConvertedAmount(convertedAmount, targetCurrency)}
-                  </strong>
-                </div>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#6b7280",
-                  marginTop: "4px"
-                }}>
-                  Tỷ giá: 1 {sourceCurrency} = {exchangeRate.toLocaleString("vi-VN", { maximumFractionDigits: 6 })} {targetCurrency}
-                </div>
-              </>
-            )}
-          </label>
-        </div>
-
-        <div className="wallet-form__row">
-          <label className="wallet-form__full">
-            Ghi chú
-            <textarea
-              rows={2}
-              value={transferNote}
-              onChange={(e) => setTransferNote(e.target.value)}
-              placeholder="Ghi chú cho lần chuyển này..."
-            />
-          </label>
-        </div>
-
-        {/* Hiển thị lỗi nếu số tiền không hợp lệ */}
-        {transferAmount && transferAmountNum > sourceBalance && (
-          <div className="wallet-form__row">
-            <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
-              Số tiền không hợp lệ hoặc vượt quá số dư.
-            </div>
-          </div>
-        )}
-
-        <div className="wallet-form__footer wallet-form__footer--right">
-          <button
-            type="submit"
-            className="wallets-btn wallets-btn--primary"
-            disabled={!transferTargetId || !transferAmount || transferAmountNum > sourceBalance || transferAmountNum <= 0}
-          >
-            <span style={{ marginRight: "6px" }}>✔</span>
-            Xác nhận chuyển
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-function EditTab({
-  wallet,
-  currencies,
-  editForm,
-  onEditFieldChange,
-  editShareEmail,
-  setEditShareEmail,
-  onAddEditShareEmail,
-  onRemoveEditShareEmail,
-  shareWalletLoading = false,
-  onSubmitEdit,
-  onDeleteWallet,
-}) {
-  const isGroupWallet = !!wallet.isShared;
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const handleOpenDelete = () => {
-    setShowDeleteConfirm(true);
-  };
-
-  const handleCloseDelete = () => {
-    setShowDeleteConfirm(false);
-  };
-
-  const handleConfirmDelete = () => {
-    setShowDeleteConfirm(false);
-    onDeleteWallet?.(wallet.id);
-  };
-
-  // Sử dụng hàm getRate đã được định nghĩa ở top level
-
-  // Format số tiền (cho hiển thị thông thường)
-  const formatMoney = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    // Sử dụng tối đa 8 chữ số thập phân để hiển thị chính xác số tiền nhỏ
-    if (currency === "USD") {
-      // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
-        });
-        return `$${formatted}`;
-      }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-      return `$${formatted}`;
-    }
-    if (currency === "VND") {
-      // VND: hiển thị số thập phân nếu có (khi chuyển đổi từ currency khác)
-      const hasDecimal = numAmount % 1 !== 0;
-      if (hasDecimal) {
-        const formatted = numAmount.toLocaleString("vi-VN", { 
-          minimumFractionDigits: 0, 
-          maximumFractionDigits: 8 
-        });
-        return `${formatted} VND`;
-      }
-      return `${numAmount.toLocaleString("vi-VN")} VND`;
-    }
-    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-    }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-  };
-
-  // Sử dụng các hàm formatConvertedBalance và formatExchangeRate đã được định nghĩa ở top level
-
-  // Tính số dư mới khi currency thay đổi
-  const oldCurrency = wallet?.currency || "VND";
-  const newCurrency = editForm.currency;
-  const currentBalance = Number(wallet?.balance || 0);
-  const currencyChanged = oldCurrency !== newCurrency;
-  
-  const exchangeRate = useMemo(() => {
-    if (!currencyChanged) return 1;
-    return getRate(oldCurrency, newCurrency);
-  }, [oldCurrency, newCurrency, currencyChanged]);
-
-  const convertedBalance = useMemo(() => {
-    if (!currencyChanged) return currentBalance;
-    // Không làm tròn để giữ đúng giá như tỷ giá (giữ nhiều chữ số thập phân)
-    const converted = currentBalance * exchangeRate;
-    return converted;
-  }, [currentBalance, exchangeRate, currencyChanged, newCurrency]);
-
-  // Format thời gian tạo
-  const createdAt = wallet?.createdAt
-    ? new Date(wallet.createdAt).toLocaleString("vi-VN", {
-        hour12: false,
-      })
-    : null;
-
-  return (
-    <div className="wallets-section">
-      <div className="wallets-section__header">
-        <h3>Sửa ví & chia sẻ</h3>
-        <span>Chỉnh thông tin ví và quản lý người được chia sẻ.</span>
-      </div>
-
-      <form className="wallet-form" onSubmit={onSubmitEdit} autoComplete="off">
-        <div className="wallet-form__row">
-          <label>
-            Tên ví
-            <input
-              type="text"
-              required
-              value={editForm.name}
-              onChange={(e) => onEditFieldChange("name", e.target.value)}
-            />
-            <div style={{ 
-              fontSize: "0.875rem", 
-              color: "#6b7280",
-              marginTop: "4px"
-            }}>
-              Số dư hiện tại:{" "}
-              <strong style={{ color: "#111827" }}>
-                {formatMoney(currentBalance, oldCurrency)}
-              </strong>
-            </div>
-          </label>
-          <label>
-            Tiền tệ
-            <select
-              value={editForm.currency}
-              onChange={(e) =>
-                onEditFieldChange("currency", e.target.value)
-              }
-            >
-              {currencies.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            {/* Hiển thị tỷ giá và số dư sau khi chuyển đổi chỉ khi currency thay đổi */}
-            {currencyChanged && wallet && (
-              <>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#6b7280",
-                  marginTop: "4px"
-                }}>
-                  Tỷ giá: 1 {oldCurrency} = {newCurrency === "USD" 
-                    ? exchangeRate.toLocaleString("en-US", { 
-                        minimumFractionDigits: 0, 
-                        maximumFractionDigits: 8 
-                      })
-                    : exchangeRate.toLocaleString("vi-VN", { 
-                        minimumFractionDigits: 0, 
-                        maximumFractionDigits: 8 
-                      })
-                  } {newCurrency}
-                </div>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#059669",
-                  marginTop: "4px",
-                  fontWeight: 600
-                }}>
-                  Số dư sau khi chuyển đổi:{" "}
-                  <strong>
-                    {formatConvertedBalance(convertedBalance, newCurrency)}
-                  </strong>
-                </div>
-              </>
-            )}
-          </label>
-        </div>
-
-        <div className="wallet-form__row">
-          <label className="wallet-form__full">
-            Ghi chú
-            <textarea
-              rows={2}
-              value={editForm.note}
-              onChange={(e) => onEditFieldChange("note", e.target.value)}
-            />
-          </label>
-        </div>
-
-        <div className="wallet-form__share-block">
-          <label className="wallet-form__full">
-            Thêm email chia sẻ
-            <div className="wallet-form__share-row">
-              <input
-                type="email"
-                value={editShareEmail}
-                onChange={(e) => setEditShareEmail(e.target.value)}
-                placeholder="example@gmail.com"
-              />
-              <button
-                type="button"
-                className="wallets-btn wallets-btn--ghost"
-                onClick={onAddEditShareEmail}
-                disabled={!editShareEmail?.trim() || shareWalletLoading}
-              >
-                {shareWalletLoading ? "Đang chia sẻ..." : "Thêm"}
-              </button>
-            </div>
-          </label>
-
-          {(editForm.sharedEmails || []).length > 0 && (
-            <div className="wallet-share-list">
-              {editForm.sharedEmails.map((email) => (
-                <span key={email} className="wallet-share-pill">
-                  {email}
-                  <button
-                    type="button"
-                    onClick={() => onRemoveEditShareEmail(email)}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Hiển thị thời gian tạo */}
-        {createdAt && (
-          <div className="wallet-form__row" style={{ 
-            padding: "10px 12px", 
-            border: "1px dashed #d1d5db",
-            borderRadius: "10px", 
-            display: "flex", 
-            justifyContent: "space-between",
-            color: "#6b7280",
-            marginBottom: "14px"
-          }}>
-            <span>Thời gian tạo</span>
-            <strong style={{ color: "#111827" }}>{createdAt}</strong>
-          </div>
-        )}
-
-        <div className="wallet-form__footer">
-          {!isGroupWallet && (
-            <label className="wallet-form__checkbox">
-              <input
-                type="checkbox"
-                checked={editForm.isDefault}
-                onChange={(e) =>
-                  onEditFieldChange("isDefault", e.target.checked)
-                }
-              />
-              <span>Đặt làm ví mặc định</span>
-            </label>
-          )}
-
-          <div className="wallet-form__actions">
-            {onDeleteWallet && (
-              <button
-                type="button"
-                className="wallets-btn wallets-btn--danger-outline"
-                onClick={handleOpenDelete}
-              >
-                Xóa ví này
-              </button>
-            )}
-            <button type="submit" className="wallets-btn wallets-btn--primary">
-              Lưu thay đổi
-            </button>
-          </div>
-        </div>
-      </form>
-
-      <ConfirmModal
-        open={showDeleteConfirm}
-        title="Xác nhận xóa ví"
-        message={`Bạn có chắc chắn muốn xóa ví "${
-          wallet.name || "Không tên"
-        }"? Hành động này không thể hoàn tác.`}
-        okText="Xóa ví"
-        cancelText="Hủy"
-        danger={true}
-        onOk={handleConfirmDelete}
-        onClose={handleCloseDelete}
-      />
-    </div>
-  );
-}
-
-/* ===================== MERGE TAB ===================== */
-function MergeTab({
-  wallet,
-  allWallets,
-  mergeTargetId,
-  setMergeTargetId,
-  onSubmitMerge,
-  onChangeSelectedWallet,
-}) {
-  const [step, setStep] = useState(2);
-  const [targetId, setTargetId] = useState(mergeTargetId || "");
-  const [currencyMode, setCurrencyMode] = useState("keepTarget");
-  const [agree, setAgree] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-
-  const [direction, setDirection] = useState("this_into_other");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [makeTargetDefault, setMakeTargetDefault] = useState(false);
-
-  useEffect(() => {
-    if (!processing) return;
-    setProgress(0);
-    let v = 0;
-    const timer = setInterval(() => {
-      v += 15;
-      if (v >= 100) {
-        v = 100;
-        clearInterval(timer);
-        setTimeout(() => setProcessing(false), 400);
-      }
-      setProgress(v);
-    }, 260);
-    return () => clearInterval(timer);
-  }, [processing]);
-
-  useEffect(() => {
-    if (setMergeTargetId) setMergeTargetId(targetId);
-  }, [targetId, setMergeTargetId]);
-
-  useEffect(() => {
-    setTargetId("");
-    if (setMergeTargetId) setMergeTargetId("");
-  }, [direction, setMergeTargetId]);
-
-  useEffect(() => {
-    setMakeTargetDefault(false);
-  }, [targetId, direction]);
-
-  // Tính toán tất cả các giá trị trước khi có early return (để hooks được gọi đúng thứ tự)
-  const currentWallet = wallet;
-  const thisName = currentWallet?.name || "Ví hiện tại";
-
-  const selectableWallets = useMemo(() => {
-    if (!currentWallet) return [];
-    return (allWallets || []).filter((w) => w.id !== currentWallet.id);
-  }, [allWallets, currentWallet]);
-
-  const filteredWallets = useMemo(() => {
-    return selectableWallets.filter((w) => {
-      if (!searchTerm.trim()) return true;
-      const name = (w.name || "").toLowerCase();
-      return name.includes(searchTerm.trim().toLowerCase());
-    });
-  }, [selectableWallets, searchTerm]);
-
-  const selectedWallet = useMemo(() => {
-    return selectableWallets.find((w) => String(w.id) === String(targetId));
-  }, [selectableWallets, targetId]);
-
-  const isThisIntoOther = direction === "this_into_other";
-
-  const sourceWallet = useMemo(() => {
-    if (!currentWallet) return null;
-    return direction === "this_into_other" ? currentWallet : selectedWallet || null;
-  }, [currentWallet, direction, selectedWallet]);
-
-  const targetWallet = useMemo(() => {
-    if (!currentWallet) return null;
-    return direction === "this_into_other" ? selectedWallet || null : currentWallet;
-  }, [currentWallet, direction, selectedWallet]);
-
-  const srcCurrency = sourceWallet?.currency || "VND";
-  const srcName = sourceWallet?.name || "Ví nguồn";
-  const srcBalance = useMemo(() => {
-    return Number(sourceWallet?.balance ?? sourceWallet?.current ?? 0) || 0;
-  }, [sourceWallet]);
-  const srcTxCount = useMemo(() => {
-    return sourceWallet?.txCount ?? sourceWallet?.transactionCount ?? 0;
-  }, [sourceWallet]);
-
-  const tgtCurrency = targetWallet?.currency || srcCurrency;
-  const tgtName = targetWallet?.name || "Ví đích";
-  const tgtBalance = useMemo(() => {
-    return Number(targetWallet?.balance ?? targetWallet?.current ?? 0) || 0;
-  }, [targetWallet]);
-  const tgtTxCount = useMemo(() => {
-    return targetWallet?.txCount ?? targetWallet?.transactionCount ?? 0;
-  }, [targetWallet]);
-
-  const currentIsDefault = !!currentWallet?.isDefault;
-  const selectedIsDefault = !!selectedWallet?.isDefault;
-
-  const sourceIsDefault = useMemo(() => {
-    return (direction === "this_into_other" && currentIsDefault) ||
-      (direction === "other_into_this" && selectedIsDefault);
-  }, [direction, currentIsDefault, selectedIsDefault]);
-
-  const targetIsDefault = useMemo(() => {
-    return (direction === "this_into_other" && selectedIsDefault) ||
-      (direction === "other_into_this" && currentIsDefault);
-  }, [direction, selectedIsDefault, currentIsDefault]);
-
-  const differentCurrency = useMemo(() => {
-    return !!targetWallet && srcCurrency !== tgtCurrency;
-  }, [targetWallet, srcCurrency, tgtCurrency]);
-  
-  // Tính tỷ giá thực tế (giống EditTab)
-  const exchangeRate = useMemo(() => {
-    if (!differentCurrency || !sourceWallet || !targetWallet) return 1;
-    if (currencyMode === "keepTarget") {
-      // Chuyển đổi từ srcCurrency sang tgtCurrency
-      return getRate(srcCurrency, tgtCurrency);
-    }
-    // Chuyển đổi từ tgtCurrency sang srcCurrency
-    return getRate(tgtCurrency, srcCurrency);
-  }, [differentCurrency, srcCurrency, tgtCurrency, currencyMode, sourceWallet, targetWallet]);
-
-  const convertedSourceAmount = useMemo(() => {
-    if (!differentCurrency || !sourceWallet) return srcBalance;
-    if (currencyMode === "keepTarget") {
-      // Chuyển đổi số dư ví nguồn sang currency của ví đích
-      const converted = srcBalance * getRate(srcCurrency, tgtCurrency);
-      return converted; // Không làm tròn để giữ độ chính xác
-    }
-    return srcBalance;
-  }, [differentCurrency, srcBalance, srcCurrency, tgtCurrency, currencyMode, sourceWallet]);
-
-  const convertedTargetAmount = useMemo(() => {
-    if (!differentCurrency || !targetWallet) return tgtBalance;
-    if (currencyMode === "keepSource") {
-      // Chuyển đổi số dư ví đích sang currency của ví nguồn
-      const converted = tgtBalance * getRate(tgtCurrency, srcCurrency);
-      return converted; // Không làm tròn để giữ độ chính xác
-    }
-    return tgtBalance;
-  }, [differentCurrency, tgtBalance, srcCurrency, tgtCurrency, currencyMode, targetWallet]);
-
-  const finalCurrency = useMemo(() => {
-    if (!differentCurrency) return tgtCurrency;
-    return currencyMode === "keepTarget" ? tgtCurrency : srcCurrency;
-  }, [differentCurrency, tgtCurrency, currencyMode, srcCurrency]);
-
-  const finalBalance = useMemo(() => {
-    if (!targetWallet || !sourceWallet) return srcBalance;
-    if (!differentCurrency) {
-      return srcBalance + tgtBalance;
-    }
-    if (currencyMode === "keepSource") {
-      return srcBalance + convertedTargetAmount;
-    }
-    return tgtBalance + convertedSourceAmount;
-  }, [targetWallet, sourceWallet, srcBalance, tgtBalance, differentCurrency, currencyMode, convertedSourceAmount, convertedTargetAmount]);
-
-  // Early return sau khi tất cả hooks đã được gọi
-  if (!wallet) {
-    return (
-      <div className="wallets-section">
-        <p>Hãy chọn một ví để gộp.</p>
-      </div>
-    );
-  }
-
-  const needDefaultConfirmation = (() => {
-    if (!selectedWallet) return false;
-    if (currentIsDefault && direction === "this_into_other") {
-      return true;
-    }
-
-    if (
-      !currentIsDefault &&
-      direction === "other_into_this" &&
-      selectedIsDefault
-    ) {
-      return true;
-    }
-
-    return false;
-  })();
-
-  const handleNextFromStep2 = () => {
-    if (!targetId) return;
-    if (needDefaultConfirmation) {
-      setStep(3);
-    } else {
-      setStep(4);
-    }
-  };
-
-  const handleConfirmMerge = () => {
-    if (!targetWallet || !sourceWallet || !agree) return;
-    if (!onSubmitMerge) return;
-
-    const sourceId = sourceWallet.id;
-    const targetIdFinal = targetWallet.id;
-    if (!sourceId || !targetIdFinal) return;
-
-    const payload = {
-      sourceWalletId: sourceId,
-      targetWalletId: targetIdFinal,
-      currencyMode,
-      direction,
-      setTargetAsDefault: !!makeTargetDefault,
-    };
-
-    setStep(6);
-    setProcessing(true);
-
-    setTimeout(() => {
-      const fakeEvent = { preventDefault: () => {} };
-      onSubmitMerge(fakeEvent, payload);
-
-      if (onChangeSelectedWallet && targetIdFinal) {
-        onChangeSelectedWallet(targetIdFinal);
-      }
-    }, 3000);
-  };
-
-  /* STEP 2 */
-  const renderStep2 = () => {
-    const currentBal =
-      Number(currentWallet.balance ?? currentWallet.current ?? 0) || 0;
-    const currentCur = currentWallet.currency || "VND";
-    const currentTx = currentWallet?.txCount ?? currentWallet?.transactionCount ?? 0;
-
-    const selectedBal =
-      selectedWallet &&
-      (Number(selectedWallet.balance ?? selectedWallet.current ?? 0) || 0);
-    const selectedCur = selectedWallet?.currency || "VND";
-
-    return (
-      <div className="wallets-section wallet-merge__panel">
-        <div className="wallet-merge__step-header">
-          <div className="wallet-merge__step-label">Bước 2 – Chọn ví đích</div>
-          <div className="wallet-merge__step-pill">Gộp ví · 5 bước</div>
-        </div>
-
-        <div className="wallet-merge__box">
-          {selectedWallet && (
-            <div className="wallet-merge__relation">
-              {isThisIntoOther ? (
-                <>
-                  Gộp ví <strong>{thisName}</strong> vào{" "}
-                  <strong>{selectedWallet.name || "Ví được chọn"}</strong>
-                </>
-              ) : (
-                <>
-                  Gộp ví{" "}
-                  <strong>{selectedWallet.name || "Ví được chọn"}</strong> vào{" "}
-                  <strong>{thisName}</strong>
-                </>
-              )}
-            </div>
-          )}
-
-          <div className="wallet-merge__grid-2">
-            <div className="wallet-merge__summary-wrapper">
-              <div className="wallet-merge__summary-wrapper-header">
-                <h4>Tóm tắt ví nguồn &amp; ví đích</h4>
-                <span>Kiểm tra lại trước khi tiếp tục gộp ví.</span>
-              </div>
-
-              <div className="wallet-merge__summary-col">
-                <div className="wallet-merge__summary-card wallet-merge__summary-card--source">
-                  <div className="wallet-merge__summary-title">VÍ HIỆN TẠI</div>
-                  <div className="wallet-merge__summary-name">{thisName}</div>
-
-                  <div className="wallet-merge__summary-row">
-                    <span>Tiền tệ</span>
-                    <span>{currentCur}</span>
-                  </div>
-                  <div className="wallet-merge__summary-row">
-                    <span>Số dư</span>
-                    <span>
-                      {formatConvertedBalance(currentBal, currentCur)}
-                    </span>
-                  </div>
-                  <div className="wallet-merge__summary-row">
-                    <span>Số giao dịch</span>
-                    <span>{currentTx}</span>
-                  </div>
-                  {currentIsDefault && (
-                    <div className="wallet-merge__target-warning">
-                      Đây là ví mặc định hiện tại.
-                    </div>
-                  )}
-                </div>
-
-                <div className="wallet-merge__summary-card wallet-merge__summary-card--target">
-                  <div className="wallet-merge__summary-title">
-                    VÍ ĐÍCH ĐANG CHỌN
-                  </div>
-                  <div className="wallet-merge__summary-name">
-                    {selectedWallet
-                      ? selectedWallet.name || "Ví được chọn"
-                      : "Chưa chọn ví đích"}
-                  </div>
-
-                  <div className="wallet-merge__summary-row">
-                    <span>Tiền tệ</span>
-                    <span>{selectedWallet ? selectedCur : "—"}</span>
-                  </div>
-                  <div className="wallet-merge__summary-row">
-                    <span>Số dư</span>
-                    <span>
-                      {selectedWallet
-                        ? formatConvertedBalance(selectedBal, selectedCur)
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="wallet-merge__summary-row">
-                    <span>Loại ví</span>
-                    <span>
-                      {selectedWallet
-                        ? selectedWallet.isShared
-                          ? "Ví nhóm"
-                          : "Ví cá nhân"
-                        : "—"}
-                    </span>
-                  </div>
-                  {selectedWallet?.isDefault && (
-                    <div className="wallet-merge__target-warning">
-                      Ví này đang là ví mặc định.
-                    </div>
-                  )}
-                  {selectedWallet &&
-                    (selectedWallet.currency || "VND") !== currentCur && (
-                      <div className="wallet-merge__target-warning">
-                        Khác loại tiền tệ với ví hiện tại
-                      </div>
-                    )}
-                </div>
-              </div>
-            </div>
-
-            <div className="wallet-merge__right-wrapper">
-              <div className="wallet-merge__right-header">
-                <h4>Thiết lập gộp &amp; chọn ví</h4>
-                <span>Chọn chiều gộp và ví đích muốn gộp.</span>
-              </div>
-
-              <div className="wallet-merge__right">
-                <div className="wallet-merge__direction">
-                  <button
-                    type="button"
-                    className={
-                      isThisIntoOther
-                        ? "wallet-merge__direction-btn wallet-merge__direction-btn--active"
-                        : "wallet-merge__direction-btn"
-                    }
-                    onClick={() => setDirection("this_into_other")}
-                  >
-                    Gộp ví này vào ví khác
-                  </button>
-                  <button
-                    type="button"
-                    className={
-                      !isThisIntoOther
-                        ? "wallet-merge__direction-btn wallet-merge__direction-btn--active"
-                        : "wallet-merge__direction-btn"
-                    }
-                    onClick={() => setDirection("other_into_this")}
-                  >
-                    Gộp ví khác vào ví này
-                  </button>
-                </div>
-                <p className="wallet-merge__direction-note">
-                  {isThisIntoOther
-                    ? "Số dư và giao dịch của ví hiện tại sẽ chuyển sang ví bạn chọn."
-                    : "Số dư và giao dịch của ví được chọn sẽ được gộp vào ví hiện tại."}
-                </p>
-
-                <div className="wallet-merge__section-title">
-                  {isThisIntoOther
-                    ? "Chọn ví đích để gộp vào"
-                    : "Chọn ví cần gộp vào ví này"}
-                </div>
-                <p className="wallet-merge__hint">
-                  Chỉ những ví khác với ví hiện tại mới được hiển thị.
-                </p>
-
-                <div className="wallet-merge__search">
-                  <input
-                    type="text"
-                    placeholder="Tìm theo tên ví..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-
-                <div className="wallet-merge__target-list">
-                  {filteredWallets.length === 0 && (
-                    <p className="wallet-merge__empty">
-                      Không tìm thấy ví nào phù hợp. Hãy thử từ khóa khác.
-                    </p>
-                  )}
-
-                  {filteredWallets.map((w) => {
-                    const checked = String(targetId) === String(w.id);
-                    const bal =
-                      Number(w.balance ?? w.current ?? 0)?.toLocaleString(
-                        "vi-VN"
-                      ) || "0";
-                    const isDiff =
-                      (w.currency || "VND") !== currentCur;
-
-                    return (
-                      <label
-                        key={w.id}
-                        className={
-                          checked
-                            ? "wallet-merge__target wallet-merge__target--active"
-                            : "wallet-merge__target"
-                        }
-                      >
-                        <input
-                          type="radio"
-                          name="mergeTarget"
-                          value={w.id}
-                          checked={checked}
-                          onChange={() => setTargetId(String(w.id))}
-                        />
-                        <div className="wallet-merge__target-main">
-                          <div className="wallet-merge__target-top">
-                            <span className="wallet-merge__target-name">
-                              {w.name || "Ví không tên"}
-                            </span>
-                            <span className="wallet-merge__target-chip">
-                              {w.isShared ? "Ví nhóm" : "Ví cá nhân"}
-                            </span>
-                          </div>
-                          <div className="wallet-merge__target-row">
-                            <span>Tiền tệ</span>
-                            <span>{w.currency || "VND"}</span>
-                          </div>
-                          <div className="wallet-merge__target-row">
-                            <span>Số dư</span>
-                            <span>
-                              {formatConvertedBalance(Number(w.balance ?? w.current ?? 0), w.currency || "VND")}
-                            </span>
-                          </div>
-                          {w.isDefault && (
-                            <div className="wallet-merge__target-warning">
-                              Ví này đang là ví mặc định.
-                            </div>
-                          )}
-                          {isDiff && (
-                            <div className="wallet-merge__target-warning">
-                              Khác loại tiền tệ với ví hiện tại
-                            </div>
-                          )}
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-
-                <div className="wallet-merge__actions">
-                  <button
-                    type="button"
-                    className="wallets-btn wallets-btn--ghost"
-                    onClick={() => setStep(2)}
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="button"
-                    className="wallets-btn wallets-btn--primary"
-                    disabled={!targetId}
-                    onClick={handleNextFromStep2}
-                  >
-                    Tiếp tục
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderStep3DefaultHandling = () => {
-    if (!selectedWallet || !sourceWallet || !targetWallet) return null;
-
-    if (sourceIsDefault) {
-      const defaultName = sourceWallet?.name || "Ví mặc định hiện tại";
-      return (
-        <div className="wallets-section wallet-merge__panel">
-          <div className="wallet-merge__step-header">
-            <div className="wallet-merge__step-label">
-              Bước 3 – Xử lý ví mặc định
-            </div>
-            <div className="wallet-merge__step-pill">Cảnh báo quan trọng</div>
-          </div>
-
-          <div className="wallet-merge__box">
-            <div className="wallet-merge__section-block wallet-merge__section-block--warning">
-              <div className="wallet-merge__section-title">
-                Bạn đang gộp một ví mặc định
-              </div>
-              <ul className="wallet-merge__list">
-                <li>
-                  <strong>{defaultName}</strong> hiện đang là ví mặc định của
-                  hệ thống.
-                </li>
-                <li>
-                  Sau khi gộp, ví <strong>{defaultName}</strong> sẽ bị xoá.
-                </li>
-                <li>
-                  Bạn cần quyết định ví nào sẽ là ví mặc định mới sau khi gộp.
-                </li>
-              </ul>
-            </div>
-
-            <div className="wallet-merge__section-block">
-              <div className="wallet-merge__section-title">
-                Chọn cách xử lý ví mặc định
-              </div>
-              <p className="wallet-merge__hint">
-                Ví đích hiện tại: <strong>{tgtName}</strong>
-              </p>
-
-              <div className="wallet-merge__options">
-                <label className="wallet-merge__option">
-                  <input
-                    type="radio"
-                    name="defaultHandling"
-                    value="makeTargetDefault"
-                    checked={makeTargetDefault === true}
-                    onChange={() => setMakeTargetDefault(true)}
-                  />
-                  <div>
-                    <div className="wallet-merge__option-title">
-                      Đặt ví đích làm ví mặc định mới (khuyến nghị)
-                    </div>
-                    <div className="wallet-merge__option-desc">
-                      Sau khi gộp, ví{" "}
-                      <strong>{tgtName || "ví đích"}</strong> sẽ trở thành ví
-                      mặc định.
-                    </div>
-                  </div>
-                </label>
-
-                <label className="wallet-merge__option">
-                  <input
-                    type="radio"
-                    name="defaultHandling"
-                    value="noDefault"
-                    checked={makeTargetDefault === false}
-                    onChange={() => setMakeTargetDefault(false)}
-                  />
-                  <div>
-                    <div className="wallet-merge__option-title">
-                      Không đặt ví mặc định sau khi gộp
-                    </div>
-                    <div className="wallet-merge__option-desc">
-                      Hệ thống sẽ tạm thời không có ví mặc định. Bạn có thể
-                      chọn lại sau trong phần quản lý ví.
-                    </div>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <div className="wallet-merge__actions">
-              <button
-                type="button"
-                className="wallets-btn wallets-btn--ghost"
-                onClick={() => setStep(2)}
-              >
-                Quay lại
-              </button>
-              <button
-                type="button"
-                className="wallets-btn wallets-btn--primary"
-                onClick={() => setStep(4)}
-              >
-                Tiếp tục
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="wallets-section wallet-merge__panel">
-        <div className="wallet-merge__step-header">
-          <div className="wallet-merge__step-label">
-            Bước 3 – Xử lý ví mặc định
-          </div>
-          <div className="wallet-merge__step-pill">Thiết lập an toàn</div>
-        </div>
-
-        <div className="wallet-merge__box">
-          <div className="wallet-merge__section-block wallet-merge__section-block--warning">
-            <div className="wallet-merge__section-title">
-              Bạn đang gộp một ví mặc định vào ví thường
-            </div>
-            <ul className="wallet-merge__list">
-              <li>
-                Ví <strong>{srcName}</strong> hiện đang là ví mặc định.
-              </li>
-              <li>
-                Sau khi gộp, ví mặc định này sẽ bị xoá và chỉ còn ví{" "}
-                <strong>{tgtName}</strong>.
-              </li>
-              <li>
-                Bạn cần quyết định có đặt ví <strong>{tgtName}</strong> làm ví
-                mặc định mới hay không.
-              </li>
-            </ul>
-          </div>
-
-          <div className="wallet-merge__section-block">
-            <div className="wallet-merge__section-title">
-              Cài đặt ví mặc định sau khi gộp
-            </div>
-            <div className="wallet-merge__options">
-              <label className="wallet-merge__option">
-                <input
-                  type="radio"
-                  name="defaultHandling2"
-                  value="makeTargetDefault"
-                  checked={makeTargetDefault === true}
-                  onChange={() => setMakeTargetDefault(true)}
-                />
-                <div>
-                  <div className="wallet-merge__option-title">
-                    Đặt ví đích làm ví mặc định
-                  </div>
-                  <div className="wallet-merge__option-desc">
-                    Sau khi gộp, ví <strong>{tgtName}</strong> sẽ được đặt làm
-                    ví mặc định của hệ thống.
-                  </div>
-                </div>
-              </label>
-
-              <label className="wallet-merge__option">
-                <input
-                  type="radio"
-                  name="defaultHandling2"
-                  value="keepCurrent"
-                  checked={makeTargetDefault === false}
-                  onChange={() => setMakeTargetDefault(false)}
-                />
-                <div>
-                  <div className="wallet-merge__option-title">
-                    Không tự động thay đổi ví mặc định
-                  </div>
-                  <div className="wallet-merge__option-desc">
-                    Bạn có thể tự chọn lại ví mặc định sau ở phần quản lý ví.
-                  </div>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div className="wallet-merge__actions">
-            <button
-              type="button"
-              className="wallets-btn wallets-btn--ghost"
-              onClick={() => setStep(2)}
-            >
-              Quay lại
-            </button>
-            <button
-              type="button"
-              className="wallets-btn wallets-btn--primary"
-              onClick={() => setStep(4)}
-            >
-              Tiếp tục
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderStep4Currency = () => {
-    if (!targetWallet) return null;
-
-    if (!differentCurrency) {
-      return (
-        <div className="wallets-section wallet-merge__panel">
-          <div className="wallet-merge__step-header">
-            <div className="wallet-merge__step-label">
-              Bước 4 – Chọn loại tiền đích
-            </div>
-            <div className="wallet-merge__step-pill">
-              Hai ví cùng loại tiền
-            </div>
-          </div>
-
-          <div className="wallet-merge__box">
-            <p className="wallet-merge__hint">
-              Cả hai ví đều sử dụng{" "}
-              <strong>{tgtCurrency}</strong>. Hệ thống sẽ giữ nguyên loại tiền
-              này cho ví sau khi gộp.
-            </p>
-
-            <div className="wallet-merge__actions">
-              <button
-                type="button"
-                className="wallets-btn wallets-btn--ghost"
-                onClick={() => setStep(2)}
-              >
-                Quay lại
-              </button>
-              <button
-                type="button"
-                className="wallets-btn wallets-btn--primary"
-                onClick={() => setStep(5)}
-              >
-                Xem trước kết quả
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="wallets-section wallet-merge__panel">
-        <div className="wallet-merge__step-header">
-          <div className="wallet-merge__step-label">
-            Bước 4 – Chọn loại tiền đích
-          </div>
-          <div className="wallet-merge__step-pill">
-            Hai ví khác loại tiền
-          </div>
-        </div>
-
-        <div className="wallet-merge__box">
-          <div className="wallet-merge__grid-2 wallet-merge__grid-2--equal">
-            <div className="wallet-merge__summary-card">
-              <div className="wallet-merge__summary-title">VÍ NGUỒN</div>
-              <div className="wallet-merge__summary-name">{srcName}</div>
-              <div className="wallet-merge__summary-row">
-                <span>Tiền tệ</span>
-                <span>{srcCurrency}</span>
-              </div>
-              <div className="wallet-merge__summary-row">
-                <span>Số dư</span>
-                <span>
-                  {formatConvertedBalance(srcBalance, srcCurrency)}
-                </span>
-              </div>
-            </div>
-            <div className="wallet-merge__summary-card">
-              <div className="wallet-merge__summary-title">VÍ ĐÍCH</div>
-              <div className="wallet-merge__summary-name">{tgtName}</div>
-              <div className="wallet-merge__summary-row">
-                <span>Tiền tệ</span>
-                <span>{tgtCurrency}</span>
-              </div>
-              <div className="wallet-merge__summary-row">
-                <span>Số dư</span>
-                <span>
-                  {formatConvertedBalance(tgtBalance, tgtCurrency)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="wallet-merge__section-title">
-            Cách xử lý khác loại tiền
-          </div>
-          <p className="wallet-merge__hint">
-            Chọn loại tiền sẽ được giữ lại sau khi gộp. Hệ thống sẽ tự động quy đổi theo tỷ giá hiện tại.
-          </p>
-
-          <div className="wallet-merge__options">
-            <label className="wallet-merge__option">
-              <input
-                type="radio"
-                name="currencyMode"
-                value="keepTarget"
-                checked={currencyMode === "keepTarget"}
-                onChange={() => setCurrencyMode("keepTarget")}
-              />
-              <div>
-                <div className="wallet-merge__option-title">
-                  Giữ {tgtCurrency} (loại tiền của ví đích)
-                </div>
-                <div className="wallet-merge__option-desc">
-                  Số dư ví nguồn sẽ được quy đổi:
-                </div>
-                <div className="wallet-merge__option-desc">
-                  {formatConvertedBalance(srcBalance, srcCurrency)} →{" "}
-                  {formatConvertedBalance(convertedSourceAmount, tgtCurrency)}
-                </div>
-                {differentCurrency && (
-                  <div className="wallet-merge__option-foot">
-                    Tỷ giá: 1 {srcCurrency} = {formatExchangeRate(getRate(srcCurrency, tgtCurrency), tgtCurrency)} {tgtCurrency}
-                  </div>
-                )}
-              </div>
-            </label>
-
-            <label className="wallet-merge__option">
-              <input
-                type="radio"
-                name="currencyMode"
-                value="keepSource"
-                checked={currencyMode === "keepSource"}
-                onChange={() => setCurrencyMode("keepSource")}
-              />
-              <div>
-                <div className="wallet-merge__option-title">
-                  Giữ {srcCurrency} (loại tiền của ví nguồn)
-                </div>
-                <div className="wallet-merge__option-desc">
-                  Số dư ví đích sẽ được quy đổi:
-                </div>
-                <div className="wallet-merge__option-desc">
-                  {formatConvertedBalance(tgtBalance, tgtCurrency)} →{" "}
-                  {formatConvertedBalance(convertedTargetAmount, srcCurrency)}
-                </div>
-                {differentCurrency && (
-                  <div className="wallet-merge__option-foot">
-                    Tỷ giá: 1 {tgtCurrency} = {formatExchangeRate(getRate(tgtCurrency, srcCurrency), srcCurrency)} {srcCurrency}
-                  </div>
-                )}
-              </div>
-            </label>
-          </div>
-
-          <div className="wallet-merge__actions">
-            <button
-              type="button"
-              className="wallets-btn wallets-btn--ghost"
-              onClick={() => setStep(2)}
-            >
-              Quay lại
-            </button>
-            <button
-              type="button"
-              className="wallets-btn wallets-btn--primary"
-              onClick={() => setStep(5)}
-            >
-              Xem trước kết quả
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderStep5Preview = () => {
-    if (!targetWallet || !sourceWallet) return null;
-
-    return (
-      <div className="wallets-section wallet-merge__panel">
-        <div className="wallet-merge__step-header">
-          <div className="wallet-merge__step-label">
-            Bước 5 – Xem trước kết quả
-          </div>
-          <div className="wallet-merge__step-pill">Kiểm tra lần cuối</div>
-        </div>
-
-        <div className="wallet-merge__box wallet-merge__box--preview">
-          <div className="wallet-merge__grid-2 wallet-merge__grid-2--equal">
-            <div className="wallet-merge__summary-card">
-              <div className="wallet-merge__summary-title">VÍ NGUỒN</div>
-              <div className="wallet-merge__summary-name">{srcName}</div>
-              <div className="wallet-merge__summary-row">
-                <span>Tiền tệ</span>
-                <span>{srcCurrency}</span>
-              </div>
-              <div className="wallet-merge__summary-row">
-                <span>Số dư</span>
-                <span>
-                  {formatConvertedBalance(srcBalance, srcCurrency)}
-                </span>
-              </div>
-              <div className="wallet-merge__summary-row">
-                <span>Giao dịch</span>
-                <span>{srcTxCount}</span>
-              </div>
-            </div>
-
-            <div className="wallet-merge__summary-card">
-              <div className="wallet-merge__summary-title">VÍ ĐÍCH</div>
-              <div className="wallet-merge__summary-name">{tgtName}</div>
-              <div className="wallet-merge__summary-row">
-                <span>Tiền tệ hiện tại</span>
-                <span>{tgtCurrency}</span>
-              </div>
-              <div className="wallet-merge__summary-row">
-                <span>Số dư hiện tại</span>
-                <span>
-                  {formatConvertedBalance(tgtBalance, tgtCurrency)}
-                </span>
-              </div>
-              <div className="wallet-merge__summary-row">
-                <span>Giao dịch hiện tại</span>
-                <span>{tgtTxCount}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="wallet-merge__section-divider" />
-
-          <div className="wallet-merge__section-block">
-            <div className="wallet-merge__section-title">
-              Kết quả sau khi gộp
-            </div>
-            <div className="wallet-merge__result-grid">
-              <div className="wallet-merge__result-row">
-                <span>Ví đích</span>
-                <span>{tgtName}</span>
-              </div>
-              <div className="wallet-merge__result-row">
-                <span>Loại tiền sau gộp</span>
-                <span>{finalCurrency}</span>
-              </div>
-              <div className="wallet-merge__result-row">
-                <span>Số dư dự kiến</span>
-                <span>
-                  {formatConvertedBalance(finalBalance, finalCurrency)}
-                </span>
-              </div>
-              <div className="wallet-merge__result-row">
-                <span>Tổng giao dịch</span>
-                <span>{srcTxCount + tgtTxCount}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="wallet-merge__section-block wallet-merge__section-block--warning">
-            <div className="wallet-merge__section-title">Xác nhận</div>
-            <ul className="wallet-merge__list">
-              <li>Ví nguồn sẽ bị xoá sau khi gộp.</li>
-              <li>
-                Các giao dịch sẽ được chuyển sang ví đích theo loại tiền đã
-                chọn.
-              </li>
-              <li>Hành động này không thể hoàn tác.</li>
-            </ul>
-
-            <label className="wallet-merge__agree">
-              <input
-                type="checkbox"
-                checked={agree}
-                onChange={(e) => setAgree(e.target.checked)}
-              />
-              <span>Tôi đã đọc và đồng ý với điều khoản gộp ví.</span>
-            </label>
-          </div>
-
-          <div className="wallet-merge__actions">
-            <button
-              type="button"
-              className="wallets-btn wallets-btn--ghost"
-              onClick={() => setStep(4)}
-            >
-              Quay lại
-            </button>
-            <button
-              type="button"
-              className="wallets-btn wallets-btn--danger"
-              disabled={!agree}
-              onClick={handleConfirmMerge}
-            >
-              Xác nhận gộp ví
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderStep6Processing = () => (
-    <div className="wallets-section wallet-merge__panel">
-      <div className="wallet-merge__step-header">
-        <div className="wallet-merge__step-label">Xử lý và hoàn tất</div>
-        <div className="wallet-merge__step-pill">Hoàn thành</div>
-      </div>
-
-      <div className="wallet-merge__box">
-        {processing ? (
-          <div className="wallet-merge__processing">
-            <div className="wallet-merge__section-title">
-              Hệ thống đang gộp ví
-            </div>
-            <p className="wallet-merge__hint">
-              Đang chuyển số dư & giao dịch sang ví đích...
-            </p>
-            <div className="wallet-merge__progress-bar">
-              <div
-                className="wallet-merge__progress-fill"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="wallet-merge__progress-text">
-              {progress}% hoàn thành
-            </div>
-          </div>
-        ) : (
-          <div className="wallet-merge__success">
-            <div className="wallet-merge__section-title">
-              Đã gộp ví thành công
-            </div>
-            <p className="wallet-merge__hint">
-              Hệ thống đã cập nhật lại số dư & giao dịch theo thiết lập của
-              bạn.
-            </p>
-            <div className="wallet-merge__actions">
-              <button
-                type="button"
-                className="wallets-btn wallets-btn--primary"
-                onClick={() => setStep(2)}
-              >
-                Quay lại danh sách ví
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  if (step === 2) return renderStep2();
-  if (step === 3) return renderStep3DefaultHandling();
-  if (step === 4) return renderStep4Currency();
-  if (step === 5) return renderStep5Preview();
-  return renderStep6Processing();
-}
-
-function ConvertTab({
-  wallet,
-  allWallets = [],
-  onConvertToGroup,
-  onChangeSelectedWallet,
-}) {
-  const isDefault = !!wallet.isDefault;
-  const isShared = !!wallet.isShared;
-
-  const personalWallets = (allWallets || []).filter((w) => !w.isShared);
-  const candidateDefaults = personalWallets.filter((w) => w.id !== wallet.id);
-  const hasCandidate = candidateDefaults.length > 0;
-
-  const [defaultMode, setDefaultMode] = useState(
-    hasCandidate ? "chooseOther" : "noDefault"
-  );
-  const [newDefaultId, setNewDefaultId] = useState(
-    hasCandidate ? String(candidateDefaults[0].id) : ""
-  );
-
-  useEffect(() => {
-    const newCandidates = (allWallets || []).filter(
-      (w) => !w.isShared && w.id !== wallet.id
-    );
-    const hasCandidateNow = newCandidates.length > 0;
-
-    setDefaultMode(hasCandidateNow ? "chooseOther" : "noDefault");
-    setNewDefaultId(hasCandidateNow ? String(newCandidates[0].id) : "");
-  }, [wallet.id, allWallets]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    let options = null;
-
-    if (isDefault && !isShared) {
-      if (hasCandidate && defaultMode === "chooseOther" && newDefaultId) {
-        options = {
-          newDefaultWalletId: Number(newDefaultId),
-          noDefault: false,
-        };
-      } else {
-        options = {
-          newDefaultWalletId: null,
-          noDefault: true,
-        };
-      }
-    }
-
-    onConvertToGroup?.(e, options || null);
-
-    if (onChangeSelectedWallet) {
-      onChangeSelectedWallet(null);
-    }
-  };
-
-  const isSubmitDisabled =
-    wallet.isShared ||
-    (isDefault &&
-      !isShared &&
-      defaultMode === "chooseOther" &&
-      hasCandidate &&
-      !newDefaultId);
-
-  return (
-    <div className="wallets-section">
-      <div className="wallets-section__header">
-        <h3>Chuyển thành ví nhóm</h3>
-        <span>
-          Sau khi chuyển, ví này sẽ trở thành ví nhóm. Bạn có thể thêm thành
-          viên ở phần chia sẻ.
-        </span>
-      </div>
-
-      <form className="wallet-form" onSubmit={handleSubmit}>
-        <div className="wallet-form__row">
-          <label className="wallet-form__full">
-            <span className="wallet-detail-item__label">Tóm tắt ví</span>
-            <div className="wallet-detail-item" style={{ marginTop: 4 }}>
-              <div className="wallet-detail-item__value">
-                <strong>Tên ví:</strong> {wallet.name}
-              </div>
-              <div className="wallet-detail-item__value">
-                <strong>Trạng thái:</strong>{" "}
-                {wallet.isShared ? "Đã là ví nhóm" : "Hiện là ví cá nhân"}
-              </div>
-              {isDefault && !wallet.isShared && (
-                <div
-                  className="wallet-detail-item__value"
-                  style={{ marginTop: 4 }}
-                >
-                  <strong>Ghi chú:</strong> Ví này đang là ví mặc định.
-                </div>
-              )}
-            </div>
-          </label>
-        </div>
-
-        {isDefault && !wallet.isShared && (
-          <>
-            <div className="wallet-merge__section-block wallet-merge__section-block--warning">
-              <div className="wallet-merge__section-title">
-                Bạn đang chuyển một ví mặc định sang ví nhóm
-              </div>
-              <ul className="wallet-merge__list">
-                <li>
-                  <strong>{wallet.name}</strong> hiện đang là ví mặc định của hệ
-                  thống.
-                </li>
-                <li>
-                  Ví nhóm không được phép đặt làm ví mặc định, vì vậy cần chọn
-                  cách xử lý ví mặc định hiện tại.
-                </li>
-              </ul>
-            </div>
-
-            <div className="wallet-merge__section-block">
-              <div className="wallet-merge__section-title">
-                Chọn cách xử lý ví mặc định
-              </div>
-
-              {hasCandidate ? (
-                <div className="wallet-merge__options">
-                  <label className="wallet-merge__option">
-                    <input
-                      type="radio"
-                      name="defaultBehavior"
-                      value="chooseOther"
-                      checked={defaultMode === "chooseOther"}
-                      onChange={() => setDefaultMode("chooseOther")}
-                    />
-                    <div>
-                      <div className="wallet-merge__option-title">
-                        Chọn một ví cá nhân khác làm ví mặc định mới
-                      </div>
-                      <div className="wallet-merge__option-desc">
-                        Sau khi chuyển sang ví nhóm, ví được chọn dưới đây sẽ trở
-                        thành ví mặc định.
-                      </div>
-                      <div style={{ marginTop: 6 }}>
-                        <select
-                          value={newDefaultId}
-                          disabled={defaultMode !== "chooseOther"}
-                          onChange={(e) => setNewDefaultId(e.target.value)}
-                        >
-                          {candidateDefaults.map((w) => (
-                            <option key={w.id} value={w.id}>
-                              {w.name || "Ví cá nhân khác"}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </label>
-
-                  <label className="wallet-merge__option">
-                    <input
-                      type="radio"
-                      name="defaultBehavior"
-                      value="noDefault"
-                      checked={defaultMode === "noDefault"}
-                      onChange={() => setDefaultMode("noDefault")}
-                    />
-                    <div>
-                      <div className="wallet-merge__option-title">
-                        Tạm thời không có ví mặc định
-                      </div>
-                      <div className="wallet-merge__option-desc">
-                        Hệ thống sẽ tạm thời không có ví mặc định. Bạn có thể
-                        đặt lại ví mặc định sau trong phần quản lý ví.
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              ) : (
-                <div className="wallet-merge__section-block">
-                  <p className="wallet-merge__hint">
-                    Hiện tại bạn không có ví cá nhân nào khác. Sau khi chuyển
-                    ví này thành ví nhóm, hệ thống sẽ tạm thời không có ví mặc
-                    định. Bạn có thể tạo ví cá nhân mới và đặt làm mặc định sau.
-                  </p>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        <div className="wallet-form__footer wallet-form__footer--right">
-          <button
-            type="submit"
-            className="wallets-btn wallets-btn--primary"
-            disabled={isSubmitDisabled}
-          >
-            {wallet.isShared ? "Đã là ví nhóm" : "Chuyển sang ví nhóm"}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-

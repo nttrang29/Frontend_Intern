@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 // 1. ✅ IMPORT HÀM getProfile TỪ SERVICE CỦA BẠN
 // (Hãy đảm bảo đường dẫn này chính xác, ví dụ: ../../services/profile.service)
 import { getProfile } from "../../services/profile.service";
+import { normalizeUserProfile } from "../../utils/userProfile";
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
@@ -42,7 +43,8 @@ export default function OAuthCallback() {
 
         // 5. ✅ SỬA LỖI: Lưu user object MỚI vào localStorage
         // (HomeTopbar sẽ đọc được cái này)
-        localStorage.setItem("user", JSON.stringify(data.user));
+        const normalizedUser = normalizeUserProfile(data.user) || data.user;
+        localStorage.setItem("user", JSON.stringify(normalizedUser));
 
         // 6. Bắn tín hiệu cho HomeTopbar cập nhật ngay lập tức
         window.dispatchEvent(new CustomEvent('storageUpdated'));

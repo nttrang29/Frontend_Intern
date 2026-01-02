@@ -1,0 +1,1016 @@
+/* ===============================
+   TRANG DANH MỤC – PAGE WRAPPER
+================================= */
+
+.category-page,
+.cat-page {
+  padding: 18px 24px 32px;
+  background: linear-gradient(180deg, #f3f6fb 0%, #ffffff 55%);
+  min-height: 100vh;
+}
+
+/* Nếu có dùng .container trong JSX, kéo full width luôn */
+.category-page.container,
+.cat-page.container {
+  max-width: 100%;
+}
+
+/* ===============================
+   HEADER
+================================= */
+
+.cat-header {
+  border-radius: var(--funds-radius-lg);
+  box-shadow: var(--funds-shadow-soft);
+}
+
+/* Icon header mặc định */
+.cat-header-icon-wrap {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cat-header-icon {
+  font-size: 1.9rem;
+  color: #ffffff;
+}
+
+/* Toggle Chi phí / Thu nhập – dùng tone funds */
+.category-type-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.cat-toggle-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 18px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cat-toggle-btn.active {
+  background: #ffffff;
+  color: var(--funds-accent);
+  box-shadow: 0 6px 14px rgba(45, 153, 174, 0.28);
+}
+
+/* ===============================
+   CARD WRAPPER
+================================= */
+
+.cat-table-card {
+  border-radius: var(--funds-radius-lg);
+  background: #ffffff;
+  border: 1px solid var(--funds-border);
+  box-shadow: var(--funds-shadow-subtle);
+}
+
+/* Larger search card variant used on Activity History page */
+.cat-table-card.search-card {
+  padding: 6px; /* small outer padding to separate from page */
+}
+
+.cat-table-card.search-card .card-body {
+  padding: 14px 20px; /* larger internal padding for search controls */
+  min-height: 66px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a; /* slightly dark */
+  margin-bottom: 6px;
+}
+
+/* bên trong body */
+.category-cards-wrapper {
+  padding: 4px 4px 0;
+}
+
+/* =========================================
+   CATEGORY CARD – phiên bản đậm, ít loá
+   Tone trắng / đen / #2D99AE
+========================================= */
+.category-card {
+  background: #ffffff;
+  border-radius: var(--funds-radius-md);
+
+  /* Đậm hơn – ít loá */
+  border: 1px solid rgba(45, 153, 174, 0.45);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.category-card:hover {
+  transform: translateY(-3px);
+  border-color: #2d99ae;
+  box-shadow: 0 10px 22px rgba(45, 153, 174, 0.25);
+}
+
+.category-card .card-body {
+  padding: 14px 16px 12px;
+}
+
+
+/* Hàng index + badge trên cùng */
+.cat-index-badge {
+  font-size: 0.75rem;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  border: 1px solid rgba(45, 153, 174, 0.45);
+  color: #2d99ae;
+  font-weight: 600;
+}
+
+
+/* soft badge sync funds tone */
+.bg-soft-info {
+  background-color: rgba(45, 153, 174, 0.12) !important;
+  color: var(--funds-accent) !important;
+}
+
+.bg-soft-danger {
+  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+
+.bg-soft-success {
+  background-color: #dcfce7 !important;
+  color: #15803d !important;
+}
+
+/* ===== ICON TRONG CARD ===== */
+.category-card-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(45, 153, 174, 0.1);
+  font-size: 1.3rem;
+  color: #2d99ae;
+  flex-shrink: 0;
+}
+
+/* ===== TIÊU ĐỀ CÓ NỀN BỌC NHƯ ELEMENT ===== */
+.category-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+
+  background: rgba(45, 153, 174, 0.15);
+  color: #2d99ae;
+
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+.category-card-title::before {
+  content: "🏷";
+  font-size: 0.95rem;
+}
+
+/* icon nhỏ trước tiêu đề */
+.category-card-title::before {
+  content: "🏷";
+  font-size: 0.9rem;
+}
+
+/* mô tả */
+.category-card-desc {
+  font-size: 0.9rem;
+  color: #374151; /* xám đậm hơn */
+  max-height: 3.2em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* line meta dưới cùng */
+.category-card .border-top {
+  border-top-color: rgba(148, 163, 184, 0.3) !important;
+}
+
+/* Nút Sửa / Xóa */
+.category-action-btn {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--funds-text-muted);
+  transition: color 0.18s ease;
+}
+
+.category-action-btn i {
+  vertical-align: -1px;
+}
+
+.category-action-btn:hover {
+  color: var(--funds-accent);
+}
+
+.category-action-btn.text-danger:hover {
+  color: #dc2626 !important;
+}
+
+/* Empty state */
+.category-empty {
+  font-size: 0.9rem;
+}
+
+/* ===============================
+   SEARCH & FILTER – FULL
+================================= */
+
+/* hàng chứa input + nút tìm kiếm + sắp xếp */
+.category-search-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+}
+
+/* bọc input để đặt nút X + dropdown */
+.category-search-select {
+  position: relative;
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+/* ô input */
+.category-search-select .form-control {
+  border-radius: 999px;
+  padding-inline: 16px 34px; /* chừa chỗ nút X bên phải */
+  border-color: var(--funds-border);
+  font-size: 0.9rem;
+}
+
+.category-search-select .form-control:focus {
+  border-color: var(--funds-accent);
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.35);
+}
+
+/* Date input styling inside search area to match pill-shaped look */
+.category-search-inline input[type="date"],
+.category-search-inline .form-control.date-input {
+  border-radius: 999px;
+  padding: 6px 12px;
+  border: 1px solid var(--funds-border);
+  height: 36px;
+  font-size: 0.9rem;
+  background-color: #ffffff;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.category-search-inline input[type="date"]:focus,
+.category-search-inline .form-control.date-input:focus {
+  border-color: var(--funds-accent);
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.18);
+}
+
+/* Tweak spacing for the search actions area */
+.category-search-actions {
+  gap: 8px 12px;
+}
+
+/* nút X trong ô tìm kiếm */
+.category-search-clear-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--funds-text-muted);
+  font-size: 0.8rem;
+}
+
+.category-search-clear-btn:hover {
+  color: #dc2626;
+}
+
+/* menu dropdown */
+.category-search-select .searchable-select-menu {
+  margin-top: 4px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.15);
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.category-search-select .searchable-option {
+  width: 100%;
+  text-align: left;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  color: #111827;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.category-search-select .searchable-option:hover {
+  background: #f3f4f6;
+}
+
+.category-search-select .searchable-option.active {
+  background: rgba(45, 153, 174, 0.12);
+  color: var(--funds-accent);
+  font-weight: 600;
+}
+
+/* khối bên phải: nút tìm kiếm + sắp xếp */
+.category-search-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+}
+
+/* nút Tìm kiếm – đồng bộ màu funds */
+.category-search-submit {
+  padding: 6px 18px !important;
+  font-size: 0.88rem !important;
+  font-weight: 500 !important;
+
+  border-radius: 999px !important;
+  border: 1px solid #2d99ae !important;
+  color: #ffffff !important;
+  background-color: #2d99ae !important;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+
+  box-shadow: 0 4px 10px rgba(45, 153, 174, 0.25) !important;
+  transition: background-color 0.18s ease, color 0.18s ease,
+    box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.category-search-submit:hover {
+  background-color: #23879a !important;
+  border-color: #23879a !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 14px rgba(45, 153, 174, 0.32) !important;
+}
+
+.category-search-submit:active {
+  transform: translateY(0px) !important;
+  box-shadow: 0 3px 8px rgba(45, 153, 174, 0.22) !important;
+}
+
+/* sắp xếp */
+.category-sort {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--funds-text-muted);
+}
+
+/* ===== Activity / Results Table Styling ===== */
+.cat-table-card .table {
+  margin-bottom: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.cat-table-card .table thead th {
+  padding: 12px 18px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--funds-border);
+  background: transparent;
+  font-weight: 700;
+  color: #0f172a;
+}
+.cat-table-card .table tbody td {
+  padding: 12px 18px;
+  vertical-align: middle;
+  border-top: 1px solid rgba(15, 23, 42, 0.04);
+  color: #111827;
+}
+.cat-table-card .table tbody tr:hover td {
+  background: rgba(45,153,174,0.03);
+}
+.cat-table-card .table td.text-muted {
+  color: var(--funds-text-muted);
+}
+.cat-table-card .table td.fw-medium {
+  font-weight: 600;
+}
+.cat-table-card .table td { white-space: nowrap; }
+.cat-table-card .table td[max-width], .cat-table-card .table td[style] { white-space: normal; }
+.cat-table-card .table td:nth-child(4) { max-width: 520px; word-wrap: break-word; }
+
+.activity-highlight {
+  color: #d93025;
+  font-weight: 600;
+}
+
+/* Make the card body a bit more airy */
+.cat-table-card .card-body { padding: 12px 14px; }
+
+
+.category-sort select {
+  min-width: 190px;
+  border-radius: 999px;
+  border: 1px solid var(--funds-border);
+  padding: 6px 26px 6px 12px;
+  font-size: 0.85rem;
+  background-color: #ffffff;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2394a3b8' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+}
+
+.category-sort select:focus {
+  border-color: var(--funds-accent);
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.25);
+}
+
+/* ===============================
+   PAGINATION – ĐỒNG MÀU FUNDS
+================================= */
+
+.category-pagination-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+}
+
+.category-pagination-bar > span {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 500;
+  padding-left: 2px;
+}
+
+.category-pagination {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-left: 2px;
+}
+
+.category-pagination .page-arrow,
+.category-pagination .page-number {
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  padding: 0;
+}
+
+.category-pagination .page-arrow:hover:not(:disabled),
+.category-pagination .page-number:hover:not(.active) {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.category-pagination .page-arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f9fafb;
+}
+
+.category-pagination .page-number.active {
+  background: #2d99ae;
+  color: #ffffff;
+  border-color: #2d99ae;
+  box-shadow: 0 2px 8px rgba(45, 153, 174, 0.25);
+}
+
+.category-pagination .page-ellipsis {
+  padding: 0 4px;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+/* ===== NÚT THÊM DANH MỤC – STYLE GIỐNG "Tạo quỹ" ===== */
+.cat-page .category-add-header-btn {
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-size: 0.9rem;
+  font-weight: 500;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  border: 1px solid #2d99ae;
+  color: #2d99ae;
+  background-color: #ffffff;
+  box-shadow: 0 4px 10px rgba(45, 153, 174, 0.15);
+  transition: background-color 0.18s ease-out,
+    color 0.18s ease-out,
+    box-shadow 0.18s ease-out,
+    transform 0.18s ease-out;
+}
+
+.cat-page .category-add-header-btn i {
+  font-size: 1rem;
+}
+
+.cat-page .category-add-header-btn:hover {
+  background-color: #2d99ae;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(45, 153, 174, 0.25);
+  transform: translateY(-1px);
+}
+
+/* THU NHỎ HEADER */
+.category-header-funds {
+  padding: 12px 20px !important;
+  border-radius: 14px !important;
+  background: linear-gradient(90deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 60%, rgb(10, 181, 192) 100%) !important;
+}
+
+.category-header-funds .card-body {
+  background: transparent !important;
+}
+
+/* ICON đồng bộ với các header khác */
+.category-header-funds .cat-header-icon-wrap {
+  width: 54px;
+  height: 54px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.category-header-funds .cat-header-icon {
+  font-size: 1.9rem;
+  color: #ffffff !important;
+}
+
+/* TITLE */
+.category-header-funds h2 {
+  font-size: 1.35rem;
+  margin-bottom: 2px;
+  color: #ffffff !important;
+}
+
+.dark .category-header-funds h2 {
+  color: #ffffff !important;
+}
+
+/* DESCRIPTION */
+.category-header-funds p {
+  font-size: 0.88rem;
+  color: #ffffff !important;
+  opacity: 0.9;
+}
+
+.dark .category-header-funds p {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* ==========================
+   TOGGLE "Chi phí / Thu nhập"
+========================== */
+.category-type-toggle,
+.btn-group.bg-white.p-1 {
+  padding: 2px 4px !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+}
+
+.btn-group.bg-white.p-1 button {
+  padding: 4px 12px !important;
+  font-size: 0.85rem !important;
+  border-radius: 999px !important;
+  color: #ffffff !important;
+}
+
+.category-header-funds .funds-tabs {
+  background: transparent !important;
+}
+
+.category-header-funds .funds-tab {
+  color: #ffffff !important;
+}
+
+.category-header-funds .funds-tab--active {
+  background: #ffffff !important;
+  color: var(--funds-accent) !important;
+}
+
+/* ==========================
+   NÚT "Thêm danh mục" (override nhỏ)
+========================== */
+.category-add-header-btn {
+  padding: 5px 14px !important;
+  font-size: 0.85rem !important;
+  border-radius: 999px !important;
+  height: 34px !important;
+  display: inline-flex;
+  align-items: center;
+}
+.category-add-header-btn i {
+  font-size: 0.9rem !important;
+}
+
+/* ICON WRAPPER – đồng bộ với các header khác */
+.category-header-funds .cat-header-icon-wrap {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ICON – đồng bộ với các header khác */
+.category-header-funds .cat-header-icon {
+  font-size: 1.9rem;
+  color: #ffffff !important;
+}
+/* ======================================================
+   CATEGORY CARD – VIỀN ĐEN MỎNG & NHẸ, KHÔNG GÂY NỔI BẬT
+====================================================== */
+
+/* Viền đen mỏng cho tất cả thẻ danh mục */
+.category-card {
+  border: 1.2px solid rgba(0, 0, 0, 0.22) !important; /* đen nhạt */
+  box-shadow: none !important;                        /* bỏ bóng cũ */
+  border-radius: 14px !important;                     /* bo góc */
+  background-clip: padding-box !important;
+}
+
+/* Khi hover làm đậm hơn một chút */
+.category-card:hover {
+  border-color: rgba(0, 0, 0, 0.32) !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12) !important; /* nhẹ */
+  transform: translateY(-2px);
+}
+
+/* Loại bỏ border đen trùng lặp ở wrapper */
+.category-cards-wrapper .col-12,
+.category-cards-wrapper .col-md-6,
+.category-cards-wrapper .col-lg-4 {
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* Đảm bảo card Bootstrap không override */
+.card.category-card {
+  border: 1.2px solid rgba(0,0,0,0.22) !important;
+}
+
+/* =========================================================
+   ANIMATIONS & EFFECTS - Giống Dashboard
+   ========================================================= */
+
+/* Page fade in */
+.category-page,
+.cat-page {
+  animation: pageFadeIn 0.5s ease-out;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Header slide down */
+.cat-header,
+.category-header-funds {
+  animation: headerSlideDown 0.6s ease-out;
+}
+
+@keyframes headerSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header icon pulse */
+.cat-header-icon,
+.category-header-funds .cat-header-icon {
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+.cat-header:hover .cat-header-icon,
+.category-header-funds:hover .cat-header-icon {
+  animation: iconRotate 0.8s ease-out;
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes iconRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Category cards fade in với stagger */
+.category-card {
+  animation: cardFadeIn 0.6s ease-out backwards;
+  transition: all 0.3s ease;
+}
+
+.category-card:nth-child(1) { animation-delay: 0.1s; }
+.category-card:nth-child(2) { animation-delay: 0.15s; }
+.category-card:nth-child(3) { animation-delay: 0.2s; }
+.category-card:nth-child(4) { animation-delay: 0.25s; }
+.category-card:nth-child(5) { animation-delay: 0.3s; }
+.category-card:nth-child(6) { animation-delay: 0.35s; }
+.category-card:nth-child(7) { animation-delay: 0.4s; }
+.category-card:nth-child(8) { animation-delay: 0.45s; }
+.category-card:nth-child(9) { animation-delay: 0.5s; }
+.category-card:nth-child(10) { animation-delay: 0.55s; }
+.category-card:nth-child(11) { animation-delay: 0.6s; }
+.category-card:nth-child(12) { animation-delay: 0.65s; }
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced hover effect */
+.category-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+  border-color: rgba(45, 153, 174, 0.4) !important;
+}
+
+/* Category card icon animation */
+.category-card-icon {
+  transition: all 0.3s ease;
+}
+
+.category-card:hover .category-card-icon {
+  transform: scale(1.15) rotate(5deg);
+  color: var(--color-primary);
+}
+
+/* Grid fade in */
+.category-cards-wrapper {
+  animation: gridFadeIn 0.8s ease-out;
+}
+
+@keyframes gridFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Button ripple effect */
+.category-add-header-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.category-add-header-btn::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.3);
+  width: 100px;
+  height: 100px;
+  margin-top: -50px;
+  margin-left: -50px;
+  opacity: 0;
+  transform: scale(0);
+  transition: transform 0.5s, opacity 0.5s;
+}
+
+.category-add-header-btn:hover::after {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Toggle button animation */
+.cat-toggle-btn {
+  transition: all 0.3s ease;
+}
+
+.cat-toggle-btn:hover {
+  transform: scale(1.05);
+}
+
+.cat-toggle-btn.active {
+  animation: buttonActive 0.3s ease-out;
+}
+
+@keyframes buttonActive {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Card title animation */
+.category-card-title {
+  transition: all 0.3s ease;
+}
+
+.category-card:hover .category-card-title {
+  color: var(--color-primary);
+  transform: translateX(4px);
+}
+
+/* Card amount animation */
+.category-card-amount {
+  transition: all 0.3s ease;
+}
+
+.category-card:hover .category-card-amount {
+  transform: scale(1.05);
+  color: var(--color-primary);
+}
+
+/* Smooth transitions for all interactive elements */
+.category-card-actions button {
+  transition: all 0.2s ease;
+}
+
+.category-card-actions button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(45, 153, 174, 0.25);
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+/* Tablet */
+@media (max-width: 992px) {
+  .category-page,
+  .cat-page {
+    padding: 16px 18px 24px;
+  }
+
+  .cat-header {
+    padding: 16px 20px !important;
+  }
+
+  .category-cards-wrapper {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .category-page,
+  .cat-page {
+    padding: 12px 16px 20px;
+  }
+
+  .cat-header {
+    padding: 14px 18px !important;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .cat-header-left {
+    width: 100%;
+  }
+
+  .category-add-header-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .category-cards-wrapper {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .category-card {
+    padding: 12px 14px !important;
+  }
+
+  .category-card-title {
+    font-size: 0.9rem;
+  }
+
+  .category-card-amount {
+    font-size: 1.1rem;
+  }
+
+  .category-type-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 576px) {
+  .category-page,
+  .cat-page {
+    padding: 10px 12px 16px;
+  }
+
+  .cat-header {
+    padding: 12px 16px !important;
+  }
+
+  .cat-header-icon-wrap {
+    width: 48px;
+    height: 48px;
+  }
+
+  .cat-header-icon {
+    font-size: 1.7rem;
+  }
+
+  .wallets-page__title {
+    font-size: 1.2rem;
+  }
+
+  .wallets-page__subtitle {
+    font-size: 0.85rem;
+  }
+
+  .category-card {
+    padding: 10px 12px !important;
+  }
+
+  .category-card-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+}

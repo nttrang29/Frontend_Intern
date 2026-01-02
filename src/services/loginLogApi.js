@@ -10,6 +10,7 @@ const API_BASE_URL = "http://localhost:8080";
 // Tạo axios instance với cấu hình mặc định
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 60000, // 60 giây timeout
   headers: {
     "Content-Type": "application/json",
   },
@@ -25,6 +26,26 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Interceptor để xử lý response errors (bao gồm timeout)
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Xử lý timeout errors
+    if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
+      console.warn("Request timeout:", error.config?.url);
+      return Promise.reject({
+        ...error,
+        response: {
+          status: 408,
+          statusText: "Request Timeout",
+          data: { error: "Yêu cầu quá thời gian chờ. Vui lòng thử lại." },
+        },
+      });
+    }
     return Promise.reject(error);
   }
 );
@@ -45,11 +66,23 @@ const handleAxiosResponse = (axiosResponse) => {
 
 /**
  * User tự xem lịch sử đăng nhập của chính mình
- * GET /me/login-logs
+ * GET /me/login-logs?page=0&size=10
  */
-export const getMyLoginLogs = async () => {
+export const getMyLoginLogs = async (params = {}) => {
+  const {
+    page = 0,
+    size = 10,
+    limit,
+  } = params;
+
   try {
-    const response = await apiClient.get("/me/login-logs");
+    const response = await apiClient.get("/me/login-logs", {
+      params: {
+        page,
+        size,
+        limit: typeof limit === "number" ? limit : size,
+      },
+    });
     return handleAxiosResponse(response);
   } catch (error) {
     if (error.response) {

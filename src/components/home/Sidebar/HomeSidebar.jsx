@@ -1,68 +1,109 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import "../../../styles/home/Sidebar.css";
-import { useAuth, ROLES } from "../../../home/store/AuthContext";
+import "../../../styles/pages/Sidebar.css";
+import { useAuth, ROLES } from "../../../contexts/AuthContext";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
+// Use translation keys; labels resolved at render time
 const BASE_MENU = [
-  { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
-  { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" },
-  { to: "/home/funds", label: "Quỹ", icon: "bi-piggy-bank" },
-  { to: "/home/transactions", label: "Giao dịch", icon: "bi-cash-stack" },
-  { to: "/home/categories", label: "Danh mục", icon: "bi-tags" },
-  { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
-  { to: "/home/reports", label: "Báo cáo", icon: "bi-bar-chart-line" },
+  { to: "/home", labelKey: "sidebar.overview", icon: "bi-speedometer2", end: true },
+  { to: "/home/wallets", labelKey: "sidebar.wallets", icon: "bi-wallet2" },
+  { to: "/home/funds", labelKey: "sidebar.funds", icon: "bi-piggy-bank" },
+  { to: "/home/categories", labelKey: "sidebar.categories", icon: "bi-tags" },
+  { to: "/home/transactions", labelKey: "sidebar.transactions", icon: "bi-cash-stack" },
+  { to: "/home/budgets", labelKey: "sidebar.budgets", icon: "bi-graph-up-arrow" },
+  { to: "/home/activity", labelKey: "sidebar.activity", icon: "bi-clock-history" },
+  { to: "/home/reports", labelKey: "sidebar.reports", icon: "bi-bar-chart-line" },
 ];
 
 export default function HomeSidebar() {
   const [collapsed, setCollapsed] = useState(
     localStorage.getItem("sb_collapsed") === "1"
   );
+  const [isHovered, setIsHovered] = useState(false);
   const { currentUser } = useAuth();
+  const { t } = useLanguage();
 
-  // =============================
-  // Build menu - thêm menu admin nếu user là ADMIN
-  // =============================
-  const MENU = [...BASE_MENU];
-  
-  // Debug: log để kiểm tra role
-  useEffect(() => {
-    console.log("HomeSidebar - currentUser:", currentUser);
-    console.log("HomeSidebar - currentUser?.role:", currentUser?.role);
-    console.log("HomeSidebar - ROLES.ADMIN:", ROLES.ADMIN);
-    console.log("HomeSidebar - Is admin?", currentUser?.role === ROLES.ADMIN || (currentUser?.role && currentUser.role.toUpperCase() === "ADMIN"));
-  }, [currentUser]);
-  
-  // Kiểm tra role ADMIN (hỗ trợ cả "ADMIN" và "ROLE_ADMIN")
-  const isAdmin = currentUser?.role && (
-    currentUser.role === ROLES.ADMIN ||
-    currentUser.role.toUpperCase() === "ADMIN" ||
-    currentUser.role.toUpperCase().includes("ADMIN")
-  );
-  
-  if (isAdmin) {
-    MENU.push(
-      {
-        to: "/admin/users",
-        label: "Quản lý người dùng",
-        icon: "bi-people-fill",
-      }
-    );
-  }
+  const isAdmin =
+    !!currentUser?.role &&
+    (currentUser.role === ROLES.ADMIN ||
+      String(currentUser.role).toUpperCase() === "ADMIN" ||
+      String(currentUser.role).toUpperCase().includes("ADMIN"));
+
+  const MENU = useMemo(() => {
+    const base = [...BASE_MENU];
+    if (isAdmin) {
+      base.push(
+        {
+          to: "/admin/users",
+          labelKey: "sidebar.user_management",
+          icon: "bi-people-fill",
+        },
+        {
+          to: "/admin/reviews",
+          labelKey: "sidebar.feedback",
+          icon: "bi-chat-dots",
+        }
+      );
+    }
+    return base;
+  }, [isAdmin]);
 
   useEffect(() => {
     document.body.classList.toggle("sb-collapsed", collapsed);
     localStorage.setItem("sb_collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
 
+  useEffect(() => {
+    const sidebarEl = document.getElementById("home-sidebar");
+    if (!sidebarEl) {
+      // Retry after a short delay if element not found
+      const timer = setTimeout(() => {
+        const retryEl = document.getElementById("home-sidebar");
+        if (retryEl && collapsed) {
+          retryEl.addEventListener("mouseenter", () => {
+            document.body.classList.add("sb-hover-expand");
+          });
+          retryEl.addEventListener("mouseleave", () => {
+            document.body.classList.remove("sb-hover-expand");
+          });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+
+    const handleMouseEnter = () => {
+      if (collapsed) {
+        console.log("Adding sb-hover-expand class");
+        document.body.classList.add("sb-hover-expand");
+        console.log("Body classes:", document.body.className);
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (collapsed) {
+        console.log("Removing sb-hover-expand class");
+        document.body.classList.remove("sb-hover-expand");
+      }
+    };
+
+    sidebarEl.addEventListener("mouseenter", handleMouseEnter);
+    sidebarEl.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      sidebarEl.removeEventListener("mouseenter", handleMouseEnter);
+      sidebarEl.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, [collapsed]);
+
   return (
-    <div className={`sb__container ${collapsed ? "is-collapsed" : ""}`}>
-      {/* ============================
-          BRAND / LOGO VIDEO
-         ============================ */}
+    <div 
+      className={`sb__container ${collapsed ? "is-collapsed" : ""}`}
+    >
       <div className="sb__brand">
         <video
           className="sb__brand-video"
-          src="/videos/logo.mp4" // đổi đường dẫn video của bạn ở đây
+          src="/videos/logo.mp4"
           autoPlay
           loop
           muted
@@ -70,32 +111,25 @@ export default function HomeSidebar() {
         />
 
         <div className="sb__brand-text">
-          <div className="sb__brand-title">HỆ THỐNG QUẢN LÝ</div>
-          <div className="sb__brand-sub">Quản lý ví cá nhân</div>
+          <div className="sb__brand-title">{t("sidebar.brand.title")}</div>
+          <div className="sb__brand-sub">{t("sidebar.brand.subtitle")}</div>
         </div>
       </div>
 
-      {/* ============================
-          HEADER BUTTON (MENU)
-         ============================ */}
       <button
         type="button"
         className="sb__link sb__link--header"
         onClick={() => setCollapsed((v) => !v)}
         aria-label="Thu gọn / Mở rộng Sidebar"
-        data-title={collapsed ? "Mở rộng" : undefined}
       >
         <span className="sb__icon" aria-hidden="true">
           <i className="bi bi-list" />
         </span>
-        <span className="sb__text sb__menu-title">Menu</span>
+        <span className="sb__text sb__menu-title">{t("sidebar.menu")}</span>
       </button>
 
       <div className="sb__divider" />
 
-      {/* ============================
-          NAVIGATION
-         ============================ */}
       <nav className="sb__nav sb__scroll" aria-label="Sidebar">
         {MENU.map((m) => (
           <NavLink
@@ -105,19 +139,16 @@ export default function HomeSidebar() {
             className={({ isActive }) =>
               "sb__link" + (isActive ? " is-active" : "")
             }
-            // dùng data-title để tooltip CSS, tránh title mặc định
-            data-title={collapsed ? m.label : undefined}
-            aria-label={collapsed ? m.label : undefined}
+            aria-label={collapsed ? (m.labelKey ? t(m.labelKey) : m.label) : undefined}
           >
             <span className="sb__icon" aria-hidden="true">
               <i className={`bi ${m.icon}`} />
             </span>
-            <span className="sb__text">{m.label}</span>
+            <span className="sb__text">{m.labelKey ? t(m.labelKey) : m.label}</span>
           </NavLink>
         ))}
       </nav>
 
-      {/* Footer (đệm dưới) */}
       <div className="sb__footer" />
     </div>
   );

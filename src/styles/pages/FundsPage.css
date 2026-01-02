@@ -1,0 +1,1483 @@
+/* =========================================================
+   1) TOKENS
+========================================================= */
+:root {
+  --funds-accent: #2d99ae;
+  --funds-accent-soft: rgba(45, 153, 174, 0.08);
+  --funds-accent-strong: rgba(45, 153, 174, 0.16);
+  --funds-text: #111827;
+  --funds-text-muted: #6b7280;
+  --funds-border: #e5e7eb;
+  --funds-bg-card: #ffffff;
+  --funds-radius-lg: 18px;
+  --funds-radius-md: 12px;
+  --funds-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --funds-shadow-subtle: 0 8px 18px rgba(15, 23, 42, 0.08);
+  --funds-transition-fast: 0.18s ease-out;
+  --funds-transition: 0.25s ease;
+}
+
+/* =========================================================
+   2) PAGE + HEADER
+========================================================= */
+
+/* Page wrapper - đồng bộ với các trang khác */
+.tx-page {
+  padding-top: 24px;
+  padding-bottom: 32px;
+  background: transparent;
+}
+
+.tx-page-inner {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.funds-page {
+  color: var(--funds-text);
+}
+
+.funds-header {
+  background: linear-gradient(
+    120deg,
+    rgba(45, 153, 174, 0.06),
+    rgba(255, 255, 255, 0.98)
+  );
+  border-radius: var(--funds-radius-lg);
+  border: 1px solid rgba(45, 153, 174, 0.22);
+  box-shadow: var(--funds-shadow-soft);
+}
+
+.funds-header h3 {
+  font-weight: 600;
+  color: var(--funds-text);
+}
+
+.funds-header p {
+  color: var(--funds-text-muted);
+}
+
+.funds-header-unique .funds-header-text p.text-muted,
+.funds-header-unique p.text-muted {
+  color: #ffffff !important;
+  opacity: 0.9;
+}
+
+/* =========================================================
+   3) FIELDSET / FORM LAYOUT
+========================================================= */
+.funds-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
+  gap: 18px;
+}
+
+@media (max-width: 992px) {
+  .funds-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.funds-fieldset {
+  background: var(--funds-bg-card);
+  border-radius: var(--funds-radius-lg);
+  border: 1px solid var(--funds-border);
+  padding: 16px 18px 18px;
+  box-shadow: var(--funds-shadow-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+.funds-fieldset--full {
+  grid-column: 1 / -1;
+}
+
+.funds-fieldset__legend {
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--funds-text-muted);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.funds-field {
+  margin-bottom: 12px;
+}
+
+.funds-field:last-child {
+  margin-bottom: 0;
+}
+
+.funds-field label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--funds-text);
+  margin-bottom: 4px;
+  display: inline-block;
+}
+
+.funds-field input,
+.funds-field select,
+.funds-field textarea {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--funds-border);
+  padding: 8px 10px;
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color var(--funds-transition-fast),
+    box-shadow var(--funds-transition-fast),
+    background-color var(--funds-transition-fast);
+}
+
+.funds-field input:focus,
+.funds-field select:focus,
+.funds-field textarea:focus {
+  border-color: var(--funds-accent);
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.35);
+  background-color: #ffffff;
+}
+
+.funds-field textarea {
+  resize: vertical;
+}
+
+.funds-field input[disabled],
+.funds-field textarea[disabled] {
+  background: #f9fafb;
+  color: var(--funds-text-muted);
+}
+
+/* Hai ô trên cùng một hàng */
+.funds-field--inline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .funds-field--inline {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* HINT / ERROR */
+.funds-hint {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--funds-text-muted);
+}
+
+.funds-hint--strong {
+  margin-top: 6px;
+  font-weight: 500;
+  color: var(--funds-accent);
+}
+
+.funds-error {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #dc2626;
+}
+
+.req {
+  color: #dc2626;
+}
+
+/* =========================================================
+   4) TABS
+========================================================= */
+.funds-tabs {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(45, 153, 174, 0.06);
+}
+
+.funds-tab {
+  border: none;
+  background: transparent;
+  padding: 6px 16px;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  color: var(--funds-text-muted);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--funds-transition-fast),
+    color var(--funds-transition-fast),
+    box-shadow var(--funds-transition-fast);
+}
+
+.funds-tab--active {
+  background: #ffffff;
+  color: var(--funds-accent);
+  box-shadow: 0 4px 12px rgba(45, 153, 174, 0.25);
+}
+
+/* =========================================================
+   5) SWITCH & PILL TOGGLE
+========================================================= */
+.funds-toggle-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.funds-toggle-line span {
+  color: var(--funds-text);
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch__slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #d1d5db;
+  border-radius: 999px;
+  transition: background-color var(--funds-transition-fast);
+}
+
+.switch__slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  border-radius: 999px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+  transition: transform var(--funds-transition-fast);
+}
+
+.switch input:checked + .switch__slider {
+  background-color: var(--funds-accent);
+}
+
+.switch input:checked + .switch__slider::before {
+  transform: translateX(20px);
+}
+
+/* Pill toggle */
+.funds-reminder-mode {
+  display: inline-flex;
+  gap: 6px;
+  margin: 6px 0 10px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(45, 153, 174, 0.05);
+}
+
+.funds-pill-toggle {
+  border: none;
+  background: transparent;
+  padding: 5px 14px;
+  font-size: 0.86rem;
+  border-radius: 999px;
+  color: var(--funds-text-muted);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--funds-transition-fast),
+    color var(--funds-transition-fast),
+    box-shadow var(--funds-transition-fast);
+}
+
+.funds-pill-toggle--active {
+  background: #ffffff;
+  color: var(--funds-accent);
+  box-shadow: 0 4px 10px rgba(45, 153, 174, 0.25);
+}
+
+.funds-pill-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   6) WALLET SOURCE
+========================================================= */
+.wallet-source {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wallet-source__list {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+}
+
+.wallet-source__list::-webkit-scrollbar {
+  height: 6px;
+}
+.wallet-source__list::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
+}
+.wallet-source__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wallet-source__item {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  padding: 4px 10px;
+  background: #ffffff;
+  font-size: 0.84rem;
+  color: var(--funds-text);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--funds-transition-fast),
+    color var(--funds-transition-fast),
+    border-color var(--funds-transition-fast),
+    transform var(--funds-transition-fast),
+    box-shadow var(--funds-transition-fast);
+}
+
+.wallet-source__item:hover {
+  border-color: var(--funds-accent);
+  background: rgba(45, 153, 174, 0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.18);
+}
+
+.wallet-source__item.is-active {
+  background: var(--funds-accent);
+  color: #ffffff;
+  border-color: var(--funds-accent);
+  box-shadow: 0 3px 10px rgba(45, 153, 174, 0.4);
+}
+
+/* =========================================================
+   7) FUND SECTION & CARDS
+========================================================= */
+.fund-section {
+  background: var(--funds-bg-card);
+  border-radius: var(--funds-radius-lg);
+  border: 1px solid var(--funds-border);
+  box-shadow: var(--funds-shadow-subtle);
+  padding: 16px 18px 18px;
+}
+
+.fund-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.fund-section__header p {
+  font-size: 0.82rem;
+  color: var(--funds-text-muted);
+}
+
+/* title có nền */
+.fund-section__header-title {
+  display: inline-block;
+  background: rgba(45, 153, 174, 0.12);
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--funds-accent);
+}
+
+.fund-section__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+/* CARD QUỸ */
+.fund-card {
+  background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(240, 249, 255, 0.9) 50%,
+      rgba(255, 255, 255, 0.95) 100%
+    );
+  border-radius: 16px;
+  border: 1px solid rgba(13, 110, 253, 0.2);
+  padding: 14px 16px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1),
+              0 4px 12px rgba(13, 110, 253, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.fund-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #0d6efd 0%, #3b82f6 50%, #00c2ff 100%);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s ease;
+}
+
+.fund-card:hover::before {
+  transform: scaleX(1);
+}
+
+.fund-card:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18),
+              0 8px 20px rgba(13, 110, 253, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+  border-color: rgba(13, 110, 253, 0.4);
+  background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(240, 249, 255, 0.95) 50%,
+      rgba(255, 255, 255, 1) 100%
+    );
+}
+
+.fund-card__top {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.fund-card__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--funds-text);
+}
+
+.fund-card__amount {
+  font-size: 0.9rem;
+  color: var(--funds-text);
+}
+
+.fund-card__target {
+  font-size: 0.82rem;
+  color: var(--funds-text-muted);
+}
+
+/* progress bar */
+.fund-card__progress {
+  margin-top: 4px;
+}
+
+.fund-card__progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.fund-card__progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0d6efd 0%, #3b82f6 50%, #00c2ff 100%);
+  background-size: 200% 100%;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: progressShimmer 2s ease-in-out infinite;
+  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.fund-card__progress-bar span::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+  animation: progressShine 2s ease-in-out infinite;
+}
+
+@keyframes progressShimmer {
+  0%, 100% {
+    background-position: 0% center;
+  }
+  50% {
+    background-position: 100% center;
+  }
+}
+
+@keyframes progressShine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.fund-card__progress-text {
+  margin-top: 2px;
+  font-size: 0.76rem;
+  color: var(--funds-text-muted);
+}
+
+/* =========================================================
+   8) MEMBERS (QUỸ NHÓM – để dành)
+========================================================= */
+.funds-members {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.funds-member-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) 120px 32px;
+  gap: 6px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .funds-member-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "name email"
+      "role remove";
+  }
+
+  .funds-member-row input:nth-child(1) {
+    grid-area: name;
+  }
+  .funds-member-row input:nth-child(2) {
+    grid-area: email;
+  }
+}
+
+.btn-icon {
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: var(--funds-text-muted);
+  transition: background-color var(--funds-transition-fast),
+    color var(--funds-transition-fast),
+    transform var(--funds-transition-fast);
+}
+
+.btn-icon:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: #ef4444;
+  transform: scale(1.05);
+}
+
+.btn-link {
+  border: none;
+  background: none;
+  padding: 0;
+  margin-top: 4px;
+  font-size: 0.86rem;
+  color: var(--funds-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+/* =========================================================
+   9) ACTIONS (SAVE / CANCEL)
+========================================================= */
+.funds-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-primary {
+  background: var(--funds-accent);
+  border-color: var(--funds-accent);
+  border-radius: 999px;
+  padding-inline: 18px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background: #227f92;
+  border-color: #227f92;
+}
+
+.btn-secondary {
+  background: #f9fafb;
+  border-radius: 999px;
+  border: 1px solid var(--funds-border);
+  padding-inline: 16px;
+  color: var(--funds-text);
+  font-weight: 500;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+/* =========================================================
+   10) HEADER BUTTON STYLE
+========================================================= */
+.funds-page .funds-btn,
+.funds-page .btn-outline-primary,
+.funds-page .btn-outline-secondary {
+  border-color: #2d99ae !important;
+  color: #2d99ae !important;
+  background-color: #ffffff !important;
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-weight: 500;
+}
+
+.funds-page .funds-btn:hover,
+.funds-page .btn-outline-primary:hover,
+.funds-page .btn-outline-secondary:hover {
+  background-color: #2d99ae !important;
+  color: #ffffff !important;
+}
+
+/* =========================================================
+   11) WRAPPER TỔNG – DANH SÁCH QUỸ
+========================================================= */
+.funds-wrapper {
+  background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+  border-radius: 24px;
+  border: 1px solid rgba(229, 231, 235, 0.8);
+  padding: 24px 28px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08),
+              0 6px 20px rgba(0, 0, 0, 0.04),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: all 0.3s ease;
+}
+
+.funds-wrapper:hover {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.1),
+              0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.funds-wrapper__title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--funds-text);
+}
+
+/* TOOLBAR: TÌM KIẾM + SẮP XẾP */
+.funds-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+}
+
+.funds-toolbar__search {
+  flex: 1 1 260px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(229, 231, 235, 0.8);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+.funds-toolbar__search:focus-within {
+  border-color: rgba(13, 110, 253, 0.4);
+  box-shadow: 0 6px 20px rgba(13, 110, 253, 0.15),
+              0 2px 8px rgba(13, 110, 253, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.funds-toolbar__search i {
+  font-size: 0.9rem;
+  color: var(--funds-text-muted);
+}
+
+.funds-toolbar__search input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 0.9rem;
+  background: transparent;
+}
+
+/* nút X clear search */
+.funds-clear-search {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--funds-text-muted);
+  transition: color 0.2s ease;
+}
+
+.funds-clear-search i {
+  font-size: 0.85rem;
+}
+
+.funds-clear-search:hover {
+  color: #dc2626;
+}
+
+.funds-toolbar__sort {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--funds-text-muted);
+}
+
+.funds-toolbar__sort select {
+  border-radius: 999px;
+  border: 1px solid var(--funds-border);
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  background: #ffffff;
+  outline: none;
+}
+
+/* =========================================================
+   12) 2 CỘT QUỸ (song song)
+========================================================= */
+.funds-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 992px) {
+  .funds-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Box con bên trong – mỗi loại quỹ */
+.funds-subbox {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid var(--funds-border);
+  padding: 18px;
+  box-shadow: var(--funds-shadow-subtle);
+}
+
+/* nền nhẹ bọc cả section quỹ (outer) */
+.fund-section-wrapper {
+  background: linear-gradient(135deg, rgba(240, 249, 255, 0.6) 0%, rgba(224, 242, 254, 0.4) 100%);
+  border: 1px solid rgba(13, 110, 253, 0.2);
+  border-radius: 20px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(13, 110, 253, 0.1),
+              0 4px 12px rgba(0, 0, 0, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.fund-section-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #0d6efd 0%, #3b82f6 50%, #00c2ff 100%);
+  opacity: 0.6;
+}
+
+.fund-section-wrapper:hover {
+  background: linear-gradient(135deg, rgba(240, 249, 255, 0.8) 0%, rgba(224, 242, 254, 0.6) 100%);
+  border-color: rgba(13, 110, 253, 0.35);
+  box-shadow: 0 12px 32px rgba(13, 110, 253, 0.15),
+              0 6px 16px rgba(0, 0, 0, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+}
+
+/* =========================================================
+   13) FUND DETAIL LAYOUT
+========================================================= */
+.fund-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.05fr);
+  gap: 20px;
+}
+
+@media (max-width: 992px) {
+  .fund-detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fund-detail-card,
+.fund-detail-form {
+  background: var(--funds-bg-card);
+  border-radius: var(--funds-radius-lg);
+  border: 1px solid var(--funds-border);
+  box-shadow: var(--funds-shadow-subtle);
+  padding: 18px 20px 20px;
+}
+
+.fund-detail-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--funds-text);
+}
+
+.fund-detail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--funds-accent-soft);
+  color: var(--funds-accent);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.fund-detail-label {
+  font-size: 0.86rem;
+  color: var(--funds-text-muted);
+}
+
+.fund-detail-amount {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--funds-text);
+}
+
+.fund-detail-currency {
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.fund-detail-text {
+  font-size: 0.9rem;
+  color: var(--funds-text);
+}
+
+.fund-detail-members li {
+  font-size: 0.88rem;
+  padding: 2px 0;
+}
+
+/* =========================================================
+   14) ANIMATIONS
+========================================================= */
+.funds-fieldset,
+.fund-section,
+.funds-grid {
+  animation: funds-fade-in 0.28s ease-out;
+}
+
+@keyframes funds-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   15) FULL-WIDTH CONTAINER CHO TRANG QUỸ
+========================================================= */
+.funds-page .container {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+/* HEADER DANH MỤC – ĐỒNG BỘ FUNDS */
+.category-header-funds {
+  background: linear-gradient(90deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 60%, rgb(10, 181, 192) 100%) !important;
+  border-radius: var(--funds-radius-lg);
+  border: 1px solid rgba(45, 153, 174, 0.22);
+  box-shadow: var(--funds-shadow-soft);
+
+  padding: 16px 24px;
+  color: #ffffff;
+}
+
+/* tiêu đề */
+.category-header-funds h2 {
+  font-weight: 600;
+  color: #ffffff !important;
+}
+
+/* mô tả */
+.category-header-funds p {
+  color: #ffffff !important;
+  opacity: 0.9;
+}
+
+/* icon nền */
+.category-header-funds .cat-header-icon-wrap {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* icon */
+.category-header-funds .cat-header-icon {
+  font-size: 1.9rem;
+  color: #ffffff !important;
+}
+/* ===========================
+   HEADER QUỸ (RIÊNG)
+=========================== */
+.funds-header-unique {
+  background: linear-gradient(135deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 40%, rgb(10, 181, 192) 80%, rgb(14, 165, 233) 100%);
+  border-radius: 24px;
+  box-shadow: 0 12px 40px rgba(11, 90, 165, 0.25),
+              0 6px 20px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  padding: 28px 32px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+.funds-header-unique::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+  filter: blur(20px);
+  pointer-events: none;
+}
+
+.funds-header-unique::after {
+  content: "";
+  position: absolute;
+  bottom: -30%;
+  left: -5%;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  filter: blur(15px);
+  pointer-events: none;
+}
+
+/* ICON TRONG VÒNG TRÒN */
+.funds-header-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 2rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.funds-header-unique:hover .funds-header-icon {
+  transform: scale(1.1) rotate(10deg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* NHÓM ICON + TEXT */
+.funds-header-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* STYLE TITLE */
+.funds-header-text {
+  position: relative;
+  z-index: 1;
+}
+
+.funds-header-text h2 {
+  font-weight: 700;
+  font-size: 1.5rem;
+  margin: 0 0 6px;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2),
+               0 1px 4px rgba(0, 0, 0, 0.15);
+  letter-spacing: -0.02em;
+}
+
+.funds-header-text p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #ffffff !important;
+  opacity: 0.9;
+}
+
+.funds-header-text p.text-muted {
+  color: #ffffff !important;
+  opacity: 0.9;
+}
+
+/* BUTTON */
+.funds-header-btn {
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2),
+              0 2px 8px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.funds-header-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: rgb(11, 90, 165);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.25),
+              0 4px 16px rgba(0, 0, 0, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+  border-color: rgba(255, 255, 255, 1);
+}
+
+.funds-header-btn i {
+  font-size: 1rem;
+}
+
+/* =========================================================
+   ANIMATIONS & EFFECTS - Giống Dashboard
+   ========================================================= */
+
+/* Page fade in */
+.funds-page {
+  animation: pageFadeIn 0.5s ease-out;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Header slide down */
+.funds-header-unique,
+.funds-header {
+  animation: headerSlideDown 0.6s ease-out;
+}
+
+@keyframes headerSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header icon pulse */
+.funds-header-icon {
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+.funds-header-unique:hover .funds-header-icon {
+  animation: iconRotate 0.8s ease-out;
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes iconRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Funds cards fade in với stagger */
+.funds-card {
+  animation: cardFadeIn 0.6s ease-out backwards;
+  transition: all 0.3s ease;
+}
+
+.funds-card:nth-child(1) { animation-delay: 0.1s; }
+.funds-card:nth-child(2) { animation-delay: 0.15s; }
+.funds-card:nth-child(3) { animation-delay: 0.2s; }
+.funds-card:nth-child(4) { animation-delay: 0.25s; }
+.funds-card:nth-child(5) { animation-delay: 0.3s; }
+.funds-card:nth-child(6) { animation-delay: 0.35s; }
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced hover effect */
+.funds-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Funds stat cards animation */
+.funds-stat {
+  animation: statFadeIn 0.5s ease-out backwards;
+  transition: all 0.3s ease;
+}
+
+.funds-stat:nth-child(1) { animation-delay: 0.1s; }
+.funds-stat:nth-child(2) { animation-delay: 0.15s; }
+.funds-stat:nth-child(3) { animation-delay: 0.2s; }
+.funds-stat:nth-child(4) { animation-delay: 0.25s; }
+
+@keyframes statFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.funds-stat:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 18px rgba(45, 153, 174, 0.2);
+}
+
+/* Grid fade in */
+.funds-cards-grid,
+.funds-stats-grid {
+  animation: gridFadeIn 0.8s ease-out;
+}
+
+@keyframes gridFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Button ripple effect */
+.funds-header-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.funds-header-btn::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.3);
+  width: 100px;
+  height: 100px;
+  margin-top: -50px;
+  margin-left: -50px;
+  opacity: 0;
+  transform: scale(0);
+  transition: transform 0.5s, opacity 0.5s;
+}
+
+.funds-header-btn:hover::after {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Form fields animation */
+.funds-field input,
+.funds-field select,
+.funds-field textarea {
+  transition: all 0.3s ease;
+}
+
+.funds-field input:focus,
+.funds-field select:focus,
+.funds-field textarea:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(45, 153, 174, 0.2);
+}
+
+/* Tabs animation */
+.funds-tab {
+  transition: all 0.3s ease;
+}
+
+.funds-tab:hover {
+  transform: translateY(-2px);
+}
+
+.funds-tab.active {
+  animation: tabActive 0.3s ease-out;
+}
+
+@keyframes tabActive {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Transaction list items slide in */
+.funds-transaction-list-item {
+  animation: itemSlideIn 0.5s ease-out backwards;
+  transition: all 0.3s ease;
+}
+
+.funds-transaction-list-item:nth-child(1) { animation-delay: 0.1s; }
+.funds-transaction-list-item:nth-child(2) { animation-delay: 0.15s; }
+.funds-transaction-list-item:nth-child(3) { animation-delay: 0.2s; }
+.funds-transaction-list-item:nth-child(4) { animation-delay: 0.25s; }
+.funds-transaction-list-item:nth-child(5) { animation-delay: 0.3s; }
+.funds-transaction-list-item:nth-child(6) { animation-delay: 0.35s; }
+
+@keyframes itemSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.funds-transaction-list-item:hover {
+  transform: translateX(4px);
+  background: rgba(45, 153, 174, 0.05);
+}
+
+/* Transaction icon animation */
+.funds-transaction-list-item__icon {
+  transition: all 0.3s ease;
+}
+
+.funds-transaction-list-item:hover .funds-transaction-list-item__icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+/* Card header animation */
+.funds-card-header {
+  transition: all 0.3s ease;
+}
+
+.funds-card:hover .funds-card-header {
+  background: rgba(45, 153, 174, 0.05);
+}
+
+/* Amount animation */
+.funds-transaction-list-item__amount {
+  transition: all 0.3s ease;
+}
+
+.funds-transaction-list-item:hover .funds-transaction-list-item__amount {
+  transform: scale(1.05);
+  font-weight: 700;
+}
+
+/* =========================================================
+   RESPONSIVE - Bổ sung đầy đủ
+   ========================================================= */
+
+/* Tablet */
+@media (max-width: 992px) {
+  .funds-page {
+    padding: 16px 18px 24px;
+  }
+
+  .funds-header-unique {
+    padding: 16px 20px !important;
+  }
+
+  .funds-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .fund-section__grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .funds-page {
+    padding: 12px 16px 20px;
+  }
+
+  .funds-header-unique {
+    padding: 14px 18px !important;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .funds-header-left {
+    width: 100%;
+  }
+
+  .funds-header-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .funds-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .fund-section__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fund-card {
+    padding: 14px 16px;
+  }
+
+  .funds-tabs {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .funds-tab {
+    flex: 1 1 auto;
+    min-width: 100px;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 576px) {
+  .funds-page {
+    padding: 10px 12px 16px;
+  }
+
+  .funds-header-unique {
+    padding: 12px 16px !important;
+  }
+
+  .funds-header-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.7rem;
+  }
+
+  .funds-header-text h2 {
+    font-size: 1.2rem;
+  }
+
+  .funds-header-text p {
+    font-size: 0.85rem;
+  }
+
+  .funds-stat {
+    padding: 10px 12px;
+  }
+
+  .fund-card {
+    padding: 12px 14px;
+  }
+}

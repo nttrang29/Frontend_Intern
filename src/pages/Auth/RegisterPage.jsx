@@ -8,7 +8,10 @@ import "../../styles/AuthForms.css";
 import ReCAPTCHA from "react-google-recaptcha";
 
 // API
-import { registerRequestOtp, verifyRegisterOtp } from "../../services/auth.service";
+import {
+  registerRequestOtp,
+  verifyRegisterOtp,
+} from "../../services/auth.service";
 
 export default function RegisterPage() {
   const [step, setStep] = useState(1);
@@ -154,9 +157,7 @@ export default function RegisterPage() {
 
       if (!res.response?.ok) {
         const msg =
-          res.data?.message ||
-          res.data?.error ||
-          "Đã xảy ra lỗi, vui lòng thử lại.";
+          res.data?.message || res.data?.error || "Đã xảy ra lỗi, vui lòng thử lại.";
         setError(msg);
 
         if (msg.toLowerCase().includes("đã được đăng ký")) {
@@ -266,10 +267,7 @@ export default function RegisterPage() {
       });
 
       if (!res.response?.ok) {
-        const msg =
-          res.data?.message ||
-          res.data?.error ||
-          "OTP không hợp lệ!";
+        const msg = res.data?.message || res.data?.error || "OTP không hợp lệ!";
         setError(msg);
         setOtp(Array(OTP_LENGTH).fill(""));
         otpRefs.current[0]?.focus();
@@ -381,7 +379,15 @@ export default function RegisterPage() {
                 value={form.password}
                 onChange={onChange}
               />
-              
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => setShowPassword((prev) => !prev)}
+              >
+                <i
+                  className={showPassword ? "bi bi-eye-slash" : "bi bi-eye"}
+                ></i>
+              </button>
             </div>
 
             {form.password && (
@@ -409,7 +415,15 @@ export default function RegisterPage() {
                 value={form.confirmPassword}
                 onChange={onChange}
               />
-              
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => setShowConfirm((prev) => !prev)}
+              >
+                <i
+                  className={showConfirm ? "bi bi-eye-slash" : "bi bi-eye"}
+                ></i>
+              </button>
             </div>
 
             {error && <div className="auth-error">{error}</div>}
@@ -462,7 +476,7 @@ export default function RegisterPage() {
               <div className="otp-card__badge-wrapper">
                 {otpCountdown > 0 ? (
                   <span className="otp-card__badge is-active">
-                    Mã sẽ hết hạn sau <b>{otpCountdown}s</b>
+                    Mã sẽ hết hạn sau   <b>: {otpCountdown}s</b>
                   </span>
                 ) : (
                   <span className="otp-card__badge is-expired">

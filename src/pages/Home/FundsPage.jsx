@@ -1,559 +1,378 @@
 // src/pages/Home/FundsPage.jsx
-import React, { useMemo, useState } from "react";
-import { useWalletData } from "../../home/store/WalletDataContext";
-import "../../styles/home/FundsPage.css";
+import React, { useMemo, useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useLanguage } from "../../contexts/LanguageContext";
+import { useWalletData } from "../../contexts/WalletDataContext";
+import { useFundData } from "../../contexts/FundDataContext";
+import "../../styles/pages/FundsPage.css";
+import "../../styles/components/funds/FundCard.css";
+import "../../styles/components/funds/FundSection.css";
+import "../../styles/components/funds/FundDetail.css";
+import "../../styles/components/funds/FundForms.css";
 
+// Components
 import FundSection from "../../components/funds/FundSection";
-import ParticipateManager from "../../components/funds/ParticipateManager";
 import PersonalTermForm from "../../components/funds/PersonalTermForm";
 import PersonalNoTermForm from "../../components/funds/PersonalNoTermForm";
-import GroupTermForm from "../../components/funds/GroupTermForm";
-import GroupNoTermForm from "../../components/funds/GroupNoTermForm";
 import FundDetailView from "../../components/funds/FundDetailView";
 
 export default function FundsPage() {
-  const { wallets } = useWalletData();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { wallets, loadWallets } = useWalletData();
+  const { funds, loading, loadFunds, getFundById } = useFundData();
+  const { t } = useLanguage();
 
+  // View mode
+  const [viewMode, setViewMode] = useState("overview"); // overview | detail | create
+  const [personalTab, setPersonalTab] = useState("term");
+  const [activeFund, setActiveFund] = useState(null);
+  const [defaultTab, setDefaultTab] = useState("info");
+
+  // Tìm kiếm + sắp xếp
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortMode, setSortMode] = useState("name"); // name | currentDesc | progressDesc
+
+  const handleSelectFund = (fund, defaultTab = "info") => {
+    setActiveFund(fund);
+    setViewMode("detail");
+    setDefaultTab(defaultTab);
+  };
+
+  // CHỈ VÍ CÁ NHÂN (vì đã bỏ quỹ nhóm)
   const personalWallets = useMemo(
     () => wallets.filter((w) => !w.isShared),
     [wallets]
   );
-  const groupWallets = useMemo(
-    () => wallets.filter((w) => w.isShared),
-    [wallets]
-  );
 
-  // Dữ liệu mẫu quỹ (sau này bind API)
-  const [funds, setFunds] = useState([
-    // ... (GIỮ Y NGUYÊN 18 QUỸ như bạn đang có – mình giữ lại toàn bộ)
-    {
-      id: 1,
-      name: "Quỹ Mua Laptop",
-      type: "personal",
-      hasTerm: true,
-      role: "owner",
-      current: 4_500_000,
-      target: 15_000_000,
-      currency: "VND",
-    },
-    {
-      id: 2,
-      name: "Quỹ Học Tiếng Anh",
-      type: "personal",
-      hasTerm: true,
-      role: "owner",
-      current: 2_000_000,
-      target: 10_000_000,
-      currency: "VND",
-    },
-    {
-      id: 3,
-      name: "Quỹ Du Lịch Đà Lạt",
-      type: "personal",
-      hasTerm: true,
-      role: "owner",
-      current: 3_500_000,
-      target: 12_000_000,
-      currency: "VND",
-    },
-    {
-      id: 4,
-      name: "Quỹ Khẩn Cấp",
-      type: "personal",
-      hasTerm: false,
-      role: "owner",
-      current: 8_000_000,
-      target: null,
-      currency: "VND",
-    },
-    {
-      id: 5,
-      name: "Quỹ Sức Khỏe",
-      type: "personal",
-      hasTerm: false,
-      role: "owner",
-      current: 2_500_000,
-      target: null,
-      currency: "VND",
-    },
-    {
-      id: 6,
-      name: "Quỹ Đầu Tư Cá Nhân",
-      type: "personal",
-      hasTerm: false,
-      role: "owner",
-      current: 15_000_000,
-      target: null,
-      currency: "VND",
-    },
-    {
-      id: 7,
-      name: "Quỹ Du Lịch Team 2025",
-      type: "group",
-      hasTerm: true,
-      role: "owner",
-      current: 12_000_000,
-      target: 30_000_000,
-      currency: "VND",
-      members: [
-        { id: 71, name: "Bạn A", email: "a@example.com", role: "owner" },
-        { id: 72, name: "Bạn B", email: "b@example.com", role: "use" },
-      ],
-    },
-    {
-      id: 8,
-      name: "Quỹ Dụng Cụ Học Tập Nhóm",
-      type: "group",
-      hasTerm: true,
-      role: "owner",
-      current: 5_000_000,
-      target: 12_000_000,
-      currency: "VND",
-      members: [
-        { id: 81, name: "Leader", email: "leader@example.com", role: "owner" },
-        { id: 82, name: "Member 1", email: "m1@example.com", role: "view" },
-      ],
-    },
-    {
-      id: 9,
-      name: "Quỹ Sự Kiện Lớp",
-      type: "group",
-      hasTerm: true,
-      role: "owner",
-      current: 9_000_000,
-      target: 20_000_000,
-      currency: "VND",
-      members: [
-        {
-          id: 91,
-          name: "Lớp Trưởng",
-          email: "loptruong@example.com",
-          role: "owner",
-        },
-        { id: 92, name: "Thủ Quỹ", email: "thuquy@example.com", role: "use" },
-      ],
-    },
-    {
-      id: 10,
-      name: "Quỹ Sinh Hoạt Nhóm Bạn Thân",
-      type: "group",
-      hasTerm: false,
-      role: "owner",
-      current: 6_500_000,
-      target: null,
-      currency: "VND",
-      members: [
-        { id: 101, name: "Bạn 1", email: "ban1@example.com", role: "owner" },
-        { id: 102, name: "Bạn 2", email: "ban2@example.com", role: "use" },
-      ],
-    },
-    {
-      id: 11,
-      name: "Quỹ Cafe Cuối Tuần",
-      type: "group",
-      hasTerm: false,
-      role: "owner",
-      current: 1_200_000,
-      target: null,
-      currency: "VND",
-      members: [
-        { id: 111, name: "Anh A", email: "anha@example.com", role: "owner" },
-        { id: 112, name: "Anh B", email: "anhb@example.com", role: "view" },
-      ],
-    },
-    {
-      id: 12,
-      name: "Quỹ Thể Thao Nhóm",
-      type: "group",
-      hasTerm: false,
-      role: "owner",
-      current: 3_300_000,
-      target: null,
-      currency: "VND",
-      members: [
-        { id: 121, name: "Team Lead", email: "team@example.com", role: "owner" },
-        { id: 122, name: "Member", email: "mem@example.com", role: "use" },
-      ],
-    },
-    {
-      id: 13,
-      name: "Quỹ Gia Đình 2025",
-      type: "group",
-      hasTerm: true,
-      role: "view",
-      current: 21_500_000,
-      target: 30_000_000,
-      currency: "VND",
-      members: [
-        { id: 131, name: "Bố", email: "bo@example.com", role: "owner" },
-        { id: 132, name: "Mẹ", email: "me@example.com", role: "use" },
-        { id: 133, name: "Bạn", email: "ban@example.com", role: "view" },
-      ],
-    },
-    {
-      id: 14,
-      name: "Quỹ Xây Sửa Nhà",
-      type: "group",
-      hasTerm: true,
-      role: "view",
-      current: 50_000_000,
-      target: 100_000_000,
-      currency: "VND",
-      members: [
-        {
-          id: 141,
-          name: "Anh Cả",
-          email: "anhca@example.com",
-          role: "owner",
-        },
-        { id: 142, name: "Em", email: "em@example.com", role: "view" },
-      ],
-    },
-    {
-      id: 15,
-      name: "Quỹ Học Bổng Nhóm",
-      type: "group",
-      hasTerm: false,
-      role: "view",
-      current: 7_000_000,
-      target: null,
-      currency: "VND",
-      members: [
-        {
-          id: 151,
-          name: "Cô Giáo",
-          email: "cogiao@example.com",
-          role: "owner",
-        },
-        { id: 152, name: "Bạn", email: "ban@example.com", role: "view" },
-      ],
-    },
-    {
-      id: 16,
-      name: "Quỹ Sinh Hoạt Lớp",
-      type: "group",
-      hasTerm: false,
-      role: "manage",
-      current: 7_800_000,
-      target: null,
-      currency: "VND",
-      members: [
-        {
-          id: 161,
-          name: "Lớp Trưởng",
-          email: "loptruong@example.com",
-          role: "owner",
-        },
-        { id: 162, name: "Thủ Quỹ", email: "thuquy@example.com", role: "use" },
-        { id: 163, name: "Bạn", email: "ban@example.com", role: "manage" },
-      ],
-    },
-    {
-      id: 17,
-      name: "Quỹ Dã Ngoại Khoa",
-      type: "group",
-      hasTerm: true,
-      role: "manage",
-      current: 18_000_000,
-      target: 40_000_000,
-      currency: "VND",
-      members: [
-        {
-          id: 171,
-          name: "Trưởng Khoa",
-          email: "truongkhoa@example.com",
-          role: "owner",
-        },
-        { id: 172, name: "Bạn", email: "ban@example.com", role: "manage" },
-      ],
-    },
-    {
-      id: 18,
-      name: "Quỹ Từ Thiện Nhóm",
-      type: "group",
-      hasTerm: false,
-      role: "manage",
-      current: 9_500_000,
-      target: null,
-      currency: "VND",
-      members: [
-        { id: 181, name: "Leader", email: "leader@example.com", role: "owner" },
-        { id: 182, name: "Bạn", email: "ban@example.com", role: "manage" },
-        { id: 183, name: "Member", email: "mem@example.com", role: "view" },
-      ],
-    },
-  ]);
+  // Load funds khi component mount
+  useEffect(() => {
+    loadFunds();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const personalTermFunds = useMemo(
-    () =>
-      funds.filter(
-        (f) => f.type === "personal" && f.hasTerm && f.role === "owner"
-      ),
-    [funds]
-  );
-  const personalNoTermFunds = useMemo(
-    () =>
-      funds.filter(
-        (f) => f.type === "personal" && !f.hasTerm && f.role === "owner"
-      ),
-    [funds]
-  );
-  const groupTermFunds = useMemo(
-    () =>
-      funds.filter(
-        (f) => f.type === "group" && f.hasTerm && f.role === "owner"
-      ),
-    [funds]
-  );
-  const groupNoTermFunds = useMemo(
-    () =>
-      funds.filter(
-        (f) => f.type === "group" && !f.hasTerm && f.role === "owner"
-      ),
-    [funds]
-  );
-  const participateViewFunds = useMemo(
-    () => funds.filter((f) => f.role === "view"),
-    [funds]
-  );
-  const participateUseFunds = useMemo(
-    () => funds.filter((f) => f.role === "manage"),
-    [funds]
-  );
+  // Listen for auto deposit notifications to reload funds list
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
-  const [viewMode, setViewMode] = useState("overview"); // overview | detail | create-personal | create-group | participate
-  const [personalTab, setPersonalTab] = useState("term");
-  const [groupTab, setGroupTab] = useState("term");
-  const [activeFund, setActiveFund] = useState(null);
+    const handleAutoDepositNotification = (event) => {
+      // Only reload if NOT in detail view (FundDetailView handles it if active)
+      // Actually, we should reload the list anyway to keep it fresh, but silently
+      if (viewMode !== 'detail') {
+        console.log("FundsPage: Received auto deposit notification, reloading funds...");
+        loadFunds(true); // Silent reload
+      }
+    };
 
-  const handleSelectFund = (fund) => {
-    setActiveFund(fund);
-    setViewMode("detail");
+    window.addEventListener("fundAutoDepositNotification", handleAutoDepositNotification);
+    return () => {
+      window.removeEventListener("fundAutoDepositNotification", handleAutoDepositNotification);
+    };
+  }, [loadFunds, viewMode]);
+
+  // Xử lý navigate từ notification
+  useEffect(() => {
+    if (location.state?.openFundId && location.state?.defaultTab) {
+      const fundToOpen = funds.find(f => f.id === location.state.openFundId);
+      if (fundToOpen) {
+        // Only select if not already selected or view mode is different
+        if (activeFund?.id !== fundToOpen.id || viewMode !== 'detail') {
+            handleSelectFund(fundToOpen, location.state.defaultTab);
+        }
+        // Clear state using navigate to prevent re-triggering on re-renders
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [location.state, funds, navigate, location.pathname, activeFund, viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Chỉ lọc quỹ cá nhân
+  // Ẩn quỹ đã tất toán (CLOSED) khỏi danh sách
+  // Hiển thị quỹ ACTIVE và quỹ COMPLETED (đã đạt mục tiêu nhưng chưa tất toán)
+  // (Nhưng vẫn hiển thị trong báo cáo)
+  const personalTermFunds = useMemo(() => {
+    const filtered = funds.filter((f) => {
+      if (f.type !== "personal" || !f.hasTerm) return false;
+      // Hiển thị quỹ có thời hạn với status ACTIVE hoặc COMPLETED (chưa tất toán)
+      // Ẩn quỹ đã tất toán (CLOSED)
+      const status = (f.status || "").toUpperCase();
+      return status === "ACTIVE" || status === "COMPLETED";
+    });
+    console.log("FundsPage: Total funds:", funds.length);
+    console.log("FundsPage: Personal term funds (ACTIVE + COMPLETED):", filtered.length, filtered);
+    return filtered;
+  }, [funds]);
+  
+  const personalNoTermFunds = useMemo(() => {
+    const filtered = funds.filter((f) => {
+      if (f.type !== "personal" || f.hasTerm) return false;
+      // Hiển thị quỹ không thời hạn với status ACTIVE hoặc COMPLETED (chưa tất toán)
+      // Ẩn quỹ đã tất toán (CLOSED)
+      const status = (f.status || "").toUpperCase();
+      return status === "ACTIVE" || status === "COMPLETED";
+    });
+    console.log("FundsPage: Personal no-term funds (ACTIVE + COMPLETED):", filtered.length, filtered);
+    return filtered;
+  }, [funds]);
+
+  const handleUpdateFund = async () => {
+    // Reload funds list từ API (silent)
+    await loadFunds(true);
+    
+    // Lấy lại fund detail mới nhất
+    if (activeFund?.id) {
+      const result = await getFundById(activeFund.id);
+      if (result.success) {
+        setActiveFund(result.data);
+      }
+    }
   };
 
-  const handleUpdateFund = (updatedFund) => {
-    setFunds((prev) =>
-      prev.map((f) => (f.id === updatedFund.id ? updatedFund : f))
-    );
-    setActiveFund(updatedFund);
+  // Helper: áp dụng search + sort
+  const applySearchAndSort = (list) => {
+    let result = [...list];
+
+    // Tìm kiếm theo tên quỹ
+    if (searchTerm.trim()) {
+      const lower = searchTerm.toLowerCase();
+      result = result.filter((f) =>
+        (f.name || "").toLowerCase().includes(lower)
+      );
+    }
+
+    // Sắp xếp
+    switch (sortMode) {
+      case "currentDesc": // Số tiền hiện tại giảm dần
+        result.sort((a, b) => (b.current || 0) - (a.current || 0));
+        break;
+      case "progressDesc": {
+        // Tỷ lệ hoàn thành giảm dần
+        const getProgress = (f) =>
+          f.target && f.target > 0 ? (f.current || 0) / f.target : 0;
+        result.sort((a, b) => getProgress(b) - getProgress(a));
+        break;
+      }
+      case "name":
+      default:
+        result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        break;
+    }
+
+    return result;
   };
 
-  return (
-    <div className="funds-page container py-4">
-      {/* HEADER */}
-      <div className="funds-header card border-0 shadow-sm mb-3 p-3 p-lg-4">
-        <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-          <div>
-            <h3 className="mb-1">
-              <i className="bi bi-piggy-bank me-2" />
-              Quỹ của bạn
-            </h3>
-            <p className="mb-0 text-muted">
-              Theo dõi và quản lý các quỹ tiết kiệm, quỹ nhóm và quỹ bạn tham
-              gia.
-            </p>
-          </div>
+  const filteredTermFunds = useMemo(
+    () => applySearchAndSort(personalTermFunds),
+    [personalTermFunds, searchTerm, sortMode]
+  );
 
-          <div className="d-flex flex-wrap gap-2 justify-content-lg-end">
-            {viewMode === "overview" ? (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-outline-primary funds-btn"
-                  onClick={() => setViewMode("create-personal")}
-                >
-                  <i className="bi bi-plus-circle me-1" />
-                  Tạo quỹ cá nhân
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline-primary"
-                  onClick={() => setViewMode("create-group")}
-                >
-                  <i className="bi bi-people-fill me-1" />
-                  Tạo quỹ nhóm
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary"
-                  onClick={() => setViewMode("participate")}
-                >
-                  <i className="bi bi-person-check me-1" />
-                  Quản lý quỹ tham gia
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-outline-secondary"
-                onClick={() => {
-                  setViewMode("overview");
-                  setActiveFund(null);
-                }}
-              >
-                <i className="bi bi-arrow-left me-1" />
-                Quay lại danh sách quỹ
-              </button>
-            )}
+  const filteredNoTermFunds = useMemo(
+    () => applySearchAndSort(personalNoTermFunds),
+    [personalNoTermFunds, searchTerm, sortMode]
+  );
+
+  // Hiển thị loading
+  if (loading) {
+    return (
+      <div className="funds-page tx-page container-fluid py-4">
+        <div className="tx-page-inner">
+          <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Đang tải...</span>
+            </div>
+            <p className="mt-3 text-muted">Đang tải danh sách quỹ...</p>
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* NỘI DUNG CHÍNH */}
+  return (
+    <div className="funds-page tx-page container-fluid py-4">
+      <div className="tx-page-inner">
+      {/* HEADER */}
+      {/* HEADER QUỸ – CHUẨN LAYOUT GIỐNG VÍ */}
+<div className="funds-header-unique mb-3">
+  {/* TRÁI: ICON + TEXT */}
+  <div className="funds-header-left">
+    <div className="funds-header-icon">
+      <i className="bi bi-piggy-bank" />
+    </div>
+
+    <div className="funds-header-text">
+      <h2 className="mb-1">{t('funds.title')}</h2>
+      <p className="mb-0 text-muted">{t('funds.subtitle')}</p>
+    </div>
+  </div>
+
+  {/* PHẢI: NÚT */}
+  {viewMode === "overview" ? (
+    <button
+      type="button"
+      className="btn btn-outline-primary funds-header-btn"
+      onClick={() => setViewMode("create")}
+    >
+      <i className="bi bi-plus-circle me-1" />
+      {t('funds.btn.create_personal')}
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="btn btn-outline-secondary funds-header-btn"
+      onClick={() => {
+        setViewMode("overview");
+        setActiveFund(null);
+      }}
+    >
+      <i className="bi bi-arrow-left me-1" />
+      {t('funds.btn.back')}
+    </button>
+  )}
+</div>
+
+      {/* OVERVIEW */}
       {viewMode === "overview" && (
-        <>
-          {funds.length === 0 && (
-            <div className="card border-0 shadow-sm p-4 mb-3">
-              <h5 className="mb-2">Chưa có quỹ nào</h5>
-              <p className="mb-0 text-muted">
-                Hãy bắt đầu bằng cách tạo <strong>quỹ cá nhân</strong> hoặc{" "}
-                <strong>quỹ nhóm</strong> phù hợp với mục tiêu tài chính của
-                bạn.
-              </p>
+        <div className="funds-wrapper">
+          {/* Thanh tìm kiếm & sắp xếp */}
+          <div className="funds-toolbar">
+            <div className="funds-toolbar__search">
+              <i className="bi bi-search" />
+
+              <input
+                type="text"
+                placeholder={t('funds.search_placeholder')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+
+              {searchTerm && (
+                <button
+                  type="button"
+                  className="funds-clear-search"
+                  onClick={() => setSearchTerm("")}
+                >
+                  <i className="bi bi-x-lg" />
+                </button>
+              )}
             </div>
-          )}
 
-          <div className="funds-two-col">
-            {(personalTermFunds.length > 0 ||
-              personalNoTermFunds.length > 0) && (
-              <div className="funds-box">
-                <div className="funds-box__header">Quỹ cá nhân</div>
-                <div className="funds-box__body">
-                  <p className="text-muted small mb-3">
-                    Các quỹ tiết kiệm do riêng bạn sở hữu và quản lý.
-                  </p>
-
-                  <FundSection
-                    title="Quỹ cá nhân có thời hạn"
-                    subtitle="Các quỹ có ngày kết thúc rõ ràng."
-                    items={personalTermFunds}
-                    onSelectFund={handleSelectFund}
-                  />
-
-                  <FundSection
-                    title="Quỹ cá nhân không thời hạn"
-                    subtitle="Quỹ tích luỹ dài hạn, không xác định ngày kết thúc."
-                    items={personalNoTermFunds}
-                    onSelectFund={handleSelectFund}
-                  />
-                </div>
-              </div>
-            )}
-
-            {(groupTermFunds.length > 0 || groupNoTermFunds.length > 0) && (
-              <div className="funds-box">
-                <div className="funds-box__header">Quỹ nhóm</div>
-                <div className="funds-box__body">
-                  <p className="text-muted small mb-3">
-                    Quỹ góp chung với bạn bè, gia đình hoặc lớp/nhóm.
-                  </p>
-
-                  <FundSection
-                    title="Quỹ nhóm có thời hạn"
-                    subtitle="Quỹ góp chung có mục tiêu thời hạn."
-                    items={groupTermFunds}
-                    onSelectFund={handleSelectFund}
-                  />
-
-                  <FundSection
-                    title="Quỹ nhóm không thời hạn"
-                    subtitle="Quỹ nhóm dùng lâu dài, không cố định thời gian."
-                    items={groupNoTermFunds}
-                    onSelectFund={handleSelectFund}
-                  />
-                </div>
-              </div>
-            )}
+            <div className="funds-toolbar__sort">
+              <span>{t('funds.sort_label')}</span>
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value)}
+              >
+                <option value="name">{t('funds.sort.name')}</option>
+                <option value="currentDesc">{t('funds.sort.currentDesc')}</option>
+                <option value="progressDesc">{t('funds.sort.progressDesc')}</option>
+              </select>
+            </div>
           </div>
-        </>
+
+          {/* 2 cột: có thời hạn / không thời hạn */}
+          <div className="funds-two-col">
+            {/* BOX 1: QUỸ CÓ THỜI HẠN */}
+            <div className="fund-section-wrapper fund-section-wrapper--term">
+              <FundSection
+                title={t('funds.section.personal_term')}
+                subtitle={t('funds.section.personal_term_desc')}
+                items={filteredTermFunds}
+                onSelectFund={handleSelectFund}
+              />
+            </div>
+
+            {/* BOX 2: QUỸ KHÔNG THỜI HẠN */}
+            <div className="fund-section-wrapper fund-section-wrapper--no-term">
+              <FundSection
+                title={t('funds.section.personal_no_term')}
+                subtitle={t('funds.section.personal_no_term_desc')}
+                items={filteredNoTermFunds}
+                onSelectFund={handleSelectFund}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
+      {/* DETAIL */}
       {viewMode === "detail" && activeFund && (
         <div className="card border-0 shadow-sm p-3 p-lg-4">
           <FundDetailView
             fund={activeFund}
+            defaultTab={defaultTab}
             onBack={() => {
               setViewMode("overview");
               setActiveFund(null);
+              setDefaultTab("info");
             }}
             onUpdateFund={handleUpdateFund}
           />
         </div>
       )}
 
-      {viewMode === "create-personal" && (
+      {/* CREATE FUND */}
+      {viewMode === "create" && (
         <div className="card border-0 shadow-sm p-3 p-lg-4">
           <div className="funds-tabs mb-3">
             <button
-              type="button"
               className={
-                "funds-tab" +
-                (personalTab === "term" ? " funds-tab--active" : "")
+                "funds-tab" + (personalTab === "term" ? " funds-tab--active" : "")
               }
               onClick={() => setPersonalTab("term")}
             >
-              Quỹ cá nhân có thời hạn
+              {t('funds.section.personal_term')}
             </button>
             <button
-              type="button"
               className={
                 "funds-tab" +
                 (personalTab === "no-term" ? " funds-tab--active" : "")
               }
               onClick={() => setPersonalTab("no-term")}
             >
-              Quỹ cá nhân không thời hạn
+              {t('funds.section.personal_no_term')}
             </button>
           </div>
 
           {personalTab === "term" ? (
-            <PersonalTermForm wallets={personalWallets} />
+            <PersonalTermForm 
+              wallets={personalWallets}
+              onSuccess={async () => {
+                // Reload funds để cập nhật danh sách quỹ
+                await loadFunds();
+                // Reload wallets sau một chút để đảm bảo backend đã commit transaction
+                if (loadWallets) {
+                  // Đợi backend commit transaction
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  await loadWallets();
+                  // Reload lại sau một chút để đảm bảo backend đã xử lý xong hoàn toàn
+                  setTimeout(async () => {
+                    await loadWallets();
+                  }, 2500);
+                }
+                setViewMode("overview");
+              }}
+            />
           ) : (
-            <PersonalNoTermForm wallets={personalWallets} />
+            <PersonalNoTermForm 
+              wallets={personalWallets}
+              onSuccess={async () => {
+                // Reload funds để cập nhật danh sách quỹ
+                await loadFunds();
+                // Reload wallets sau một chút để đảm bảo backend đã commit transaction
+                if (loadWallets) {
+                  // Đợi backend commit transaction
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  await loadWallets();
+                  // Reload lại sau một chút để đảm bảo backend đã xử lý xong hoàn toàn
+                  setTimeout(async () => {
+                    await loadWallets();
+                  }, 2500);
+                }
+                setViewMode("overview");
+              }}
+            />
           )}
         </div>
       )}
-
-      {viewMode === "create-group" && (
-        <div className="card border-0 shadow-sm p-3 p-lg-4">
-          <div className="funds-tabs mb-3">
-            <button
-              type="button"
-              className={
-                "funds-tab" + (groupTab === "term" ? " funds-tab--active" : "")
-              }
-              onClick={() => setGroupTab("term")}
-            >
-              Quỹ nhóm có thời hạn
-            </button>
-            <button
-              type="button"
-              className={
-                "funds-tab" +
-                (groupTab === "no-term" ? " funds-tab--active" : "")
-              }
-              onClick={() => setGroupTab("no-term")}
-            >
-              Quỹ nhóm không thời hạn
-            </button>
-          </div>
-
-          {groupTab === "term" ? (
-            <GroupTermForm wallets={groupWallets} />
-          ) : (
-            <GroupNoTermForm wallets={groupWallets} />
-          )}
-        </div>
-      )}
-
-      {viewMode === "participate" && (
-        <div className="card border-0 shadow-sm p-3 p-lg-4">
-          <ParticipateManager
-            viewFunds={participateViewFunds}
-            useFunds={participateUseFunds}
-          />
-        </div>
-      )}
+      </div>
     </div>
   );
 }

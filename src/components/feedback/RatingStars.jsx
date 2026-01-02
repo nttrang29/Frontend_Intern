@@ -1,6 +1,6 @@
 // src/components/feedback/RatingStars.jsx
 import React, { useState } from "react";
-import "../../styles/home/FeedbackPage.css";
+import "../../styles/pages/FeedbackPage.css";
 
 
 export default function RatingStars({ value, onChange }) {

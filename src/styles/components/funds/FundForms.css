@@ -1,0 +1,450 @@
+/**
+ * Fund Forms Styles
+ * Styles for fund forms (PersonalTermForm, PersonalNoTermForm, ReminderBlock, AutoTopupBlock, WalletSourceField)
+ */
+
+/* =========================================================
+   GRID & FIELDSET LAYOUT
+   ========================================================= */
+.funds-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
+  gap: var(--spacing-xl);
+  animation: funds-fade-in 0.28s ease-out;
+}
+
+.funds-fieldset {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+  animation: funds-fade-in 0.28s ease-out;
+}
+
+.funds-fieldset--full {
+  grid-column: 1 / -1;
+}
+
+.funds-fieldset__legend {
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* =========================================================
+   FIELD
+   ========================================================= */
+.funds-field {
+  margin-bottom: var(--spacing-md);
+}
+
+.funds-field:last-child {
+  margin-bottom: 0;
+}
+
+.funds-field label {
+  font-size: 0.9rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  margin-bottom: var(--spacing-xs);
+  display: inline-block;
+}
+
+.funds-field input,
+.funds-field select,
+.funds-field textarea {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  padding: var(--spacing-sm) 10px;
+  font-size: 0.92rem;
+  outline: none;
+  transition: var(--transition-base);
+}
+
+.funds-field input:focus,
+.funds-field select:focus,
+.funds-field textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px rgba(45, 153, 174, 0.35);
+  background-color: var(--color-bg-primary);
+}
+
+.funds-field textarea {
+  resize: vertical;
+}
+
+.funds-field input[disabled],
+.funds-field textarea[disabled] {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+}
+
+/* Ẩn spinner trong input number */
+.funds-field input[type="number"].no-spinner,
+.funds-field input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.funds-field input[type="number"].no-spinner::-webkit-outer-spin-button,
+.funds-field input[type="number"].no-spinner::-webkit-inner-spin-button,
+.funds-field input[type="number"]::-webkit-outer-spin-button,
+.funds-field input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.funds-field--inline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* =========================================================
+   HINT / ERROR
+   ========================================================= */
+.funds-hint {
+  margin-top: var(--spacing-xs);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.funds-hint--strong {
+  margin-top: 6px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+}
+
+.funds-error {
+  margin-top: var(--spacing-xs);
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+.req {
+  color: var(--color-error);
+}
+
+/* =========================================================
+   TABS
+   ========================================================= */
+.funds-tabs {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: rgba(45, 153, 174, 0.06);
+}
+
+.funds-tab {
+  border: none;
+  background: transparent;
+  padding: 6px var(--spacing-lg);
+  font-size: 0.9rem;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.funds-tab--active {
+  background: var(--color-bg-primary);
+  color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(45, 153, 174, 0.25);
+}
+
+/* =========================================================
+   SWITCH & PILL TOGGLE
+   ========================================================= */
+.funds-toggle-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: var(--spacing-sm);
+  font-size: 0.9rem;
+}
+
+.funds-toggle-line span {
+  color: var(--color-text);
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch__slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #d1d5db;
+  border-radius: var(--radius-full);
+  transition: background-color var(--transition-base);
+}
+
+.switch__slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg-primary);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+  transition: transform var(--transition-base);
+}
+
+.switch input:checked + .switch__slider {
+  background-color: var(--color-primary);
+}
+
+.switch input:checked + .switch__slider::before {
+  transform: translateX(20px);
+}
+
+.funds-reminder-mode {
+  display: inline-flex;
+  gap: 6px;
+  margin: 6px 0 10px;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: rgba(45, 153, 174, 0.05);
+}
+
+.funds-pill-toggle {
+  border: none;
+  background: transparent;
+  padding: 5px var(--spacing-md);
+  font-size: 0.86rem;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.funds-pill-toggle--active {
+  background: var(--color-bg-primary);
+  color: var(--color-primary);
+  box-shadow: 0 4px 10px rgba(45, 153, 174, 0.25);
+}
+
+.funds-pill-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   WALLET SOURCE
+   ========================================================= */
+.wallet-source {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wallet-source__search {
+  /* Search input styles */
+}
+
+.wallet-source__list {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: var(--spacing-xs);
+  margin-bottom: 2px;
+}
+
+.wallet-source__list::-webkit-scrollbar {
+  height: 6px;
+}
+
+.wallet-source__list::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: var(--radius-full);
+}
+
+.wallet-source__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wallet-source__item {
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  padding: var(--spacing-xs) 10px;
+  background: var(--color-bg-primary);
+  font-size: 0.84rem;
+  color: var(--color-text);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.wallet-source__item:hover {
+  border-color: var(--color-primary);
+  background: rgba(45, 153, 174, 0.06);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.wallet-source__item.is-active {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary);
+  box-shadow: 0 3px 10px rgba(45, 153, 174, 0.4);
+}
+
+/* =========================================================
+   ACTIONS (SAVE / CANCEL)
+   ========================================================= */
+.funds-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  border-radius: var(--radius-full);
+  padding-inline: var(--spacing-xl);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-inverse);
+  transition: var(--transition-fast);
+}
+
+.btn-primary:hover {
+  background: #227f92;
+  border-color: #227f92;
+}
+
+.btn-secondary {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  padding-inline: var(--spacing-lg);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  transition: var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn-link {
+  border: none;
+  background: none;
+  padding: 0;
+  margin-top: var(--spacing-xs);
+  font-size: 0.86rem;
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.btn-icon {
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  transition: var(--transition-base);
+}
+
+.btn-icon:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--color-error);
+  transform: scale(1.05);
+}
+
+/* =========================================================
+   MEMBERS (QUỸ NHÓM – để dành)
+   ========================================================= */
+.funds-members {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.funds-member-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) 120px 32px;
+  gap: 6px;
+  align-items: center;
+}
+
+/* =========================================================
+   ANIMATION
+   ========================================================= */
+@keyframes funds-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 992px) {
+  .funds-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .funds-field--inline {
+    grid-template-columns: 1fr;
+  }
+
+  .funds-member-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "name email"
+      "role remove";
+  }
+
+  .funds-member-row input:nth-child(1) {
+    grid-area: name;
+  }
+  .funds-member-row input:nth-child(2) {
+    grid-area: email;
+  }
+}
+

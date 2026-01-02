@@ -1,226 +1,559 @@
 // src/components/transactions/TransactionViewModal.jsx
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
-
-/**
- * Format ngày theo múi giờ Việt Nam (UTC+7)
- */
-function formatVietnamDate(date) {
-  if (!date) return "";
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) return "";
-  
-  return d.toLocaleDateString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-/**
- * Format giờ theo múi giờ Việt Nam (UTC+7)
- */
-function formatVietnamTime(date) {
-  if (!date) return "";
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) return "";
-  
-  return d.toLocaleTimeString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
-
-/**
- * Format số tiền với độ chính xác cao (tối đa 8 chữ số thập phân)
- * Để hiển thị chính xác số tiền nhỏ khi chuyển đổi tiền tệ
- */
-function formatMoney(amount = 0, currency = "VND") {
-  const numAmount = Number(amount) || 0;
-  
-  // Custom format cho USD: hiển thị $ ở trước
-  // Sử dụng tối đa 8 chữ số thập phân để hiển thị chính xác số tiền nhỏ
-  if (currency === "USD") {
-    // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      const formatted = numAmount.toLocaleString("en-US", { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 8 
-      });
-      return `$${formatted}`;
-    }
-    const formatted = numAmount % 1 === 0 
-      ? numAmount.toLocaleString("en-US")
-      : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-    return `$${formatted}`;
-  }
-  
-  // Format cho VND và các currency khác
-  try {
-    if (currency === "VND") {
-      return `${numAmount.toLocaleString("vi-VN")} VND`;
-    }
-    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-    }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-  } catch {
-    return `${numAmount.toLocaleString("vi-VN")} ${currency}`;
-  }
-}
+import { useCategoryData } from "../../contexts/CategoryDataContext";
+import { useWalletData } from "../../contexts/WalletDataContext";
+import { formatVietnamDate, formatVietnamTime, formatMoney } from "./utils/transactionUtils";
 
 export default function TransactionViewModal({ open, tx, onClose }) {
+  const { expenseCategories, incomeCategories } = useCategoryData();
+  const { wallets } = useWalletData();
+  
+  // Lấy currentUserId để kiểm tra owner
+  const currentUserId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const user = JSON.parse(stored);
+        return user.userId || user.id || null;
+      }
+    } catch (error) {
+      console.error("Không thể đọc user từ localStorage:", error);
+    }
+    return null;
+  }, []);
+  
+  // Tìm icon của category - phải gọi trước early return
+  const categoryIcon = useMemo(() => {
+    if (!tx?.category) return "bi-tags";
+    const allCategories = [...expenseCategories, ...incomeCategories];
+    const foundCategory = allCategories.find(
+      (cat) => cat.name === tx.category || cat.categoryName === tx.category
+    );
+    return foundCategory?.icon || "bi-tags";
+  }, [tx?.category, expenseCategories, incomeCategories]);
+  
+  // Tìm wallet và lấy owner email cho ví gửi và ví nhận
+  // Ưu tiên lấy từ transaction object (đã được map với ownerEmail), sau đó mới tìm trong wallets list
+  const sourceWallet = useMemo(() => {
+    if (!tx?.sourceWallet || !wallets) return null;
+    // Xử lý tên ví có thể có "(đã rời ví)" hoặc "(đã xóa)"
+    const cleanSourceWalletName = tx.sourceWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
+    // Ưu tiên khớp theo ID để tránh nhầm khi có nhiều ví trùng tên
+    return wallets.find(w =>
+      (tx.sourceWalletId && String(w.id || w.walletId) === String(tx.sourceWalletId)) ||
+      w.name === cleanSourceWalletName ||
+      w.walletName === cleanSourceWalletName
+    );
+  }, [tx?.sourceWallet, tx?.sourceWalletId, wallets]);
+  
+  const targetWallet = useMemo(() => {
+    if (!tx?.targetWallet || !wallets) return null;
+    // Xử lý tên ví có thể có "(đã rời ví)" hoặc "(đã xóa)"
+    const cleanTargetWalletName = tx.targetWallet.replace(/\s*\(đã rời ví\)\s*$/, "").replace(/\s*\(đã xóa\)\s*$/, "");
+    // Ưu tiên khớp theo ID để tránh nhầm khi có nhiều ví trùng tên
+    return wallets.find(w =>
+      (tx.targetWalletId && String(w.id || w.walletId) === String(tx.targetWalletId)) ||
+      w.name === cleanTargetWalletName ||
+      w.walletName === cleanTargetWalletName
+    );
+  }, [tx?.targetWallet, tx?.targetWalletId, wallets]);
+  
+  // Lấy owner email từ wallet
+  const getOwnerEmailFromWallet = (wallet) => {
+    if (!wallet) return null;
+    return wallet.ownerEmail || 
+           wallet.ownerContact || 
+           wallet.owner?.email ||
+           wallet.ownerUser?.email ||
+           null;
+  };
+  
+  // Ưu tiên lấy ownerEmail từ transaction object (đã được map trong mapTransferToFrontend)
+  // Nếu không có, mới tìm trong wallet
+  const sourceWalletOwnerEmail = useMemo(() => {
+    // Ưu tiên 1: Lấy từ transaction object (đã được map với đầy đủ thông tin, kể cả khi wallet đã rời)
+    if (tx?.sourceWalletOwnerEmail) {
+      return tx.sourceWalletOwnerEmail;
+    }
+    // Ưu tiên 2: Lấy từ wallet trong wallets list
+    return getOwnerEmailFromWallet(sourceWallet);
+  }, [tx?.sourceWalletOwnerEmail, sourceWallet]);
+  
+  const targetWalletOwnerEmail = useMemo(() => {
+    // Ưu tiên 1: Lấy từ transaction object (đã được map với đầy đủ thông tin, kể cả khi wallet đã rời)
+    if (tx?.targetWalletOwnerEmail) {
+      return tx.targetWalletOwnerEmail;
+    }
+    // Ưu tiên 2: Lấy từ wallet trong wallets list
+    return getOwnerEmailFromWallet(targetWallet);
+  }, [tx?.targetWalletOwnerEmail, targetWallet]);
+  
+  // Xác định xem có phải là giao dịch chuyển tiền không (phải khai báo trước khi dùng trong useMemo)
+  const isTransfer = !!tx?.sourceWallet && !!tx?.targetWallet;
+  
+  // Hàm xác định loại ví: ví cá nhân, ví nhóm, hoặc ví được chia sẻ
+  const getWalletTypeLabel = useCallback((wallet, walletId, savedRole = null) => {
+    if (!wallet && !walletId) return null;
+    
+    let walletType = "";
+    // Ưu tiên sử dụng savedRole (role đã lưu trong transaction object khi map)
+    // Đây là thông tin đáng tin cậy nhất vì được lưu tại thời điểm tạo transaction
+    let role = savedRole ? savedRole.toUpperCase() : "";
+    let isShared = false;
+    let isOwner = false;
+    
+    // Nếu có wallet trong wallets list, lấy thông tin từ đó (nhưng vẫn ưu tiên savedRole)
+    if (wallet) {
+      walletType = (wallet.walletType || wallet.type || "").toString().toUpperCase();
+      // Chỉ lấy role từ wallet nếu không có savedRole
+      if (!role) {
+        role = (wallet.walletRole || wallet.sharedRole || wallet.role || "").toString().toUpperCase();
+      }
+      isShared = !!wallet.isShared || !!(wallet.walletRole || wallet.sharedRole || wallet.role);
+      
+      // Kiểm tra xem user có phải là owner không
+      isOwner = 
+        (wallet.ownerUserId && currentUserId && String(wallet.ownerUserId) === String(currentUserId)) ||
+        ["OWNER", "MASTER", "ADMIN"].includes(role);
+    } else if (tx?.rawTransfer) {
+      // Nếu không có wallet trong list, thử lấy từ rawTransfer (cho trường hợp wallet đã rời hoặc bị xóa)
+      const transfer = tx.rawTransfer;
+      if (walletId && (String(walletId) === String(transfer.fromWallet?.walletId))) {
+        walletType = (transfer.fromWallet?.walletType || "").toString().toUpperCase();
+        // Chỉ lấy role từ rawTransfer nếu không có savedRole
+        if (!role) {
+          role = (transfer.fromWallet?.walletRole || transfer.fromWallet?.sharedRole || transfer.fromWallet?.role || "").toString().toUpperCase();
+        }
+        isShared = !!(transfer.fromWallet?.isShared || transfer.fromWallet?.walletRole || transfer.fromWallet?.sharedRole || transfer.fromWallet?.role);
+        isOwner = 
+          (transfer.fromWallet?.ownerUserId && currentUserId && String(transfer.fromWallet.ownerUserId) === String(currentUserId)) ||
+          ["OWNER", "MASTER", "ADMIN"].includes(role);
+      } else if (walletId && (String(walletId) === String(transfer.toWallet?.walletId))) {
+        walletType = (transfer.toWallet?.walletType || "").toString().toUpperCase();
+        // Chỉ lấy role từ rawTransfer nếu không có savedRole
+        if (!role) {
+          role = (transfer.toWallet?.walletRole || transfer.toWallet?.sharedRole || transfer.toWallet?.role || "").toString().toUpperCase();
+        }
+        isShared = !!(transfer.toWallet?.isShared || transfer.toWallet?.walletRole || transfer.toWallet?.sharedRole || transfer.toWallet?.role);
+        isOwner = 
+          (transfer.toWallet?.ownerUserId && currentUserId && String(transfer.toWallet.ownerUserId) === String(currentUserId)) ||
+          ["OWNER", "MASTER", "ADMIN"].includes(role);
+      }
+    }
+    
+    // ==== Quy tắc phân loại đơn giản, bám sát kỳ vọng người dùng ====
+    // 1. Ví nhóm (GROUP):
+    //    - Nếu user là OWNER/MASTER/ADMIN → "Ví nhóm"
+    //    - Ngược lại (MEMBER/USER/USE/VIEW/VIEWER/khác) → "Ví được chia sẻ"
+    // 2. Ví cá nhân (không phải GROUP):
+    //    - Nếu current user là owner → luôn "Ví cá nhân" (kể cả có chia sẻ cho người khác)
+    //    - Nếu không phải owner nhưng có isShared/role → "Ví được chia sẻ"
+    //    - Nếu không có thông tin gì đặc biệt → "Ví cá nhân"
+
+    if (walletType === "GROUP") {
+      // Nếu có role, dùng role để xác định
+      if (role) {
+        if (["OWNER", "MASTER", "ADMIN"].includes(role)) {
+          return "Ví nhóm";
+        }
+        if (["MEMBER", "USER", "USE", "VIEW", "VIEWER"].includes(role)) {
+          return "Ví được chia sẻ";
+        }
+      }
+      // Nếu không có role nhưng có thông tin isOwner từ wallet
+      if (wallet && isOwner !== undefined) {
+        if (isOwner) {
+          return "Ví nhóm";
+        }
+        // Nếu không phải owner và có isShared → "Ví được chia sẻ"
+        if (isShared) {
+          return "Ví được chia sẻ";
+        }
+      }
+      // Nếu không có thông tin gì (wallet đã xóa/rời và không có role đã lưu), không thể xác định
+      // Trả về null để UI không hiển thị loại ví (hoặc có thể hiển thị "Không xác định")
+      return null;
+    }
+    
+    // Ví cá nhân hoặc ví được chia sẻ: walletType !== "GROUP"
+    // Nếu current user là owner → luôn hiển thị "Ví cá nhân"
+    if (isOwner) {
+      return "Ví cá nhân";
+    }
+    
+    // Nếu không phải owner nhưng có dấu hiệu chia sẻ → "Ví được chia sẻ"
+    if (isShared || (role && ["MEMBER", "USER", "USE", "VIEW", "VIEWER"].includes(role))) {
+      return "Ví được chia sẻ";
+    }
+    
+    // Fallback: mặc định là ví cá nhân
+    return "Ví cá nhân";
+  }, [currentUserId, tx?.rawTransfer]);
+  
   if (!open || !tx) return null;
 
   const d = tx.date ? new Date(tx.date) : null;
   const dateStr = formatVietnamDate(d);
   const timeStr = formatVietnamTime(d);
 
-  const isTransfer = !!tx.sourceWallet && !!tx.targetWallet;
-
   const ui = (
     <>
       <style>{`
-        @keyframes fadeInModal { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes fadeInModal { 
+          from { 
+            opacity: 0;
+          } 
+          to { 
+            opacity: 1;
+          } 
+        }
 
         .tx-modal-overlay {
-          position: fixed; inset: 0;
-          background: rgba(15,23,42,0.45);
-          backdrop-filter: blur(6px);
-          -webkit-backdrop-filter: blur(6px);
-          display: flex; align-items: center; justify-content: center;
+          position: fixed; 
+          inset: 0;
+          background: rgba(0, 0, 0, 0.45);
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+          display: flex; 
+          align-items: center; 
+          justify-content: center;
           z-index: 2147483647;
-          animation: fadeInModal .2s ease-out;
+          animation: fadeInModal 0.15s ease-out;
         }
 
         .tx-modal {
-          width: 520px; max-width: 95%;
+          width: 560px; 
+          max-width: 95%;
           background: #fff;
-          border-radius: 20px;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+          border-radius: 24px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05);
           overflow: hidden;
           color: #111827;
           z-index: 2147483648;
+          animation: fadeInModal 0.15s ease-out;
+        }
+        
+        .tx-modal-header {
+          background: linear-gradient(90deg, rgb(11, 90, 165) 0%, rgb(12, 127, 176) 60%, rgb(10, 181, 192) 100%);
+          color: white;
+          padding: 20px 24px;
+          border-radius: 24px 24px 0 0;
+        }
+        
+        .tx-modal-header h5 {
+          color: white;
+          font-weight: 600;
+          font-size: 1.25rem;
+          margin: 0;
+        }
+        
+        .tx-modal-body {
+          padding: 24px;
+        }
+        
+        .tx-detail-item {
+          margin-bottom: 20px;
+        }
+        
+        .tx-detail-label {
+          font-size: 0.75rem;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-weight: 600;
+          margin-bottom: 6px;
+        }
+        
+        .tx-detail-value {
+          font-size: 1rem;
+          color: #111827;
+          font-weight: 500;
+        }
+        
+        .tx-category-with-icon {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .tx-category-icon {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: linear-gradient(135deg, rgba(11, 90, 165, 0.1) 0%, rgba(10, 181, 192, 0.1) 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: rgb(11, 90, 165);
+          font-size: 1.1rem;
         }
       `}</style>
 
       <div className="tx-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
         <div className="tx-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header border-0 pb-0" style={{ padding: "16px 22px 8px" }}>
-            <h5 className="modal-title fw-semibold">Chi tiết Giao dịch</h5>
-            <button type="button" className="btn-close" onClick={onClose} />
+          <div className="tx-modal-header d-flex justify-content-between align-items-center">
+            <h5>Chi tiết Giao dịch</h5>
+            <div className="d-flex gap-2">
+              {tx.isDeleted && (
+                <span className="badge bg-danger text-white" style={{ fontSize: "0.8rem" }}>
+                  Đã xoá
+                </span>
+              )}
+              {!tx.isDeleted && tx.isEdited && (
+                <span className="badge bg-warning text-dark" style={{ fontSize: "0.8rem" }}>
+                  Đã sửa
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="modal-body" style={{ padding: "12px 22px 18px" }}>
-            <div className="mb-3">
-              <div className="text-muted small mb-1">Loại giao dịch</div>
-              <div className="badge rounded-pill bg-light text-primary fw-semibold">
-                {isTransfer
-                  ? "Chuyển tiền giữa các ví"
-                  : tx.type === "income"
-                  ? "Thu nhập"
-                  : "Chi tiêu"}
+          <div className="tx-modal-body">
+            {/* Hiển thị "Loại giao dịch" cho tất cả các loại transaction, kể cả fund transaction */}
+            <div className="tx-detail-item">
+              <div className="tx-detail-label">Loại giao dịch</div>
+              <div>
+                <span 
+                  className="badge rounded-pill fw-semibold"
+                  style={{
+                    backgroundColor: isTransfer 
+                      ? "rgba(14, 165, 233, 0.1)" 
+                      : tx.type === "income" 
+                      ? "rgba(22, 163, 74, 0.1)" 
+                      : "rgba(220, 38, 38, 0.1)",
+                    color: isTransfer 
+                      ? "#0ea5e9" 
+                      : tx.type === "income" 
+                      ? "#16a34a" 
+                      : "#dc2626",
+                    padding: "6px 12px",
+                    fontSize: "0.875rem"
+                  }}
+                >
+                  {isTransfer
+                    ? "Chuyển tiền giữa các ví"
+                    : tx.type === "income"
+                    ? "Thu nhập"
+                    : "Chi tiêu"}
+                </span>
               </div>
             </div>
 
             <div className="row g-3">
-              {isTransfer ? (
+              {tx.isFundTransaction ? (
                 <>
-                  <div className="col-6">
-                    <label className="form-label small text-muted mb-1">Ví gửi</label>
-                    <div className="form-control-plaintext fw-semibold">{tx.sourceWallet}</div>
+                  <div className="col-12">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Quỹ</div>
+                      <div className="tx-detail-value">{tx.fundName || "-"}</div>
+                    </div>
                   </div>
                   <div className="col-6">
-                    <label className="form-label small text-muted mb-1">Ví nhận</label>
-                    <div className="form-control-plaintext fw-semibold">{tx.targetWallet}</div>
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Ví nguồn</div>
+                      <div className="tx-detail-value">{tx.sourceWallet || tx.walletName || "-"}</div>
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Ví quỹ</div>
+                      <div className="tx-detail-value">{tx.targetWallet || "-"}</div>
+                    </div>
+                  </div>
+                  <div className="col-12">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Số tiền</div>
+                      <div 
+                        className="tx-detail-value"
+                        style={{
+                          color: tx.type === "expense" ? "#dc2626" : "#16a34a",
+                          fontWeight: "600",
+                          fontSize: "1.1rem"
+                        }}
+                      >
+                        {tx.type === "expense" ? "-" : "+"}
+                        {formatMoney(tx.amount, tx.currency)}
+                      </div>
+                    </div>
+                  </div>
+                  {tx.transactionType && (
+                    <div className="col-12">
+                      <div className="tx-detail-item">
+                        <div className="tx-detail-label">Loại giao dịch quỹ</div>
+                        <div className="tx-detail-value">
+                          {tx.transactionType === "DEPOSIT" || tx.transactionType === "MANUAL_DEPOSIT" ? "Nạp tiền thủ công" :
+                           tx.transactionType === "AUTO_DEPOSIT" ? "Nạp tiền tự động" :
+                           tx.transactionType === "AUTO_DEPOSIT_RECOVERY" ? "Nạp bù tự động" :
+                           tx.transactionType === "WITHDRAW" ? "Rút tiền" :
+                           tx.transactionType === "SETTLE" ? "Tất toán quỹ" :
+                           tx.fundTransactionType === "DEPOSIT" || tx.fundTransactionType === "MANUAL_DEPOSIT" ? "Nạp tiền thủ công" :
+                           tx.fundTransactionType === "AUTO_DEPOSIT" ? "Nạp tiền tự động" :
+                           tx.fundTransactionType === "AUTO_DEPOSIT_RECOVERY" ? "Nạp bù tự động" :
+                           tx.fundTransactionType === "WITHDRAW" ? "Rút tiền" :
+                           tx.fundTransactionType === "SETTLE" ? "Tất toán quỹ" :
+                           tx.transactionType || tx.fundTransactionType || "-"}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : isTransfer ? (
+                <>
+                  <div className="col-6">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Ví gửi</div>
+                      <div className="tx-detail-value">{tx.sourceWallet}</div>
+                      {sourceWalletOwnerEmail && (
+                        <div className="tx-detail-value" style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "4px" }}>
+                          Chủ ví: {sourceWalletOwnerEmail}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Ví nhận</div>
+                      <div className="tx-detail-value">{tx.targetWallet}</div>
+                      {targetWalletOwnerEmail && (
+                        <div className="tx-detail-value" style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "4px" }}>
+                          Chủ ví: {targetWalletOwnerEmail}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="col-12">
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Số tiền</div>
+                      <div 
+                        className="tx-detail-value"
+                        style={{
+                          color: "#0ea5e9",
+                          fontWeight: "600",
+                          fontSize: "1.1rem"
+                        }}
+                      >
+                        {formatMoney(tx.amount, tx.currency)}
+                      </div>
+                    </div>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="col-6">
-                    <label className="form-label small text-muted mb-1">Ví</label>
-                    <div className="form-control-plaintext fw-semibold">{tx.walletName}</div>
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Ví</div>
+                      <div className="tx-detail-value">{tx.walletName}</div>
+                    </div>
                   </div>
+                  {/* Hiển thị "Chủ ví" luôn luôn, kể cả khi wallet đã rời hoặc bị xóa */}
                   <div className="col-6">
-                    <label className="form-label small text-muted mb-1">Số tiền</label>
-                    <div
-                      className={`form-control-plaintext fw-semibold ${
-                        tx.type === "expense" ? "text-danger" : "text-success"
-                      }`}
-                    >
-                      {tx.type === "expense" ? "-" : "+"}
-                      {formatMoney(tx.amount, tx.currency)}
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Chủ ví</div>
+                      <div className="tx-detail-value">
+                        {tx.ownerEmail ? (
+                          tx.ownerEmail
+                        ) : (
+                          <span style={{ color: "#9ca3af", fontStyle: "italic" }}>Không có thông tin</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={tx.ownerEmail ? "col-12" : "col-6"}>
+                    <div className="tx-detail-item">
+                      <div className="tx-detail-label">Số tiền</div>
+                      <div 
+                        className="tx-detail-value"
+                        style={{
+                          color: tx.type === "expense" ? "#dc2626" : "#16a34a",
+                          fontWeight: "600",
+                          fontSize: "1.1rem"
+                        }}
+                      >
+                        {tx.type === "expense" ? "-" : "+"}
+                        {formatMoney(tx.amount, tx.currency)}
+                      </div>
                     </div>
                   </div>
                 </>
               )}
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Ngày</label>
-                <div className="form-control-plaintext">{dateStr}</div>
+                <div className="tx-detail-item">
+                  <div className="tx-detail-label">Ngày</div>
+                  <div className="tx-detail-value">{dateStr}</div>
+                </div>
               </div>
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Giờ</label>
-                <div className="form-control-plaintext">{timeStr}</div>
+                <div className="tx-detail-item">
+                  <div className="tx-detail-label">Giờ</div>
+                  <div className="tx-detail-value">{timeStr}</div>
+                </div>
               </div>
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Danh mục</label>
-                <div className="form-control-plaintext">
-                  {tx.category || (isTransfer ? "Chuyển tiền giữa các ví" : "")}
+                <div className="tx-detail-item">
+                  <div className="tx-detail-label">Danh mục</div>
+                  <div className="tx-detail-value">
+                    <div className="tx-category-with-icon">
+                      <div className="tx-category-icon">
+                        <i className={`bi ${categoryIcon}`} />
+                      </div>
+                      <span>{tx.category || (isTransfer ? "Chuyển tiền giữa các ví" : "")}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div className="col-12">
-                <label className="form-label small text-muted mb-1">Ghi chú</label>
-                <div className="form-control-plaintext">
-                  {tx.note || <span className="text-muted fst-italic">Không có</span>}
+                <div className="tx-detail-item">
+                  <div className="tx-detail-label">Ghi chú</div>
+                  <div className="tx-detail-value">
+                    {tx.note || <span style={{ color: "#9ca3af", fontStyle: "italic" }}>Không có</span>}
+                  </div>
                 </div>
               </div>
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Mã giao dịch</label>
-                <div className="form-control-plaintext">{tx.code || "—"}</div>
+                <div className="tx-detail-item">
+                  <div className="tx-detail-label">Mã giao dịch</div>
+                  <div className="tx-detail-value" style={{ fontFamily: "monospace", fontSize: "0.9rem" }}>{tx.code || "—"}</div>
+                </div>
               </div>
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Mã người tạo</label>
-                <div className="form-control-plaintext">{tx.creatorCode || "—"}</div>
+                <div className="tx-detail-item">
+                  <div className="tx-detail-label">Mã người tạo</div>
+                  <div className="tx-detail-value" style={{ fontFamily: "monospace", fontSize: "0.9rem" }}>{tx.creatorCode || "—"}</div>
+                </div>
               </div>
 
               {tx.attachment && (
                 <div className="col-12">
-                  <label className="form-label small text-muted mb-1">Ảnh đính kèm</label>
-                  <div
-                    style={{
-                      width: 120,
-                      height: 90,
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      background: "#f3f4f6",
-                      border: "1px solid #e5e7eb",
-                    }}
-                  >
-                    <img
-                      src={tx.attachment}
-                      alt="Đính kèm"
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
+                  <div className="tx-detail-item">
+                    <div className="tx-detail-label">Ảnh đính kèm</div>
+                    <div
+                      style={{
+                        width: 160,
+                        height: 120,
+                        borderRadius: 16,
+                        overflow: "hidden",
+                        background: "#f3f4f6",
+                        border: "2px solid #e5e7eb",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                      }}
+                    >
+                      <img
+                        src={tx.attachment}
+                        alt="Đính kèm"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-          </div>
-
-          <div className="modal-footer border-0 pt-0" style={{ padding: "8px 22px 16px" }}>
-            <button className="btn btn-primary" onClick={onClose}>
-              Đóng
-            </button>
           </div>
         </div>
       </div>

@@ -40,6 +40,29 @@
   color: #d1d5db;
 }
 
+/* Dark mode cho global search - màu trắng đen */
+.dark .global-search-box {
+  background: #1a1a1a !important;
+  border-color: #ffffff !important;
+}
+
+.dark .global-search-icon {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.dark .global-search-input {
+  color: #ffffff !important;
+}
+
+.dark .global-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.dark .global-search-box:focus-within {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2) !important;
+}
+
 /* Dropdown Results */
 .global-search-results {
   position: absolute;

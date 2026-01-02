@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useDateFormat } from "./hooks/useDateFormat";
 
 // AUTH
 import LoginPage from "./pages/Auth/LoginPage";
@@ -11,7 +12,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import HomeLayout from "./layouts/HomeLayout";
 import DashboardPage from "./pages/Home/DashboardPage";
 import WalletsPage from "./pages/Home/WalletsPage"
-import WalletGroupsPage from "./pages/Home/WalletGroupsPage";
+
 import TransactionsPage from "./pages/Home/TransactionsPage";
 import BudgetsPage from "./pages/Home/BudgetsPage";
 import ReportsPage from "./pages/Home/ReportsPage";
@@ -20,9 +21,11 @@ import FeedbackPage from "./pages/Home/FeedbackPage";
 
 import FundsPage from "./pages/Home/FundsPage"; 
 import CategoriesPage from "./pages/Home/CategoriesPage";
+import ActivityHistoryPage from "./pages/Home/ActivityHistoryPage";
 import AdminUsersPage from "./pages/Admin/AdminUsersPage";
-
+import AdminReviewsPage from "./pages/Admin/AdminReviewsPage"; // hoặc tên file bạn đang dùng
 export default function App() {
+  useDateFormat();
   return (
     <BrowserRouter>
   <Routes>
@@ -39,7 +42,8 @@ export default function App() {
   <Route path="/home/*" element={<HomeLayout />}>  {/* thêm /* ở đây */}
     <Route index element={<DashboardPage />} />
     <Route path="wallets" element={<WalletsPage />} />
-    <Route path="wallet-groups" element={<WalletGroupsPage />} />
+    <Route path="activity" element={<ActivityHistoryPage />} />
+ 
     <Route path="transactions" element={<TransactionsPage />} />
   <Route path="categories" element={<CategoriesPage />} />
     <Route path="budgets" element={<BudgetsPage />} />
@@ -54,6 +58,7 @@ export default function App() {
     {/* ADMIN dùng lại HomeLayout để giữ sidebar/topbar */}
     <Route path="/admin/*" element={<HomeLayout />}>
       <Route path="users" element={<AdminUsersPage />} />
+      <Route path="reviews" element={<AdminReviewsPage />} />
     </Route>
   </Route>
 </Route>
