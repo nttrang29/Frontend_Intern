@@ -1,17 +1,14 @@
-# 🌐 Frontend - Ứng dụng Quản Lý Tài Chính Cá Nhân
-# Đây chỉ là frontend,hãy truy cập đường dẫn sau để vào backend:"https://github.com/tuanburh1134/final_project_I.git"
-## 📝 Giới thiệu
+# Frontend - Ứng dụng Quản Lý Tài Chính Cá Nhân
+## Giới thiệu
 Đây là phần **giao diện người dùng (UI)** của hệ thống quản lý tài chính cá nhân, được phát triển bằng **React.js** nhằm mang đến trải nghiệm trực quan, hiện đại và dễ sử dụng. Ứng dụng cho phép người dùng theo dõi thu chi, quản lý ví, thiết lập ngân sách và xem báo cáo tài chính một cách chi tiết.
 
-### 🎯 Mục tiêu
+### Mục tiêu
 - Giúp người dùng kiểm soát chi tiêu hàng ngày.
 - Hỗ trợ thiết lập ngân sách và cảnh báo khi vượt hạn mức.
 - Cung cấp báo cáo trực quan để phân tích xu hướng tài chính.
 - Tích hợp dễ dàng với backend thông qua API RESTful.
 
----
-
-## 🔍 Chức năng chính
+## Chức năng chính
 Ứng dụng bao gồm nhiều module và trang chức năng:
 
 - **Tổng quan (Dashboard)**  
@@ -44,9 +41,7 @@
 - **Phản hồi (Feedback)**  
   Cho phép người dùng gửi phản hồi về hệ thống.
 
----
-
-## 🛠 Công nghệ sử dụng
+## Công nghệ sử dụng
 - **React.js** (Hooks, Functional Components)
 - **React Router DOM** (Điều hướng giữa các trang)
 - **Axios** (Gọi API đến backend)
@@ -54,7 +49,3 @@
 - **Chart.js / Recharts** (Hiển thị biểu đồ)
 - **JWT** (Xác thực với backend)
 - **ESLint + Prettier** (Chuẩn hóa code)
-
----
-
-## 📂 Cấu trúc thư mục
